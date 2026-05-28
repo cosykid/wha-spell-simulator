@@ -9,3 +9,7 @@
 node_modules/
 dist/
 npm-debug.log*
+
+# Obsidian local vault state
+newdocs/.obsidian/
+newdocs/.trash/
