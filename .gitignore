@@ -11,5 +11,5 @@ dist/
 npm-debug.log*
 
 # Obsidian local vault state
-newdocs/.obsidian/
-newdocs/.trash/
+docs/.obsidian/
+docs/.trash/
