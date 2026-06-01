@@ -7,8 +7,16 @@
 
 # node
 node_modules/
-dist/
 npm-debug.log*
+
+# build output
+dist/
+build/
+.svelte-kit/
+
+# macOS
+.DS_Store
+Icon?
 
 # Obsidian local vault state
 docs/.obsidian/
