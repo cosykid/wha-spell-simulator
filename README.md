@@ -46,7 +46,7 @@ Install dependencies:
 npm install
 ```
 
-Start the Vite dev server:
+Start the SvelteKit dev server:
 
 ```sh
 npm start
@@ -58,15 +58,22 @@ Then open:
 http://127.0.0.1:5173/
 ```
 
+To build the static site (output in `build/`):
+
+```sh
+npm run build
+```
+
 ## Reference Tools
 
-These tools are available from the app:
+The standalone lab tools below are kept under `tools/` but are not yet wired
+into the SvelteKit build (they are pending migration to routes):
 
 ```txt
-/tools/strokeTemplateMaker.html
-/tools/strokeTemplateViewer.html
-/tools/sigilSignDetectorLab.html
-/tools/spellEffectLab.html
+tools/strokeTemplateMaker.html
+tools/strokeTemplateViewer.html
+tools/sigilSignDetectorLab.html
+tools/spellEffectLab.html
 ```
 
 ## Tests

@@ -2,15 +2,15 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 
-import { CONFIG } from "../src/config.js";
+import { CONFIG } from "../src/lib/config.js";
 import {
   boundsForStrokes,
   centerOfBounds,
   degreesToRadians,
   endpointClosedness,
   pathLength
-} from "../src/utils/geometry.js";
-import { recognizeCandidates } from "../src/parser/symbolRecognizer.js";
+} from "../src/lib/utils/geometry.js";
+import { recognizeCandidates } from "../src/lib/parser/symbolRecognizer.js";
 
 const lineTemplate = {
   sourceAspectRatio: 0.05,
@@ -36,8 +36,8 @@ const dictionary = {
 };
 
 const realDictionary = {
-  sigils: JSON.parse(readFileSync(new URL("../src/dictionary/sigils.json", import.meta.url), "utf8")),
-  signs: JSON.parse(readFileSync(new URL("../src/dictionary/signs.json", import.meta.url), "utf8"))
+  sigils: JSON.parse(readFileSync(new URL("../src/lib/dictionary/sigils.json", import.meta.url), "utf8")),
+  signs: JSON.parse(readFileSync(new URL("../src/lib/dictionary/signs.json", import.meta.url), "utf8"))
 };
 
 function stroke(id, points) {

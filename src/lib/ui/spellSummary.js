@@ -1,19 +1,6 @@
 import { GLYPH_WARNINGS } from "../parser/glyphWarnings.js";
 import { clamp } from "../utils/geometry.js";
 
-function updateMeter(element, valueElement, value) {
-  const normalized = clamp(value ?? 0);
-  const percent = `${Math.round(normalized * 100)}%`;
-  element.style.width = percent;
-  element.dataset.level = normalized < 0.33 ? "low" : normalized < 0.67 ? "medium" : "high";
-  valueElement.textContent = percent;
-}
-
-export function updateStatus(elements, status, className) {
-  elements.statusValue.textContent = status;
-  elements.statusValue.className = `spell-state-status ${className ?? ""}`.trim();
-}
-
 function spellStatusClass(spellIR, closedWithoutSpell, hasUnsupportedStructure) {
   if (hasUnsupportedStructure) {
     return "invalid";
@@ -70,35 +57,65 @@ function formatManifestations(spellIR) {
   return manifestations.map(([id]) => id).join(", ");
 }
 
-export function updateSummary({ elements, store, capture, pipeline, spellIR }) {
+/** Maps a normalized 0..1 meter value to a low/medium/high level. */
+export function meterLevel(value) {
+  const normalized = clamp(value ?? 0);
+  return normalized < 0.33 ? "low" : normalized < 0.67 ? "medium" : "high";
+}
+
+/** Formats a normalized 0..1 value as a rounded percentage string. */
+export function meterPercent(value) {
+  return `${Math.round(clamp(value ?? 0) * 100)}%`;
+}
+
+/**
+ * Derives the spell-state summary shown in the control panel from the current
+ * pipeline / IR. Returns plain data so the UI can render it reactively.
+ */
+export function computeSummary({ store, pipeline, spellIR, showGuides }) {
   const ringClosed = Boolean(pipeline?.ring?.complete);
   const hasUnsupportedMultipleRings = Boolean(pipeline?.ring?.unsupportedMultipleRings?.length);
   const hasUnsupportedMultipleSigils = Boolean(pipeline?.glyphAST?.unsupportedMultipleSigils?.length);
   const hasUnsupportedStructure = hasUnsupportedMultipleRings || hasUnsupportedMultipleSigils;
   const closedWithoutSpell = ringClosed && !spellIR?.active;
-  const status = hasUnsupportedMultipleRings
+
+  const statusText = hasUnsupportedMultipleRings
     ? "Multiple rings detected - undo or clear"
     : hasUnsupportedMultipleSigils
       ? "Multiple sigils detected - undo or clear"
-    : closedWithoutSpell
-      ? closedWithoutSpellStatus(spellIR)
-      : spellIR?.status ?? "No ring detected";
-  updateStatus(elements, status, spellStatusClass(spellIR, closedWithoutSpell, hasUnsupportedStructure));
+      : closedWithoutSpell
+        ? closedWithoutSpellStatus(spellIR)
+        : spellIR?.status ?? "No ring detected";
 
   const inputLocked = ringClosed || hasUnsupportedStructure;
   const undoLocked = ringClosed;
-  elements.undoButton.disabled = undoLocked || store.count() === 0;
-  elements.glyphCanvas.classList.toggle("locked", inputLocked);
-  elements.canvasShell.classList.toggle("portal-active", Boolean(spellIR?.active)); // tilting the paper angle
-  elements.canvasHint.classList.toggle("hidden", store.count() > 0 || !elements.guidesToggle.checked);
 
-  if (capture) {
-    capture.setLocked(inputLocked);
-  }
-
-  elements.elementValue.textContent = spellIR?.element ? spellIR.element : "None";
-  elements.manifestationValue.textContent = formatManifestations(spellIR);
-  updateMeter(elements.qualityMeter, elements.qualityMeterValue, spellIR?.quality ?? 0);
-  updateMeter(elements.stabilityMeter, elements.stabilityMeterValue, spellIR?.stability ?? 0);
-  updateMeter(elements.forceMeter, elements.forceMeterValue, spellIR?.force ?? 0);
+  return {
+    statusText,
+    statusClass: spellStatusClass(spellIR, closedWithoutSpell, hasUnsupportedStructure),
+    element: spellIR?.element ? spellIR.element : "None",
+    manifestation: formatManifestations(spellIR),
+    quality: clamp(spellIR?.quality ?? 0),
+    stability: clamp(spellIR?.stability ?? 0),
+    force: clamp(spellIR?.force ?? 0),
+    inputLocked,
+    undoDisabled: undoLocked || store.count() === 0,
+    portalActive: Boolean(spellIR?.active),
+    hintHidden: store.count() > 0 || !showGuides
+  };
 }
+
+/** The summary shown before the dictionary has loaded. */
+export const INITIAL_SUMMARY = {
+  statusText: "Loading",
+  statusClass: "",
+  element: "None",
+  manifestation: "None",
+  quality: 0,
+  stability: 0,
+  force: 0,
+  inputLocked: false,
+  undoDisabled: true,
+  portalActive: false,
+  hintHidden: false
+};

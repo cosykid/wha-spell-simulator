@@ -1,10 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { CONFIG } from "../src/config.js";
-import { classifyDrawing } from "../src/parser/drawingClassifier.js";
-import { detectRing } from "../src/parser/ringDetector.js";
-import { degreesToRadians } from "../src/utils/geometry.js";
+import { CONFIG } from "../src/lib/config.js";
+import { classifyDrawing } from "../src/lib/parser/drawingClassifier.js";
+import { detectRing } from "../src/lib/parser/ringDetector.js";
+import { degreesToRadians } from "../src/lib/utils/geometry.js";
 
 function arcStroke(id, centerX, centerY, radius, startDeg, endDeg, steps) {
   const points = [];

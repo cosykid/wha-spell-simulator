@@ -1,9 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { CONFIG } from "../src/config.js";
-import { compileSpell } from "../src/compiler/spellBuilder.js";
-import { GLYPH_WARNINGS } from "../src/parser/glyphWarnings.js";
+import { CONFIG } from "../src/lib/config.js";
+import { compileSpell } from "../src/lib/compiler/spellBuilder.js";
+import { GLYPH_WARNINGS } from "../src/lib/parser/glyphWarnings.js";
 
 function glyphAST({
   ringComplete = false,
