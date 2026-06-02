@@ -1,7 +1,7 @@
-import { CONFIG } from "../src/config.js";
-import { loadDictionary } from "../src/dictionary/dictionaryLoader.js";
-import { DrawingCapture } from "../src/input/drawingCapture.js";
-import { createStrokeStore } from "../src/input/strokeStore.js";
+import { CONFIG } from "../src/lib/config.js";
+import { loadDictionary } from "../src/lib/dictionary/dictionaryLoader.js";
+import { DrawingCapture } from "../src/lib/input/drawingCapture.js";
+import { createStrokeStore } from "../src/lib/input/strokeStore.js";
 import {
   allPoints,
   angleDegFromCenter,
@@ -14,14 +14,14 @@ import {
   dominantAxisOrientationDeg,
   endpointClosedness,
   strokeLength
-} from "../src/utils/geometry.js";
-import { cleanStrokes } from "../src/parser/strokeCleaner.js";
-import { recognizeCandidates } from "../src/parser/symbolRecognizer.js";
-import { scoreStrokeTemplate } from "../src/parser/templateMatcher.js";
-import { normalizeStrokesForTemplate } from "../src/parser/templateNormalizer.js";
-import { writeJson } from "../src/debug/debugOverlay.js";
-import { drawStrokes } from "../src/renderer/glyphOverlayRenderer.js";
-import { drawPaper } from "../src/renderer/paperRenderer.js";
+} from "../src/lib/utils/geometry.js";
+import { cleanStrokes } from "../src/lib/parser/strokeCleaner.js";
+import { recognizeCandidates } from "../src/lib/parser/symbolRecognizer.js";
+import { scoreStrokeTemplate } from "../src/lib/parser/templateMatcher.js";
+import { normalizeStrokesForTemplate } from "../src/lib/parser/templateNormalizer.js";
+import { writeJson } from "../src/lib/debug/debugOverlay.js";
+import { drawStrokes } from "../src/lib/renderer/glyphOverlayRenderer.js";
+import { drawPaper } from "../src/lib/renderer/paperRenderer.js";
 
 const elements = {
   canvas: document.querySelector("#detectorCanvas"),

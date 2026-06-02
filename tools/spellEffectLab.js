@@ -1,14 +1,14 @@
-import { CONFIG } from "../src/config.js";
-import { directionFromTiltAngles } from "../src/compiler/spellDirection.js";
-import { writeJson } from "../src/debug/debugOverlay.js";
-import { drawGlowingStrokes } from "../src/renderer/glyphOverlayRenderer.js";
-import { drawGuides, drawPaper } from "../src/renderer/paperRenderer.js";
-import { SpellEffectRenderer } from "../src/renderer/spellEffectRenderer.js";
+import { CONFIG } from "../src/lib/config.js";
+import { directionFromTiltAngles } from "../src/lib/compiler/spellDirection.js";
+import { writeJson } from "../src/lib/debug/debugOverlay.js";
+import { drawGlowingStrokes } from "../src/lib/renderer/glyphOverlayRenderer.js";
+import { drawGuides, drawPaper } from "../src/lib/renderer/paperRenderer.js";
+import { SpellEffectRenderer } from "../src/lib/renderer/spellEffectRenderer.js";
 import {
   activePortalPlane,
   convergenceFlow,
   resetParticleState
-} from "../src/renderer/effects/effectUtils.js";
+} from "../src/lib/renderer/effects/effectUtils.js";
 
 const elements = {
   glyphCanvas: document.querySelector("#labGlyphCanvas"),

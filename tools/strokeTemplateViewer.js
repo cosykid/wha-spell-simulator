@@ -1,5 +1,5 @@
-import { CONFIG } from "../src/config.js";
-import { drawPaper } from "../src/renderer/paperRenderer.js";
+import { CONFIG } from "../src/lib/config.js";
+import { drawPaper } from "../src/lib/renderer/paperRenderer.js";
 
 const elements = {
   canvas: document.querySelector("#previewCanvas"),

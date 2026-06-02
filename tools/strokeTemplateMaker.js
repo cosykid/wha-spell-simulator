@@ -1,9 +1,9 @@
-import { CONFIG } from "../src/config.js";
-import { DrawingCapture } from "../src/input/drawingCapture.js";
-import { createStrokeStore } from "../src/input/strokeStore.js";
-import { normalizeStrokesForTemplate } from "../src/parser/templateNormalizer.js";
-import { drawStrokes } from "../src/renderer/glyphOverlayRenderer.js";
-import { drawPaper } from "../src/renderer/paperRenderer.js";
+import { CONFIG } from "../src/lib/config.js";
+import { DrawingCapture } from "../src/lib/input/drawingCapture.js";
+import { createStrokeStore } from "../src/lib/input/strokeStore.js";
+import { normalizeStrokesForTemplate } from "../src/lib/parser/templateNormalizer.js";
+import { drawStrokes } from "../src/lib/renderer/glyphOverlayRenderer.js";
+import { drawPaper } from "../src/lib/renderer/paperRenderer.js";
 
 const elements = {
   canvas: document.querySelector("#templateCanvas"),

@@ -1,0 +1,55 @@
+.diagnostic-json {
+  color: #d7ecdc;
+  background: #1d2b25;
+  white-space: normal;
+}
+
+.diagnostic-json .json-row {
+  margin-left: 10px;
+  min-height: 1.45em;
+}
+
+.diagnostic-json .json-node {
+  margin: 0;
+}
+
+.diagnostic-json .json-summary {
+  align-items: baseline;
+  cursor: pointer;
+  list-style-position: outside;
+  user-select: none;
+}
+
+.diagnostic-json .json-children {
+  margin-left: 4px;
+  border-left: 1px solid rgba(215, 236, 220, 0.18);
+}
+
+.diagnostic-json .json-key {
+  color: #8ec5ff;
+}
+
+.diagnostic-json .json-string {
+  color: #9cdc7c;
+}
+
+.diagnostic-json .json-number {
+  color: #f7c56b;
+}
+
+.diagnostic-json .json-boolean {
+  color: #ff8ec7;
+}
+
+.diagnostic-json .json-null {
+  color: #a8a39a;
+}
+
+.diagnostic-json .json-punctuation {
+  color: #f0d28a;
+}
+
+.diagnostic-json .json-meta {
+  color: #9bb3a4;
+  font-style: italic;
+}
