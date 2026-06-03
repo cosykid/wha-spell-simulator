@@ -66,14 +66,16 @@ npm run build
 
 ## Reference Tools
 
-The standalone lab tools below are kept under `tools/` but are not yet wired
-into the SvelteKit build (they are pending migration to routes):
+Companion lab tools are built into the app as SvelteKit routes and share the
+simulator's core modules. Start the dev server (`npm start`) and open the
+`/tools` index, or link to it from the **Tools** button in the app header:
 
 ```txt
-tools/strokeTemplateMaker.html
-tools/strokeTemplateViewer.html
-tools/sigilSignDetectorLab.html
-tools/spellEffectLab.html
+/tools                          Index of all reference tools
+/tools/stroke-template-maker    Draw a symbol and export a strokeTemplate
+/tools/stroke-template-viewer   Preview a pasted strokeTemplate and its metrics
+/tools/sigil-sign-detector-lab  Score a drawn symbol against the dictionary
+/tools/spell-effect-lab         Tune a synthetic SpellIR and preview effects
 ```
 
 ## Tests

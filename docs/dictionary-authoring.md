@@ -248,16 +248,16 @@ For example, a sign at the top of the ring, `90` degrees, is compared with a 180
 
 ## Creating A Template With The Reference Maker
 
-The tool is currently at:
+The tool is a SvelteKit route at:
 
 ```txt
-/tools/strokeTemplateMaker.html
+/tools/stroke-template-maker
 ```
 
 Workflow:
 
-1. Start the local static server.
-2. Open the reference maker.
+1. Start the dev server with `npm start`.
+2. Open the reference maker (linked from the `/tools` index).
 3. Draw one clean sigil or sign reference on the paper.
 4. Click `Export`.
 5. Copy the exported JSON object.
@@ -268,7 +268,7 @@ Workflow:
 Use the reverse viewer when you want to inspect a `strokeTemplate` from JSON:
 
 ```txt
-/tools/strokeTemplateViewer.html
+/tools/stroke-template-viewer
 ```
 
 The viewer accepts either:

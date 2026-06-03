@@ -1,5 +1,6 @@
 <script>
   import { onMount } from "svelte";
+  import { base } from "$app/paths";
 
   import { CONFIG } from "$lib/config.js";
   import { compileSpell } from "$lib/compiler/spellBuilder.js";
@@ -182,6 +183,7 @@
       <h1>Witch Hat Atelier Spell Simulator</h1>
     </div>
     <div class="header-actions">
+      <a class="header-link" href="{base}/tools">Tools</a>
       <a class="header-link" href="https://github.com/ytnrvdf/wha-spell-simulator" target="_blank" rel="noreferrer">GitHub</a>
     </div>
   </header>
