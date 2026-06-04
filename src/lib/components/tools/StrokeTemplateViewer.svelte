@@ -1,6 +1,7 @@
-<script>
+<script lang="ts">
   import { onMount } from "svelte";
   import { base } from "$app/paths";
+  import type { StrokeTemplate } from "$lib/types.js";
 
   import { CONFIG } from "$lib/config.js";
   import { drawPaper } from "$lib/renderer/paperRenderer.js";
@@ -18,10 +19,10 @@
   let metrics = $state(PLACEHOLDER);
   let status = $state({ text: "Ready", className: "" });
 
-  let canvas;
-  let ctx = null;
+  let canvas: HTMLCanvasElement;
+  let ctx: CanvasRenderingContext2D | null = null;
 
-  function setStatus(text, className = "") {
+  function setStatus(text: string, className = "") {
     status = { text, className };
   }
 
@@ -31,8 +32,11 @@
     }
   }
 
-  function drawTemplate(template) {
+  function drawTemplate(template: StrokeTemplate) {
     clearPreview();
+    if (!ctx) {
+      return;
+    }
 
     const bounds = drawingBounds(template, canvas.width, canvas.height);
     ctx.save();
@@ -72,7 +76,7 @@
       setStatus("Rendered", "prepared");
     } catch (error) {
       clearPreview();
-      metrics = error.message;
+      metrics = error instanceof Error ? error.message : String(error);
       setStatus("Invalid JSON", "invalid");
     }
   }

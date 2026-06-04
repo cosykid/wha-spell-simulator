@@ -1,5 +1,13 @@
-<script>
-  let { dictionary = null } = $props();
+<script lang="ts">
+  import type { Dictionary, DictionaryEntry, Point, SampleSpell } from "$lib/types.js";
+
+  type ReferenceEntry = DictionaryEntry & { element?: string; sourceNotes?: string };
+
+  interface Props {
+    dictionary?: Dictionary | null;
+  }
+
+  let { dictionary = null }: Props = $props();
 
   let activeTab = $state("sample");
 
@@ -9,7 +17,7 @@
 
   // Project normalized 0..1 stroke points into the 100x100 preview viewBox,
   // matching the original 8 + value * 84 inset mapping.
-  function toPolylines(strokes) {
+  function toPolylines(strokes: Point[][] | undefined) {
     if (!strokes?.length) {
       return [];
     }
@@ -33,7 +41,7 @@
   }
 </script>
 
-{#snippet strokePreview(strokes)}
+{#snippet strokePreview(strokes: Point[][] | undefined)}
   {@const polylines = toPolylines(strokes)}
   {#if polylines.length}
     <div class="reference-preview" aria-hidden="true">
@@ -46,7 +54,7 @@
   {/if}
 {/snippet}
 
-{#snippet referenceCard(entry, kind)}
+{#snippet referenceCard(entry: ReferenceEntry, kind: "sigil" | "sign")}
   {@const template = entry.strokeTemplate ?? null}
   {@const hasTemplate = Boolean(template?.strokes?.length)}
   <article class="reference-card {hasTemplate ? 'has-template' : ''}">
@@ -70,7 +78,7 @@
   </article>
 {/snippet}
 
-{#snippet sampleCard(sample)}
+{#snippet sampleCard(sample: SampleSpell)}
   {@const hasTemplate = Boolean(sample.strokes?.length)}
   {@const manifestations = sample.manifestations?.length ? sample.manifestations.join(", ") : "none"}
   <article class="reference-card {hasTemplate ? 'has-template' : ''}">

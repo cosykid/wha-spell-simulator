@@ -1,6 +1,7 @@
-<script>
+<script lang="ts">
   import { onMount } from "svelte";
   import { base } from "$app/paths";
+  import type { RingInfo } from "$lib/types.js";
 
   import { CONFIG } from "$lib/config.js";
   import { writeJson } from "$lib/debug/debugOverlay.js";
@@ -22,16 +23,16 @@
   const controlEntries = Object.entries(EFFECT_CONTROLS);
 
   let element = $state(DEFAULT_ELEMENT);
-  let values = $state(defaultControlValues());
+  let values = $state<Record<string, number>>(defaultControlValues());
   let irInput = $state("");
   let status = $state({ text: "Ready", className: "" });
   let activatedAt = $state(0);
 
-  let glyphCanvas;
-  let effectCanvas;
-  let canvasShell;
-  let irPre = $state(null);
-  let effectRenderer = null;
+  let glyphCanvas: HTMLCanvasElement;
+  let effectCanvas: HTMLCanvasElement;
+  let canvasShell: HTMLDivElement;
+  let irPre = $state<HTMLPreElement | null>(null);
+  let effectRenderer: SpellEffectRenderer | null = null;
 
   const irJson = $derived(roundDeep(buildSpellIR({ values, element, activatedAt, config: CONFIG })));
 
@@ -41,7 +42,7 @@
     }
   });
 
-  function setStatus(text, className = "") {
+  function setStatus(text: string, className = "") {
     status = { text, className };
   }
 
@@ -59,7 +60,7 @@
     resetParticles();
   }
 
-  function handleSlider(key, event) {
+  function handleSlider(key: string, event: Event & { currentTarget: HTMLInputElement }) {
     values[key] = Number(event.currentTarget.value);
     restartSpell();
   }
@@ -74,7 +75,7 @@
       restartSpell();
       setStatus("IR applied", "active");
     } catch (error) {
-      setStatus(error.message, "invalid");
+      setStatus(error instanceof Error ? error.message : String(error), "invalid");
     }
   }
 
@@ -90,11 +91,11 @@
   }
 
   onMount(() => {
-    const glyphCtx = glyphCanvas.getContext("2d");
-    const effectCtx = effectCanvas.getContext("2d");
+    const glyphCtx = glyphCanvas.getContext("2d")!;
+    const effectCtx = effectCanvas.getContext("2d")!;
     effectRenderer = new SpellEffectRenderer(effectCanvas, CONFIG);
     activatedAt = performance.now();
-    let rafId = null;
+    let rafId: number | null = null;
 
     function buildRing() {
       const width = glyphCanvas.width;
@@ -108,7 +109,7 @@
       };
     }
 
-    function buildRingStroke(ring) {
+    function buildRingStroke(ring: RingInfo) {
       const points = [];
       for (let index = 0; index <= 96; index += 1) {
         const angle = (index / 96) * Math.PI * 2;
@@ -120,7 +121,7 @@
       return { id: "lab-ring", points };
     }
 
-    function buildSigilStroke(ring) {
+    function buildSigilStroke(ring: RingInfo) {
       const radius = ring.radius * (0.16 + values.effectScale * 0.035);
       const points = [];
       // pentagram example
@@ -134,7 +135,7 @@
       return { id: "lab-sigil", points };
     }
 
-    function drawSyntheticGlyph(ring, timestamp) {
+    function drawSyntheticGlyph(ring: RingInfo, timestamp: number) {
       const width = glyphCanvas.width;
       const height = glyphCanvas.height;
       const ringStroke = buildRingStroke(ring);
@@ -173,7 +174,7 @@
       );
     }
 
-    function drawConvergencePathGuide(spellIR, ring) {
+    function drawConvergencePathGuide(spellIR: ReturnType<typeof buildSpellIR>, ring: RingInfo) {
       const convergence = spellIR.manifestations?.convergence;
       if (!convergence?.strength) {
         return;
@@ -226,12 +227,12 @@
       resetParticles();
     }
 
-    function animationFrame(timestamp) {
+    function animationFrame(timestamp: number) {
       resizeCanvases();
       const ring = buildRing();
       const spellIR = buildSpellIR({ values, element, activatedAt, config: CONFIG });
       drawSyntheticGlyph(ring, timestamp);
-      effectRenderer.render(spellIR, ring, timestamp, { showGuides: false });
+      effectRenderer!.render(spellIR, ring, timestamp, { showGuides: false });
       drawConvergencePathGuide(spellIR, ring);
       rafId = requestAnimationFrame(animationFrame);
     }

@@ -1,6 +1,12 @@
-<script>
+<script lang="ts">
   import { onMount } from "svelte";
   import { base } from "$app/paths";
+  import type {
+    ClassifiedDrawing,
+    Dictionary,
+    RingInfo,
+    SpellIR
+  } from "$lib/types.js";
 
   import { CONFIG } from "$lib/config.js";
   import { compileSpell } from "$lib/compiler/spellBuilder.js";
@@ -18,27 +24,27 @@
   import Diagnostics from "$lib/components/Diagnostics.svelte";
 
   // Reactive UI state.
-  let dictionary = $state(null);
-  let summary = $state({ ...INITIAL_SUMMARY });
-  let diagnostics = $state({ ast: null, ir: null, parser: null });
+  let dictionary = $state<Dictionary | null>(null);
+  let summary = $state<typeof INITIAL_SUMMARY>({ ...INITIAL_SUMMARY });
+  let diagnostics = $state<{ ast: unknown; ir: unknown; parser: unknown }>({ ast: null, ir: null, parser: null });
   let showGuides = $state(true);
   let showDiagnostics = $state(false);
   let rootTab = $state("dictionary");
 
   // Bound DOM nodes.
-  let glyphCanvas;
-  let effectCanvas;
-  let canvasShell;
+  let glyphCanvas: HTMLCanvasElement;
+  let effectCanvas: HTMLCanvasElement;
+  let canvasShell: HTMLDivElement;
 
   // Imperative pipeline state (read by the render loop, not the template).
   const store = createStrokeStore();
-  let renderer = null;
-  let capture = null;
-  let pipeline = null;
-  let spellIR = null;
-  let previousRing = null;
-  let resizeObserver = null;
-  let rafId = null;
+  let renderer: CanvasRenderer | null = null;
+  let capture: DrawingCapture | null = null;
+  let pipeline: ClassifiedDrawing | null = null;
+  let spellIR: SpellIR | null = null;
+  let previousRing: RingInfo | null = null;
+  let resizeObserver: ResizeObserver | null = null;
+  let rafId: number | null = null;
 
   function buildDiagnostics() {
     const state = buildDiagnosticState({
@@ -71,23 +77,23 @@
       config: CONFIG
     });
     previousRing = pipeline.ring;
-    spellIR = compileSpell({ glyphAST: pipeline.glyphAST, dictionary, config: CONFIG });
+    spellIR = compileSpell({ glyphAST: pipeline.glyphAST, config: CONFIG });
     summary = computeSummary({ store, pipeline, spellIR, showGuides });
     capture?.setLocked(summary.inputLocked);
     diagnostics = buildDiagnostics();
   }
 
-  function animationFrame(timestamp) {
-    renderer.renderGlyph({
+  function animationFrame(timestamp: number) {
+    renderer!.renderGlyph({
       strokes: store.getStrokes(),
-      currentStroke: capture.getCurrentStroke(),
+      currentStroke: capture!.getCurrentStroke(),
       pipeline,
       showGuides,
       showDebug: showDiagnostics
     });
 
     if (spellIR?.active) {
-      renderer.renderActivatedGlyph({
+      renderer!.renderActivatedGlyph({
         activatedAt: spellIR.activatedAt,
         duration: spellIR.duration,
         strokes: store.getStrokes(),
@@ -96,7 +102,7 @@
       });
     }
 
-    renderer.renderEffect({
+    renderer!.renderEffect({
       spellIR,
       ring: pipeline?.ring,
       timestamp,

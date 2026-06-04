@@ -1,5 +1,26 @@
-<script>
+<script lang="ts">
   import { meterLevel, meterPercent } from "$lib/ui/spellSummary.js";
+
+  interface Summary {
+    statusText: string;
+    statusClass: string;
+    element: string;
+    manifestation: string;
+    quality: number;
+    stability: number;
+    force: number;
+    undoDisabled: boolean;
+    [key: string]: unknown;
+  }
+
+  interface Props {
+    summary: Summary;
+    showGuides?: boolean;
+    showDiagnostics?: boolean;
+    onUndo?: () => void;
+    onClear?: () => void;
+    onToggleGuides?: () => void;
+  }
 
   let {
     summary,
@@ -8,7 +29,7 @@
     onUndo,
     onClear,
     onToggleGuides
-  } = $props();
+  }: Props = $props();
 
   const meters = $derived([
     { label: "Quality", value: summary.quality },
