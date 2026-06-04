@@ -1,6 +1,7 @@
-<script>
+<script lang="ts">
   import { onMount } from "svelte";
   import { base } from "$app/paths";
+  import type { Dictionary, Point, SigilEntry, StrokeTemplate } from "$lib/types.js";
 
   import { CONFIG } from "$lib/config.js";
   import { loadDictionary } from "$lib/dictionary/dictionaryLoader.js";
@@ -19,21 +20,21 @@
     statusLabel
   } from "$lib/ui/sigilDetector.js";
 
-  let dictionary = $state(null);
+  let dictionary = $state<Dictionary | null>(null);
   let mode = $state("all");
   let referenceId = $state("");
   let paperOverlay = $state(true);
-  let analysis = $state({ cleanedStrokes: [], candidate: null, recognition: null, matches: [] });
+  let analysis = $state<ReturnType<typeof analyzeStrokes>>({ cleanedStrokes: [], candidate: null, recognition: null, matches: [] });
   let strokeCount = $state(0);
   let status = $state({ text: "Loading", className: "" });
 
-  let canvas;
-  let ctx = null;
+  let canvas: HTMLCanvasElement;
+  let ctx: CanvasRenderingContext2D | null = null;
   const store = createStrokeStore();
-  let capture = null;
+  let capture: DrawingCapture | null = null;
 
-  let recognitionPre = $state(null);
-  let candidatePre = $state(null);
+  let recognitionPre = $state<HTMLPreElement | null>(null);
+  let candidatePre = $state<HTMLPreElement | null>(null);
 
   const recognition = $derived(analysis.recognition);
   const bestMatch = $derived(analysis.matches[0]?.templateMatch ?? null);
@@ -71,11 +72,14 @@
     }
   });
 
-  function setStatus(text, className = "") {
+  type DetectorMatch = ReturnType<typeof analyzeStrokes>["matches"][number];
+  type DetectorCandidate = NonNullable<ReturnType<typeof analyzeStrokes>["candidate"]>;
+
+  function setStatus(text: string, className = "") {
     status = { text, className };
   }
 
-  function previewPolylines(strokeTemplate) {
+  function previewPolylines(strokeTemplate: StrokeTemplate | undefined) {
     return normalizedTemplateStrokes(strokeTemplate)
       .map((stroke) =>
         stroke
@@ -122,14 +126,14 @@
     analyze();
   }
 
-  function selectedReferenceEntry() {
+  function selectedReferenceEntry(): SigilEntry | null {
     if (!paperOverlay || !referenceId || !dictionary?.sigils?.length) {
       return null;
     }
     return dictionary.sigils.find((entry) => entry.id === referenceId) ?? null;
   }
 
-  function templatePointToCanvas(point, candidate, rotationDeg) {
+  function templatePointToCanvas(point: Point, candidate: DetectorCandidate, rotationDeg: number) {
     const rotated = rotateTemplatePoint(point, rotationDeg);
     const scale = Math.max(candidate.bounds.width, candidate.bounds.height, 1);
     return {
@@ -138,13 +142,13 @@
     };
   }
 
-  function drawReferenceOverlay(candidate, match) {
+  function drawReferenceOverlay(candidate: DetectorCandidate | null, match: DetectorMatch | undefined) {
     const strokes = normalizedTemplateStrokes(match?.entry?.strokeTemplate);
-    if (!candidate || !strokes.length) {
+    if (!candidate || !strokes.length || !ctx) {
       return;
     }
 
-    const rotationDeg = match.templateMatch?.rotationDeg ?? 0;
+    const rotationDeg = match?.templateMatch?.rotationDeg ?? 0;
 
     ctx.save();
     ctx.lineCap = "round";
@@ -189,9 +193,9 @@
     ctx.restore();
   }
 
-  function drawTraceReferenceOverlay(entry) {
+  function drawTraceReferenceOverlay(entry: SigilEntry | null) {
     const strokes = normalizedTemplateStrokes(entry?.strokeTemplate);
-    if (!strokes.length) {
+    if (!strokes.length || !ctx) {
       return;
     }
 
@@ -240,9 +244,12 @@
 
   onMount(() => {
     ctx = canvas.getContext("2d");
-    let rafId = null;
+    let rafId: number | null = null;
 
     function render() {
+      if (!ctx) {
+        return;
+      }
       drawPaper(ctx, canvas.width, canvas.height);
       if (paperOverlay) {
         drawTraceReferenceOverlay(selectedReferenceEntry());
@@ -253,7 +260,7 @@
         drawReferenceOverlay(analysis.candidate, analysis.matches[0]);
       }
 
-      if (paperOverlay && analysis.candidate?.bounds) {
+      if (paperOverlay && analysis.candidate?.bounds && ctx) {
         const { bounds } = analysis.candidate;
         ctx.save();
         ctx.strokeStyle = analysis.recognition?.recognized

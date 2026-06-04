@@ -1,14 +1,26 @@
-<script>
+<script lang="ts">
   import { writeJson } from "$lib/debug/debugOverlay.js";
 
-  let { diagnostics } = $props();
+  type DiagnosticKey = "parser" | "ast" | "ir";
 
-  let activeTab = $state("parser");
-  let copyLabels = $state({ parser: "Copy", ast: "Copy", ir: "Copy" });
+  interface Diagnostics {
+    parser: unknown;
+    ast: unknown;
+    ir: unknown;
+  }
 
-  let parserPre = $state(null);
-  let astPre = $state(null);
-  let irPre = $state(null);
+  interface Props {
+    diagnostics: Diagnostics;
+  }
+
+  let { diagnostics }: Props = $props();
+
+  let activeTab = $state<DiagnosticKey>("parser");
+  let copyLabels = $state<Record<DiagnosticKey, string>>({ parser: "Copy", ast: "Copy", ir: "Copy" });
+
+  let parserPre = $state<HTMLPreElement | null>(null);
+  let astPre = $state<HTMLPreElement | null>(null);
+  let irPre = $state<HTMLPreElement | null>(null);
 
   // Reuse the existing collapsible JSON-tree renderer, driving it imperatively
   // whenever the diagnostic state changes. writeJson also stashes the raw JSON
@@ -25,9 +37,9 @@
     }
   });
 
-  async function copy(key, panel) {
+  async function copy(key: DiagnosticKey, panel: HTMLPreElement | null) {
     const text = panel?.dataset.rawJson ?? panel?.textContent ?? "";
-    if (!text.trim()) {
+    if (!text.trim() || !panel) {
       return;
     }
 
@@ -41,10 +53,10 @@
       const selection = window.getSelection();
       const range = document.createRange();
       range.selectNodeContents(panel);
-      selection.removeAllRanges();
-      selection.addRange(range);
+      selection?.removeAllRanges();
+      selection?.addRange(range);
       document.execCommand("copy");
-      selection.removeAllRanges();
+      selection?.removeAllRanges();
     }
   }
 </script>

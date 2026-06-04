@@ -1,4 +1,4 @@
-<script>
+<script lang="ts">
   import { onMount } from "svelte";
   import { base } from "$app/paths";
 
@@ -12,11 +12,11 @@
   let status = $state({ text: "Loading", className: "" });
   let output = $state("");
 
-  let canvas;
+  let canvas: HTMLCanvasElement;
   const store = createStrokeStore();
-  let capture = null;
+  let capture: DrawingCapture | null = null;
 
-  function setStatus(text, className = "") {
+  function setStatus(text: string, className = "") {
     status = { text, className };
   }
 
@@ -51,7 +51,7 @@
   }
 
   onMount(() => {
-    const ctx = canvas.getContext("2d");
+    const ctx = canvas.getContext("2d")!;
 
     function render() {
       drawPaper(ctx, canvas.width, canvas.height);
@@ -73,7 +73,7 @@
       rafId = requestAnimationFrame(render);
     }
 
-    let rafId = null;
+    let rafId: number | null = null;
     capture = new DrawingCapture(canvas, store, CONFIG, {
       onCommit: () => setStatus("Drawing captured", "prepared")
     });
