@@ -289,13 +289,13 @@ The export should look like:
 
 ```json
 {
-  "sourceAspectRatio": 1.12,
-  "strokes": [
-    [
-      { "x": 0, "y": 0.5 },
-      { "x": 1, "y": 0.5 }
-    ]
-  ]
+	"sourceAspectRatio": 1.12,
+	"strokes": [
+		[
+			{ "x": 0, "y": 0.5 },
+			{ "x": 1, "y": 0.5 }
+		]
+	]
 }
 ```
 
@@ -303,12 +303,12 @@ Paste it like:
 
 ```json
 {
-  "id": "example-sign",
-  "displayName": "Example Sign",
-  "strokeTemplate": {
-    "sourceAspectRatio": 1.12,
-    "strokes": []
-  }
+	"id": "example-sign",
+	"displayName": "Example Sign",
+	"strokeTemplate": {
+		"sourceAspectRatio": 1.12,
+		"strokes": []
+	}
 }
 ```
 
@@ -330,22 +330,22 @@ Minimal shape:
 
 ```json
 {
-  "id": "example-sigil",
-  "displayName": "Example Sigil",
-  "element": "light",
-  "allowedLayers": ["center", "middle", "outer"],
-  "strokeTemplate": {
-    "sourceAspectRatio": 1,
-    "strokes": []
-  },
-  "recognitionRotationInvariant": false,
-  "semantic": {
-    "force": 0,
-    "focus": 0,
-    "spread": 0,
-    "range": 0,
-    "lifetimeBias": 0
-  }
+	"id": "example-sigil",
+	"displayName": "Example Sigil",
+	"element": "light",
+	"allowedLayers": ["center", "middle", "outer"],
+	"strokeTemplate": {
+		"sourceAspectRatio": 1,
+		"strokes": []
+	},
+	"recognitionRotationInvariant": false,
+	"semantic": {
+		"force": 0,
+		"focus": 0,
+		"spread": 0,
+		"range": 0,
+		"lifetimeBias": 0
+	}
 }
 ```
 
@@ -368,23 +368,23 @@ Minimal shape:
 
 ```json
 {
-  "id": "example-sign",
-  "displayName": "Example Sign",
-  "allowedLayers": ["middle", "outer"],
-  "sourceNotes": "Longer explanation shown in the Signs tab.",
-  "semantic": {
-    "manifestation": "column",
-    "directionMode": "orientation",
-    "force": 0,
-    "focus": 0,
-    "spread": 0,
-    "range": 0,
-    "lifetimeBias": 0
-  },
-  "strokeTemplate": {
-    "sourceAspectRatio": 1,
-    "strokes": []
-  }
+	"id": "example-sign",
+	"displayName": "Example Sign",
+	"allowedLayers": ["middle", "outer"],
+	"sourceNotes": "Longer explanation shown in the Signs tab.",
+	"semantic": {
+		"manifestation": "column",
+		"directionMode": "orientation",
+		"force": 0,
+		"focus": 0,
+		"spread": 0,
+		"range": 0,
+		"lifetimeBias": 0
+	},
+	"strokeTemplate": {
+		"sourceAspectRatio": 1,
+		"strokes": []
+	}
 }
 ```
 
@@ -404,12 +404,12 @@ Minimal shape:
 
 ```json
 {
-  "id": "example-sample",
-  "displayName": "Example Sample",
-  "description": "Short description shown on the sample card.",
-  "element": "water",
-  "manifestations": ["convergence"],
-  "strokes": []
+	"id": "example-sample",
+	"displayName": "Example Sample",
+	"description": "Short description shown on the sample card.",
+	"element": "water",
+	"manifestations": ["convergence"],
+	"strokes": []
 }
 ```
 

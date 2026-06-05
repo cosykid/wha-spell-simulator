@@ -1,6 +1,6 @@
 # Witch Hat Atelier Spell Simulator
 
-A fan-made browser-based spell drawing simulator inspired by *[Witch Hat Atelier](https://en.wikipedia.org/wiki/Witch_Hat_Atelier)*.
+A fan-made browser-based spell drawing simulator inspired by _[Witch Hat Atelier](https://en.wikipedia.org/wiki/Witch_Hat_Atelier)_.
 
 <div align="center">
   <img src="./assets/demo.gif" width="720"/>
@@ -9,9 +9,9 @@ A fan-made browser-based spell drawing simulator inspired by *[Witch Hat Atelier
 
 ## Fan Project Notice
 
-This is an unofficial fan-made project for learning, experimentation, and appreciation. It is not affiliated with, endorsed by, or sponsored by the official creators, publishers, licensors, or production partners of *Witch Hat Atelier*.
+This is an unofficial fan-made project for learning, experimentation, and appreciation. It is not affiliated with, endorsed by, or sponsored by the official creators, publishers, licensors, or production partners of _Witch Hat Atelier_.
 
-*Witch Hat Atelier* and related names, artwork, symbols, and trademarks belong to their respective rights holders. The sigils, signs, spell terminology, and visual effects in this project are partial fan references and interactive interpretations, not official assets or canonical rules.
+_Witch Hat Atelier_ and related names, artwork, symbols, and trademarks belong to their respective rights holders. The sigils, signs, spell terminology, and visual effects in this project are partial fan references and interactive interpretations, not official assets or canonical rules.
 
 ## What It Does
 
