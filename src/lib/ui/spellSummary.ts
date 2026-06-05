@@ -105,7 +105,6 @@ export function computeSummary({
 				: (spellIR?.status ?? 'No ring detected');
 
 	const inputLocked = ringClosed || hasUnsupportedStructure;
-	const undoLocked = ringClosed;
 
 	return {
 		statusText,
@@ -116,7 +115,7 @@ export function computeSummary({
 		stability: clamp(spellIR?.stability ?? 0),
 		force: clamp(spellIR?.force ?? 0),
 		inputLocked,
-		undoDisabled: undoLocked || store.count() === 0,
+		undoDisabled: store.count() === 0,
 		portalActive: Boolean(spellIR?.active),
 		hintHidden: store.count() > 0 || !showGuides
 	};
