@@ -10,6 +10,7 @@
     stability: number;
     force: number;
     undoDisabled: boolean;
+    redoDisabled: boolean;
     [key: string]: unknown;
   }
 
@@ -18,6 +19,7 @@
     showGuides?: boolean;
     showDiagnostics?: boolean;
     onUndo?: () => void;
+    onRedo?: () => void;
     onClear?: () => void;
     onToggleGuides?: () => void;
   }
@@ -27,6 +29,7 @@
     showGuides = $bindable(),
     showDiagnostics = $bindable(),
     onUndo,
+    onRedo,
     onClear,
     onToggleGuides
   }: Props = $props();
@@ -41,6 +44,7 @@
 <aside class="control-panel" aria-label="Spell controls">
   <section class="control-section">
     <button type="button" id="undoButton" disabled={summary.undoDisabled} onclick={onUndo}>Undo</button>
+    <button type="button" id="redoButton" disabled={summary.redoDisabled} onclick={onRedo}>Redo</button>
     <button type="button" id="clearButton" onclick={onClear}>Clear</button>
   </section>
 
