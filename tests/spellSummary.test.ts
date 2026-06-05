@@ -13,6 +13,7 @@ function storeWithCount(count: number, canRedo = false): StrokeStore {
 		redo: () => null,
 		clear: () => {},
 		scale: () => {},
+		load: () => {},
 		getStrokes: () => [],
 		peekStrokes: () => [],
 		count: () => count,

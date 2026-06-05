@@ -18,6 +18,7 @@ _Witch Hat Atelier_ and related names, artwork, symbols, and trademarks belong t
 The app turns a freehand spell diagram into parser output, compiled spell behavior, and animated canvas effects.
 
 - Lets you draw spell diagrams on a paper-like canvas.
+- Lets you place ring, sigil, and sign shapes from a palette, then move, scale, elongate, and rotate them instead of drawing each one by hand.
 - Detects one enclosing ring and distinguishes prepared versus active spells.
 - Recognizes dictionary-backed primary sigils for fire, water, wind, earth, and light with a hybrid point-cloud (`$P`), chamfer, and kNN matcher.
 - Recognizes signs that modify direction, levitation, convergence, force, spread, focus, range, duration, and stability.
@@ -25,6 +26,17 @@ The app turns a freehand spell diagram into parser output, compiled spell behavi
 - Renders animated element effects from the compiled spell behavior.
 - Shows sample spell layouts in the Dictionary panel as drawing references.
 - Includes reference tools for making, viewing, and testing stroke templates, plus a spell effect lab for visual and animation tuning.
+
+## Placing Shapes
+
+If a symbol is hard to draw by hand, you can stamp it from a palette and adjust it instead.
+
+1. Open the **Shapes** tab, or enable **Arrange Shapes** in the left control panel. Picking a shape from the palette enables Arrange Shapes automatically.
+2. Pick a **Ring**, **Sigil**, or **Sign**, then click the canvas to place it.
+3. Click a placed shape to select it, then drag its handles to move, scale, elongate, or rotate it. Press **Delete** to remove it.
+4. Turn **Arrange Shapes** off to bake the shapes into the drawing as ink. Locked shapes can no longer be edited, but you can draw over them.
+
+The placed ring is stamped open with a small gap, so the spell stays prepared rather than activating immediately. Draw across the gap by hand to seal the ring and awaken the spell.
 
 ## Current Limitations
 
