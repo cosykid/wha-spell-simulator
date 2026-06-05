@@ -218,7 +218,7 @@
 			<a class="header-link" href={resolve('/tools')}>Tools</a>
 			<a
 				class="header-link"
-				href="https://github.com/ytnrvdf/wha-spell-simulator"
+				href="https://github.com/cosykid/wha-spell-simulator"
 				target="_blank"
 				rel="noreferrer">GitHub</a
 			>
