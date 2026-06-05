@@ -1,6 +1,5 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { base } from '$app/paths';
 	import type { Dictionary, Point, SigilEntry, StrokeTemplate } from '$lib/types.js';
 
 	import { CONFIG } from '$lib/config.js';
@@ -19,6 +18,7 @@
 		statusClass,
 		statusLabel
 	} from '$lib/ui/sigilDetector.js';
+	import { setStatus } from '$lib/state.svelte';
 
 	let dictionary = $state<Dictionary | null>(null);
 	let mode = $state('all');
@@ -31,7 +31,6 @@
 		matches: []
 	});
 	let strokeCount = $state(0);
-	let status = $state({ text: 'Loading', className: '' });
 
 	let canvas: HTMLCanvasElement;
 	let ctx: CanvasRenderingContext2D | null = null;
@@ -79,10 +78,6 @@
 
 	type DetectorMatch = ReturnType<typeof analyzeStrokes>['matches'][number];
 	type DetectorCandidate = NonNullable<ReturnType<typeof analyzeStrokes>['candidate']>;
-
-	function setStatus(text: string, className = '') {
-		status = { text, className };
-	}
 
 	function previewPolylines(strokeTemplate: StrokeTemplate | undefined) {
 		return normalizedTemplateStrokes(strokeTemplate)
@@ -258,6 +253,7 @@
 	}
 
 	onMount(() => {
+		setStatus('Loading', '');
 		ctx = canvas.getContext('2d');
 		let rafId: number | null = null;
 
@@ -325,128 +321,115 @@
 	<title>Sigil/Sign Detector Lab</title>
 </svelte:head>
 
-<div class="app-shell">
-	<header class="app-header">
-		<div>
-			<p class="eyebrow">Detector Tool</p>
-			<h1>Sigil/Sign Detector Lab</h1>
+<main class="workspace maker-workspace detector-lab-workspace">
+	<section class="canvas-panel maker-canvas-panel">
+		<div class="toolbar detector-lab-toolbar">
+			<button type="button" disabled={strokeCount === 0} onclick={handleUndo}>Undo</button>
+			<button type="button" onclick={handleClear}>Clear</button>
+			<select class="select-control" bind:value={mode} onchange={analyze}>
+				<option value="all">Sigils + Signs</option>
+				<option value="sigils">Sigils</option>
+				<option value="signs">Signs</option>
+			</select>
+			<select
+				class="select-control"
+				bind:value={referenceId}
+				disabled={!paperOverlay}
+				onchange={analyze}
+			>
+				<option value="">No trace reference</option>
+				{#each overlayEntries as entry (entry.id)}
+					<option value={entry.id}>{entry.displayName ?? entry.id}</option>
+				{/each}
+			</select>
+			<label class="toggle">
+				<input type="checkbox" bind:checked={paperOverlay} />
+				<span>Paper Overlay</span>
+			</label>
 		</div>
-		<div class="header-actions">
-			<a class="header-link" href="{base}/tools">Tools</a>
-			<div class="status-pill {status.className}">{status.text}</div>
+		<div class="detector-lab-canvas-shell">
+			<canvas bind:this={canvas} width="760" height="760"></canvas>
 		</div>
-	</header>
+	</section>
 
-	<main class="workspace maker-workspace detector-lab-workspace">
-		<section class="canvas-panel maker-canvas-panel">
-			<div class="toolbar detector-lab-toolbar">
-				<button type="button" disabled={strokeCount === 0} onclick={handleUndo}>Undo</button>
-				<button type="button" onclick={handleClear}>Clear</button>
-				<select class="select-control" bind:value={mode} onchange={analyze}>
-					<option value="all">Sigils + Signs</option>
-					<option value="sigils">Sigils</option>
-					<option value="signs">Signs</option>
-				</select>
-				<select
-					class="select-control"
-					bind:value={referenceId}
-					disabled={!paperOverlay}
-					onchange={analyze}
-				>
-					<option value="">No trace reference</option>
-					{#each overlayEntries as entry (entry.id)}
-						<option value={entry.id}>{entry.displayName ?? entry.id}</option>
-					{/each}
-				</select>
-				<label class="toggle">
-					<input type="checkbox" bind:checked={paperOverlay} />
-					<span>Paper Overlay</span>
-				</label>
-			</div>
-			<div class="detector-lab-canvas-shell">
-				<canvas bind:this={canvas} width="760" height="760"></canvas>
+	<aside class="side-panel detector-lab-side-panel">
+		<section class="diagnostic-block">
+			<h2>Decision</h2>
+			<div class="detector-lab-decision-grid">
+				<span>Recognized</span><strong>{recognized}</strong>
+				<span>Kind</span><strong>{recognition?.kind ?? 'none'}</strong>
+				<span>ID</span><strong>{recognition?.id ?? 'none'}</strong>
+				<span>Confidence</span><strong>{percent(recognition?.confidence)}</strong>
+				<span>Template</span><strong>{percent(bestMatch?.confidence)}</strong>
+				<span>Ink</span><strong>{percent(bestMatch?.inkScore)}</strong>
+				<span>Explained</span><strong>{percent(bestMatch?.candidateExplainedRatio)}</strong>
+				<span>Rotation</span><strong>{Math.round(bestMatch?.rotationDeg ?? 0)} deg</strong>
 			</div>
 		</section>
 
-		<aside class="side-panel detector-lab-side-panel">
-			<section class="diagnostic-block">
-				<h2>Decision</h2>
-				<div class="detector-lab-decision-grid">
-					<span>Recognized</span><strong>{recognized}</strong>
-					<span>Kind</span><strong>{recognition?.kind ?? 'none'}</strong>
-					<span>ID</span><strong>{recognition?.id ?? 'none'}</strong>
-					<span>Confidence</span><strong>{percent(recognition?.confidence)}</strong>
-					<span>Template</span><strong>{percent(bestMatch?.confidence)}</strong>
-					<span>Ink</span><strong>{percent(bestMatch?.inkScore)}</strong>
-					<span>Explained</span><strong>{percent(bestMatch?.candidateExplainedRatio)}</strong>
-					<span>Rotation</span><strong>{Math.round(bestMatch?.rotationDeg ?? 0)} deg</strong>
-				</div>
-			</section>
-
-			<section class="diagnostic-block">
-				<h2>Top Matches</h2>
-				<div class="detector-match-list">
-					{#if !analysis.matches.length}
-						<p class="reference-note">Draw one sigil or sign.</p>
-					{:else}
-						{#each analysis.matches.slice(0, 8) as match, index (match.entry.id)}
-							{@const polylines = previewPolylines(match.entry.strokeTemplate)}
-							<article class="reference-card detector-match-card {index === 0 ? 'best' : ''}">
-								{#if polylines.length}
-									<div class="reference-preview detector-match-preview" aria-hidden="true">
-										<svg viewBox="0 0 100 100" role="img" focusable="false">
-											{#each polylines as points}
-												<polyline {points}></polyline>
-											{/each}
-										</svg>
-									</div>
-								{/if}
-								<div class="detector-match-body">
-									<div class="reference-card-header">
-										<strong>{match.entry.displayName ?? match.entry.id}</strong>
-										<span>{match.kind}</span>
-									</div>
-									<div class="detector-score-bar">
-										<span style="width: {Math.round(match.templateMatch.confidence * 100)}%"></span>
-									</div>
-									<dl>
-										<div>
-											<dt>Template</dt>
-											<dd>{percent(match.templateMatch.confidence)}</dd>
-										</div>
-										<div>
-											<dt>Ink</dt>
-											<dd>{percent(match.templateMatch.inkScore)}</dd>
-										</div>
-										<div>
-											<dt>Explained</dt>
-											<dd>{percent(match.templateMatch.candidateExplainedRatio)}</dd>
-										</div>
-										<div>
-											<dt>Covered</dt>
-											<dd>{percent(match.templateMatch.templateCoveredRatio)}</dd>
-										</div>
-										<div>
-											<dt>Rotation</dt>
-											<dd>{Math.round(match.templateMatch.rotationDeg)} deg</dd>
-										</div>
-									</dl>
+		<section class="diagnostic-block">
+			<h2>Top Matches</h2>
+			<div class="detector-match-list">
+				{#if !analysis.matches.length}
+					<p class="reference-note">Draw one sigil or sign.</p>
+				{:else}
+					{#each analysis.matches.slice(0, 8) as match, index (match.entry.id)}
+						{@const polylines = previewPolylines(match.entry.strokeTemplate)}
+						<article class="reference-card detector-match-card {index === 0 ? 'best' : ''}">
+							{#if polylines.length}
+								<div class="reference-preview detector-match-preview" aria-hidden="true">
+									<svg viewBox="0 0 100 100" role="img" focusable="false">
+										{#each polylines as points, i (i)}
+											<polyline {points}></polyline>
+										{/each}
+									</svg>
 								</div>
-							</article>
-						{/each}
-					{/if}
-				</div>
-			</section>
+							{/if}
+							<div class="detector-match-body">
+								<div class="reference-card-header">
+									<strong>{match.entry.displayName ?? match.entry.id}</strong>
+									<span>{match.kind}</span>
+								</div>
+								<div class="detector-score-bar">
+									<span style="width: {Math.round(match.templateMatch.confidence * 100)}%"></span>
+								</div>
+								<dl>
+									<div>
+										<dt>Template</dt>
+										<dd>{percent(match.templateMatch.confidence)}</dd>
+									</div>
+									<div>
+										<dt>Ink</dt>
+										<dd>{percent(match.templateMatch.inkScore)}</dd>
+									</div>
+									<div>
+										<dt>Explained</dt>
+										<dd>{percent(match.templateMatch.candidateExplainedRatio)}</dd>
+									</div>
+									<div>
+										<dt>Covered</dt>
+										<dd>{percent(match.templateMatch.templateCoveredRatio)}</dd>
+									</div>
+									<div>
+										<dt>Rotation</dt>
+										<dd>{Math.round(match.templateMatch.rotationDeg)} deg</dd>
+									</div>
+								</dl>
+							</div>
+						</article>
+					{/each}
+				{/if}
+			</div>
+		</section>
 
-			<section class="diagnostic-block">
-				<h2>Recognition JSON</h2>
-				<pre bind:this={recognitionPre} class="diagnostic-output detector-lab-small-output"></pre>
-			</section>
+		<section class="diagnostic-block">
+			<h2>Recognition JSON</h2>
+			<pre bind:this={recognitionPre} class="diagnostic-output detector-lab-small-output"></pre>
+		</section>
 
-			<section class="diagnostic-block">
-				<h2>Candidate JSON</h2>
-				<pre bind:this={candidatePre} class="diagnostic-output detector-lab-small-output"></pre>
-			</section>
-		</aside>
-	</main>
-</div>
+		<section class="diagnostic-block">
+			<h2>Candidate JSON</h2>
+			<pre bind:this={candidatePre} class="diagnostic-output detector-lab-small-output"></pre>
+		</section>
+	</aside>
+</main>

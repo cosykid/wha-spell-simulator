@@ -1,6 +1,6 @@
 <script lang="ts">
-	import type { Snippet } from 'svelte';
 	import '$lib/styles/styles.css';
+	import type { Snippet } from 'svelte';
 
 	interface Props {
 		children: Snippet;

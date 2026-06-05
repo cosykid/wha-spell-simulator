@@ -1,19 +1,16 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
-	import { base } from '$app/paths';
-	import type { RingInfo } from '$lib/types.js';
-
 	import { CONFIG } from '$lib/config.js';
 	import { writeJson } from '$lib/debug/debugOverlay.js';
-	import { drawGlowingStrokes } from '$lib/renderer/glyphOverlayRenderer.js';
-	import { drawGuides, drawPaper } from '$lib/renderer/paperRenderer.js';
-	import { SpellEffectRenderer } from '$lib/renderer/spellEffectRenderer.js';
 	import {
 		activePortalPlane,
 		convergenceFlow,
 		resetParticleState
 	} from '$lib/renderer/effects/effectUtils.js';
-	import { roundDeep } from '$lib/utils/json.js';
+	import { drawGlowingStrokes } from '$lib/renderer/glyphOverlayRenderer.js';
+	import { drawGuides, drawPaper } from '$lib/renderer/paperRenderer.js';
+	import { SpellEffectRenderer } from '$lib/renderer/spellEffectRenderer.js';
+	import { setStatus } from '$lib/state.svelte';
+	import type { RingInfo } from '$lib/types.js';
 	import {
 		DEFAULT_ELEMENT,
 		EFFECT_CONTROLS,
@@ -22,6 +19,8 @@
 		formatControlValue,
 		valuesFromSpellIR
 	} from '$lib/ui/spellEffectLab.js';
+	import { roundDeep } from '$lib/utils/json.js';
+	import { onMount } from 'svelte';
 
 	const ELEMENTS = ['fire', 'water', 'wind', 'earth', 'light'];
 	const controlEntries = Object.entries(EFFECT_CONTROLS);
@@ -29,7 +28,6 @@
 	let element = $state(DEFAULT_ELEMENT);
 	let values = $state<Record<string, number>>(defaultControlValues());
 	let irInput = $state('');
-	let status = $state({ text: 'Ready', className: '' });
 	let activatedAt = $state(0);
 
 	let glyphCanvas: HTMLCanvasElement;
@@ -47,10 +45,6 @@
 			writeJson(irPre, irJson);
 		}
 	});
-
-	function setStatus(text: string, className = '') {
-		status = { text, className };
-	}
 
 	function resetParticles() {
 		if (!effectRenderer) {
@@ -261,83 +255,67 @@
 	<title>Spell Effect Lab</title>
 </svelte:head>
 
-<div class="app-shell">
-	<header class="app-header">
-		<div>
-			<p class="eyebrow">Effect Tool</p>
-			<h1>Spell Effect Lab</h1>
+<main class="workspace maker-workspace effect-lab-workspace">
+	<section class="canvas-panel maker-canvas-panel">
+		<div class="toolbar effect-lab-toolbar">
+			<select class="select-control" bind:value={element} onchange={restartSpell}>
+				{#each ELEMENTS as option (option)}
+					<option value={option}>{option[0].toUpperCase() + option.slice(1)}</option>
+				{/each}
+			</select>
+			<button
+				type="button"
+				onclick={() => {
+					restartSpell();
+					setStatus('Particles reset', 'prepared');
+				}}
+			>
+				Reset Particles
+			</button>
 		</div>
-		<div class="header-actions">
-			<a class="header-link" href="{base}/tools">Tools</a>
-			<div class="status-pill {status.className}">{status.text}</div>
+		<div class="canvas-shell effect-lab-canvas-shell portal-active" bind:this={canvasShell}>
+			<canvas bind:this={glyphCanvas} width="900" height="700"></canvas>
+			<canvas bind:this={effectCanvas} width="900" height="700"></canvas>
 		</div>
-	</header>
+	</section>
 
-	<main class="workspace maker-workspace effect-lab-workspace">
-		<section class="canvas-panel maker-canvas-panel">
-			<div class="toolbar effect-lab-toolbar">
-				<select class="select-control" bind:value={element} onchange={restartSpell}>
-					{#each ELEMENTS as option}
-						<option value={option}>{option[0].toUpperCase() + option.slice(1)}</option>
-					{/each}
-				</select>
-				<button
-					type="button"
-					onclick={() => {
-						restartSpell();
-						setStatus('Particles reset', 'prepared');
-					}}
-				>
-					Reset Particles
-				</button>
-			</div>
-			<div class="canvas-shell effect-lab-canvas-shell portal-active" bind:this={canvasShell}>
-				<canvas bind:this={glyphCanvas} width="900" height="700"></canvas>
-				<canvas bind:this={effectCanvas} width="900" height="700"></canvas>
+	<aside class="side-panel effect-lab-side-panel">
+		<section class="diagnostic-block effect-lab-controls">
+			<h2>SpellIR Controls</h2>
+			{#each controlEntries as [key, control] (key)}
+				<label class="effect-lab-slider">
+					<span>{control.label}</span>
+					<strong>{formatControlValue(key, values[key])}</strong>
+					<small>{control.description}</small>
+					<input
+						type="range"
+						min={control.min}
+						max={control.max}
+						step={control.step}
+						value={values[key]}
+						oninput={(event) => handleSlider(key, event)}
+					/>
+				</label>
+			{/each}
+		</section>
+
+		<section class="diagnostic-block">
+			<h2>Paste IR</h2>
+			<p class="effect-lab-help">
+				Apply IR loads values from pasted JSON. Copy Current IR writes the sliders back into JSON
+				for testing.
+			</p>
+			<textarea class="template-output effect-lab-ir-input" spellcheck="false" bind:value={irInput}
+			></textarea>
+			<div class="effect-lab-button-row">
+				<button type="button" onclick={applyIR}>Apply IR</button>
+				<button type="button" onclick={copyIR}>Copy Current IR</button>
 			</div>
 		</section>
 
-		<aside class="side-panel effect-lab-side-panel">
-			<section class="diagnostic-block effect-lab-controls">
-				<h2>SpellIR Controls</h2>
-				{#each controlEntries as [key, control] (key)}
-					<label class="effect-lab-slider">
-						<span>{control.label}</span>
-						<strong>{formatControlValue(key, values[key])}</strong>
-						<small>{control.description}</small>
-						<input
-							type="range"
-							min={control.min}
-							max={control.max}
-							step={control.step}
-							value={values[key]}
-							oninput={(event) => handleSlider(key, event)}
-						/>
-					</label>
-				{/each}
-			</section>
-
-			<section class="diagnostic-block">
-				<h2>Paste IR</h2>
-				<p class="effect-lab-help">
-					Apply IR loads values from pasted JSON. Copy Current IR writes the sliders back into JSON
-					for testing.
-				</p>
-				<textarea
-					class="template-output effect-lab-ir-input"
-					spellcheck="false"
-					bind:value={irInput}
-				></textarea>
-				<div class="effect-lab-button-row">
-					<button type="button" onclick={applyIR}>Apply IR</button>
-					<button type="button" onclick={copyIR}>Copy Current IR</button>
-				</div>
-			</section>
-
-			<section class="diagnostic-block">
-				<h2>Current IR</h2>
-				<pre bind:this={irPre} class="diagnostic-output effect-lab-ir-output"></pre>
-			</section>
-		</aside>
-	</main>
-</div>
+		<section class="diagnostic-block">
+			<h2>Current IR</h2>
+			<pre bind:this={irPre} class="diagnostic-output effect-lab-ir-output"></pre>
+		</section>
+	</aside>
+</main>

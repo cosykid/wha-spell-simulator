@@ -1,24 +1,18 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
-	import { base } from '$app/paths';
-
 	import { CONFIG } from '$lib/config.js';
 	import { DrawingCapture } from '$lib/input/drawingCapture.js';
 	import { createStrokeStore } from '$lib/input/strokeStore.js';
 	import { normalizeStrokesForTemplate } from '$lib/parser/templateNormalizer.js';
 	import { drawStrokes } from '$lib/renderer/glyphOverlayRenderer.js';
 	import { drawPaper } from '$lib/renderer/paperRenderer.js';
+	import { setStatus } from '$lib/state.svelte';
+	import { onMount } from 'svelte';
 
-	let status = $state({ text: 'Loading', className: '' });
 	let output = $state('');
 
 	let canvas: HTMLCanvasElement;
 	const store = createStrokeStore();
 	let capture: DrawingCapture | null = null;
-
-	function setStatus(text: string, className = '') {
-		status = { text, className };
-	}
 
 	function buildTemplateExport() {
 		return normalizeStrokesForTemplate(store.getStrokes(), {
@@ -47,7 +41,7 @@
 	function handleClear() {
 		store.clear();
 		output = '';
-		setStatus('Cleared');
+		setStatus('Cleared', 'inactive');
 	}
 
 	onMount(() => {
@@ -78,7 +72,7 @@
 			onCommit: () => setStatus('Drawing captured', 'prepared')
 		});
 		capture.enable();
-		setStatus('Ready');
+		setStatus('Ready', '');
 		rafId = requestAnimationFrame(render);
 
 		return () => {
@@ -94,44 +88,31 @@
 	<title>Stroke Template Maker</title>
 </svelte:head>
 
-<div class="app-shell">
-	<header class="app-header">
-		<div>
-			<p class="eyebrow">Template Tool</p>
-			<h1>Stroke Template Maker</h1>
+<main class="workspace maker-workspace">
+	<section class="canvas-panel maker-canvas-panel">
+		<div class="toolbar">
+			<button type="button" onclick={() => store.undo()}>Undo</button>
+			<button type="button" onclick={handleClear}>Clear</button>
+			<button type="button" onclick={exportTemplate}>Export</button>
+			<button type="button" onclick={copyTemplate}>Copy</button>
 		</div>
-		<div class="header-actions">
-			<a class="header-link" href="{base}/tools">Tools</a>
-			<div class="status-pill {status.className}">{status.text}</div>
+		<div class="reference-canvas-shell">
+			<canvas bind:this={canvas} width="800" height="800"></canvas>
 		</div>
-	</header>
+	</section>
 
-	<main class="workspace maker-workspace">
-		<section class="canvas-panel maker-canvas-panel">
-			<div class="toolbar">
-				<button type="button" onclick={() => store.undo()}>Undo</button>
-				<button type="button" onclick={handleClear}>Clear</button>
-				<button type="button" onclick={exportTemplate}>Export</button>
-				<button type="button" onclick={copyTemplate}>Copy</button>
-			</div>
-			<div class="reference-canvas-shell">
-				<canvas bind:this={canvas} width="800" height="800"></canvas>
-			</div>
+	<aside class="side-panel">
+		<section class="diagnostic-block">
+			<h2>Template JSON</h2>
+			<textarea class="template-output" spellcheck="false" bind:value={output}></textarea>
 		</section>
-
-		<aside class="side-panel">
-			<section class="diagnostic-block">
-				<h2>Template JSON</h2>
-				<textarea class="template-output" spellcheck="false" bind:value={output}></textarea>
-			</section>
-			<section class="diagnostic-block">
-				<h2>Placement</h2>
-				<pre class="diagnostic-output">Paste the exported object into the matching dictionary entry:
+		<section class="diagnostic-block">
+			<h2>Placement</h2>
+			<pre class="diagnostic-output">Paste the exported object into the matching dictionary entry:
 
 src/lib/dictionary/sigils.json
 src/lib/dictionary/signs.json
 -> strokeTemplate</pre>
-			</section>
-		</aside>
-	</main>
-</div>
+		</section>
+	</aside>
+</main>

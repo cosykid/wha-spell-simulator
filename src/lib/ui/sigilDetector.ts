@@ -1,3 +1,16 @@
+import type {
+	AppConfig,
+	Dictionary,
+	DictionaryEntry,
+	Point,
+	RadialFacing,
+	SigilEntry,
+	SignEntry,
+	Stroke,
+	StrokeTemplate,
+	SymbolCandidate,
+	TemplateMatch
+} from '../types.js';
 /**
  * Pure analysis logic for the Sigil/Sign Detector Lab. Mirrors the parser's
  * candidate-building and scoring path for a single free-floating symbol so the
@@ -17,23 +30,11 @@ import {
 	endpointClosedness,
 	strokeLength
 } from '../utils/geometry.js';
+
 import { cleanStrokes } from '../parser/strokeCleaner.js';
+import { normalizeStrokesForTemplate } from '../parser/templateNormalizer.js';
 import { recognizeCandidates } from '../parser/symbolRecognizer.js';
 import { scoreStrokeTemplate } from '../parser/templateMatcher.js';
-import { normalizeStrokesForTemplate } from '../parser/templateNormalizer.js';
-import type {
-	Stroke,
-	StrokeTemplate,
-	Dictionary,
-	DictionaryEntry,
-	SigilEntry,
-	SignEntry,
-	SymbolCandidate,
-	Point,
-	RadialFacing,
-	TemplateMatch,
-	AppConfig
-} from '../types.js';
 
 /** A scoped subset of the dictionary used in the lab. */
 interface ActiveDictionary {
@@ -76,7 +77,10 @@ export function statusLabel(status: string): string {
 	}
 }
 
-export function statusClass(status: string, recognized: boolean): string {
+export function statusClass(
+	status: string,
+	recognized: boolean
+): 'invalid' | 'prepared' | 'active' | '' {
 	if (status === 'contaminated' || status === 'unknown') {
 		return 'invalid';
 	}

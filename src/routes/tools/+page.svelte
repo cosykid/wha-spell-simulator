@@ -1,76 +1,28 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
-
-	const tools = [
-		{
-			href: '/tools/stroke-template-maker',
-			eyebrow: 'Template Tool',
-			title: 'Stroke Template Maker',
-			description:
-				'Draw a sigil or sign and export a normalized strokeTemplate to paste into the dictionary.'
-		},
-		{
-			href: '/tools/stroke-template-viewer',
-			eyebrow: 'Template Tool',
-			title: 'Stroke Template Viewer',
-			description:
-				'Paste a strokeTemplate or dictionary entry to preview its strokes and inspect its metrics.'
-		},
-		{
-			href: '/tools/sigil-sign-detector-lab',
-			eyebrow: 'Detector Tool',
-			title: 'Sigil/Sign Detector Lab',
-			description:
-				'Draw one symbol and watch the recognizer score it against the dictionary in real time.'
-		},
-		{
-			href: '/tools/spell-effect-lab',
-			eyebrow: 'Effect Tool',
-			title: 'Spell Effect Lab',
-			description:
-				'Tune a synthetic SpellIR with sliders to preview and refine the animated element effects.'
-		}
-	] as const;
+	import { tools } from './tools';
 </script>
 
 <svelte:head>
 	<title>Reference Tools - Witch Hat Atelier Spell Simulator</title>
 </svelte:head>
 
-<div class="app-shell">
-	<header class="app-header">
-		<div>
-			<p class="eyebrow">Reference Tools</p>
-			<h1>Lab Tools</h1>
-		</div>
-		<div class="header-actions">
-			<a class="header-link" href={resolve('/')}>Simulator</a>
-			<a
-				class="header-link"
-				href="https://github.com/cosykid/wha-spell-simulator"
-				target="_blank"
-				rel="noreferrer">GitHub</a
-			>
-		</div>
-	</header>
-
-	<main class="tools-index">
-		<p class="tools-index-intro">
-			Companion tools for authoring stroke templates and tuning the recognizer and spell effects.
-			Each opens in its own page and shares the simulator's core modules.
-		</p>
-		<div class="tools-index-grid">
-			{#each tools as tool (tool.href)}
-				<a class="tools-index-card" href={resolve(tool.href)}>
-					<p class="eyebrow">{tool.eyebrow}</p>
-					<h2>{tool.title}</h2>
-					<p class="tools-index-card-description">{tool.description}</p>
-					<span class="tools-index-card-cta">Open tool →</span>
-				</a>
-			{/each}
-		</div>
-	</main>
-</div>
+<main class="tools-index">
+	<p class="tools-index-intro">
+		Companion tools for authoring stroke templates and tuning the recognizer and spell effects. Each
+		opens in its own page and shares the simulator's core modules.
+	</p>
+	<div class="tools-index-grid">
+		{#each tools as tool (tool.path)}
+			<a class="tools-index-card" href={resolve(tool.path)}>
+				<p class="eyebrow">{tool.eyebrow}</p>
+				<h2>{tool.title}</h2>
+				<p class="tools-index-card-description">{tool.description}</p>
+				<span class="tools-index-card-cta">Open tool →</span>
+			</a>
+		{/each}
+	</div>
+</main>
 
 <style>
 	.tools-index {

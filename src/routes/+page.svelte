@@ -1,6 +1,24 @@
 <script lang="ts">
-	import { resolve } from '$app/paths';
+	import { loadRecognitionAssets } from '$lib/api/recognitionAssets.js';
+	import { compileSpell } from '$lib/compiler/spellBuilder.js';
+	import ControlPanel from '$lib/components/ControlPanel.svelte';
+	import Diagnostics from '$lib/components/Diagnostics.svelte';
+	import DictionaryReference from '$lib/components/DictionaryReference.svelte';
+	import Header from '$lib/components/Header.svelte';
+	import ShapePalette from '$lib/components/ShapePalette.svelte';
+	import { CONFIG } from '$lib/config.js';
+	import { buildDiagnosticState } from '$lib/debug/diagnosticState.js';
+	import { loadDictionary } from '$lib/dictionary/dictionaryLoader.js';
+	import { DrawingCapture } from '$lib/input/drawingCapture.js';
+	import { PlacementController } from '$lib/input/placementController.js';
+	import { createPlacementStore } from '$lib/input/placementStore.js';
+	import { bakePlacementToStrokes, placementHandles } from '$lib/input/shapeBaker.js';
+	import { buildShapeLibrary, defaultTransformForShape } from '$lib/input/shapeLibrary.js';
+	import { createStrokeStore } from '$lib/input/strokeStore.js';
+	import { classifyDrawingAsync } from '$lib/parser/drawingClassifier.js';
+	import { disposeRecognitionPool } from '$lib/parser/recognitionPool.js';
 	import type { RecognitionExample } from '$lib/parser/shapeMatcher.js';
+	import { CanvasRenderer } from '$lib/renderer/canvasRenderer.js';
 	import type {
 		ClassifiedDrawing,
 		Dictionary,
@@ -14,29 +32,9 @@
 		Stroke,
 		Vector
 	} from '$lib/types.js';
-	import { onMount } from 'svelte';
-
-	import { loadRecognitionAssets } from '$lib/api/recognitionAssets.js';
-	import { compileSpell } from '$lib/compiler/spellBuilder.js';
-	import { CONFIG } from '$lib/config.js';
-	import { buildDiagnosticState } from '$lib/debug/diagnosticState.js';
-	import { loadDictionary } from '$lib/dictionary/dictionaryLoader.js';
-	import { DrawingCapture } from '$lib/input/drawingCapture.js';
-	import { createStrokeStore } from '$lib/input/strokeStore.js';
-	import { classifyDrawingAsync } from '$lib/parser/drawingClassifier.js';
-	import { disposeRecognitionPool } from '$lib/parser/recognitionPool.js';
-	import { createPlacementStore } from '$lib/input/placementStore.js';
-	import { buildShapeLibrary, defaultTransformForShape } from '$lib/input/shapeLibrary.js';
-	import { bakePlacementToStrokes, placementHandles } from '$lib/input/shapeBaker.js';
-	import { PlacementController } from '$lib/input/placementController.js';
-	import { CanvasRenderer } from '$lib/renderer/canvasRenderer.js';
 	import { setupCanvasSizing } from '$lib/ui/canvasSizing.js';
 	import { computeSummary, INITIAL_SUMMARY } from '$lib/ui/spellSummary.js';
-
-	import ControlPanel from '$lib/components/ControlPanel.svelte';
-	import Diagnostics from '$lib/components/Diagnostics.svelte';
-	import DictionaryReference from '$lib/components/DictionaryReference.svelte';
-	import ShapePalette from '$lib/components/ShapePalette.svelte';
+	import { onMount } from 'svelte';
 
 	const ZOOM_MIN = 0.5;
 	const ZOOM_MAX = 3;
@@ -734,21 +732,7 @@
 </svelte:head>
 
 <div class="app-shell">
-	<header class="app-header">
-		<div>
-			<p class="eyebrow">Glyph Compiler</p>
-			<h1>Witch Hat Atelier Spell Simulator</h1>
-		</div>
-		<div class="header-actions">
-			<a class="header-link" href={resolve('/tools')}>Tools</a>
-			<a
-				class="header-link"
-				href="https://github.com/cosykid/wha-spell-simulator"
-				target="_blank"
-				rel="noreferrer">GitHub</a
-			>
-		</div>
-	</header>
+	<Header title="Glyph Compiler" eyebrow="Witch Hat Atelier Spell Simulator" />
 
 	<main class="workspace">
 		<ControlPanel
