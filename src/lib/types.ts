@@ -376,8 +376,10 @@ export interface DrawingCaptureCallbacks {
 export interface StrokeStore {
   addStroke(points: Point[]): Stroke;
   undo(): Stroke | null;
+  redo(): Stroke | null;
   clear(): void;
   scale(scaleX: number, scaleY: number): void;
   getStrokes(): Stroke[];
   count(): number;
+  canRedo(): boolean;
 }
