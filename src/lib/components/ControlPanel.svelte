@@ -18,20 +18,24 @@
 		summary: Summary;
 		showGuides?: boolean;
 		showDiagnostics?: boolean;
+		arrangeShapes?: boolean;
 		onUndo?: () => void;
 		onRedo?: () => void;
 		onClear?: () => void;
 		onToggleGuides?: () => void;
+		onToggleArrange?: () => void;
 	}
 
 	let {
 		summary,
 		showGuides = $bindable(),
 		showDiagnostics = $bindable(),
+		arrangeShapes = $bindable(),
 		onUndo,
 		onRedo,
 		onClear,
-		onToggleGuides
+		onToggleGuides,
+		onToggleArrange
 	}: Props = $props();
 
 	const meters = $derived([
@@ -75,6 +79,15 @@
 		<label class="toggle">
 			<input type="checkbox" id="diagnosticsToggle" bind:checked={showDiagnostics} />
 			<span>Glyph Diagnostics</span>
+		</label>
+		<label class="toggle">
+			<input
+				type="checkbox"
+				id="arrangeToggle"
+				bind:checked={arrangeShapes}
+				onchange={onToggleArrange}
+			/>
+			<span>Arrange Shapes</span>
 		</label>
 	</section>
 

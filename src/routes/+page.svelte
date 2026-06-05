@@ -1,7 +1,18 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
 	import type { RecognitionExample } from '$lib/parser/shapeMatcher.js';
-	import type { ClassifiedDrawing, Dictionary, RingInfo, SpellIR } from '$lib/types.js';
+	import type {
+		ClassifiedDrawing,
+		Dictionary,
+		Placement,
+		PlacementTransform,
+		RingInfo,
+		ShapeItem,
+		ShapeLibrary,
+		SpellIR,
+		Stroke,
+		Vector
+	} from '$lib/types.js';
 	import { onMount } from 'svelte';
 
 	import { loadRecognitionAssets } from '$lib/api/recognitionAssets.js';
@@ -13,6 +24,10 @@
 	import { createStrokeStore } from '$lib/input/strokeStore.js';
 	import { classifyDrawingAsync } from '$lib/parser/drawingClassifier.js';
 	import { disposeRecognitionPool } from '$lib/parser/recognitionPool.js';
+	import { createPlacementStore } from '$lib/input/placementStore.js';
+	import { buildShapeLibrary, defaultTransformForShape } from '$lib/input/shapeLibrary.js';
+	import { bakePlacementToStrokes, placementHandles } from '$lib/input/shapeBaker.js';
+	import { PlacementController } from '$lib/input/placementController.js';
 	import { CanvasRenderer } from '$lib/renderer/canvasRenderer.js';
 	import { setupCanvasSizing } from '$lib/ui/canvasSizing.js';
 	import { computeSummary, INITIAL_SUMMARY } from '$lib/ui/spellSummary.js';
@@ -20,6 +35,7 @@
 	import ControlPanel from '$lib/components/ControlPanel.svelte';
 	import Diagnostics from '$lib/components/Diagnostics.svelte';
 	import DictionaryReference from '$lib/components/DictionaryReference.svelte';
+	import ShapePalette from '$lib/components/ShapePalette.svelte';
 
 	const ZOOM_MIN = 0.5;
 	const ZOOM_MAX = 3;
@@ -42,6 +58,12 @@
 	let inputReady = $state(false);
 	let rootTab = $state('dictionary');
 	let zoomLevel = $state(1);
+	let arrangeShapes = $state(false);
+	let shapeLibrary = $state<ShapeLibrary | null>(null);
+	let armedShapeId = $state<string | null>(null);
+	let selected = $state<{ kind: string; sourceId: string; transform: PlacementTransform } | null>(
+		null
+	);
 
 	function handleZoomIn() {
 		zoomLevel = Math.min(ZOOM_MAX, zoomLevel + ZOOM_STEP);
@@ -58,14 +80,19 @@
 
 	// Imperative pipeline state (read by the render loop, not the template).
 	const store = createStrokeStore();
+	const placements = createPlacementStore();
 	let renderer: CanvasRenderer | null = null;
 	let capture: DrawingCapture | null = null;
+	let controller: PlacementController | null = null;
 	let pipeline: ClassifiedDrawing | null = null;
 	let spellIR: SpellIR | null = null;
 	let previousRing: RingInfo | null = null;
 	let resizeObserver: ResizeObserver | null = null;
 	let rafId: number | null = null;
 	let recomputeTimer: ReturnType<typeof setTimeout> | null = null;
+	let armedShape: ShapeItem | null = null;
+	let selectedPlacementId: string | null = null;
+	let strokes: ReturnType<typeof store.getStrokes> = [];
 
 	// Plain (non-reactive) snapshots of the recognition inputs, posted to the
 	// classifier/recognition workers. `$state` proxies are not structured-cloneable,
@@ -76,9 +103,75 @@
 	let dictionarySnapshot: Dictionary | null = null;
 	let recognitionExamplesSnapshot: RecognitionExample[] = [];
 
+	// Unified undo/redo history. A snapshot captures the full drawing state (freehand
+	// strokes plus editable placements) so undo and redo work the same for both. Oldest
+	// snapshots are dropped once the stack grows past MAX_HISTORY.
+	const MAX_HISTORY = 100;
+	interface Snapshot {
+		strokes: Stroke[];
+		placements: Placement[];
+	}
+	let history: Snapshot[] = [];
+	let historyIndex = -1;
+
+	function mergedStrokes() {
+		return [...store.getStrokes(), ...placements.getPlacements().flatMap(bakePlacementToStrokes)];
+	}
+
+	function snapshot(): Snapshot {
+		return {
+			strokes: store.getStrokes(),
+			placements: placements.getPlacements().map((placement) => ({
+				...placement,
+				transform: { ...placement.transform }
+			}))
+		};
+	}
+
+	// Rescale a snapshot into a resized canvas so undo/redo keep correct geometry after
+	// the window changes size, mirroring how the live strokes and placements are scaled.
+	function scaleSnapshot(snap: Snapshot, scaleX: number, scaleY: number): Snapshot {
+		return {
+			strokes: snap.strokes.map((stroke) => ({
+				...stroke,
+				points: stroke.points.map((point) => ({
+					...point,
+					x: point.x * scaleX,
+					y: point.y * scaleY
+				}))
+			})),
+			placements: snap.placements.map((placement) => ({
+				...placement,
+				transform: {
+					...placement.transform,
+					cx: placement.transform.cx * scaleX,
+					cy: placement.transform.cy * scaleY,
+					scaleX: placement.transform.scaleX * scaleX,
+					scaleY: placement.transform.scaleY * scaleY
+				}
+			}))
+		};
+	}
+
+	function pushHistory() {
+		history = [...history.slice(0, historyIndex + 1), snapshot()].slice(-MAX_HISTORY);
+		historyIndex = history.length - 1;
+	}
+
+	function restore(snap: Snapshot) {
+		store.load(snap.strokes);
+		placements.load(snap.placements);
+		if (selectedPlacementId && !placements.get(selectedPlacementId)) {
+			selectedPlacementId = null;
+		}
+		setSelected(selectedPlacementId);
+		previousRing = null;
+		void recompute();
+	}
+
 	function buildDiagnostics() {
 		const state = buildDiagnosticState({
-			rawStrokes: store.peekStrokes(),
+			rawStrokes: strokes,
 			pipeline,
 			spellIR
 		});
@@ -133,6 +226,10 @@
 			return;
 		}
 
+		// Freehand strokes and any baked placements are classified together, so the
+		// editable shapes contribute to ring/sigil detection just like hand-drawn ink.
+		strokes = mergedStrokes();
+
 		// Recognition is fanned out across a worker pool, so this is async. Guard with
 		// a sequence token: rapid strokes can overlap, and only the newest result
 		// should win. previousRing is read synchronously here, before the await.
@@ -140,7 +237,7 @@
 		let result: ClassifiedDrawing;
 		try {
 			result = await classifyDrawingAsync({
-				strokes: store.getStrokes(),
+				strokes,
 				previousRing,
 				canvasWidth: glyphCanvas.width,
 				canvasHeight: glyphCanvas.height,
@@ -159,19 +256,30 @@
 		pipeline = result;
 		previousRing = pipeline.ring;
 		spellIR = compileSpell({ glyphAST: pipeline.glyphAST, config: CONFIG });
-		summary = computeSummary({ store, pipeline, spellIR, showGuides });
+		summary = computeSummary({
+			store,
+			pipeline,
+			spellIR,
+			showGuides,
+			arrangeMode: arrangeShapes,
+			placementCount: placements.count(),
+			canUndo: historyIndex > 0,
+			canRedo: historyIndex < history.length - 1
+		});
 		capture?.setLocked(summary.inputLocked);
 		diagnostics = buildDiagnostics();
 	}
 
 	function animationFrame(timestamp: number) {
-		const strokes = store.peekStrokes();
+		const activePlacement =
+			arrangeShapes && selectedPlacementId ? placements.get(selectedPlacementId) : null;
 		renderer!.renderGlyph({
 			strokes,
 			currentStroke: capture!.getCurrentStrokeView(),
 			pipeline,
 			showGuides,
-			showDebug: showDiagnostics
+			showDebug: showDiagnostics,
+			selection: activePlacement ? placementHandles(activePlacement) : null
 		});
 
 		if (spellIR?.active) {
@@ -194,23 +302,131 @@
 	}
 
 	function handleUndo() {
+		if (historyIndex <= 0) {
+			return;
+		}
 		cancelActiveRecognition();
-		store.undo();
-		previousRing = null;
-		void recompute();
+		historyIndex -= 1;
+		restore(history[historyIndex]);
 	}
 
 	function handleRedo() {
+		if (historyIndex >= history.length - 1) {
+			return;
+		}
 		cancelActiveRecognition();
-		store.redo();
-		previousRing = null;
-		void recompute();
+		historyIndex += 1;
+		restore(history[historyIndex]);
 	}
 
 	function handleClear() {
 		cancelActiveRecognition();
 		store.clear();
+		placements.clear();
+		armedShape = null;
+		armedShapeId = null;
+		setSelected(null);
 		previousRing = null;
+		pushHistory();
+		void recompute();
+	}
+
+	function setSelected(id: string | null) {
+		selectedPlacementId = id;
+		const placement = id ? placements.get(id) : null;
+		selected = placement
+			? {
+					kind: placement.kind,
+					sourceId: placement.sourceId,
+					transform: { ...placement.transform }
+				}
+			: null;
+	}
+
+	function placeArmedShape(point: Vector): string | null {
+		if (!armedShape) {
+			return null;
+		}
+		const placement = placements.add({
+			kind: armedShape.kind,
+			sourceId: armedShape.sourceId,
+			baseStrokes: armedShape.baseStrokes,
+			transform: defaultTransformForShape(armedShape, point, glyphCanvas)
+		});
+		armedShape = null;
+		armedShapeId = null;
+		setSelected(placement.id);
+		pushHistory();
+		recompute();
+		return placement.id;
+	}
+
+	function deletePlacement(id: string) {
+		placements.remove(id);
+		if (selectedPlacementId === id) {
+			setSelected(null);
+		}
+		pushHistory();
+		recompute();
+	}
+
+	// Bake a placement into the stroke store as permanent ink, then drop the editable
+	// placement so it behaves exactly like hand-drawn strokes. Callers record history.
+	function commitPlacement(id: string) {
+		const placement = placements.get(id);
+		if (!placement) {
+			return;
+		}
+		bakePlacementToStrokes(placement).forEach((stroke) => store.addStroke(stroke.points));
+		placements.remove(id);
+		if (selectedPlacementId === id) {
+			setSelected(null);
+		}
+	}
+
+	function handleCommitSelected() {
+		if (!selectedPlacementId) {
+			return;
+		}
+		commitPlacement(selectedPlacementId);
+		pushHistory();
+		recompute();
+	}
+
+	function setArrangeMode(on: boolean) {
+		arrangeShapes = on;
+		controller?.setActive(on);
+		glyphCanvas.style.cursor = on ? 'default' : 'crosshair';
+		if (!on) {
+			armedShape = null;
+			armedShapeId = null;
+			const hadPlacements = placements.count() > 0;
+			placements
+				.getPlacements()
+				.map((placement) => placement.id)
+				.forEach((id) => commitPlacement(id));
+			setSelected(null);
+			if (hadPlacements) {
+				pushHistory();
+			}
+		}
+		recompute();
+	}
+
+	function armShape(item: ShapeItem) {
+		armedShape = item;
+		armedShapeId = item.id;
+		if (!arrangeShapes) {
+			setArrangeMode(true);
+		}
+	}
+
+	function updateSelectedTransform(patch: Partial<PlacementTransform>) {
+		if (!selectedPlacementId) {
+			return;
+		}
+		placements.update(selectedPlacementId, patch);
+		setSelected(selectedPlacementId);
 		void recompute();
 	}
 
@@ -218,8 +434,32 @@
 		// Guides only affect the canvas hint visibility and guide rendering;
 		// refresh the summary without re-running the parser pipeline.
 		if (dictionary) {
-			summary = computeSummary({ store, pipeline, spellIR, showGuides });
+			summary = computeSummary({
+				store,
+				pipeline,
+				spellIR,
+				showGuides,
+				arrangeMode: arrangeShapes,
+				placementCount: placements.count(),
+				canUndo: historyIndex > 0,
+				canRedo: historyIndex < history.length - 1
+			});
 		}
+	}
+
+	function scalePlacements(scaleX: number, scaleY: number) {
+		for (const placement of placements.getPlacements()) {
+			placements.update(placement.id, {
+				cx: placement.transform.cx * scaleX,
+				cy: placement.transform.cy * scaleY,
+				scaleX: placement.transform.scaleX * scaleX,
+				scaleY: placement.transform.scaleY * scaleY
+			});
+		}
+	}
+
+	function handleToggleArrange() {
+		setArrangeMode(arrangeShapes);
 	}
 
 	// Mirror the original `body.diagnostics-visible` toggle the debug CSS keys off.
@@ -232,12 +472,41 @@
 		renderer = new CanvasRenderer({ glyphCanvas, effectCanvas, config: CONFIG });
 		capture = new DrawingCapture(glyphCanvas, store, CONFIG, {
 			onStart: cancelActiveRecognition,
-			onCommit: () => void recompute()
+			onCommit: () => {
+				pushHistory();
+				void recompute();
+			}
 		});
+		controller = new PlacementController(glyphCanvas, placements, {
+			getSelectedId: () => selectedPlacementId,
+			setSelectedId: setSelected,
+			hasArmedShape: () => armedShape !== null,
+			placeShape: placeArmedShape,
+			onChange: () => {
+				if (selectedPlacementId) {
+					setSelected(selectedPlacementId);
+				}
+				recompute();
+			},
+			onInteractionEnd: () => {
+				pushHistory();
+				recompute();
+			}
+		});
+		controller.enable();
+		controller.setActive(false);
+		glyphCanvas.style.cursor = 'crosshair';
 		resizeObserver = setupCanvasSizing({
 			elements: { canvasShell, glyphCanvas, effectCanvas },
 			store,
-			onCanvasResized: () => {
+			onCanvasResized: ({ scale }) => {
+				// The canvas is locked to a 1:1 ratio, so a single uniform scale applies
+				// to both axes. Live strokes are rescaled inside setupCanvasSizing; here we
+				// keep placements and the undo history in sync with the new resolution.
+				if (scale !== 1) {
+					scalePlacements(scale, scale);
+					history = history.map((snap) => scaleSnapshot(snap, scale, scale));
+				}
 				previousRing = null;
 				scheduleRecompute(60);
 			}
@@ -249,7 +518,10 @@
 				dictionary = await loadDictionary();
 				dictionarySnapshot = $state.snapshot(dictionary) as Dictionary;
 				await refreshRecognitionAssets();
+				shapeLibrary = buildShapeLibrary(dictionary);
 				capture.enable();
+				history = [snapshot()];
+				historyIndex = 0;
 				inputReady = true;
 				void recompute();
 				if (!cancelled) {
@@ -262,6 +534,16 @@
 		})();
 
 		function handleKeydown(event: KeyboardEvent) {
+			const target = event.target as HTMLElement | null;
+			const typing = target?.tagName === 'INPUT' || target?.tagName === 'TEXTAREA';
+			if (arrangeShapes && selectedPlacementId && !typing) {
+				if (event.key === 'Delete' || event.key === 'Backspace') {
+					event.preventDefault();
+					deletePlacement(selectedPlacementId);
+					return;
+				}
+			}
+
 			const isMac = navigator.platform.toUpperCase().includes('MAC');
 			const ctrl = isMac ? event.metaKey : event.ctrlKey;
 			if (!ctrl) return;
@@ -288,6 +570,7 @@
 			}
 			cancelScheduledRecompute();
 			capture?.disable();
+			controller?.disable();
 			inputReady = false;
 			resizeObserver?.disconnect();
 			window.removeEventListener('keydown', handleKeydown);
@@ -322,10 +605,12 @@
 			{summary}
 			bind:showGuides
 			bind:showDiagnostics
+			bind:arrangeShapes
 			onUndo={handleUndo}
 			onRedo={handleRedo}
 			onClear={handleClear}
 			onToggleGuides={handleToggleGuides}
+			onToggleArrange={handleToggleArrange}
 		/>
 
 		<section class="canvas-panel" aria-label="Spell drawing surface">
@@ -354,7 +639,7 @@
 						data-testid="glyph-canvas"
 						data-input-ready={inputReady}
 						bind:this={glyphCanvas}
-						class:locked={summary.inputLocked}
+						class:locked={summary.canvasLocked}
 						width="1000"
 						height="1000"
 					></canvas>
@@ -427,6 +712,14 @@
 				<button
 					type="button"
 					class="panel-tab-button"
+					class:active={rootTab === 'shapes'}
+					onclick={() => (rootTab = 'shapes')}
+				>
+					Shapes
+				</button>
+				<button
+					type="button"
+					class="panel-tab-button"
 					class:active={rootTab === 'diagnostic'}
 					onclick={() => (rootTab = 'diagnostic')}
 				>
@@ -436,6 +729,19 @@
 
 			<section id="dictionaryRootPanel" hidden={rootTab !== 'dictionary'}>
 				<DictionaryReference {dictionary} />
+			</section>
+
+			<section id="shapesRootPanel" hidden={rootTab !== 'shapes'}>
+				<ShapePalette
+					library={shapeLibrary}
+					{armedShapeId}
+					{selected}
+					onArm={armShape}
+					onChange={updateSelectedTransform}
+					onCommitTransform={pushHistory}
+					onCommit={handleCommitSelected}
+					onRemove={() => selectedPlacementId && deletePlacement(selectedPlacementId)}
+				/>
 			</section>
 
 			<section id="diagnosticRootPanel" hidden={rootTab !== 'diagnostic'}>
