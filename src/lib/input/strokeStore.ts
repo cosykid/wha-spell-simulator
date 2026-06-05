@@ -1,5 +1,16 @@
 import type { Point, Stroke, StrokeStore } from "../types.js";
 
+function scaleStroke(stroke: Stroke, scaleX: number, scaleY: number): Stroke {
+  return {
+    ...stroke,
+    points: stroke.points.map((point) => ({
+      ...point,
+      x: point.x * scaleX,
+      y: point.y * scaleY
+    }))
+  };
+}
+
 export function createStrokeStore(): StrokeStore {
   let strokes: Stroke[] = [];
   let redoStack: Stroke[] = [];
@@ -44,14 +55,8 @@ export function createStrokeStore(): StrokeStore {
     },
 
     scale(scaleX: number, scaleY: number): void {
-      strokes = strokes.map((stroke) => ({
-        ...stroke,
-        points: stroke.points.map((point) => ({
-          ...point,
-          x: point.x * scaleX,
-          y: point.y * scaleY
-        }))
-      }));
+      strokes = strokes.map((stroke) => scaleStroke(stroke, scaleX, scaleY));
+      redoStack = redoStack.map((stroke) => scaleStroke(stroke, scaleX, scaleY));
     },
 
     getStrokes(): Stroke[] {

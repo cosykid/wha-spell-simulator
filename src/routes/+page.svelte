@@ -176,14 +176,15 @@
       const isMac = navigator.platform.toUpperCase().includes('MAC');
       const ctrl = isMac ? event.metaKey : event.ctrlKey;
       if (!ctrl) return;
+      const key = event.key.toLowerCase();
 
-      if (event.key === 'z' && !event.shiftKey) {
+      if (key === 'z' && !event.shiftKey) {
         event.preventDefault();
         handleUndo();
-      } else if (event.key === 'z' && event.shiftKey) {
+      } else if (key === 'z' && event.shiftKey) {
         event.preventDefault();
         handleRedo();
-      } else if (event.key === 'y') {
+      } else if (key === 'y') {
         event.preventDefault();
         handleRedo();
       }
