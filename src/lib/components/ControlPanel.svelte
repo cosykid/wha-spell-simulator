@@ -1,38 +1,38 @@
 <script lang="ts">
 	import { meterLevel, meterPercent } from '$lib/ui/spellSummary.js';
 
-  interface Summary {
-    statusText: string;
-    statusClass: string;
-    element: string;
-    manifestation: string;
-    quality: number;
-    stability: number;
-    force: number;
-    undoDisabled: boolean;
-    redoDisabled: boolean;
-    [key: string]: unknown;
-  }
+	interface Summary {
+		statusText: string;
+		statusClass: string;
+		element: string;
+		manifestation: string;
+		quality: number;
+		stability: number;
+		force: number;
+		undoDisabled: boolean;
+		redoDisabled: boolean;
+		[key: string]: unknown;
+	}
 
-  interface Props {
-    summary: Summary;
-    showGuides?: boolean;
-    showDiagnostics?: boolean;
-    onUndo?: () => void;
-    onRedo?: () => void;
-    onClear?: () => void;
-    onToggleGuides?: () => void;
-  }
+	interface Props {
+		summary: Summary;
+		showGuides?: boolean;
+		showDiagnostics?: boolean;
+		onUndo?: () => void;
+		onRedo?: () => void;
+		onClear?: () => void;
+		onToggleGuides?: () => void;
+	}
 
-  let {
-    summary,
-    showGuides = $bindable(),
-    showDiagnostics = $bindable(),
-    onUndo,
-    onRedo,
-    onClear,
-    onToggleGuides
-  }: Props = $props();
+	let {
+		summary,
+		showGuides = $bindable(),
+		showDiagnostics = $bindable(),
+		onUndo,
+		onRedo,
+		onClear,
+		onToggleGuides
+	}: Props = $props();
 
 	const meters = $derived([
 		{ label: 'Quality', value: summary.quality },
@@ -42,11 +42,15 @@
 </script>
 
 <aside class="control-panel" aria-label="Spell controls">
-  <section class="control-section">
-    <button type="button" id="undoButton" disabled={summary.undoDisabled} onclick={onUndo}>Undo</button>
-    <button type="button" id="redoButton" disabled={summary.redoDisabled} onclick={onRedo}>Redo</button>
-    <button type="button" id="clearButton" onclick={onClear}>Clear</button>
-  </section>
+	<section class="control-section">
+		<button type="button" id="undoButton" disabled={summary.undoDisabled} onclick={onUndo}
+			>Undo</button
+		>
+		<button type="button" id="redoButton" disabled={summary.redoDisabled} onclick={onRedo}
+			>Redo</button
+		>
+		<button type="button" id="clearButton" onclick={onClear}>Clear</button>
+	</section>
 
 	<section class="control-section">
 		<label class="toggle">

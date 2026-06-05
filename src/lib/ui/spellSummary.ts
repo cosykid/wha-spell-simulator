@@ -106,34 +106,33 @@ export function computeSummary({
 
 	const inputLocked = ringClosed || hasUnsupportedStructure;
 
-  return {
-    statusText,
-    statusClass: spellStatusClass(spellIR, closedWithoutSpell, hasUnsupportedStructure),
-    element: spellIR?.element ? spellIR.element : "None",
-    manifestation: formatManifestations(spellIR),
-    quality: clamp(spellIR?.quality ?? 0),
-    stability: clamp(spellIR?.stability ?? 0),
-    force: clamp(spellIR?.force ?? 0),
-    inputLocked,
-    undoDisabled: undoLocked || store.count() === 0,
-    redoDisabled: undoLocked || !store.canRedo(),
-    portalActive: Boolean(spellIR?.active),
-    hintHidden: store.count() > 0 || !showGuides
-  };
+	return {
+		statusText,
+		statusClass: spellStatusClass(spellIR, closedWithoutSpell, hasUnsupportedStructure),
+		element: spellIR?.element ? spellIR.element : 'None',
+		manifestation: formatManifestations(spellIR),
+		quality: clamp(spellIR?.quality ?? 0),
+		stability: clamp(spellIR?.stability ?? 0),
+		force: clamp(spellIR?.force ?? 0),
+		inputLocked,
+		redoDisabled: spellIR?.active || !store.canRedo(),
+		portalActive: Boolean(spellIR?.active),
+		hintHidden: store.count() > 0 || !showGuides
+	};
 }
 
 /** The summary shown before the dictionary has loaded. */
 export const INITIAL_SUMMARY = {
-  statusText: "Loading",
-  statusClass: "",
-  element: "None",
-  manifestation: "None",
-  quality: 0,
-  stability: 0,
-  force: 0,
-  inputLocked: false,
-  undoDisabled: true,
-  redoDisabled: true,
-  portalActive: false,
-  hintHidden: false
+	statusText: 'Loading',
+	statusClass: '',
+	element: 'None',
+	manifestation: 'None',
+	quality: 0,
+	stability: 0,
+	force: 0,
+	inputLocked: false,
+	undoDisabled: true,
+	redoDisabled: true,
+	portalActive: false,
+	hintHidden: false
 };

@@ -225,16 +225,16 @@
 		</div>
 	</header>
 
-  <main class="workspace">
-    <ControlPanel
-      {summary}
-      bind:showGuides
-      bind:showDiagnostics
-      onUndo={handleUndo}
-      onRedo={handleRedo}
-      onClear={handleClear}
-      onToggleGuides={handleToggleGuides}
-    />
+	<main class="workspace">
+		<ControlPanel
+			{summary}
+			bind:showGuides
+			bind:showDiagnostics
+			onUndo={handleUndo}
+			onRedo={handleRedo}
+			onClear={handleClear}
+			onToggleGuides={handleToggleGuides}
+		/>
 
 		<section class="canvas-panel" aria-label="Spell drawing surface">
 			<div class="canvas-shell" bind:this={canvasShell} class:portal-active={summary.portalActive}>
