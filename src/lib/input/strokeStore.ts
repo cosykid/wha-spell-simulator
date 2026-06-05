@@ -2,6 +2,7 @@ import type { Point, Stroke, StrokeStore } from "../types.js";
 
 export function createStrokeStore(): StrokeStore {
   let strokes: Stroke[] = [];
+  let redoStack: Stroke[] = [];
   let nextId = 1;
 
   return {
@@ -14,17 +15,31 @@ export function createStrokeStore(): StrokeStore {
         endedAt: points[points.length - 1]?.t ?? now
       };
       strokes = [...strokes, stroke];
+      redoStack = []; // new stroke clears redo history
       return stroke;
     },
 
     undo(): Stroke | null {
       const removed = strokes[strokes.length - 1] ?? null;
-      strokes = strokes.slice(0, -1);
+      if (removed) {
+        strokes = strokes.slice(0, -1);
+        redoStack = [...redoStack, removed];
+      }
       return removed;
+    },
+
+    redo(): Stroke | null {
+      const restored = redoStack[redoStack.length - 1] ?? null;
+      if (restored) {
+        redoStack = redoStack.slice(0, -1);
+        strokes = [...strokes, restored];
+      }
+      return restored;
     },
 
     clear(): void {
       strokes = [];
+      redoStack = [];
       nextId = 1;
     },
 
@@ -48,6 +63,10 @@ export function createStrokeStore(): StrokeStore {
 
     count(): number {
       return strokes.length;
+    },
+
+    canRedo(): boolean {
+      return redoStack.length > 0;
     }
   };
 }

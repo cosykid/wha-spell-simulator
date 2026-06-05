@@ -117,6 +117,12 @@
     recompute();
   }
 
+  function handleRedo() {
+    store.redo();
+    previousRing = null;
+    recompute();
+  }
+
   function handleClear() {
     store.clear();
     previousRing = null;
@@ -166,6 +172,24 @@
         summary = { ...summary, statusText: "Dictionary load failed", statusClass: "invalid" };
       }
     })();
+    function handleKeydown(event: KeyboardEvent) {
+      const isMac = navigator.platform.toUpperCase().includes('MAC');
+      const ctrl = isMac ? event.metaKey : event.ctrlKey;
+      if (!ctrl) return;
+
+      if (event.key === 'z' && !event.shiftKey) {
+        event.preventDefault();
+        handleUndo();
+      } else if (event.key === 'z' && event.shiftKey) {
+        event.preventDefault();
+        handleRedo();
+      } else if (event.key === 'y') {
+        event.preventDefault();
+        handleRedo();
+      }
+    }
+
+    window.addEventListener('keydown', handleKeydown);
 
     return () => {
       cancelled = true;
@@ -174,6 +198,7 @@
       }
       capture?.disable();
       resizeObserver?.disconnect();
+      window.removeEventListener('keydown', handleKeydown);
     };
   });
 </script>
