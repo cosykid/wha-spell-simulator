@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { base } from '$app/paths';
+	import { resolve } from '$app/paths';
 	import type { RingInfo } from '$lib/types.js';
 
 	import { CONFIG } from '$lib/config.js';
@@ -268,7 +268,7 @@
 			<h1>Spell Effect Lab</h1>
 		</div>
 		<div class="header-actions">
-			<a class="header-link" href="{base}/tools">Tools</a>
+			<a class="header-link" href={resolve('/tools')}>Tools</a>
 			<div class="status-pill {status.className}">{status.text}</div>
 		</div>
 	</header>
@@ -277,7 +277,7 @@
 		<section class="canvas-panel maker-canvas-panel">
 			<div class="toolbar effect-lab-toolbar">
 				<select class="select-control" bind:value={element} onchange={restartSpell}>
-					{#each ELEMENTS as option}
+					{#each ELEMENTS as option (option)}
 						<option value={option}>{option[0].toUpperCase() + option.slice(1)}</option>
 					{/each}
 				</select>

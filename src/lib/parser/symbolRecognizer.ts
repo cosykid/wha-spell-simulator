@@ -13,7 +13,6 @@ import type {
 	AppConfig,
 	Dictionary,
 	DictionaryEntry,
-	Recognition,
 	RecognitionKind,
 	RecognitionStatus,
 	RecognizedSymbol,

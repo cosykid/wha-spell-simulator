@@ -204,7 +204,7 @@ function largestGap(bins: boolean[]): RingGap {
 	};
 }
 
-function openCoverageHalfWidth(radius: number, config: AppConfig): number {
+function openCoverageHalfWidth(radius: number): number {
 	return Math.max(OPEN_COVERAGE_HALF_WIDTH_PX, radius * OPEN_COVERAGE_HALF_WIDTH_RATIO);
 }
 
@@ -214,7 +214,7 @@ function strokeCircleMetrics(
 	config: AppConfig,
 	bins: boolean[] | null = null
 ): StrokeCircleMetrics {
-	const halfWidth = openCoverageHalfWidth(circle.radius, config);
+	const halfWidth = openCoverageHalfWidth(circle.radius);
 	const sampleStep = STROKE_SAMPLE_STEP_PX;
 	let totalLength = 0;
 	let nearLength = 0;

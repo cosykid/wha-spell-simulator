@@ -45,12 +45,7 @@ function endpointDistance(a: Stroke, b: Stroke): number {
 	return best;
 }
 
-function shouldGroup(
-	a: CleanedStroke,
-	b: CleanedStroke,
-	ring: RingInfo,
-	config: AppConfig
-): boolean {
+function shouldGroup(a: CleanedStroke, b: CleanedStroke, ring: RingInfo): boolean {
 	const padding = ring.radius * BBOX_PADDING_NORM;
 	const aBounds = expandBounds(a.metrics.bounds, padding);
 	const bBounds = expandBounds(b.metrics.bounds, padding);
@@ -164,7 +159,7 @@ export function buildSymbolCandidates(
 				if (visited.has(other.id)) {
 					continue;
 				}
-				if (shouldGroup(current, other, ring, config)) {
+				if (shouldGroup(current, other, ring)) {
 					visited.add(other.id);
 					queue.push(other);
 				}

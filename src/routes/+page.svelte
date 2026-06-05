@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { base } from '$app/paths';
+	import { resolve } from '$app/paths';
 	import type { ClassifiedDrawing, Dictionary, RingInfo, SpellIR } from '$lib/types.js';
 
 	import { CONFIG } from '$lib/config.js';
@@ -116,6 +116,12 @@
 		recompute();
 	}
 
+	function handleRedo() {
+		store.redo();
+		previousRing = null;
+		recompute();
+	}
+
 	function handleClear() {
 		store.clear();
 		previousRing = null;
@@ -166,6 +172,26 @@
 			}
 		})();
 
+		function handleKeydown(event: KeyboardEvent) {
+			const isMac = navigator.platform.toUpperCase().includes('MAC');
+			const ctrl = isMac ? event.metaKey : event.ctrlKey;
+			if (!ctrl) return;
+			const key = event.key.toLowerCase();
+
+			if (key === 'z' && !event.shiftKey) {
+				event.preventDefault();
+				handleUndo();
+			} else if (key === 'z' && event.shiftKey) {
+				event.preventDefault();
+				handleRedo();
+			} else if (key === 'y') {
+				event.preventDefault();
+				handleRedo();
+			}
+		}
+
+		window.addEventListener('keydown', handleKeydown);
+
 		return () => {
 			cancelled = true;
 			if (rafId) {
@@ -173,6 +199,7 @@
 			}
 			capture?.disable();
 			resizeObserver?.disconnect();
+			window.removeEventListener('keydown', handleKeydown);
 		};
 	});
 </script>
@@ -188,7 +215,7 @@
 			<h1>Witch Hat Atelier Spell Simulator</h1>
 		</div>
 		<div class="header-actions">
-			<a class="header-link" href="{base}/tools">Tools</a>
+			<a class="header-link" href={resolve('/tools')}>Tools</a>
 			<a
 				class="header-link"
 				href="https://github.com/ytnrvdf/wha-spell-simulator"

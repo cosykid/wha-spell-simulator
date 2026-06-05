@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { base } from '$app/paths';
+	import { resolve } from '$app/paths';
 	import type { StrokeTemplate } from '$lib/types.js';
 
 	import { CONFIG } from '$lib/config.js';
@@ -106,7 +106,7 @@
 			<h1>Stroke Template Viewer</h1>
 		</div>
 		<div class="header-actions">
-			<a class="header-link" href="{base}/tools">Tools</a>
+			<a class="header-link" href={resolve('/tools')}>Tools</a>
 			<div class="status-pill {status.className}">{status.text}</div>
 		</div>
 	</header>

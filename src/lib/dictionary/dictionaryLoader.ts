@@ -1,6 +1,6 @@
 import type { Dictionary, SigilEntry, SignEntry, SampleSpell } from '../types.js';
 
-async function readJson(url: URL | string): Promise<any> {
+async function readJson(url: URL | string): Promise<unknown> {
 	const response = await fetch(url);
 	if (!response.ok) {
 		throw new Error(`Unable to load ${url}: ${response.status}`);

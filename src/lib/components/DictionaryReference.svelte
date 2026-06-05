@@ -46,7 +46,7 @@
 	{#if polylines.length}
 		<div class="reference-preview" aria-hidden="true">
 			<svg viewBox="0 0 100 100" role="img" focusable="false">
-				{#each polylines as points}
+				{#each polylines as points (points)}
 					<polyline {points}></polyline>
 				{/each}
 			</svg>

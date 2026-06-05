@@ -1,36 +1,36 @@
 <script lang="ts">
-	import { base } from '$app/paths';
+	import { resolve } from '$app/paths';
 
 	const tools = [
 		{
-			href: 'stroke-template-maker',
+			href: '/tools/stroke-template-maker',
 			eyebrow: 'Template Tool',
 			title: 'Stroke Template Maker',
 			description:
 				'Draw a sigil or sign and export a normalized strokeTemplate to paste into the dictionary.'
 		},
 		{
-			href: 'stroke-template-viewer',
+			href: '/tools/stroke-template-viewer',
 			eyebrow: 'Template Tool',
 			title: 'Stroke Template Viewer',
 			description:
 				'Paste a strokeTemplate or dictionary entry to preview its strokes and inspect its metrics.'
 		},
 		{
-			href: 'sigil-sign-detector-lab',
+			href: '/tools/sigil-sign-detector-lab',
 			eyebrow: 'Detector Tool',
 			title: 'Sigil/Sign Detector Lab',
 			description:
 				'Draw one symbol and watch the recognizer score it against the dictionary in real time.'
 		},
 		{
-			href: 'spell-effect-lab',
+			href: '/tools/spell-effect-lab',
 			eyebrow: 'Effect Tool',
 			title: 'Spell Effect Lab',
 			description:
 				'Tune a synthetic SpellIR with sliders to preview and refine the animated element effects.'
 		}
-	];
+	] as const;
 </script>
 
 <svelte:head>
@@ -44,7 +44,7 @@
 			<h1>Lab Tools</h1>
 		</div>
 		<div class="header-actions">
-			<a class="header-link" href="{base}/">Simulator</a>
+			<a class="header-link" href={resolve('/')}>Simulator</a>
 			<a
 				class="header-link"
 				href="https://github.com/ytnrvdf/wha-spell-simulator"
@@ -61,7 +61,7 @@
 		</p>
 		<div class="tools-index-grid">
 			{#each tools as tool (tool.href)}
-				<a class="tools-index-card" href="{base}/tools/{tool.href}">
+				<a class="tools-index-card" href={resolve(tool.href)}>
 					<p class="eyebrow">{tool.eyebrow}</p>
 					<h2>{tool.title}</h2>
 					<p class="tools-index-card-description">{tool.description}</p>

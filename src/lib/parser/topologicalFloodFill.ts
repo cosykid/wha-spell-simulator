@@ -298,7 +298,7 @@ function collectOutsideEdge(raster: Raster): { edgePixels: Vector[]; strokeIds: 
 	};
 }
 
-function scoreCircle(edgePixels: Vector[], config: AppConfig) {
+function scoreCircle(edgePixels: Vector[]) {
 	if (edgePixels.length < 8) {
 		return {
 			center: { x: 0, y: 0 },
@@ -368,7 +368,7 @@ export function analyzeTopologicalClosure(strokes: Stroke[], config: AppConfig):
 
 	const minAreaPx = Math.max(MIN_ENCLOSED_AREA_PX, boundsAreaPx * MIN_ENCLOSED_AREA_RATIO);
 	const edge = collectOutsideEdge(raster);
-	const circle = scoreCircle(edge.edgePixels, config);
+	const circle = scoreCircle(edge.edgePixels);
 	const closed =
 		enclosedAreaPx >= minAreaPx &&
 		circle.radius >= config.ring.minRadius &&

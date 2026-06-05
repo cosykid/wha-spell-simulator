@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { base } from '$app/paths';
+	import { resolve } from '$app/paths';
 	import type { Dictionary, Point, SigilEntry, StrokeTemplate } from '$lib/types.js';
 
 	import { CONFIG } from '$lib/config.js';
@@ -332,7 +332,7 @@
 			<h1>Sigil/Sign Detector Lab</h1>
 		</div>
 		<div class="header-actions">
-			<a class="header-link" href="{base}/tools">Tools</a>
+			<a class="header-link" href={resolve('/tools')}>Tools</a>
 			<div class="status-pill {status.className}">{status.text}</div>
 		</div>
 	</header>
@@ -395,7 +395,7 @@
 								{#if polylines.length}
 									<div class="reference-preview detector-match-preview" aria-hidden="true">
 										<svg viewBox="0 0 100 100" role="img" focusable="false">
-											{#each polylines as points}
+											{#each polylines as points (points)}
 												<polyline {points}></polyline>
 											{/each}
 										</svg>
