@@ -178,6 +178,10 @@ function drawSingleGlowingStroke(
 // Public exports
 // ---------------------------------------------------------------------------
 
+/**
+ * @deprecated Ink rendering now lives in the canvas entities. See {@link renderStrokeInk} /
+ * {@link makeStrokeEntity} in `src/lib/ui/canvas/entities/strokeEntity.ts`.
+ */
 export function drawStrokes(
 	ctx: CanvasRenderingContext2D,
 	strokes: Stroke[],
@@ -312,6 +316,10 @@ function drawHandleSquare(ctx: CanvasRenderingContext2D, point: Vector, size = 9
 	ctx.stroke();
 }
 
+/**
+ * @deprecated Selection-handle rendering now lives in the select tool. See `drawSelection` in
+ * {@link createSelectTool} (`src/lib/ui/canvas/tools/selectTool.svelte.ts`).
+ */
 export function drawPlacementSelection(
 	ctx: CanvasRenderingContext2D,
 	handles: PlacementHandles | null | undefined

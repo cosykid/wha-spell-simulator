@@ -1,6 +1,11 @@
-import { degreesToRadians } from '../utils/geometry.js';
 import type { AppConfig, RingInfo } from '../types.js';
 
+import { degreesToRadians } from '../utils/geometry.js';
+
+/**
+ * @deprecated Background rendering now lives in the canvas entity. See {@link makePaperEntity}
+ * in `src/lib/ui/canvas/entities/paperEntity.ts`.
+ */
 export function drawPaper(ctx: CanvasRenderingContext2D, width: number, height: number): void {
 	ctx.clearRect(0, 0, width, height);
 
