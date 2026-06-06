@@ -12,6 +12,10 @@ const config = {
 		// do not depend on a hard-coded deployment origin.
 		paths: {
 			relative: true
+		},
+		alias: {
+			$config: 'src/lib/config.ts',
+			$canvas: 'src/lib/ui/canvas'
 		}
 	}
 };
