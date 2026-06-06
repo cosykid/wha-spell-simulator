@@ -1,10 +1,13 @@
 import { randomBetween } from '../../utils/geometry.js';
 import {
 	activePortalPlane,
+	boltBurst,
 	convergePoint,
 	effectOpacity,
 	effectScale,
 	elementFlow,
+	emissionDirection,
+	emissionModifier,
 	narrowedByFocusAndConvergence,
 	particleAlpha,
 	particleDepth,
@@ -14,7 +17,14 @@ import {
 	steadyParticleAlpha
 } from './effectUtils.js';
 import type { AppConfig, RingInfo } from '../../types.js';
-import type { RenderSpellIR, EffectState, Particle, Portal, ElementFlow } from './effectUtils.js';
+import type {
+	RenderSpellIR,
+	EffectState,
+	Particle,
+	Portal,
+	ElementFlow,
+	EmissionModifier
+} from './effectUtils.js';
 
 // ---------------------------------------------------------------------------
 // Earth-specific flow config
@@ -25,6 +35,7 @@ interface EarthFlowConfig extends ElementFlow {
 	sourceRadiusY: number;
 	surfaceJitter: number;
 	speed: number;
+	mod: EmissionModifier;
 }
 
 // ---------------------------------------------------------------------------
@@ -67,7 +78,8 @@ function earthFlowConfig(
 			randomBetween(0.8, 2.8) *
 			(0.6 + spellIR.force) *
 			(0.9 + scale * 0.08) *
-			(1 - convergence.strength * 0.32)
+			(1 - convergence.strength * 0.32),
+		mod: emissionModifier(spellIR)
 	};
 }
 
@@ -82,16 +94,18 @@ function spawnEarthParticle(
 ): Particle {
 	const source = randomPortalPoint(portal, flow.sourceRadiusX, flow.sourceRadiusY);
 	const phase = randomBetween(0, Math.PI * 2);
+	const emitDir = emissionDirection(flow.direction, flow.mod);
+	const jitterScale = flow.scale * flow.mod.jitterMul;
 
 	return {
 		x: source.x + flow.side.x * randomBetween(-flow.surfaceJitter, flow.surfaceJitter),
 		y: source.y + flow.side.y * randomBetween(-flow.surfaceJitter, flow.surfaceJitter),
-		vx: flow.direction.x * flow.speed + randomBetween(-0.35, 0.35) * flow.scale,
-		vy: flow.direction.y * flow.speed + randomBetween(-0.35, 0.35) * flow.scale,
+		vx: emitDir.x * flow.speed * flow.mod.speedMul + randomBetween(-0.35, 0.35) * jitterScale,
+		vy: emitDir.y * flow.speed * flow.mod.speedMul + randomBetween(-0.35, 0.35) * jitterScale,
 		radius: randomBetween(4, 11) * (0.85 + flow.scale * 0.2),
 		phase,
 		age: 0,
-		life: flow.convergence.active ? flow.convergence.life : randomBetween(50, 92)
+		life: flow.convergence.active ? flow.convergence.life : randomBetween(50, 92) * flow.mod.lifeMul
 	};
 }
 
@@ -112,10 +126,9 @@ export function drawEarthEffect(
 	const portal = activePortalPlane(ctx.canvas, ring);
 	state.earthFrame = ((state.earthFrame as number | undefined) ?? 0) + dt;
 	const flow = earthFlowConfig(spellIR, ring, portal, state.earthFrame as number);
-	const targetCount = scaledParticleCount(
-		(68 + spellIR.force * 78) * (0.82 + scale * 0.28),
-		spellIR,
-		config
+	const targetCount = Math.round(
+		scaledParticleCount((68 + spellIR.force * 78) * (0.82 + scale * 0.28), spellIR, config) *
+			boltBurst(state.earthFrame as number, flow.mod.bolt)
 	);
 	while (state.particles.length < targetCount) {
 		state.particles.push(spawnEarthParticle(spellIR, portal, flow));
@@ -134,10 +147,23 @@ export function drawEarthEffect(
 			: particleAlpha(particle) * (0.78 + depth * 0.22) * opacity;
 		const size = particle.radius * (0.9 + depth * 0.54) * (1 - flow.convergence.progress * 0.22);
 		const point = convergePoint(particle, flow.convergence, particle.phase, 1.08);
-		ctx.fillStyle = `rgba(111, 83, 45, ${alpha * 0.72})`;
-		ctx.beginPath();
-		ctx.rect(point.x - size / 2, point.y - size / 2, size, size);
-		ctx.fill();
+
+		if (spellIR.sigil === 'crystal') {
+			// Crystal variant: faceted shards that catch the light instead of dull soil.
+			ctx.save();
+			ctx.translate(point.x, point.y);
+			ctx.rotate(particle.phase);
+			ctx.fillStyle = `rgba(166, 206, 233, ${alpha * 0.6})`;
+			ctx.fillRect(-size / 2, -size / 2, size, size);
+			ctx.fillStyle = `rgba(232, 244, 255, ${alpha * 0.55})`;
+			ctx.fillRect(-size * 0.2, -size * 0.2, size * 0.4, size * 0.4);
+			ctx.restore();
+		} else {
+			ctx.fillStyle = `rgba(111, 83, 45, ${alpha * 0.72})`;
+			ctx.beginPath();
+			ctx.rect(point.x - size / 2, point.y - size / 2, size, size);
+			ctx.fill();
+		}
 	}
 
 	pruneParticles(state);

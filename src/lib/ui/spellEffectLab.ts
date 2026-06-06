@@ -106,6 +106,22 @@ export const EFFECT_CONTROLS: Record<string, ControlDef> = {
 		step: 0.01,
 		description: 'Offsets the compressed path forward or backward along the effect direction.'
 	},
+	dispersion: {
+		label: 'Dispersion',
+		value: 0,
+		min: 0,
+		max: 1,
+		step: 0.01,
+		description: 'Sprays the effect outward on all sides instead of along one direction.'
+	},
+	bolt: {
+		label: 'Bolt',
+		value: 0,
+		min: 0,
+		max: 1,
+		step: 0.01,
+		description: 'Looses faster, shorter particles in rhythmic volleys, like projectiles.'
+	},
 	duration: {
 		label: 'Duration',
 		value: 5,
@@ -151,6 +167,26 @@ export const EFFECT_CONTROLS: Record<string, ControlDef> = {
 /** Default element selection for the lab. */
 export const DEFAULT_ELEMENT: ElementId = 'water';
 
+/** Default sigil selection for the lab. */
+export const DEFAULT_SIGIL = 'water';
+
+/** Selectable sigils, including element-variant sigils that reuse a base element's effect. */
+export const SIGIL_OPTIONS: Array<{ id: string; element: ElementId; label: string }> = [
+	{ id: 'fire', element: 'fire', label: 'Fire' },
+	{ id: 'water', element: 'water', label: 'Water' },
+	{ id: 'wind-directs-air', element: 'wind', label: 'Wind' },
+	{ id: 'earth', element: 'earth', label: 'Earth' },
+	{ id: 'light', element: 'light', label: 'Light' },
+	{ id: 'crystal', element: 'earth', label: 'Crystal (earth)' },
+	{ id: 'aeriform', element: 'wind', label: 'Aeriform (wind)' },
+	{ id: 'wind-underfoot', element: 'wind', label: 'Wind Underfoot (wind)' }
+];
+
+/** Resolves the base element a sigil id renders as. */
+export function elementForSigil(sigil: string): ElementId {
+	return SIGIL_OPTIONS.find((option) => option.id === sigil)?.element ?? DEFAULT_ELEMENT;
+}
+
 /** Builds the initial { key: value } map from the control definitions. */
 export function defaultControlValues(): ControlValues {
 	return Object.fromEntries(
@@ -195,6 +231,16 @@ function buildManifestations(values: ControlValues): {
 		};
 	}
 
+	const dispersionStrength = clamp(values.dispersion ?? 0, 0, 1);
+	if (dispersionStrength > 0) {
+		manifestations.dispersion = { strength: dispersionStrength };
+	}
+
+	const boltStrength = clamp(values.bolt ?? 0, 0, 1);
+	if (boltStrength > 0) {
+		manifestations.bolt = { strength: boltStrength };
+	}
+
 	const primaryManifestation = Object.entries(manifestations).sort(
 		([, left], [, right]) => right.strength - left.strength
 	)[0]?.[0];
@@ -220,11 +266,13 @@ function buildManifestations(values: ControlValues): {
 export function buildSpellIR({
 	values,
 	element,
+	sigil,
 	activatedAt,
 	config
 }: {
 	values: ControlValues;
 	element: ElementId;
+	sigil?: string;
 	activatedAt: number | null;
 	config: AppConfig;
 }): SpellIR {
@@ -244,6 +292,7 @@ export function buildSpellIR({
 		status: 'Active spell',
 		activatedAt,
 		element,
+		sigil: sigil ?? element,
 		elementConfidence: 1,
 		primarySizeNorm:
 			(effectScale - config.renderer.effectSize.baseScale) /
@@ -266,6 +315,7 @@ export function buildSpellIR({
 		signature: [
 			'lab',
 			element,
+			sigil ?? element,
 			Math.round(effectScale * 100),
 			Math.round(force * 100),
 			Math.round(spread * 100),
@@ -276,6 +326,8 @@ export function buildSpellIR({
 			Math.round(values.convergenceRigidity! * 100),
 			Math.round(values.convergenceX! * 100),
 			Math.round(values.convergenceY! * 100),
+			Math.round((values.dispersion ?? 0) * 100),
+			Math.round((values.bolt ?? 0) * 100),
 			Math.round(duration * 10),
 			Math.round(stability * 100),
 			Math.round(values.xTiltDeg!),
@@ -301,7 +353,7 @@ function clampToControl(key: string, value: number): number | undefined {
 export function valuesFromSpellIR(
 	spellIR: unknown,
 	currentValues: ControlValues
-): { values: ControlValues; element: ElementId | undefined } {
+): { values: ControlValues; element: ElementId | undefined; sigil: string | undefined } {
 	if (!spellIR || typeof spellIR !== 'object') {
 		throw new Error('Paste a SpellIR JSON object.');
 	}
@@ -311,6 +363,8 @@ export function valuesFromSpellIR(
 	const irManifestations = (ir.manifestations ?? {}) as Record<string, Record<string, unknown>>;
 	const irConvergence = (irManifestations.convergence ?? {}) as Record<string, unknown>;
 	const irConvergencePoint = (irConvergence.point ?? {}) as Record<string, unknown>;
+	const irDispersion = (irManifestations.dispersion ?? {}) as Record<string, unknown>;
+	const irBolt = (irManifestations.bolt ?? {}) as Record<string, unknown>;
 	const irDirection = (ir.direction ?? {}) as Record<string, unknown>;
 
 	const next: ControlValues = { ...currentValues };
@@ -331,6 +385,8 @@ export function valuesFromSpellIR(
 	set('convergenceRigidity', Number(irConvergence.rigidity ?? currentValues.convergenceRigidity));
 	set('convergenceX', Number(irConvergencePoint.x ?? currentValues.convergenceX));
 	set('convergenceY', Number(irConvergencePoint.y ?? currentValues.convergenceY));
+	set('dispersion', Number(irDispersion.strength ?? 0));
+	set('bolt', Number(irBolt.strength ?? 0));
 	set('duration', Number(ir.duration));
 	set('stability', Number(ir.stability));
 
@@ -352,6 +408,7 @@ export function valuesFromSpellIR(
 
 	return {
 		values: next,
-		element: (ir.element as ElementId | undefined) ?? undefined
+		element: (ir.element as ElementId | undefined) ?? undefined,
+		sigil: (ir.sigil as string | undefined) ?? undefined
 	};
 }

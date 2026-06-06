@@ -1,6 +1,7 @@
 import { clamp, perpendicularVector, randomBetween } from '../../utils/geometry.js';
 import {
 	activePortalPlane,
+	boltBurst,
 	convergenceFlow,
 	convergePoint,
 	effectFocus,
@@ -8,6 +9,8 @@ import {
 	effectOpacity,
 	effectScale,
 	effectSuspension,
+	emissionDirection,
+	emissionModifier,
 	particleAlpha,
 	particleDepth,
 	portalOutDirection,
@@ -18,7 +21,14 @@ import {
 	steadyParticleAlpha
 } from './effectUtils.js';
 import type { AppConfig, RingInfo } from '../../types.js';
-import type { RenderSpellIR, EffectState, Particle, Portal, ElementFlow } from './effectUtils.js';
+import type {
+	RenderSpellIR,
+	EffectState,
+	Particle,
+	Portal,
+	ElementFlow,
+	EmissionModifier
+} from './effectUtils.js';
 
 // ---------------------------------------------------------------------------
 // Fire-specific flow config
@@ -26,6 +36,7 @@ import type { RenderSpellIR, EffectState, Particle, Portal, ElementFlow } from '
 
 interface FireFlowConfig extends ElementFlow {
 	suspended: boolean;
+	mod: EmissionModifier;
 	gravity: number;
 	suspension: number;
 	suspendedLife: number;
@@ -64,6 +75,7 @@ function fireFlowConfig(
 
 	return {
 		suspended,
+		mod: emissionModifier(spellIR),
 		gravity,
 		suspension,
 		direction,
@@ -147,32 +159,37 @@ function spawnFlowFireParticle(
 			(1 - convergence.strength * 0.34) *
 			(1 - focus * 0.24)
 	);
-	const surfaceJitter = ring.radius * (0.025 + spellIR.spread * 0.05) * scale * (1 - focus * 0.4);
+	const surfaceJitter =
+		ring.radius * (0.025 + spellIR.spread * 0.05) * scale * (1 - focus * 0.4) * flow.mod.jitterMul;
 	const speed =
 		randomBetween(1.8, 4.2) *
 		(0.5 + spellIR.force) *
 		(0.92 + scale * 0.12) *
 		(1 - flow.suspension * 0.42) *
-		(1 - convergence.strength * 0.24);
+		(1 - convergence.strength * 0.24) *
+		flow.mod.speedMul;
 	const jitter =
 		(1 - spellIR.stability) *
 		1.8 *
 		(1 - flow.suspension * 0.3) *
 		(1 - convergence.strength * 0.4) *
-		(1 - focus * 0.46);
+		(1 - focus * 0.46) *
+		flow.mod.jitterMul;
+	const emitDir = emissionDirection(flow.direction, flow.mod);
+	const emitSide = perpendicularVector(emitDir);
 	const phase = randomBetween(0, Math.PI * 2);
 
 	return {
-		x: source.x + flow.side.x * randomBetween(-surfaceJitter, surfaceJitter),
-		y: source.y + flow.side.y * randomBetween(-surfaceJitter, surfaceJitter),
-		vx: flow.direction.x * speed + flow.side.x * randomBetween(-jitter, jitter),
-		vy: flow.direction.y * speed + flow.side.y * randomBetween(-jitter, jitter),
+		x: source.x + emitSide.x * randomBetween(-surfaceJitter, surfaceJitter),
+		y: source.y + emitSide.y * randomBetween(-surfaceJitter, surfaceJitter),
+		vx: emitDir.x * speed + emitSide.x * randomBetween(-jitter, jitter),
+		vy: emitDir.y * speed + emitSide.y * randomBetween(-jitter, jitter),
 		radius: randomBetween(5, 14) * (0.75 + spellIR.force) * (0.82 + scale * 0.28),
 		phase,
 		age: 0,
 		life: convergence.active
 			? convergence.life
-			: randomBetween(32, 62) * (0.88 + spellIR.stability * 0.34)
+			: randomBetween(32, 62) * (0.88 + spellIR.stability * 0.34) * flow.mod.lifeMul
 	};
 }
 
@@ -279,7 +296,10 @@ export function drawFireEffect(
 	const baseCount = flow.suspended
 		? 96 + spellIR.force * 74 + spellIR.spread * 52
 		: config.renderer.particleBaseCount + spellIR.force * 92;
-	const targetCount = scaledParticleCount(baseCount * (0.78 + scale * 0.32), spellIR, config);
+	const targetCount = Math.round(
+		scaledParticleCount(baseCount * (0.78 + scale * 0.32), spellIR, config) *
+			boltBurst(state.fireFrame as number, flow.mod.bolt)
+	);
 	while (state.particles.length < targetCount) {
 		state.particles.push(spawnFireParticle(spellIR, ring, portal, flow, state.fireFrame as number));
 	}

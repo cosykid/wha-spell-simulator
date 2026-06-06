@@ -269,6 +269,85 @@ export function convergePoint(
 }
 
 // ---------------------------------------------------------------------------
+// Dispersion & bolt manifestations
+//
+// These two manifestations reshape emission for every element effect through a
+// small shared modifier, so a `dispersion` or `bolt` sign behaves consistently
+// regardless of the sigil it is paired with.
+// ---------------------------------------------------------------------------
+
+export function effectDispersion(spellIR: RenderSpellIR): number {
+	return manifestationStrength(spellIR, 'dispersion');
+}
+
+export function effectBolt(spellIR: RenderSpellIR): number {
+	return manifestationStrength(spellIR, 'bolt');
+}
+
+/** Shared per-particle emission shaping derived from dispersion and bolt. */
+export interface EmissionModifier {
+	dispersion: number;
+	bolt: number;
+	/** Speed multiplier — bolt loosed particles travel faster. */
+	speedMul: number;
+	/** Lifetime multiplier — bolt particles are short streaks that shoot and fade. */
+	lifeMul: number;
+	/** Lateral jitter multiplier — bolt tightens the spray into a focused line. */
+	jitterMul: number;
+}
+
+export function emissionModifier(spellIR: RenderSpellIR): EmissionModifier {
+	const dispersion = effectDispersion(spellIR);
+	const bolt = effectBolt(spellIR);
+	return {
+		dispersion,
+		bolt,
+		speedMul: 1 + bolt * 1.5,
+		lifeMul: 1 - bolt * 0.52,
+		jitterMul: 1 - bolt * 0.66
+	};
+}
+
+// Particles sprayed by dispersion sit on the same tilted portal plane the ring
+// is drawn on, so the vertical component of a random outward direction is
+// squashed to match that foreshortening.
+const PORTAL_PLANE_Y_SQUASH = 0.55;
+
+/**
+ * Per-particle emission direction. With no dispersion this is the spell's
+ * forward direction; dispersion blends it toward a random outward direction on
+ * the portal plane so the element pours out on all sides at once.
+ */
+export function emissionDirection(base: Vector, mod: EmissionModifier): Vector {
+	if (mod.dispersion <= 0) {
+		return base;
+	}
+	const angle = Math.random() * Math.PI * 2;
+	const radial = normalizeVector({
+		x: Math.cos(angle),
+		y: Math.sin(angle) * PORTAL_PLANE_Y_SQUASH
+	});
+	return normalizeVector({
+		x: base.x + (radial.x - base.x) * mod.dispersion,
+		y: base.y + (radial.y - base.y) * mod.dispersion
+	});
+}
+
+/**
+ * Population pulse for the bolt manifestation. Returns a 0..1 multiplier on the
+ * target particle count so emission arrives in rhythmic volleys rather than a
+ * steady stream; combined with the shortened bolt lifetime this reads as
+ * discrete projectiles.
+ */
+export function boltBurst(frame: number, bolt: number): number {
+	if (bolt <= 0) {
+		return 1;
+	}
+	const pulse = 0.5 + 0.5 * Math.sin(frame * 0.12);
+	return 1 - bolt * 0.82 * pulse;
+}
+
+// ---------------------------------------------------------------------------
 // Particle count
 // ---------------------------------------------------------------------------
 

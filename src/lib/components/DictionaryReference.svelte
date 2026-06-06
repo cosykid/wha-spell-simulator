@@ -74,7 +74,7 @@
 					<dd>{hasTemplate ? 'stroke reference' : 'not configured'}</dd>
 				</div>
 			</dl>
-			{#if kind === 'sign' && entry.sourceNotes}
+			{#if entry.sourceNotes}
 				<details class="reference-source">
 					<summary>Source notes</summary>
 					<p>{entry.sourceNotes}</p>

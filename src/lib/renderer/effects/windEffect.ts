@@ -1,10 +1,13 @@
-import { randomBetween } from '../../utils/geometry.js';
+import { perpendicularVector, randomBetween } from '../../utils/geometry.js';
 import {
 	activePortalPlane,
+	boltBurst,
 	convergePoint,
 	effectOpacity,
 	effectScale,
 	elementFlow,
+	emissionDirection,
+	emissionModifier,
 	narrowedByFocusAndConvergence,
 	particleAlpha,
 	particleDepth,
@@ -14,7 +17,14 @@ import {
 	steadyParticleAlpha
 } from './effectUtils.js';
 import type { AppConfig, RingInfo } from '../../types.js';
-import type { RenderSpellIR, EffectState, Particle, Portal, ElementFlow } from './effectUtils.js';
+import type {
+	RenderSpellIR,
+	EffectState,
+	Particle,
+	Portal,
+	ElementFlow,
+	EmissionModifier
+} from './effectUtils.js';
 
 // ---------------------------------------------------------------------------
 // Wind-specific flow config
@@ -25,6 +35,7 @@ interface WindFlowConfig extends ElementFlow {
 	sourceRadiusY: number;
 	surfaceJitter: number;
 	speed: number;
+	mod: EmissionModifier;
 }
 
 interface WindParticle extends Particle {
@@ -71,7 +82,10 @@ function windFlowConfig(
 			randomBetween(2.4, 5.2) *
 			(0.6 + spellIR.force) *
 			(0.88 + scale * 0.12) *
-			(1 - convergence.strength * 0.28)
+			(1 - convergence.strength * 0.28) *
+			// Aeriform is a slow, drifting gas rather than a sharp gust.
+			(spellIR.sigil === 'aeriform' ? 0.72 : 1),
+		mod: emissionModifier(spellIR)
 	};
 }
 
@@ -86,16 +100,25 @@ function spawnWindParticle(
 ): WindParticle {
 	const source = randomPortalPoint(portal, flow.sourceRadiusX, flow.sourceRadiusY);
 	const phase = randomBetween(0, Math.PI * 2);
+	const emitDir = emissionDirection(flow.direction, flow.mod);
+	const emitSide = perpendicularVector(emitDir);
+	const jitter = randomBetween(-0.22, 0.22) * flow.scale * flow.mod.jitterMul;
 
 	return {
-		x: source.x + flow.side.x * randomBetween(-flow.surfaceJitter, flow.surfaceJitter),
-		y: source.y + flow.side.y * randomBetween(-flow.surfaceJitter, flow.surfaceJitter),
-		vx: flow.direction.x * flow.speed + flow.side.x * randomBetween(-0.22, 0.22) * flow.scale,
-		vy: flow.direction.y * flow.speed + flow.side.y * randomBetween(-0.22, 0.22) * flow.scale,
-		curl: randomBetween(-0.018, 0.018) * (1 + (1 - spellIR.stability) * 3),
+		x: source.x + emitSide.x * randomBetween(-flow.surfaceJitter, flow.surfaceJitter),
+		y: source.y + emitSide.y * randomBetween(-flow.surfaceJitter, flow.surfaceJitter),
+		vx: emitDir.x * flow.speed * flow.mod.speedMul + emitSide.x * jitter,
+		vy: emitDir.y * flow.speed * flow.mod.speedMul + emitSide.y * jitter,
+		curl:
+			randomBetween(-0.018, 0.018) *
+			(1 + (1 - spellIR.stability) * 3) *
+			// Wind Underfoot rolls and swirls low along the surface.
+			(spellIR.sigil === 'wind-underfoot' ? 2.2 : 1),
 		phase,
 		age: 0,
-		life: flow.convergence.active ? flow.convergence.life : randomBetween(38, 76),
+		life: flow.convergence.active
+			? flow.convergence.life
+			: randomBetween(38, 76) * flow.mod.lifeMul,
 		radius: 0
 	};
 }
@@ -117,14 +140,30 @@ export function drawWindEffect(
 	const portal = activePortalPlane(ctx.canvas, ring);
 	state.windFrame = ((state.windFrame as number | undefined) ?? 0) + dt;
 	const flow = windFlowConfig(spellIR, ring, portal, state.windFrame as number);
-	const targetCount = scaledParticleCount(
-		(92 + spellIR.force * 104) * (0.82 + scale * 0.32),
-		spellIR,
-		config
+	const targetCount = Math.round(
+		scaledParticleCount((92 + spellIR.force * 104) * (0.82 + scale * 0.32), spellIR, config) *
+			boltBurst(state.windFrame as number, flow.mod.bolt)
 	);
 	while (state.particles.length < targetCount) {
 		state.particles.push(spawnWindParticle(spellIR, portal, flow));
 	}
+
+	// Per-variant palette so aeriform reads pale and gaseous and wind-underfoot reads earthy.
+	const variant = spellIR.sigil;
+	const outerColor =
+		variant === 'aeriform'
+			? '205, 232, 240'
+			: variant === 'wind-underfoot'
+				? '150, 205, 160'
+				: '184, 232, 215';
+	const innerColor =
+		variant === 'aeriform'
+			? '240, 250, 255'
+			: variant === 'wind-underfoot'
+				? '205, 240, 200'
+				: '224, 248, 231';
+	const outerWidthMul = variant === 'aeriform' ? 3.4 : 2.7;
+	const variantAlphaMul = variant === 'aeriform' ? 0.72 : 1;
 
 	ctx.lineCap = 'round';
 	for (const particle of state.particles) {
@@ -147,14 +186,14 @@ export function drawWindEffect(
 		const start = convergePoint({ x: oldX, y: oldY }, flow.convergence, wp.phase, 1.1);
 		const end = convergePoint(wp, flow.convergence, wp.phase + 0.27, 1.1);
 
-		ctx.strokeStyle = `rgba(184, 232, 215, ${alpha * 0.22})`;
-		ctx.lineWidth = lineWidth * 2.7;
+		ctx.strokeStyle = `rgba(${outerColor}, ${alpha * 0.22 * variantAlphaMul})`;
+		ctx.lineWidth = lineWidth * outerWidthMul;
 		ctx.beginPath();
 		ctx.moveTo(start.x, start.y);
 		ctx.lineTo(end.x, end.y);
 		ctx.stroke();
 
-		ctx.strokeStyle = `rgba(224, 248, 231, ${alpha * 0.86})`;
+		ctx.strokeStyle = `rgba(${innerColor}, ${alpha * 0.86 * variantAlphaMul})`;
 		ctx.lineWidth = lineWidth;
 		ctx.beginPath();
 		ctx.moveTo(start.x, start.y);

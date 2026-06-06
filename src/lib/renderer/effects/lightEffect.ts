@@ -1,10 +1,13 @@
-import { randomBetween } from '../../utils/geometry.js';
+import { perpendicularVector, randomBetween } from '../../utils/geometry.js';
 import {
 	activePortalPlane,
+	boltBurst,
 	convergePoint,
 	effectOpacity,
 	effectScale,
 	elementFlow,
+	emissionDirection,
+	emissionModifier,
 	narrowedByFocusAndConvergence,
 	particleAlpha,
 	particleDepth,
@@ -14,7 +17,14 @@ import {
 	steadyParticleAlpha
 } from './effectUtils.js';
 import type { AppConfig, RingInfo, Vector } from '../../types.js';
-import type { RenderSpellIR, EffectState, Particle, Portal, ElementFlow } from './effectUtils.js';
+import type {
+	RenderSpellIR,
+	EffectState,
+	Particle,
+	Portal,
+	ElementFlow,
+	EmissionModifier
+} from './effectUtils.js';
 
 // ---------------------------------------------------------------------------
 // Light-specific flow config
@@ -28,6 +38,7 @@ interface LightFlowConfig extends ElementFlow {
 	laneCohesion: number;
 	lateralDamping: number;
 	trailLength: number;
+	mod: EmissionModifier;
 }
 
 interface LightParticle extends Particle {
@@ -36,6 +47,9 @@ interface LightParticle extends Particle {
 	speed: number;
 	travel: number;
 	trail: Vector[];
+	/** Per-particle emission axis so dispersion can fan beams outward. */
+	dirX: number;
+	dirY: number;
 }
 
 // ---------------------------------------------------------------------------
@@ -77,7 +91,8 @@ function lightFlowConfig(
 		),
 		laneCohesion: 0.074 + spellIR.stability * 0.06 + convergence.progress * 0.04 + focus * 0.04,
 		lateralDamping: 0.22 + spellIR.stability * 0.24 + convergence.progress * 0.22 + focus * 0.14,
-		trailLength: Math.round(17 + spellIR.stability * 10)
+		trailLength: Math.round(17 + spellIR.stability * 10),
+		mod: emissionModifier(spellIR)
 	};
 }
 
@@ -93,9 +108,12 @@ function spawnLightParticle(
 ): LightParticle {
 	const scale = effectScale(spellIR);
 	const source = randomPortalPoint(portal, flow.sourceRadiusX, flow.sourceRadiusY);
-	const x = source.x + flow.side.x * randomBetween(-flow.sideJitter, flow.sideJitter);
-	const y = source.y + flow.side.y * randomBetween(-flow.sideJitter, flow.sideJitter);
-	const speed = randomBetween(0.82, 1.18) * flow.speed;
+	const emitDir = emissionDirection(flow.direction, flow.mod);
+	const emitSide = perpendicularVector(emitDir);
+	const x = source.x + emitSide.x * randomBetween(-flow.sideJitter, flow.sideJitter);
+	const y = source.y + emitSide.y * randomBetween(-flow.sideJitter, flow.sideJitter);
+	const speed = randomBetween(0.82, 1.18) * flow.speed * flow.mod.speedMul;
+	const sideJitter = randomBetween(-0.025, 0.025) * scale * flow.mod.jitterMul;
 	const phase = randomBetween(0, Math.PI * 2);
 
 	return {
@@ -103,8 +121,10 @@ function spawnLightParticle(
 		y,
 		sourceX: source.x,
 		sourceY: source.y,
-		vx: flow.direction.x * speed + flow.side.x * randomBetween(-0.025, 0.025) * scale,
-		vy: flow.direction.y * speed + flow.side.y * randomBetween(-0.025, 0.025) * scale,
+		dirX: emitDir.x,
+		dirY: emitDir.y,
+		vx: emitDir.x * speed + emitSide.x * sideJitter,
+		vy: emitDir.y * speed + emitSide.y * sideJitter,
 		speed,
 		radius: randomBetween(4.4, 8.6) * (0.86 + scale * 0.2),
 		phase,
@@ -112,7 +132,7 @@ function spawnLightParticle(
 		age: 0,
 		life: flow.convergence.active
 			? flow.convergence.life
-			: randomBetween(76, 132) * (0.86 + spellIR.stability * 0.34),
+			: randomBetween(76, 132) * (0.86 + spellIR.stability * 0.34) * flow.mod.lifeMul,
 		trail: new Array(flow.trailLength).fill(null).map(() => ({ x, y }))
 	};
 }
@@ -125,14 +145,17 @@ function updateLightParticle(particle: LightParticle, flow: LightFlowConfig, dt:
 	particle.age += dt;
 	particle.travel += particle.speed * dt;
 
-	const targetX = particle.sourceX + flow.direction.x * particle.travel;
-	const targetY = particle.sourceY + flow.direction.y * particle.travel;
-	const lateralVelocity = particle.vx * flow.side.x + particle.vy * flow.side.y;
+	// Follow this particle's own emission axis so dispersed beams keep their fan-out
+	// instead of being pulled back onto the shared forward lane.
+	const side = perpendicularVector({ x: particle.dirX, y: particle.dirY });
+	const targetX = particle.sourceX + particle.dirX * particle.travel;
+	const targetY = particle.sourceY + particle.dirY * particle.travel;
+	const lateralVelocity = particle.vx * side.x + particle.vy * side.y;
 
 	particle.vx += (targetX - particle.x) * flow.laneCohesion * dt;
 	particle.vy += (targetY - particle.y) * flow.laneCohesion * dt;
-	particle.vx -= flow.side.x * lateralVelocity * flow.lateralDamping * dt;
-	particle.vy -= flow.side.y * lateralVelocity * flow.lateralDamping * dt;
+	particle.vx -= side.x * lateralVelocity * flow.lateralDamping * dt;
+	particle.vy -= side.y * lateralVelocity * flow.lateralDamping * dt;
 	particle.x += particle.vx * dt;
 	particle.y += particle.vy * dt;
 	particle.vx *= 0.992 - flow.convergence.progress * 0.045;
@@ -223,10 +246,9 @@ export function drawLightEffect(
 	const portal = activePortalPlane(ctx.canvas, ring);
 	state.lightFrame = ((state.lightFrame as number | undefined) ?? 0) + dt;
 	const flow = lightFlowConfig(spellIR, ring, portal, state.lightFrame as number);
-	const targetCount = scaledParticleCount(
-		(34 + spellIR.force * 38) * (0.78 + scale * 0.28),
-		spellIR,
-		config
+	const targetCount = Math.round(
+		scaledParticleCount((34 + spellIR.force * 38) * (0.78 + scale * 0.28), spellIR, config) *
+			boltBurst(state.lightFrame as number, flow.mod.bolt)
 	);
 
 	while (state.particles.length < targetCount) {

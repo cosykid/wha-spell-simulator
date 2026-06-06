@@ -78,6 +78,7 @@ export interface SigilEntry {
 	displayName: string;
 	element?: ElementId;
 	allowedLayers?: string[];
+	sourceNotes?: string;
 	strokeTemplate?: StrokeTemplate;
 	recognitionRotationInvariant?: boolean;
 	allowedRotationsDeg?: number[];
@@ -365,6 +366,8 @@ export interface SpellIR {
 	status: string;
 	activatedAt: number | null;
 	element: ElementId | null;
+	/** The id of the primary sigil, so effects can vary by element-variant sigils (e.g. crystal, aeriform). */
+	sigil: string | null;
 	elementConfidence: number;
 	primarySizeNorm: number;
 	effectScale: number;

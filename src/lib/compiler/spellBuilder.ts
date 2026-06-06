@@ -70,6 +70,7 @@ function invalidSpell(status: string, glyphAST: GlyphASTLike, warnings: string[]
 		status,
 		activatedAt: null,
 		element: null,
+		sigil: null,
 		elementConfidence: 0,
 		primarySizeNorm: 0,
 		effectScale: 1,
@@ -243,6 +244,7 @@ export function compileSpell({
 		status: active ? 'Active spell' : 'Prepared spell',
 		activatedAt: active ? performance.now() : null,
 		element: primary.element,
+		sigil: primary.id,
 		elementConfidence: primary.confidence,
 		primarySizeNorm: primary.sizeNorm,
 		effectScale,
@@ -260,7 +262,7 @@ export function compileSpell({
 		quality,
 		neatness,
 		warnings: glyphAST.warnings ?? [],
-		signature: `${primary.id}:${manifestationSignature(manifestations)}:${active}:${Math.round(effectScale * 100)}:${Math.round(
+		signature: `${primary.id}:${primary.element}:${manifestationSignature(manifestations)}:${active}:${Math.round(effectScale * 100)}:${Math.round(
 			force * 100
 		)}:${Math.round(spread * 100)}:${Math.round(duration * 100)}:${Math.round(direction.xTiltDeg)}:${Math.round(
 			direction.yTiltDeg
