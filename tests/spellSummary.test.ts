@@ -19,7 +19,7 @@ function storeWithCount(count: number): StrokeStore {
 	};
 }
 
-test('keeps undo enabled when a completed ring locks drawing input', () => {
+test('disables undo and redo when a completed ring locks drawing input', () => {
 	const summary = computeSummary({
 		store: storeWithCount(3),
 		pipeline: { ring: { complete: true } } as ClassifiedDrawing,
@@ -28,7 +28,7 @@ test('keeps undo enabled when a completed ring locks drawing input', () => {
 	});
 
 	assert.equal(summary.inputLocked, true);
-	assert.equal(summary.undoDisabled, false);
+	assert.equal(summary.redoDisabled, true);
 });
 
 test('keeps undo disabled when there are no strokes', () => {
@@ -40,5 +40,5 @@ test('keeps undo disabled when there are no strokes', () => {
 	});
 
 	assert.equal(summary.inputLocked, true);
-	assert.equal(summary.undoDisabled, true);
+	assert.equal(summary.redoDisabled, true);
 });

@@ -115,7 +115,7 @@ export function computeSummary({
 		stability: clamp(spellIR?.stability ?? 0),
 		force: clamp(spellIR?.force ?? 0),
 		inputLocked,
-		undoDisabled: store.count() === 0,
+		redoDisabled: spellIR?.active || !store.canRedo(),
 		portalActive: Boolean(spellIR?.active),
 		hintHidden: store.count() > 0 || !showGuides
 	};
@@ -132,6 +132,7 @@ export const INITIAL_SUMMARY = {
 	force: 0,
 	inputLocked: false,
 	undoDisabled: true,
+	redoDisabled: true,
 	portalActive: false,
 	hintHidden: false
 };

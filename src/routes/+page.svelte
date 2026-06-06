@@ -231,6 +231,7 @@
 			bind:showGuides
 			bind:showDiagnostics
 			onUndo={handleUndo}
+			onRedo={handleRedo}
 			onClear={handleClear}
 			onToggleGuides={handleToggleGuides}
 		/>
