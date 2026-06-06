@@ -267,6 +267,43 @@ test('decomposition keeps real dictionary sigils whole after stroke cleaning', (
 	}
 });
 
+test('decomposition separates a center sigil from an adjacent sign', () => {
+	const fire = realDictionary.sigils.find((sigil) => sigil.id === 'fire');
+	const column = realDictionary.signs.find((sign) => sign.id === 'column');
+	assert.ok(fire?.strokeTemplate);
+	assert.ok(column?.strokeTemplate);
+
+	// A center sigil with a sign drawn close beside it. Plain proximity grouping
+	// fuses them into one connected component; recognition-guided decomposition
+	// must split them back into two symbols.
+	const signCenter = { x: ringCenter.x, y: 388 };
+	const signRotation = 270 - angleDegFromCenter(signCenter, ringCenter);
+	const result = classifyDrawing({
+		strokes: [
+			...ringStrokes(),
+			...strokesFromTemplate(fire.strokeTemplate, 'fire', ringCenter.x, ringCenter.y, 90),
+			...strokesFromTemplate(
+				column.strokeTemplate,
+				'sign',
+				signCenter.x,
+				signCenter.y,
+				66,
+				signRotation
+			)
+		],
+		previousRing: null,
+		dictionary: realDictionary,
+		config: CONFIG
+	});
+
+	assert.equal(result.candidates.length, 2);
+	const recognizedIds = result.recognitions
+		.filter((recognition) => recognition.recognized)
+		.map((recognition) => recognition.id);
+	assert.ok(recognizedIds.includes('fire'));
+	assert.ok(recognizedIds.includes('column'));
+});
+
 test('diagnostics preview a standalone sigil before a ring is drawn', () => {
 	const fire = realDictionary.sigils.find((sigil) => sigil.id === 'fire');
 	assert.ok(fire);

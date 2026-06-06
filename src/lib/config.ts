@@ -37,8 +37,12 @@ export const CONFIG = {
 		// 0..1 final recognizer score floor.
 		minConfidence: 0.48,
 
-		// 0..1 value subtracted when decomposition considers merged stroke groups.
-		groupPenalty: 0.45,
+		// 0..1 value subtracted per group when decomposition scores a tree cut. This
+		// biases toward keeping a node whole; a split only wins when the child groups
+		// clearly outscore the whole. Tuned so complex multi-stroke sigils and signs
+		// (water, wind, light, levitation) stay whole while genuinely separate symbols
+		// (a center sigil beside a ring sign, two adjacent signs) still split apart.
+		groupPenalty: 0.75,
 
 		// Count; nearest examples included in kNN recognition voting.
 		knnK: 5,
@@ -49,9 +53,12 @@ export const CONFIG = {
 		// 0..1 required template coverage before a match can be accepted.
 		minTemplateCoverage: 0.55,
 
-		// Experimental; when enabled, grouping asks the recognizer to choose tree cuts.
-		// This is slower and currently too eager to split hand-drawn multi-stroke signs.
-		recognitionGuidedDecomposition: false
+		// Grouping asks the recognizer to choose tree cuts so it can separate symbols
+		// that proximity grouping would fuse (for example a center sigil drawn next to
+		// a ring sign). The lightweight cut scorer and the groupPenalty above keep
+		// complex multi-stroke sigils and signs whole. Set false to fall back to plain
+		// whole-stroke proximity-connected-component grouping.
+		recognitionGuidedDecomposition: true
 	},
 	compiler: {
 		// 0..1 confidence; minimum primary sigil confidence before a spell is valid.

@@ -15,7 +15,7 @@ The public entrypoint remains `classifyDrawing(...)`. Callers still receive comp
 2. Detect the spell ring and remove ring strokes from symbol recognition.
 3. When no ring is found, build a synthetic standalone sigil preview candidate so diagnostics can show a tentative sigil label before the enclosing circle exists.
 4. When a ring is found, classify strokes by ring-relative layer and boundary position.
-5. Build symbol candidates from non-ring strokes with proximity grouping.
+5. Build symbol candidates from non-ring strokes with proximity grouping plus recognition-guided tree cuts.
 6. Recognize each candidate with the hybrid shape matcher.
 7. Build `GlyphAST`, warnings, parser diagnostics, and compiler-ready recognitions.
 
@@ -27,19 +27,17 @@ The no-ring preview is diagnostics-only. It can show a likely sigil while drawin
 
 The decomposition layer works on whole cleaned strokes. It intentionally does not split a stroke into fragments yet.
 
-The default grouping algorithm:
+Grouping starts from a proximity pass over non-ring strokes:
 
-- Starts from non-ring strokes that are usable by the parser.
 - Builds a proximity graph using bounding-box gap, sampled point distance, center distance, layer compatibility, and nearby polar angle.
 - Gives center sigils extra tolerance so multi-stroke sigils can stay together even when their pieces do not overlap tightly.
-- Uses connected components from that proximity graph as symbol candidates.
-- Filters out oversized groups before shape recognition.
+- Uses connected components from that proximity graph as the starting groups.
 
-This keeps grouping cheap enough to run after committed strokes and avoids splitting hand-drawn multi-stroke signs before the recognizer sees them. The recognizer still handles identity, ambiguity, contamination, and confidence after grouping.
+Proximity alone cannot separate two symbols that are bridged into one connected component, for example a center sigil drawn next to a ring sign. So by default (`CONFIG.recognition.recognitionGuidedDecomposition`, on) each component is then refined with a recognition-guided tree cut: it is clustered into a single-linkage merge forest with union-find, every viable whole-symbol tree node is scored, and the parser chooses between keeping a node whole or taking its child groups. Each group in a cut pays `CONFIG.recognition.groupPenalty`, currently `0.75`, so a split only wins when the child groups clearly outscore the whole.
 
-`CONFIG.recognition.recognitionGuidedDecomposition` enables the experimental tree-cut path. When enabled, each connected component is clustered into a single-linkage merge forest with union-find, every viable whole-symbol tree node is scored, and the parser chooses between keeping a node whole or taking its child groups. Merged groups pay `CONFIG.recognition.groupPenalty`, currently `0.45`.
+Node scoring during the tree cut is deliberately lightweight. It runs only the `$P` + chamfer shape match, not kNN voting or the full structural blend, and it stops scoring signs for a node once a sigil clears a dominant threshold. The full hybrid recognizer runs once afterward on the chosen groups, so the expensive pass is not repeated per tree node. The union-find clustering also replaces an earlier all-pairs rescan, keeping the path fast.
 
-Node scoring during the tree cut is deliberately lightweight. It runs only the `$P` + chamfer shape match, not kNN voting or the full structural blend, and it stops scoring signs for a node once a sigil clears a dominant threshold. The full hybrid recognizer runs once afterward on the chosen groups, so the expensive pass is not repeated per tree node. The union-find clustering also replaces an earlier all-pairs rescan, so the path is dramatically cheaper than it used to be. It still does recognizer-guided scoring and remains too eager to split rough hand-drawn multi-stroke signs, which is why it is off by default.
+The `groupPenalty` is tuned so complex multi-stroke sigils (water, wind, light) and multi-stroke signs (levitation, column) stay whole, while genuinely separate symbols split apart. Setting `recognitionGuidedDecomposition` to false falls back to plain proximity-connected-component grouping, which is cheaper but cannot separate bridged symbols.
 
 The boxes shown by glyph diagnostics are candidate bounds, not every internal grouping possibility. A box around a tentative symbol means "these strokes were selected as one candidate for this parse." It does not mean the recognizer only sees square pixels.
 
@@ -139,7 +137,7 @@ The browser parser modules stay pure and server-portable. They do not import Neo
 
 Glyph diagnostics now show tentative names from recognition diagnostics, not just final accepted labels. If a candidate is not accepted yet, the overlay can display the top match with a question mark and confidence value. This makes in-progress sigil recognition visible before the ring is completed.
 
-The overlay still draws candidate bounds. It does not visualize proximity graph edges, experimental merge tree nodes, or the chamfer ink map.
+The overlay still draws candidate bounds. It does not visualize proximity graph edges, merge tree nodes, or the chamfer ink map.
 
 ## Tests
 
