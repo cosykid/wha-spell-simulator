@@ -46,5 +46,12 @@ export const tools = [
 		description:
 			'Tune a synthetic SpellIR with sliders to preview and refine the animated element effects.',
 		showStatus: false
+	},
+	{
+		path: '/tools/sample-maker',
+		eyebrow: 'Dataset Tool',
+		title: 'Sample Maker',
+		description: 'Create a labelled sample for benchmarking sign/sigil recognition.',
+		showStatus: false
 	}
 ] satisfies Tool[];
