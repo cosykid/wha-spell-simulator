@@ -1,18 +1,5 @@
-<?xml version="1.0" encoding="UTF-8" standalone="no"?>
-<!-- Created with Inkscape (http://www.inkscape.org/) -->
-
-<svg
-   width="8.7641773mm"
-   height="6.0045915mm"
-   viewBox="0 0 8.7641773 6.0045915"
-   version="1.1"
-   id="svg1"
-   xml:space="preserve"
-   xmlns="http://www.w3.org/2000/svg"
-   xmlns:svg="http://www.w3.org/2000/svg"><defs
-     id="defs1" /><g
-     id="layer1"
-     transform="translate(-92.097201,-61.671934)"><path
-       style="fill:none;stroke:#000000;stroke-width:1;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:none"
-       d="m 92.597196,67.176525 3.882091,-5.004623 3.882093,5.004623"
-       id="path9" /></g></svg>
+<svg viewBox="0 0 7.7642 5.0046" xmlns="http://www.w3.org/2000/svg">
+  <path d="M0 5.0046L3.8821 0 7.7642 5.0046"
+        fill="none" stroke="#000000" stroke-width="0.1"
+        stroke-linecap="round" stroke-linejoin="round" />
+</svg>

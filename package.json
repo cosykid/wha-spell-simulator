@@ -15,7 +15,8 @@
 		"test:unit": "node --import tsx --test tests/*.test.ts",
 		"lint": "prettier --check . && eslint .",
 		"format": "prettier --write .",
-		"test:e2e": "playwright install && playwright test"
+		"test:e2e": "playwright install && playwright test",
+		"normalize:svg": "node scripts/normalize-svgs.mjs src/lib/dictionary/svg --stroke-width 0.1"
 	},
 	"devDependencies": {
 		"@eslint/js": "^10.0.1",
@@ -32,6 +33,7 @@
 		"prettier-plugin-svelte": "^3.5.1",
 		"svelte": "^5.1.0",
 		"svelte-check": "^4.6.0",
+		"svgpath": "^2.6.0",
 		"tsx": "^4.22.4",
 		"typescript": "^5.5.0",
 		"typescript-eslint": "^8.58.1",
