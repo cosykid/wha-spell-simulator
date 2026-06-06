@@ -7,6 +7,7 @@
   - [Sample Spells](#sample-spells)
 - [Common Properties](#common-properties)
 - [`strokeTemplate`](#stroketemplate)
+- [Recognition Examples](#recognition-examples)
 - [Sigil-Only Properties](#sigil-only-properties)
 - [Sign-Only Properties](#sign-only-properties)
 - [Creating A Template With The Reference Maker](#creating-a-template-with-the-reference-maker)
@@ -20,11 +21,11 @@
 
 This document explains how to add or edit sigils, signs, and sample spells in:
 
-- `src/dictionary/sigils.json`
-- `src/dictionary/signs.json`
-- `src/dictionary/sample-spells.json`
+- `src/lib/dictionary/sigils.json`
+- `src/lib/dictionary/signs.json`
+- `src/lib/dictionary/sample-spells.json`
 
-The sigil and sign dictionaries define both recognition data and spell meaning. Recognition mostly comes from `strokeTemplate`; semantics tell the compiler what the recognized symbol should do. Sample spells are drawing references shown in the Dictionary panel, not compiler grammar.
+The sigil and sign dictionaries define both recognition data and spell meaning. Recognition is seeded from `strokeTemplate`; semantics tell the compiler what the recognized symbol should do. Sample spells are drawing references shown in the Dictionary panel, not compiler grammar.
 
 ## Entry Types
 
@@ -112,17 +113,17 @@ Example:
 
 Controls sigil recognition only.
 
-If `true`, the matcher can rotate the drawn sigil candidate to match the template. Current sigils should usually use `false` because players draw them upright on the paper and sigil orientation has no meaning.
+If `true`, the matcher can rotate the drawn sigil candidate to match the template. Use `false` when the authored upright silhouette should be the only accepted pose. Current dictionary sigils set this explicitly because sigil rotation policy is part of recognition tuning.
 
-Default in code is effectively `true` for template matching.
+The default in code is effectively `true` for sigils when the field is omitted.
 
-Use `false` only if a symbol's identity should be recognized only at a fixed orientation.
+Use `allowedRotationsDeg` when a sigil should allow only specific rotations instead of arbitrary rotation.
 
 Signs do not use this field. Sign templates are authored in a canonical bottom-of-ring pose, at `270` degrees, and the parser rotates sign matching from that pose to the candidate's ring position.
 
 ## `strokeTemplate`
 
-`strokeTemplate` is the normalized reference drawing used for template matching.
+`strokeTemplate` is the normalized reference drawing used to seed shape recognition examples.
 
 Shape:
 
@@ -150,6 +151,30 @@ Important conventions:
 - Preserve stroke order when possible.
 - Draw cleanly, but do not over-optimize. The user drawing will be imperfect.
 - The tool for stroke template maker exports only the `strokeTemplate` object. Paste that object into the dictionary entry.
+- The recognizer is tolerant of stroke order during point-cloud matching, but stroke count and stroke-length profile still influence structural confidence.
+- Keep a multi-stroke symbol as separate strokes when those strokes are natural lifts in the intended drawing. Decomposition currently groups whole strokes and does not split a single stroke into fragments.
+
+## Recognition Examples
+
+At runtime, dictionary templates are converted into internal `RecognitionExample` objects with `buildExamplesFromDictionary(...)`. The matcher compares candidates against those examples with point-cloud distance, chamfer distance, and nearest-neighbor voting.
+
+Shape:
+
+```ts
+{
+	id: string;
+	kind: 'sigil' | 'sign';
+	symbolId: string;
+	strokes: Point[][];
+	source: string;
+	rotationInvariant: boolean;
+	allowedRotationsDeg?: number[];
+}
+```
+
+The initial corpus comes from dictionary `strokeTemplate`s. Future real user drawings can be stored as additional examples without changing dictionary entry shape or the recognizer API.
+
+Neon Postgres storage for examples is defined by `migrations/001_recognition_examples.sql`. Server helpers in `src/lib/server/storage/recognitionExampleStore.ts` can list examples, upsert examples, and seed dictionary-derived examples into the database.
 
 ## Sigil-Only Properties
 

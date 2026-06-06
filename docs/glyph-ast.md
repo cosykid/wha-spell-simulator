@@ -1,6 +1,6 @@
 # GlyphAST Contract
 
-`GlyphAST` means glyph abstract syntax tree. It is the parser output consumed by the compiler, diagnostics, and debug overlays. It describes what the drawing appears to contain after stroke cleanup, ring detection, stroke classification, symbol grouping, and dictionary recognition.
+`GlyphAST` means glyph abstract syntax tree. It is the parser output consumed by the compiler, diagnostics, and debug overlays. It describes what the drawing appears to contain after stroke cleanup, ring detection, stroke classification, symbol decomposition, and dictionary recognition.
 
 `AST` is the same programming-language term used by compilers for parsed source code structure. This project uses the term by analogy: the glyph drawing is parsed into a structured representation before it is compiled into `SpellIR`.
 
@@ -56,11 +56,13 @@ When `unsupportedMultipleRings` is non-empty, the app treats the drawing as inva
 
 ## Candidate Fields
 
-`candidates` are grouped symbol-like marks inside the ring. They are useful for diagnostics and recognition debugging.
+`candidates` are grouped symbol-like marks selected by decomposition. For ringed drawings, they are inside the spell ring and exclude ring strokes. For no-ring diagnostic preview, the parser may expose one synthetic standalone sigil candidate with id `preview-symbol`.
+
+Candidates are useful for diagnostics and recognition debugging. Their boxes in the overlay are bounding boxes around the selected stroke group. They are not the recognition algorithm itself; the matcher scores normalized point clouds and ink distance maps derived from the candidate strokes.
 
 | Field                    | Meaning                                                                                     |
 | ------------------------ | ------------------------------------------------------------------------------------------- |
-| `candidateId`            | Stable id within the current parse, such as `c1`.                                           |
+| `candidateId`            | Stable id within the current parse, such as `c1`, or `preview-symbol` for no-ring preview.  |
 | `strokeIds`              | Source stroke ids included in the candidate.                                                |
 | `rawStrokeCount`         | Number of strokes before candidate cleanup.                                                 |
 | `cleanedStrokeCount`     | Number of cleaned strokes in the candidate.                                                 |
@@ -83,7 +85,7 @@ When `unsupportedMultipleRings` is non-empty, the app treats the drawing as inva
 
 `primarySigil`, entries in `unsupportedMultipleSigils`, and each entry in `signs` are recognition objects. They carry the matched dictionary id plus parsed placement and quality data.
 
-These objects are the public parser contract for gameplay and compiler use. Low-level matcher details such as ink overlap, structural sub-scores, alternate matches, and recognition rotation live in the separate `recognitions[].diagnostics` output returned by the classifier, not in `GlyphAST.primarySigil` or `GlyphAST.signs`.
+These objects are the public parser contract for gameplay and compiler use. Low-level matcher details such as point-cloud distance, chamfer distance, kNN votes, ink overlap, structural sub-scores, alternate matches, and recognition rotation live in the separate `recognitions[].diagnostics` output returned by the classifier, not in `GlyphAST.primarySigil` or `GlyphAST.signs`.
 
 Common fields include:
 
@@ -100,6 +102,35 @@ Common fields include:
 | `layer`, `radiusNorm`, `angleDeg`    | Ring-relative placement copied from the candidate.                                        |
 | `sizeNorm`, `lengthNorm`, `neatness` | Candidate-derived quality and scale values.                                               |
 | `shape`                              | Shape measurements used by semantic rules, such as elongation and dominant-axis strength. |
+
+The accepted status values are:
+
+- `valid`
+- `valid_messy`
+- `ambiguous`
+- `contaminated`
+- `unknown`
+
+Only `valid` and `valid_messy` recognitions become public sigils or signs in `GlyphAST`.
+
+## Recognition Diagnostics
+
+`classifyDrawing(...)` also returns a `recognitions` array beside `GlyphAST`. Each entry keeps matcher diagnostics for the corresponding candidate:
+
+| Field                                         | Meaning                                                              |
+| --------------------------------------------- | -------------------------------------------------------------------- |
+| `diagnostics.bestGuess`                       | Best tentative dictionary match when the candidate was not accepted. |
+| `diagnostics.topMatches`                      | Top scored matches, used by the overlay for tentative labels.        |
+| `diagnostics.template.$pDistance`             | Point-cloud distance to the best template example.                   |
+| `diagnostics.template.chamferScore`           | Chamfer and ink-map score for the best template example.             |
+| `diagnostics.matcher.knnVotes`                | kNN vote totals from nearest recognition examples.                   |
+| `diagnostics.matcher.nearestExamples`         | Nearest example ids and distances used by the vote.                  |
+| `diagnostics.matcher.candidateExplainedRatio` | How much drawn ink is explained by the template.                     |
+| `diagnostics.matcher.templateCoveredRatio`    | How much required template ink is present in the candidate.          |
+| `diagnostics.matcher.unexplainedInkRatio`     | Extra candidate ink that does not map well to the template.          |
+| `diagnostics.structure`                       | Aspect, stroke-count, stroke-profile, and axis compatibility scores. |
+
+These diagnostics are intentionally excluded from public `GlyphAST` sigil and sign objects so compiler semantics stay stable.
 
 ## Unknowns And Metrics
 

@@ -19,9 +19,9 @@ The app turns a freehand spell diagram into parser output, compiled spell behavi
 
 - Lets you draw spell diagrams on a paper-like canvas.
 - Detects one enclosing ring and distinguishes prepared versus active spells.
-- Recognizes dictionary-backed primary sigils for fire, water, wind, earth, and light.
+- Recognizes dictionary-backed primary sigils for fire, water, wind, earth, and light with a hybrid point-cloud, chamfer, and kNN matcher.
 - Recognizes signs that modify direction, levitation, convergence, force, spread, focus, range, duration, and stability.
-- Produces parser diagnostics, `GlyphAST`, and `SpellIR` output for inspection.
+- Produces parser diagnostics, `GlyphAST`, and `SpellIR` output for inspection, including tentative glyph labels while symbols are still being drawn.
 - Renders animated element effects from the compiled spell behavior.
 - Shows sample spell layouts in the Dictionary panel as drawing references.
 - Includes reference tools for making, viewing, and testing stroke templates, plus a spell effect lab for visual and animation tuning.
@@ -30,8 +30,9 @@ The app turns a freehand spell diagram into parser output, compiled spell behavi
 
 - The app supports one enclosing spell ring at a time. Multiple rings are detected as unsupported.
 - The current compiler expects one primary sigil. Multiple primary sigils are detected as unsupported.
-- Recognition is based on local stroke templates, so it works best with clean, deliberate drawings.
+- Recognition is seeded from local stroke templates and can accept additional stored examples, so it still works best with clean, deliberate drawings.
 - The recognizer is not perfect. Some valid-looking drawings may fail to match, and some rough drawings may need to be redrawn more clearly.
+- Decomposition currently groups whole strokes only. It does not split a stroke into fragments when two symbols are drawn without lifting the pointer.
 - The dictionaries only cover a small fan-made subset of sigils, signs, and observed spell ideas.
 - The visual effects are interpretive canvas animations, not a faithful reproduction of manga or anime effects.
 - Raster images can be used as visual references, but the app cannot recover true stroke order from an image.
@@ -86,9 +87,21 @@ Run the Node test suite:
 npm test
 ```
 
+## Optional Storage
+
+Recognition examples can be stored in Neon Postgres for future user-drawing corpora. The browser app still works from dictionary templates alone, but server-side code can read and seed examples from the `recognition_examples` table defined in `migrations/001_recognition_examples.sql`.
+
+Set one of these private environment variables before using the storage helpers:
+
+```sh
+DATABASE_URL=postgres://...
+NEON_DATABASE_URL=postgres://...
+```
+
 ## Documentation
 
 - [Dictionary authoring](docs/dictionary-authoring.md)
+- [Recognition pipeline](docs/recognition.md)
 - [Parser and spell semantics rules](docs/play-rules.md)
 - [Parsed glyph output contract](docs/glyph-ast.md)
 - [Compiled spell output contract](docs/spell-ir.md)

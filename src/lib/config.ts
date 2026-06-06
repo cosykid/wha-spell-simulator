@@ -35,7 +35,19 @@ export const CONFIG = {
 	},
 	recognition: {
 		// 0..1 final recognizer score floor.
-		minConfidence: 0.48
+		minConfidence: 0.48,
+
+		// 0..1 value subtracted when decomposition considers merged stroke groups.
+		groupPenalty: 0.45,
+
+		// Count; nearest examples included in kNN recognition voting.
+		knnK: 5,
+
+		// 0..1 allowed extra ink before a match is considered contaminated.
+		contaminationThreshold: 0.5,
+
+		// 0..1 required template coverage before a match can be accepted.
+		minTemplateCoverage: 0.55
 	},
 	compiler: {
 		// 0..1 confidence; minimum primary sigil confidence before a spell is valid.

@@ -109,6 +109,11 @@ export interface TemplateMatch {
 	confidence: number;
 	rotationDeg: number;
 	recognitionRotationDeg: number;
+	$pDistance?: number;
+	pScore?: number;
+	chamferDistance?: number;
+	chamferScore?: number;
+	knnVoteConfidence?: number;
 	inkScore: number;
 	softDiceScore: number;
 	candidateExplainedRatio: number;
@@ -213,6 +218,9 @@ export interface TopMatch {
 	id: string;
 	confidence: number;
 	templateConfidence?: number;
+	$pDistance?: number;
+	chamferDistance?: number;
+	knnVoteConfidence?: number;
 	inkScore?: number;
 	candidateExplainedRatio?: number;
 	templateCoveredRatio?: number;
@@ -234,6 +242,24 @@ export interface RecognitionDiagnostics {
 	bestGuess?: RecognitionBestGuess | null;
 	recognitionRotationDeg: number;
 	template: Record<string, number>;
+	matcher?: {
+		$pDistance: number;
+		chamferDistance: number;
+		knnVoteConfidence: number;
+		knnVotes: Record<string, number>;
+		nearestExamples: Array<{
+			id: string;
+			kind: RecognitionKind;
+			symbolId: string;
+			source: string;
+			distance: number;
+			$pDistance: number;
+			chamferDistance: number;
+		}>;
+		candidateExplainedRatio: number;
+		templateCoveredRatio: number;
+		unexplainedInkRatio: number;
+	};
 	structure: Record<string, number>;
 	topMatches: TopMatch[];
 }

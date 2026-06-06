@@ -306,8 +306,19 @@ export function drawCandidateDebug(
 	for (const candidate of candidates ?? []) {
 		const recognition = byCandidate.get(candidate.candidateId);
 		const accepted = recognition?.recognized;
-		ctx.strokeStyle = accepted ? 'rgba(31, 111, 115, 0.82)' : 'rgba(184, 69, 49, 0.74)';
-		ctx.fillStyle = accepted ? 'rgba(31, 111, 115, 0.92)' : 'rgba(184, 69, 49, 0.92)';
+		const tentativeMatch =
+			recognition?.diagnostics?.topMatches?.[0] ?? recognition?.diagnostics?.bestGuess;
+		const hasTentativeName = Boolean(tentativeMatch?.id);
+		ctx.strokeStyle = accepted
+			? 'rgba(31, 111, 115, 0.82)'
+			: hasTentativeName
+				? 'rgba(156, 110, 35, 0.78)'
+				: 'rgba(184, 69, 49, 0.74)';
+		ctx.fillStyle = accepted
+			? 'rgba(31, 111, 115, 0.92)'
+			: hasTentativeName
+				? 'rgba(156, 110, 35, 0.94)'
+				: 'rgba(184, 69, 49, 0.92)';
 		ctx.strokeRect(
 			candidate.bounds.minX,
 			candidate.bounds.minY,
@@ -316,7 +327,9 @@ export function drawCandidateDebug(
 		);
 		const label = accepted
 			? `${recognition!.id} ${Math.round(recognition!.confidence * 100)}`
-			: `${candidate.candidateId}`;
+			: hasTentativeName
+				? `${tentativeMatch!.id}? ${Math.round((tentativeMatch!.confidence ?? 0) * 100)}`
+				: `${candidate.candidateId}`;
 		ctx.fillText(label, candidate.bounds.minX, Math.max(12, candidate.bounds.minY - 5));
 	}
 	ctx.restore();

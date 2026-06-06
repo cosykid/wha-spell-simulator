@@ -4,7 +4,21 @@ import { classifyStrokesAgainstRing } from './coordinateNormalizer.js';
 import { buildSymbolCandidates } from './strokeGrouper.js';
 import { recognizeCandidates } from './symbolRecognizer.js';
 import { GLYPH_WARNINGS } from './glyphWarnings.js';
-import { clamp, formatNumber, mean, vectorFromAngleDeg } from '../utils/geometry.js';
+import {
+	allPoints,
+	angleDegFromCenter,
+	boundsForStrokes,
+	centerOfBounds,
+	clamp,
+	directedStrokeAngle,
+	dominantAxisOrientationDeg,
+	endpointClosedness,
+	formatNumber,
+	mean,
+	strokeLength,
+	vectorFromAngleDeg
+} from '../utils/geometry.js';
+import type { RecognitionExample } from './shapeMatcher.js';
 import type {
 	AppConfig,
 	ClassifiedDrawing,
@@ -189,21 +203,88 @@ function warningList(
 	return warnings;
 }
 
+function buildNoRingPreviewCandidate(strokes: Stroke[]): SymbolCandidate | null {
+	const points = allPoints(strokes);
+	if (!points.length) {
+		return null;
+	}
+
+	const bounds = boundsForStrokes(strokes);
+	const center = centerOfBounds(bounds);
+	const length = strokes.reduce((sum, stroke) => sum + strokeLength(stroke), 0);
+	const size = Math.max(bounds.width, bounds.height, 1);
+	const syntheticRingRadius = Math.max(size * 1.35, 1);
+	const orientationDeg = dominantAxisOrientationDeg(points);
+	const directedOrientationDeg = directedStrokeAngle(strokes);
+	const compactPerimeter = Math.max(1, (bounds.width + bounds.height) * 2);
+	const overdrawAmount = clamp(length / compactPerimeter - 0.72, 0, 1);
+
+	return {
+		candidateId: 'preview-symbol',
+		strokeIds: strokes.map((stroke) => stroke.id),
+		rawStrokeCount: strokes.length,
+		cleanedStrokeCount: strokes.length,
+		bounds,
+		center,
+		radiusNorm: 0.5,
+		angleDeg: angleDegFromCenter(center, center),
+		layer: 'any',
+		nearBoundary: false,
+		sizeNorm: size / Math.max(1, syntheticRingRadius * 2),
+		lengthNorm: length / Math.max(1, Math.PI * 2 * syntheticRingRadius),
+		orientationDeg,
+		directedOrientationDeg,
+		radialFacing: 'unclear',
+		closedness: endpointClosedness(strokes, size),
+		overdrawAmount,
+		neatness: clamp(0.92 - overdrawAmount * 0.28 - Math.max(0, strokes.length - 4) * 0.035),
+		strokes
+	};
+}
+
+function noRingPreview(
+	cleanedStrokes: Stroke[],
+	dictionary: Dictionary,
+	config: AppConfig,
+	recognitionExamples: RecognitionExample[]
+) {
+	const candidate = buildNoRingPreviewCandidate(cleanedStrokes);
+	if (!candidate) {
+		return {
+			candidates: [] as SymbolCandidate[],
+			recognitions: [] as Recognition[]
+		};
+	}
+
+	return {
+		candidates: [candidate],
+		recognitions: recognizeCandidates(
+			[candidate],
+			{ sigils: dictionary.sigils, signs: [] },
+			config,
+			recognitionExamples.filter((example) => example.kind === 'sigil')
+		) as Recognition[]
+	};
+}
+
 export function classifyDrawing({
 	strokes,
 	previousRing = null,
 	dictionary,
-	config
+	config,
+	recognitionExamples = []
 }: {
 	strokes: Stroke[];
 	previousRing?: RingInfo | null;
 	dictionary: Dictionary;
 	config: AppConfig;
+	recognitionExamples?: RecognitionExample[];
 }): ClassifiedDrawing {
 	const cleanedStrokes = cleanStrokes(strokes, config);
 	const ring = detectRing(cleanedStrokes, previousRing, config);
 
 	if (!ring.found) {
+		const preview = noRingPreview(cleanedStrokes, dictionary, config, recognitionExamples);
 		const glyphAST: GlyphAST = {
 			type: 'GlyphAST',
 			version: config.appVersion,
@@ -224,15 +305,22 @@ export function classifyDrawing({
 			cleanedStrokes,
 			ring,
 			classifications: [],
-			candidates: [],
-			recognitions: [],
+			candidates: preview.candidates,
+			recognitions: roundedDeep(preview.recognitions) as Recognition[],
 			glyphAST
 		};
 	}
 
 	const classifications = classifyStrokesAgainstRing(cleanedStrokes, ring, config);
-	const candidates = buildSymbolCandidates(cleanedStrokes, classifications, ring, config);
-	const recognitions = recognizeCandidates(candidates, dictionary, config);
+	const candidates = buildSymbolCandidates(
+		cleanedStrokes,
+		classifications,
+		ring,
+		config,
+		dictionary,
+		recognitionExamples
+	);
+	const recognitions = recognizeCandidates(candidates, dictionary, config, recognitionExamples);
 	const sigils = recognizedSigils(recognitions);
 	const primarySigil = selectPrimarySigil(sigils);
 	const unsupportedMultipleSigils = sigils

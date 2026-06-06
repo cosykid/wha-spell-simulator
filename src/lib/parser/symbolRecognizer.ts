@@ -8,7 +8,15 @@ import {
 	strokeLength
 } from '../utils/geometry.js';
 import { recognitionPlanForSymbol } from './signRotation.js';
-import { scoreStrokeTemplate } from './templateMatcher.js';
+import {
+	buildExamplesFromDictionary,
+	recognitionKey,
+	scoreRecognitionExample,
+	voteNearestExamples,
+	type KnnVoteResult,
+	type RecognitionExample,
+	type ShapeMatcherResult
+} from './shapeMatcher.js';
 import type {
 	AppConfig,
 	Dictionary,
@@ -61,16 +69,22 @@ interface ScoredTemplate {
 	confidence: number;
 	templateMatch: TemplateMatch | null;
 	structuralMatch: StructuralMatch | null;
+	matcher: ShapeMatcherResult | null;
+	knnVoteConfidence: number;
 }
 
 type ScoredEntry = ScoredTemplate & {
 	kind: RecognitionKind;
 	entry: DictionaryEntry;
+	example: RecognitionExample | null;
 };
 
 interface RecognitionThresholds {
 	minConfidence: number;
 	ambiguityGap: number;
+	contaminationThreshold: number;
+	minTemplateCoverage: number;
+	knnK: number;
 }
 
 function allowedLayerScore(entry: DictionaryEntry, candidate: SymbolCandidate): number {
@@ -107,7 +121,10 @@ function recognitionThresholds(config: AppConfig): RecognitionThresholds {
 	const recognition = config.recognition ?? {};
 	return {
 		minConfidence: recognition.minConfidence ?? 0.48,
-		ambiguityGap: RECOGNITION_AMBIGUITY_GAP
+		ambiguityGap: RECOGNITION_AMBIGUITY_GAP,
+		contaminationThreshold: recognition.contaminationThreshold ?? 0.5,
+		minTemplateCoverage: recognition.minTemplateCoverage ?? 0.55,
+		knnK: recognition.knnK ?? 5
 	};
 }
 
@@ -283,24 +300,32 @@ function structuralCompatibility(
 	};
 }
 
-function isContaminatedMatch(candidate: SymbolCandidate, best: ScoredEntry | undefined): boolean {
+function isContaminatedMatch(
+	candidate: SymbolCandidate,
+	best: ScoredEntry | undefined,
+	thresholds: RecognitionThresholds
+): boolean {
 	if (!best?.templateMatch) {
 		return false;
 	}
 	const templateMatch = best.templateMatch;
 
 	const highRiskExtraInk =
-		templateMatch.contaminationRisk >= 0.62 && templateMatch.unexplainedInkRatio >= 0.34;
+		templateMatch.contaminationRisk >= 0.62 &&
+		templateMatch.unexplainedInkRatio >= thresholds.contaminationThreshold * 0.68;
 	const oversizedWeakMatch =
 		candidate.sizeNorm >= 0.42 &&
-		templateMatch.unexplainedInkRatio >= 0.26 &&
+		templateMatch.unexplainedInkRatio >= thresholds.contaminationThreshold * 0.52 &&
 		best.confidence < 0.7;
 	const wrongRegionInk =
 		templateMatch.forbiddenCellInkRatio >= 0.42 &&
 		templateMatch.requiredCellCoverage <= 0.82 &&
 		best.confidence < 0.72;
+	const excessUnexplainedInk =
+		templateMatch.unexplainedInkRatio >= thresholds.contaminationThreshold &&
+		templateMatch.templateCoveredRatio >= thresholds.minTemplateCoverage;
 
-	return highRiskExtraInk || oversizedWeakMatch || wrongRegionInk;
+	return highRiskExtraInk || oversizedWeakMatch || wrongRegionInk || excessUnexplainedInk;
 }
 
 function isMessyMatch(candidate: SymbolCandidate, best: ScoredEntry | undefined): boolean {
@@ -322,13 +347,23 @@ function recognitionStatus(
 	second: { confidence?: number },
 	secondSameKind: { confidence?: number },
 	accepted: boolean,
-	thresholds: RecognitionThresholds
+	thresholds: RecognitionThresholds,
+	knn: KnnVoteResult
 ): RecognitionStatus {
 	if (!best) {
 		return 'unknown';
 	}
-	if (isContaminatedMatch(candidate, best)) {
+	if (isContaminatedMatch(candidate, best, thresholds)) {
 		return 'contaminated';
+	}
+	if (
+		best.templateMatch &&
+		best.templateMatch.templateCoveredRatio < thresholds.minTemplateCoverage
+	) {
+		return best.confidence >= thresholds.minConfidence * 0.9 ? 'ambiguous' : 'unknown';
+	}
+	if (knn.tied || (knn.winnerKey && knn.winnerKey !== recognitionKey(best.kind, best.entry.id))) {
+		return best.confidence >= thresholds.minConfidence * 0.88 ? 'ambiguous' : 'unknown';
 	}
 	if (best.structuralMatch && best.structuralMatch.score < 0.42 && best.confidence < 0.7) {
 		return 'ambiguous';
@@ -356,8 +391,10 @@ function recognitionStatus(
 function scoreByStrokeTemplate(
 	kind: RecognitionKind,
 	entry: DictionaryEntry,
+	example: RecognitionExample,
 	candidate: SymbolCandidate,
-	features: CandidateFeatures
+	features: CandidateFeatures,
+	knn: KnnVoteResult
 ): ScoredTemplate {
 	const layerScore = allowedLayerScore(entry, candidate);
 	const strokeTemplate = entryStrokeTemplate(entry);
@@ -366,17 +403,46 @@ function scoreByStrokeTemplate(
 		return {
 			confidence: 0,
 			templateMatch: null,
-			structuralMatch: null
+			structuralMatch: null,
+			matcher: null,
+			knnVoteConfidence: 0
 		};
 	}
 
 	const recognitionPlan = recognitionPlanForSymbol(kind, entry, candidate);
 	const matchFeatures = kind === 'sign' ? candidateFeatures(recognitionPlan.candidate) : features;
-	const rawTemplateMatch = scoreStrokeTemplate(
-		recognitionPlan.candidate,
-		strokeTemplate,
+	const matcher = scoreRecognitionExample(
+		recognitionPlan.candidate.strokes,
+		example,
 		recognitionPlan.options
 	);
+	const voteKey = recognitionKey(kind, entry.id);
+	const knnVoteConfidence =
+		!knn.tied && knn.winnerKey === voteKey ? knn.voteConfidence : (knn.votes[voteKey] ?? 0) * 0.35;
+	const matcherConfidence = clamp(
+		matcher.pScore * 0.45 + matcher.chamferScore * 0.35 + knnVoteConfidence * 0.2
+	);
+	const rawTemplateMatch: TemplateMatch = {
+		available: matcher.available,
+		confidence: matcherConfidence,
+		rotationDeg: matcher.rotationDeg,
+		recognitionRotationDeg: matcher.recognitionRotationDeg,
+		$pDistance: matcher.$pDistance,
+		pScore: matcher.pScore,
+		chamferDistance: matcher.chamferDistance,
+		chamferScore: matcher.chamferScore,
+		knnVoteConfidence,
+		inkScore: matcher.inkScore,
+		softDiceScore: matcher.softDiceScore,
+		candidateExplainedRatio: matcher.candidateExplainedRatio,
+		templateCoveredRatio: matcher.templateCoveredRatio,
+		unexplainedInkRatio: matcher.unexplainedInkRatio,
+		missingInkRatio: matcher.missingInkRatio,
+		contaminationRisk: matcher.contaminationRisk,
+		requiredCellCoverage: matcher.templateCoveredRatio,
+		forbiddenCellInkRatio: matcher.unexplainedInkRatio,
+		regionScore: clamp(matcher.templateCoveredRatio * 0.65 + matcher.candidateExplainedRatio * 0.35)
+	};
 	const templateMatch: TemplateMatch = {
 		...rawTemplateMatch,
 		rotationDeg: normalizeAngleDeg(
@@ -408,12 +474,12 @@ function scoreByStrokeTemplate(
 	const grossStructureMismatchCap =
 		structuralMatch.score < 0.18 && templateMatch.templateCoveredRatio < 0.5 ? 0.44 : 1;
 	const contextualScore =
-		templateMatch.confidence * 0.68 +
-		structuralMatch.score * 0.13 +
-		layerScore * 0.1 +
+		templateMatch.confidence * 0.74 +
+		structuralMatch.score * 0.08 +
+		layerScore * 0.09 +
 		sizeScore * 0.04 +
 		candidate.neatness * 0.05;
-	const contextLiftCap = templateMatch.confidence + 0.035;
+	const contextLiftCap = templateMatch.confidence + 0.04;
 	return {
 		confidence: Math.min(
 			clamp(Math.min(contextualScore, contextLiftCap) * simpleSignStructureMultiplier),
@@ -421,7 +487,9 @@ function scoreByStrokeTemplate(
 			grossStructureMismatchCap
 		),
 		templateMatch,
-		structuralMatch
+		structuralMatch,
+		matcher,
+		knnVoteConfidence
 	};
 }
 
@@ -444,6 +512,20 @@ function publicCandidate(candidate: SymbolCandidate) {
 	};
 }
 
+function recognitionExamplesFor(
+	dictionary: Dictionary,
+	extraExamples: RecognitionExample[] = []
+): RecognitionExample[] {
+	const examples = new Map<string, RecognitionExample>();
+	for (const example of buildExamplesFromDictionary(dictionary)) {
+		examples.set(example.id, example);
+	}
+	for (const example of extraExamples) {
+		examples.set(example.id, example);
+	}
+	return [...examples.values()];
+}
+
 // Recognition scores each grouped symbol candidate against every dictionary
 // sigil and sign:
 // 1. Extract candidate geometry such as aspect ratio, elongation, stroke count,
@@ -451,33 +533,91 @@ function publicCandidate(candidate: SymbolCandidate) {
 // 2. For signs, rotate the candidate into the bottom-of-ring canonical frame so
 //    template matching can compare shape while preserving the original
 //    ring-relative orientation as spell meaning.
-// 3. Rasterize the candidate and dictionary template, test the allowed
-//    rotations, and keep the best ink overlap, template coverage, and
-//    unexplained-ink measurements.
-// 4. Blend ink score with structural compatibility, layer fit, size fit, and
-//    neatness, then cap obvious incomplete or contaminated matches.
+// 3. Score the candidate against dictionary/user examples with $P point-cloud
+//    distance, chamfer distance maps, and kNN voting over nearest examples.
+// 4. Blend matcher score with structural compatibility, layer fit, size fit,
+//    and neatness, then cap obvious incomplete or contaminated matches.
 // 5. Sort all dictionary matches, decide whether the best score is accepted,
 //    ambiguous, contaminated, messy-valid, or unknown, and keep the top matches
 //    only in diagnostics.
 export function recognizeCandidates(
 	candidates: SymbolCandidate[],
 	dictionary: Dictionary,
-	config: AppConfig
+	config: AppConfig,
+	recognitionExamples: RecognitionExample[] = []
 ): RecognizedSymbol[] {
-	const entries: Array<{ kind: RecognitionKind; entry: DictionaryEntry }> = [
-		...dictionary.sigils.map((entry) => ({ kind: 'sigil' as const, entry })),
-		...dictionary.signs.map((entry) => ({ kind: 'sign' as const, entry }))
+	const allExamples = recognitionExamplesFor(dictionary, recognitionExamples);
+	const examplesByKey = new Map<string, RecognitionExample[]>();
+	for (const example of allExamples) {
+		const key = recognitionKey(example.kind, example.symbolId);
+		examplesByKey.set(key, [...(examplesByKey.get(key) ?? []), example]);
+	}
+	const entryByKey = new Map<string, { kind: RecognitionKind; entry: DictionaryEntry }>([
+		...dictionary.sigils.map(
+			(entry) => [recognitionKey('sigil', entry.id), { kind: 'sigil' as const, entry }] as const
+		),
+		...dictionary.signs.map(
+			(entry) => [recognitionKey('sign', entry.id), { kind: 'sign' as const, entry }] as const
+		)
+	]);
+	const entries: Array<{
+		kind: RecognitionKind;
+		entry: DictionaryEntry;
+		examples: RecognitionExample[];
+	}> = [
+		...dictionary.sigils.flatMap((entry) => {
+			const examples = examplesByKey.get(recognitionKey('sigil', entry.id)) ?? [];
+			return examples.length ? [{ kind: 'sigil' as const, entry, examples }] : [];
+		}),
+		...dictionary.signs.flatMap((entry) => {
+			const examples = examplesByKey.get(recognitionKey('sign', entry.id)) ?? [];
+			return examples.length ? [{ kind: 'sign' as const, entry, examples }] : [];
+		})
 	];
 
 	return candidates.map((candidate) => {
 		const thresholds = recognitionThresholds(config);
 		const features = candidateFeatures(candidate);
+		const nearestExampleMatches = allExamples.flatMap((example) => {
+			const entryInfo = entryByKey.get(recognitionKey(example.kind, example.symbolId));
+			if (!entryInfo) {
+				return [];
+			}
+			const recognitionPlan = recognitionPlanForSymbol(entryInfo.kind, entryInfo.entry, candidate);
+			return [
+				{
+					example,
+					match: scoreRecognitionExample(
+						recognitionPlan.candidate.strokes,
+						example,
+						recognitionPlan.options
+					)
+				}
+			];
+		});
+		const knn = voteNearestExamples(nearestExampleMatches, thresholds.knnK);
 		const scored: ScoredEntry[] = entries
-			.map(({ kind, entry }) => ({
-				kind,
-				entry,
-				...scoreByStrokeTemplate(kind, entry, candidate, features)
-			}))
+			.map(({ kind, entry, examples }) => {
+				const scoredExamples = examples
+					.map((example) => ({
+						example,
+						score: scoreByStrokeTemplate(kind, entry, example, candidate, features, knn)
+					}))
+					.sort((a, b) => b.score.confidence - a.score.confidence);
+				const bestExample = scoredExamples[0];
+				return {
+					kind,
+					entry,
+					example: bestExample?.example ?? null,
+					...(bestExample?.score ?? {
+						confidence: 0,
+						templateMatch: null,
+						structuralMatch: null,
+						matcher: null,
+						knnVoteConfidence: 0
+					})
+				};
+			})
 			.sort((a, b) => b.confidence - a.confidence);
 
 		const best = scored[0];
@@ -488,13 +628,22 @@ export function recognizeCandidates(
 			confidence: 0
 		};
 		const acceptedByConfidence = Boolean(best && best.confidence >= thresholds.minConfidence);
+		const acceptedByInk = Boolean(
+			best?.templateMatch &&
+			best.templateMatch.unexplainedInkRatio <= thresholds.contaminationThreshold &&
+			best.templateMatch.templateCoveredRatio >= thresholds.minTemplateCoverage
+		);
+		const acceptedByKnn = Boolean(
+			best && !knn.tied && knn.winnerKey === recognitionKey(best.kind, best.entry.id)
+		);
 		const status = recognitionStatus(
 			candidate,
 			best,
 			second,
 			secondSameKind,
-			acceptedByConfidence,
-			thresholds
+			acceptedByConfidence && acceptedByInk && acceptedByKnn,
+			thresholds,
+			knn
 		);
 		const accepted = acceptedByConfidence && (status === 'valid' || status === 'valid_messy');
 		const bestTemplateMatch = best?.templateMatch ?? null;
@@ -504,6 +653,9 @@ export function recognizeCandidates(
 			id: score.entry.id,
 			confidence: score.confidence,
 			templateConfidence: score.templateMatch?.confidence ?? 0,
+			$pDistance: score.templateMatch?.$pDistance ?? 1,
+			chamferDistance: score.templateMatch?.chamferDistance ?? 1,
+			knnVoteConfidence: score.knnVoteConfidence,
 			inkScore: score.templateMatch?.inkScore ?? 0,
 			candidateExplainedRatio: score.templateMatch?.candidateExplainedRatio ?? 0,
 			templateCoveredRatio: score.templateMatch?.templateCoveredRatio ?? 0,
@@ -546,6 +698,11 @@ export function recognizeCandidates(
 				recognitionRotationDeg:
 					bestTemplateMatch?.recognitionRotationDeg ?? bestTemplateMatch?.rotationDeg ?? 0,
 				template: {
+					$pDistance: bestTemplateMatch?.$pDistance ?? 1,
+					pScore: bestTemplateMatch?.pScore ?? 0,
+					chamferDistance: bestTemplateMatch?.chamferDistance ?? 1,
+					chamferScore: bestTemplateMatch?.chamferScore ?? 0,
+					knnVoteConfidence: bestTemplateMatch?.knnVoteConfidence ?? 0,
 					inkScore: bestTemplateMatch?.inkScore ?? 0,
 					softDiceScore: bestTemplateMatch?.softDiceScore ?? 0,
 					candidateExplainedRatio: bestTemplateMatch?.candidateExplainedRatio ?? 0,
@@ -554,6 +711,24 @@ export function recognizeCandidates(
 					missingInkRatio: bestTemplateMatch?.missingInkRatio ?? 1,
 					contaminationRisk: bestTemplateMatch?.contaminationRisk ?? 0,
 					forbiddenCellInkRatio: bestTemplateMatch?.forbiddenCellInkRatio ?? 1
+				},
+				matcher: {
+					$pDistance: bestTemplateMatch?.$pDistance ?? 1,
+					chamferDistance: bestTemplateMatch?.chamferDistance ?? 1,
+					knnVoteConfidence: bestTemplateMatch?.knnVoteConfidence ?? 0,
+					knnVotes: knn.votes,
+					nearestExamples: knn.nearestExamples.map((example) => ({
+						id: example.id,
+						kind: example.kind,
+						symbolId: example.symbolId,
+						source: example.source,
+						distance: example.distance,
+						$pDistance: example.$pDistance,
+						chamferDistance: example.chamferDistance
+					})),
+					candidateExplainedRatio: bestTemplateMatch?.candidateExplainedRatio ?? 0,
+					templateCoveredRatio: bestTemplateMatch?.templateCoveredRatio ?? 0,
+					unexplainedInkRatio: bestTemplateMatch?.unexplainedInkRatio ?? 1
 				},
 				structure: {
 					score: bestStructuralMatch?.score ?? 0,
