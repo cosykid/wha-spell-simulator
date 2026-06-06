@@ -1,11 +1,10 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
 	import type { Dictionary, Point, SigilEntry, StrokeTemplate } from '$lib/types.js';
 
 	import { CONFIG } from '$lib/config.js';
 	import { loadDictionary } from '$lib/dictionary/dictionaryLoader.js';
-	import { DrawingCapture } from '$lib/input/drawingCapture.js';
-	import { createStrokeStore } from '$lib/input/strokeStore.js';
+	import Canvas from '$lib/ui/Canvas.svelte';
+	import { createDrawController } from '$lib/ui/drawOnCanvas.svelte';
 	import { writeJson } from '$lib/debug/debugOverlay.js';
 	import { drawStrokes } from '$lib/renderer/glyphOverlayRenderer.js';
 	import { drawPaper } from '$lib/renderer/paperRenderer.js';
@@ -30,12 +29,10 @@
 		recognition: null,
 		matches: []
 	});
-	let strokeCount = $state(0);
+	const CANVAS_SIZE = 760;
 
-	let canvas: HTMLCanvasElement;
-	let ctx: CanvasRenderingContext2D | null = null;
-	const store = createStrokeStore();
-	let capture: DrawingCapture | null = null;
+	let ctx = $state<CanvasRenderingContext2D | null>(null);
+	const draw = createDrawController({ onPreview: analyze, onCommit: analyze });
 
 	let recognitionPre = $state<HTMLPreElement | null>(null);
 	let candidatePre = $state<HTMLPreElement | null>(null);
@@ -97,17 +94,16 @@
 			return;
 		}
 
-		const currentStroke = capture?.getCurrentStroke();
-		const rawStrokes = currentStroke ? [...store.getStrokes(), currentStroke] : store.getStrokes();
+		const currentStroke = draw.getCurrentStroke();
+		const rawStrokes = currentStroke ? [...draw.getStrokes(), currentStroke] : draw.getStrokes();
 		analysis = analyzeStrokes({
 			strokes: rawStrokes,
 			dictionary,
 			mode,
-			canvasWidth: canvas.width,
-			canvasHeight: canvas.height,
+			canvasWidth: CANVAS_SIZE,
+			canvasHeight: CANVAS_SIZE,
 			config: CONFIG
 		});
-		strokeCount = store.count();
 
 		const recStatus =
 			analysis.recognition?.recognitionStatus ?? (analysis.matches.length ? 'unknown' : 'valid');
@@ -118,12 +114,12 @@
 	}
 
 	function handleUndo() {
-		store.undo();
+		draw.undo();
 		analyze();
 	}
 
 	function handleClear() {
-		store.clear();
+		draw.clear();
 		analyze();
 	}
 
@@ -203,8 +199,8 @@
 			return;
 		}
 
-		const center = { x: canvas.width / 2, y: canvas.height / 2 };
-		const scale = Math.min(canvas.width, canvas.height) * 0.52;
+		const center = { x: ctx.canvas.width / 2, y: ctx.canvas.height / 2 };
+		const scale = Math.min(ctx.canvas.width, ctx.canvas.height) * 0.52;
 
 		ctx.save();
 		ctx.lineCap = 'round';
@@ -252,67 +248,50 @@
 		ctx.restore();
 	}
 
-	onMount(() => {
-		setStatus('Loading', '');
-		ctx = canvas.getContext('2d');
-		let rafId: number | null = null;
+	function frame(context: CanvasRenderingContext2D) {
+		drawPaper(context, context.canvas.width, context.canvas.height);
+		if (paperOverlay) {
+			drawTraceReferenceOverlay(selectedReferenceEntry());
+		}
+		drawStrokes(context, draw.getStrokes(), draw.getCurrentStroke(), CONFIG);
 
-		function render() {
-			if (!ctx) {
-				return;
-			}
-			drawPaper(ctx, canvas.width, canvas.height);
-			if (paperOverlay) {
-				drawTraceReferenceOverlay(selectedReferenceEntry());
-			}
-			drawStrokes(ctx, store.getStrokes(), capture?.getCurrentStroke(), CONFIG);
-
-			if (paperOverlay) {
-				drawReferenceOverlay(analysis.candidate, analysis.matches[0]);
-			}
-
-			if (paperOverlay && analysis.candidate?.bounds && ctx) {
-				const { bounds } = analysis.candidate;
-				ctx.save();
-				ctx.strokeStyle = analysis.recognition?.recognized
-					? 'rgba(31, 111, 115, 0.72)'
-					: 'rgba(184, 69, 49, 0.62)';
-				ctx.lineWidth = 2;
-				ctx.setLineDash([8, 6]);
-				ctx.strokeRect(bounds.minX - 8, bounds.minY - 8, bounds.width + 16, bounds.height + 16);
-				ctx.restore();
-			}
-
-			rafId = requestAnimationFrame(render);
+		if (paperOverlay) {
+			drawReferenceOverlay(analysis.candidate, analysis.matches[0]);
 		}
 
-		capture = new DrawingCapture(canvas, store, CONFIG, {
-			onPreview: analyze,
-			onCommit: analyze
-		});
+		if (paperOverlay && analysis.candidate?.bounds) {
+			const { bounds } = analysis.candidate;
+			context.save();
+			context.strokeStyle = analysis.recognition?.recognized
+				? 'rgba(31, 111, 115, 0.72)'
+				: 'rgba(184, 69, 49, 0.62)';
+			context.lineWidth = 2;
+			context.setLineDash([8, 6]);
+			context.strokeRect(bounds.minX - 8, bounds.minY - 8, bounds.width + 16, bounds.height + 16);
+			context.restore();
+		}
+	}
 
+	$effect(() => {
+		setStatus('Loading', '');
 		let cancelled = false;
-		(async () => {
-			try {
-				dictionary = await loadDictionary();
-				capture.enable();
+		loadDictionary()
+			.then((loaded) => {
+				if (cancelled) {
+					return;
+				}
+				dictionary = loaded;
 				analyze();
 				setStatus('Ready');
-				rafId = requestAnimationFrame(render);
-			} catch (error) {
+			})
+			.catch((error) => {
 				if (!cancelled) {
 					console.error(error);
 					setStatus('Dictionary load failed', 'invalid');
 				}
-			}
-		})();
-
+			});
 		return () => {
 			cancelled = true;
-			if (rafId) {
-				cancelAnimationFrame(rafId);
-			}
-			capture?.disable();
 		};
 	});
 </script>
@@ -324,7 +303,7 @@
 <main class="workspace maker-workspace detector-lab-workspace">
 	<section class="canvas-panel maker-canvas-panel">
 		<div class="toolbar detector-lab-toolbar">
-			<button type="button" disabled={strokeCount === 0} onclick={handleUndo}>Undo</button>
+			<button type="button" disabled={draw.count() === 0} onclick={handleUndo}>Undo</button>
 			<button type="button" onclick={handleClear}>Clear</button>
 			<select class="select-control" bind:value={mode} onchange={analyze}>
 				<option value="all">Sigils + Signs</option>
@@ -347,9 +326,14 @@
 				<span>Paper Overlay</span>
 			</label>
 		</div>
-		<div class="detector-lab-canvas-shell">
-			<canvas bind:this={canvas} width="760" height="760"></canvas>
-		</div>
+		<Canvas
+			controller={draw}
+			width={CANVAS_SIZE}
+			height={CANVAS_SIZE}
+			maxWidth={820}
+			onFrame={frame}
+			bind:ctx
+		/>
 	</section>
 
 	<aside class="side-panel detector-lab-side-panel">

@@ -1,21 +1,20 @@
 <script lang="ts">
 	import { CONFIG } from '$lib/config.js';
-	import { DrawingCapture } from '$lib/input/drawingCapture.js';
-	import { createStrokeStore } from '$lib/input/strokeStore.js';
+	import Canvas from '$lib/ui/Canvas.svelte';
+	import { createDrawController } from '$lib/ui/drawOnCanvas.svelte';
 	import { normalizeStrokesForTemplate } from '$lib/parser/templateNormalizer.js';
 	import { drawStrokes } from '$lib/renderer/glyphOverlayRenderer.js';
 	import { drawPaper } from '$lib/renderer/paperRenderer.js';
 	import { setStatus } from '$lib/state.svelte';
-	import { onMount } from 'svelte';
 
 	let output = $state('');
 
-	let canvas: HTMLCanvasElement;
-	const store = createStrokeStore();
-	let capture: DrawingCapture | null = null;
+	const draw = createDrawController({
+		onCommit: () => setStatus('Drawing captured', 'prepared')
+	});
 
 	function buildTemplateExport() {
-		return normalizeStrokesForTemplate(store.getStrokes(), {
+		return normalizeStrokesForTemplate(draw.getStrokes(), {
 			samplesPerStroke: 32,
 			digits: 4
 		});
@@ -39,49 +38,29 @@
 	}
 
 	function handleClear() {
-		store.clear();
+		draw.clear();
 		output = '';
 		setStatus('Cleared', 'inactive');
 	}
 
-	onMount(() => {
-		const ctx = canvas.getContext('2d')!;
+	function frame(ctx: CanvasRenderingContext2D) {
+		const { width, height } = ctx.canvas;
+		drawPaper(ctx, width, height);
+		drawStrokes(ctx, draw.getStrokes(), draw.getCurrentStroke(), CONFIG);
 
-		function render() {
-			drawPaper(ctx, canvas.width, canvas.height);
-			drawStrokes(ctx, store.getStrokes(), capture?.getCurrentStroke(), CONFIG);
-
-			// Centering crosshair so symbols can be drawn balanced around the middle.
-			ctx.save();
-			ctx.strokeStyle = 'rgba(36, 27, 22, 0.24)';
-			ctx.lineWidth = 1;
-			ctx.setLineDash([8, 8]);
-			ctx.beginPath();
-			ctx.moveTo(canvas.width / 2, 0);
-			ctx.lineTo(canvas.width / 2, canvas.height);
-			ctx.moveTo(0, canvas.height / 2);
-			ctx.lineTo(canvas.width, canvas.height / 2);
-			ctx.stroke();
-			ctx.restore();
-
-			rafId = requestAnimationFrame(render);
-		}
-
-		let rafId: number | null = null;
-		capture = new DrawingCapture(canvas, store, CONFIG, {
-			onCommit: () => setStatus('Drawing captured', 'prepared')
-		});
-		capture.enable();
-		setStatus('Ready', '');
-		rafId = requestAnimationFrame(render);
-
-		return () => {
-			if (rafId) {
-				cancelAnimationFrame(rafId);
-			}
-			capture?.disable();
-		};
-	});
+		// Centering crosshair so symbols can be drawn balanced around the middle.
+		ctx.save();
+		ctx.strokeStyle = 'rgba(36, 27, 22, 0.24)';
+		ctx.lineWidth = 1;
+		ctx.setLineDash([8, 8]);
+		ctx.beginPath();
+		ctx.moveTo(width / 2, 0);
+		ctx.lineTo(width / 2, height);
+		ctx.moveTo(0, height / 2);
+		ctx.lineTo(width, height / 2);
+		ctx.stroke();
+		ctx.restore();
+	}
 </script>
 
 <svelte:head>
@@ -91,14 +70,12 @@
 <main class="workspace maker-workspace">
 	<section class="canvas-panel maker-canvas-panel">
 		<div class="toolbar">
-			<button type="button" onclick={() => store.undo()}>Undo</button>
+			<button type="button" onclick={() => draw.undo()}>Undo</button>
 			<button type="button" onclick={handleClear}>Clear</button>
 			<button type="button" onclick={exportTemplate}>Export</button>
 			<button type="button" onclick={copyTemplate}>Copy</button>
 		</div>
-		<div class="reference-canvas-shell">
-			<canvas bind:this={canvas} width="800" height="800"></canvas>
-		</div>
+		<Canvas controller={draw} onFrame={frame} />
 	</section>
 
 	<aside class="side-panel">

@@ -1,8 +1,8 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
 	import type { StrokeTemplate } from '$lib/types.js';
 	import { setStatus } from '$lib/state.svelte';
 	import { CONFIG } from '$lib/config.js';
+	import Canvas from '$lib/ui/Canvas.svelte';
 	import { drawPaper } from '$lib/renderer/paperRenderer.js';
 	import {
 		drawingBounds,
@@ -18,12 +18,11 @@
 	let input = $state('');
 	let metrics = $state(PLACEHOLDER);
 
-	let canvas: HTMLCanvasElement;
-	let ctx: CanvasRenderingContext2D | null = null;
+	let ctx = $state<CanvasRenderingContext2D | null>(null);
 
 	function clearPreview() {
 		if (ctx) {
-			drawPaper(ctx, canvas.width, canvas.height);
+			drawPaper(ctx, ctx.canvas.width, ctx.canvas.height);
 		}
 	}
 
@@ -33,7 +32,7 @@
 			return;
 		}
 
-		const bounds = drawingBounds(template, canvas.width, canvas.height);
+		const bounds = drawingBounds(template, ctx.canvas.width, ctx.canvas.height);
 		ctx.save();
 		ctx.strokeStyle = 'rgba(36, 27, 22, 0.18)';
 		ctx.lineWidth = 1;
@@ -83,10 +82,11 @@
 		setStatus('Ready', '');
 	}
 
-	onMount(() => {
-		ctx = canvas.getContext('2d');
-		clearPreview();
-		setStatus('Ready', '');
+	$effect(() => {
+		if (ctx) {
+			clearPreview();
+			setStatus('Ready', '');
+		}
 	});
 </script>
 
@@ -100,9 +100,7 @@
 			<button type="button" onclick={renderTemplate}>Render</button>
 			<button type="button" onclick={handleClear}>Clear</button>
 		</div>
-		<div class="reference-canvas-shell">
-			<canvas bind:this={canvas} width="800" height="800"></canvas>
-		</div>
+		<Canvas bind:ctx />
 	</section>
 
 	<aside class="side-panel">
