@@ -20,8 +20,6 @@ const PREVIEW_ALPHA = 0.72;
  * Captures freehand pointer input and commits each finished stroke to the scene as a
  * `StrokeEntity` via an `addEntity` command, so it joins the shared undo history. The
  * in-progress stroke is drawn as a transient overlay through {@link CanvasBehavior.render}.
- *
- * This is the scene-aware successor to `createDrawController`.
  */
 export function createDrawTool(scene: Scene): DrawTool {
 	let current = $state<Point[]>([]);

@@ -1,23 +1,24 @@
 <script lang="ts">
-	import type { Dictionary, Point, SigilEntry, StrokeTemplate } from '$lib/types.js';
+	import type { Dictionary, SigilEntry, StrokeTemplate } from '$lib/types.js';
 
+	import Canvas from '$canvas/Canvas.svelte';
 	import { CONFIG } from '$lib/config.js';
-	import { loadDictionary } from '$lib/dictionary/dictionaryLoader.js';
-	import Canvas from '$lib/ui/Canvas.svelte';
-	import { createDrawController } from '$lib/ui/drawOnCanvas.svelte';
 	import { writeJson } from '$lib/debug/debugOverlay.js';
-	import { drawStrokes } from '$lib/renderer/glyphOverlayRenderer.js';
-	import { drawPaper } from '$lib/renderer/paperRenderer.js';
-	import { roundDeep } from '$lib/utils/json.js';
+	import { loadDictionary } from '$lib/dictionary/dictionaryLoader.js';
+	import { setStatus } from '$lib/state.svelte';
+	import { paperEntity } from '$canvas/entities/paperEntity.js';
+	import { referenceOverlayEntity } from '$canvas/entities/referenceOverlayEntity.js';
+	import type { StrokeEntity } from '$canvas/entities/strokeEntity.js';
+	import { createScene } from '$canvas/scene.svelte.js';
+	import { createDrawTool } from '$canvas/tools/drawTool.svelte.js';
 	import {
 		analyzeStrokes,
 		normalizedTemplateStrokes,
 		percent,
-		rotateTemplatePoint,
 		statusClass,
 		statusLabel
 	} from '$lib/ui/sigilDetector.js';
-	import { setStatus } from '$lib/state.svelte';
+	import { roundDeep } from '$lib/utils/json.js';
 
 	let dictionary = $state<Dictionary | null>(null);
 	let mode = $state('all');
@@ -31,8 +32,25 @@
 	});
 	const CANVAS_SIZE = 760;
 
-	let ctx = $state<CanvasRenderingContext2D | null>(null);
-	const draw = createDrawController({ onPreview: analyze, onCommit: analyze });
+	const scene = createScene([
+		paperEntity(),
+		referenceOverlayEntity({
+			enabled: () => paperOverlay,
+			traceTemplate: () => selectedReferenceEntry()?.strokeTemplate,
+			candidate: () => analysis.candidate,
+			matchTemplate: () => analysis.matches[0]?.entry.strokeTemplate,
+			matchRotationDeg: () => analysis.matches[0]?.templateMatch.rotationDeg ?? 0,
+			recognized: () => Boolean(analysis.recognition?.recognized)
+		})
+	]);
+	const draw = createDrawTool(scene);
+
+	const committedStrokes = $derived(
+		scene
+			.getEntities()
+			.filter((e): e is StrokeEntity => 'stroke' in e)
+			.map((e) => e.stroke)
+	);
 
 	let recognitionPre = $state<HTMLPreElement | null>(null);
 	let candidatePre = $state<HTMLPreElement | null>(null);
@@ -73,8 +91,32 @@
 		}
 	});
 
-	type DetectorMatch = ReturnType<typeof analyzeStrokes>['matches'][number];
-	type DetectorCandidate = NonNullable<ReturnType<typeof analyzeStrokes>['candidate']>;
+	// Re-analyze whenever committed strokes, the in-progress preview, mode, or dictionary change.
+	$effect(() => {
+		if (!dictionary) return;
+
+		const currentStroke = draw.getCurrentStroke();
+		const allStrokes = currentStroke ? [...committedStrokes, currentStroke] : [...committedStrokes];
+
+		// Use the local result for the status below: reading back from `analysis` here
+		// would make this effect depend on the state it just wrote and loop forever.
+		const result = analyzeStrokes({
+			strokes: allStrokes,
+			dictionary,
+			mode,
+			canvasWidth: CANVAS_SIZE,
+			canvasHeight: CANVAS_SIZE,
+			config: CONFIG
+		});
+		analysis = result;
+
+		const recStatus =
+			result.recognition?.recognitionStatus ?? (result.matches.length ? 'unknown' : 'valid');
+		setStatus(
+			result.matches.length ? statusLabel(recStatus) : 'Ready',
+			statusClass(recStatus, Boolean(result.recognition?.recognized))
+		);
+	});
 
 	function previewPolylines(strokeTemplate: StrokeTemplate | undefined) {
 		return normalizedTemplateStrokes(strokeTemplate)
@@ -89,38 +131,12 @@
 			.filter((points) => points.length > 0);
 	}
 
-	function analyze() {
-		if (!dictionary) {
-			return;
-		}
-
-		const currentStroke = draw.getCurrentStroke();
-		const rawStrokes = currentStroke ? [...draw.getStrokes(), currentStroke] : draw.getStrokes();
-		analysis = analyzeStrokes({
-			strokes: rawStrokes,
-			dictionary,
-			mode,
-			canvasWidth: CANVAS_SIZE,
-			canvasHeight: CANVAS_SIZE,
-			config: CONFIG
-		});
-
-		const recStatus =
-			analysis.recognition?.recognitionStatus ?? (analysis.matches.length ? 'unknown' : 'valid');
-		setStatus(
-			analysis.matches.length ? statusLabel(recStatus) : 'Ready',
-			statusClass(recStatus, Boolean(analysis.recognition?.recognized))
-		);
-	}
-
 	function handleUndo() {
-		draw.undo();
-		analyze();
+		scene.undo();
 	}
 
 	function handleClear() {
-		draw.clear();
-		analyze();
+		scene.clear();
 	}
 
 	function selectedReferenceEntry(): SigilEntry | null {
@@ -128,148 +144,6 @@
 			return null;
 		}
 		return dictionary.sigils.find((entry) => entry.id === referenceId) ?? null;
-	}
-
-	function templatePointToCanvas(point: Point, candidate: DetectorCandidate, rotationDeg: number) {
-		const rotated = rotateTemplatePoint(point, rotationDeg);
-		const scale = Math.max(candidate.bounds.width, candidate.bounds.height, 1);
-		return {
-			x: candidate.center.x + (rotated.x - 0.5) * scale,
-			y: candidate.center.y + (rotated.y - 0.5) * scale
-		};
-	}
-
-	function drawReferenceOverlay(
-		candidate: DetectorCandidate | null,
-		match: DetectorMatch | undefined
-	) {
-		const strokes = normalizedTemplateStrokes(match?.entry?.strokeTemplate);
-		if (!candidate || !strokes.length || !ctx) {
-			return;
-		}
-
-		const rotationDeg = match?.templateMatch?.rotationDeg ?? 0;
-
-		ctx.save();
-		ctx.lineCap = 'round';
-		ctx.lineJoin = 'round';
-		ctx.lineWidth = 6;
-		ctx.strokeStyle = 'rgba(255, 247, 219, 0.92)';
-		ctx.shadowColor = 'rgba(36, 27, 22, 0.42)';
-		ctx.shadowBlur = 6;
-
-		for (const stroke of strokes) {
-			if (!stroke.length) {
-				continue;
-			}
-			ctx.beginPath();
-			const first = templatePointToCanvas(stroke[0], candidate, rotationDeg);
-			ctx.moveTo(first.x, first.y);
-			for (let index = 1; index < stroke.length; index += 1) {
-				const point = templatePointToCanvas(stroke[index], candidate, rotationDeg);
-				ctx.lineTo(point.x, point.y);
-			}
-			ctx.stroke();
-		}
-
-		ctx.shadowBlur = 0;
-		ctx.lineWidth = 2.25;
-		ctx.strokeStyle = 'rgba(31, 111, 115, 0.95)';
-
-		for (const stroke of strokes) {
-			if (!stroke.length) {
-				continue;
-			}
-			ctx.beginPath();
-			const first = templatePointToCanvas(stroke[0], candidate, rotationDeg);
-			ctx.moveTo(first.x, first.y);
-			for (let index = 1; index < stroke.length; index += 1) {
-				const point = templatePointToCanvas(stroke[index], candidate, rotationDeg);
-				ctx.lineTo(point.x, point.y);
-			}
-			ctx.stroke();
-		}
-
-		ctx.restore();
-	}
-
-	function drawTraceReferenceOverlay(entry: SigilEntry | null) {
-		const strokes = normalizedTemplateStrokes(entry?.strokeTemplate);
-		if (!strokes.length || !ctx) {
-			return;
-		}
-
-		const center = { x: ctx.canvas.width / 2, y: ctx.canvas.height / 2 };
-		const scale = Math.min(ctx.canvas.width, ctx.canvas.height) * 0.52;
-
-		ctx.save();
-		ctx.lineCap = 'round';
-		ctx.lineJoin = 'round';
-		ctx.lineWidth = 10;
-		ctx.strokeStyle = 'rgba(255, 247, 219, 0.72)';
-		ctx.shadowColor = 'rgba(36, 27, 22, 0.2)';
-		ctx.shadowBlur = 8;
-
-		for (const stroke of strokes) {
-			if (!stroke.length) {
-				continue;
-			}
-			ctx.beginPath();
-			ctx.moveTo(center.x + (stroke[0].x - 0.5) * scale, center.y + (stroke[0].y - 0.5) * scale);
-			for (let index = 1; index < stroke.length; index += 1) {
-				ctx.lineTo(
-					center.x + (stroke[index].x - 0.5) * scale,
-					center.y + (stroke[index].y - 0.5) * scale
-				);
-			}
-			ctx.stroke();
-		}
-
-		ctx.shadowBlur = 0;
-		ctx.lineWidth = 3;
-		ctx.strokeStyle = 'rgba(184, 69, 49, 0.6)';
-		ctx.setLineDash([10, 8]);
-
-		for (const stroke of strokes) {
-			if (!stroke.length) {
-				continue;
-			}
-			ctx.beginPath();
-			ctx.moveTo(center.x + (stroke[0].x - 0.5) * scale, center.y + (stroke[0].y - 0.5) * scale);
-			for (let index = 1; index < stroke.length; index += 1) {
-				ctx.lineTo(
-					center.x + (stroke[index].x - 0.5) * scale,
-					center.y + (stroke[index].y - 0.5) * scale
-				);
-			}
-			ctx.stroke();
-		}
-
-		ctx.restore();
-	}
-
-	function frame(context: CanvasRenderingContext2D) {
-		drawPaper(context, context.canvas.width, context.canvas.height);
-		if (paperOverlay) {
-			drawTraceReferenceOverlay(selectedReferenceEntry());
-		}
-		drawStrokes(context, draw.getStrokes(), draw.getCurrentStroke(), CONFIG);
-
-		if (paperOverlay) {
-			drawReferenceOverlay(analysis.candidate, analysis.matches[0]);
-		}
-
-		if (paperOverlay && analysis.candidate?.bounds) {
-			const { bounds } = analysis.candidate;
-			context.save();
-			context.strokeStyle = analysis.recognition?.recognized
-				? 'rgba(31, 111, 115, 0.72)'
-				: 'rgba(184, 69, 49, 0.62)';
-			context.lineWidth = 2;
-			context.setLineDash([8, 6]);
-			context.strokeRect(bounds.minX - 8, bounds.minY - 8, bounds.width + 16, bounds.height + 16);
-			context.restore();
-		}
 	}
 
 	$effect(() => {
@@ -281,8 +155,6 @@
 					return;
 				}
 				dictionary = loaded;
-				analyze();
-				setStatus('Ready');
 			})
 			.catch((error) => {
 				if (!cancelled) {
@@ -303,9 +175,9 @@
 <main class="workspace maker-workspace detector-lab-workspace">
 	<section class="canvas-panel maker-canvas-panel">
 		<div class="toolbar detector-lab-toolbar">
-			<button type="button" disabled={draw.count() === 0} onclick={handleUndo}>Undo</button>
+			<button type="button" disabled={!scene.canUndo()} onclick={handleUndo}>Undo</button>
 			<button type="button" onclick={handleClear}>Clear</button>
-			<select class="select-control" bind:value={mode} onchange={analyze}>
+			<select class="select-control" bind:value={mode}>
 				<option value="all">Sigils + Signs</option>
 				<option value="sigils">Sigils</option>
 				<option value="signs">Signs</option>
@@ -314,7 +186,6 @@
 				class="select-control"
 				bind:value={referenceId}
 				disabled={!paperOverlay}
-				onchange={analyze}
 			>
 				<option value="">No trace reference</option>
 				{#each overlayEntries as entry (entry.id)}
@@ -326,14 +197,7 @@
 				<span>Paper Overlay</span>
 			</label>
 		</div>
-		<Canvas
-			controller={draw}
-			width={CANVAS_SIZE}
-			height={CANVAS_SIZE}
-			maxWidth={820}
-			onFrame={frame}
-			bind:ctx
-		/>
+		<Canvas {scene} controller={draw} width={CANVAS_SIZE} height={CANVAS_SIZE} maxWidth={820} />
 	</section>
 
 	<aside class="side-panel detector-lab-side-panel">

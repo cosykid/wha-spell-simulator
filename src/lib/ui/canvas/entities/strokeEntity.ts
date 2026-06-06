@@ -2,6 +2,10 @@ import { CONFIG } from '$config';
 import type { Stroke } from '../../../types.js';
 import type { Entity } from '../entity.js';
 
+export interface StrokeEntity extends Entity {
+  readonly stroke: Stroke;
+}
+
 const INK_LINE_WIDTH = 4.4;
 const COMMITTED_ALPHA = 0.94;
 
@@ -40,10 +44,11 @@ export function renderStrokeInk(
  * One committed freehand stroke. Each stroke is its own entity so it participates
  * in the scene's shared undo history alongside symbols.
  */
-export function makeStrokeEntity(stroke: Stroke, z = 0): Entity {
+export function makeStrokeEntity(stroke: Stroke, z = 0): StrokeEntity {
 	return {
 		id: stroke.id,
 		z,
+		stroke,
 		render(ctx) {
 			renderStrokeInk(ctx, stroke);
 		},

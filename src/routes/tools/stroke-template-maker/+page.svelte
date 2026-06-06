@@ -1,20 +1,31 @@
 <script lang="ts">
-	import { CONFIG } from '$lib/config.js';
-	import Canvas from '$lib/ui/Canvas.svelte';
-	import { createDrawController } from '$lib/ui/drawOnCanvas.svelte';
+	import Canvas from '$canvas/Canvas.svelte';
+	import { crosshairEntity } from '$canvas/entities/crosshairEntity.js';
+	import { paperEntity } from '$canvas/entities/paperEntity.js';
+	import type { StrokeEntity } from '$canvas/entities/strokeEntity.js';
+	import { createScene } from '$canvas/scene.svelte.js';
+	import { createDrawTool } from '$canvas/tools/drawTool.svelte.js';
 	import { normalizeStrokesForTemplate } from '$lib/parser/templateNormalizer.js';
-	import { drawStrokes } from '$lib/renderer/glyphOverlayRenderer.js';
-	import { drawPaper } from '$lib/renderer/paperRenderer.js';
 	import { setStatus } from '$lib/state.svelte';
+
+	const scene = createScene([paperEntity(), crosshairEntity()]);
+	const draw = createDrawTool(scene);
+
+	const strokes = $derived(
+		scene
+			.getEntities()
+			.filter((e): e is StrokeEntity => 'stroke' in e)
+			.map((e) => e.stroke)
+	);
 
 	let output = $state('');
 
-	const draw = createDrawController({
-		onCommit: () => setStatus('Drawing captured', 'prepared')
+	$effect(() => {
+		if (strokes.length > 0) setStatus('Drawing captured', 'prepared');
 	});
 
 	function buildTemplateExport() {
-		return normalizeStrokesForTemplate(draw.getStrokes(), {
+		return normalizeStrokesForTemplate(strokes, {
 			samplesPerStroke: 32,
 			digits: 4
 		});
@@ -38,29 +49,11 @@
 	}
 
 	function handleClear() {
-		draw.clear();
+		scene.clear();
 		output = '';
 		setStatus('Cleared', 'inactive');
 	}
 
-	function frame(ctx: CanvasRenderingContext2D) {
-		const { width, height } = ctx.canvas;
-		drawPaper(ctx, width, height);
-		drawStrokes(ctx, draw.getStrokes(), draw.getCurrentStroke(), CONFIG);
-
-		// Centering crosshair so symbols can be drawn balanced around the middle.
-		ctx.save();
-		ctx.strokeStyle = 'rgba(36, 27, 22, 0.24)';
-		ctx.lineWidth = 1;
-		ctx.setLineDash([8, 8]);
-		ctx.beginPath();
-		ctx.moveTo(width / 2, 0);
-		ctx.lineTo(width / 2, height);
-		ctx.moveTo(0, height / 2);
-		ctx.lineTo(width, height / 2);
-		ctx.stroke();
-		ctx.restore();
-	}
 </script>
 
 <svelte:head>
@@ -70,12 +63,12 @@
 <main class="workspace maker-workspace">
 	<section class="canvas-panel maker-canvas-panel">
 		<div class="toolbar">
-			<button type="button" onclick={() => draw.undo()}>Undo</button>
+			<button type="button" disabled={!scene.canUndo()} onclick={() => scene.undo()}>Undo</button>
 			<button type="button" onclick={handleClear}>Clear</button>
 			<button type="button" onclick={exportTemplate}>Export</button>
 			<button type="button" onclick={copyTemplate}>Copy</button>
 		</div>
-		<Canvas controller={draw} onFrame={frame} />
+		<Canvas {scene} controller={draw} />
 	</section>
 
 	<aside class="side-panel">
