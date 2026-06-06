@@ -29,6 +29,7 @@ This file is the compact contract for parser, compiler, and renderer behavior. U
 ## Recognition Terms
 
 - `strokeTemplate` is the reference ink shape.
+- Candidate grouping works on whole strokes and proximity-connected components before recognition.
 - Template recognition rasterizes normalized candidate and reference strokes into bitmap masks, then combines ink overlap with structural checks.
 - `CONFIG.recognition.minConfidence` is the minimum final recognizer score for accepting a symbol.
 - `recognitionRotationInvariant` controls sigil matching only. Current sigils should usually be `false`.
@@ -41,6 +42,7 @@ This file is the compact contract for parser, compiler, and renderer behavior. U
 Prefer internal constants or local helper code for implementation heuristics:
 
 - grouping distance thresholds
+- experimental recognition-guided decomposition heuristics
 - raster grid sizes and mask radii
 - rotation tie-break margins
 - renderer diagnostic parameter mix values

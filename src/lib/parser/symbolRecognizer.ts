@@ -32,8 +32,10 @@ import type {
 
 const RECOGNITION_AMBIGUITY_GAP = 0.065;
 const SIMPLE_SIGN_STROKE_LIMIT = 6;
+const DECOMPOSITION_DOMINANT_SIGIL_SCORE = 0.85;
 const SIMPLE_SIGN_MIN_TEMPLATE_COVERAGE = 0.78;
 const templateFeatureCache = new WeakMap<StrokeTemplate, TemplateFeatures>();
+const dictionaryExampleCache = new WeakMap<Dictionary, RecognitionExample[]>();
 
 interface TemplateFeatures {
 	aspectRatio: number;
@@ -71,6 +73,12 @@ interface ScoredTemplate {
 	structuralMatch: StructuralMatch | null;
 	matcher: ShapeMatcherResult | null;
 	knnVoteConfidence: number;
+}
+
+interface PrecomputedExampleScore {
+	recognitionPlan: ReturnType<typeof recognitionPlanForSymbol>;
+	matchFeatures: CandidateFeatures;
+	matcher: ShapeMatcherResult;
 }
 
 type ScoredEntry = ScoredTemplate & {
@@ -394,7 +402,8 @@ function scoreByStrokeTemplate(
 	example: RecognitionExample,
 	candidate: SymbolCandidate,
 	features: CandidateFeatures,
-	knn: KnnVoteResult
+	knn: KnnVoteResult,
+	precomputed?: PrecomputedExampleScore
 ): ScoredTemplate {
 	const layerScore = allowedLayerScore(entry, candidate);
 	const strokeTemplate = entryStrokeTemplate(entry);
@@ -409,13 +418,14 @@ function scoreByStrokeTemplate(
 		};
 	}
 
-	const recognitionPlan = recognitionPlanForSymbol(kind, entry, candidate);
-	const matchFeatures = kind === 'sign' ? candidateFeatures(recognitionPlan.candidate) : features;
-	const matcher = scoreRecognitionExample(
-		recognitionPlan.candidate.strokes,
-		example,
-		recognitionPlan.options
-	);
+	const recognitionPlan =
+		precomputed?.recognitionPlan ?? recognitionPlanForSymbol(kind, entry, candidate);
+	const matchFeatures =
+		precomputed?.matchFeatures ??
+		(kind === 'sign' ? candidateFeatures(recognitionPlan.candidate) : features);
+	const matcher =
+		precomputed?.matcher ??
+		scoreRecognitionExample(recognitionPlan.candidate.strokes, example, recognitionPlan.options);
 	const voteKey = recognitionKey(kind, entry.id);
 	const knnVoteConfidence =
 		!knn.tied && knn.winnerKey === voteKey ? knn.voteConfidence : (knn.votes[voteKey] ?? 0) * 0.35;
@@ -516,14 +526,99 @@ function recognitionExamplesFor(
 	dictionary: Dictionary,
 	extraExamples: RecognitionExample[] = []
 ): RecognitionExample[] {
+	const baseExamples = (() => {
+		const cached = dictionaryExampleCache.get(dictionary);
+		if (cached) {
+			return cached;
+		}
+		const built = buildExamplesFromDictionary(dictionary);
+		dictionaryExampleCache.set(dictionary, built);
+		return built;
+	})();
+
+	if (!extraExamples.length) {
+		return baseExamples;
+	}
+
 	const examples = new Map<string, RecognitionExample>();
-	for (const example of buildExamplesFromDictionary(dictionary)) {
+	for (const example of baseExamples) {
 		examples.set(example.id, example);
 	}
 	for (const example of extraExamples) {
 		examples.set(example.id, example);
 	}
 	return [...examples.values()];
+}
+
+export interface DecompositionScorer {
+	(candidate: SymbolCandidate): number;
+}
+
+// Lightweight scorer for the decomposition tree-cut. It only runs the $P +
+// chamfer shape matcher (the directScore that scoreRecognitionExample exposes
+// as `confidence`) and deliberately skips kNN voting, structural blending, and
+// status logic. Those richer signals are reserved for the final
+// recognizeCandidates pass over the chosen groups, so scoring a tree node stays
+// cheap. Sigils are scored first; once one clears the dominant threshold, sign
+// scoring is skipped for that node.
+export function createDecompositionScorer(
+	dictionary: Dictionary,
+	config: AppConfig,
+	recognitionExamples: RecognitionExample[] = []
+): DecompositionScorer {
+	void config;
+	const allExamples = recognitionExamplesFor(dictionary, recognitionExamples);
+	const examplesByKey = new Map<string, RecognitionExample[]>();
+	for (const example of allExamples) {
+		const key = recognitionKey(example.kind, example.symbolId);
+		examplesByKey.set(key, [...(examplesByKey.get(key) ?? []), example]);
+	}
+
+	type EntryGroup = {
+		kind: RecognitionKind;
+		entry: DictionaryEntry;
+		examples: RecognitionExample[];
+	};
+	const sigilEntries: EntryGroup[] = dictionary.sigils.flatMap((entry) => {
+		const examples = examplesByKey.get(recognitionKey('sigil', entry.id)) ?? [];
+		return examples.length ? [{ kind: 'sigil' as const, entry, examples }] : [];
+	});
+	const signEntries: EntryGroup[] = dictionary.signs.flatMap((entry) => {
+		const examples = examplesByKey.get(recognitionKey('sign', entry.id)) ?? [];
+		return examples.length ? [{ kind: 'sign' as const, entry, examples }] : [];
+	});
+
+	const bestEntryScore = (group: EntryGroup, candidate: SymbolCandidate): number => {
+		const plan = recognitionPlanForSymbol(group.kind, group.entry, candidate);
+		let best = 0;
+		for (const example of group.examples) {
+			const matcher = scoreRecognitionExample(plan.candidate.strokes, example, plan.options);
+			if (matcher.confidence > best) {
+				best = matcher.confidence;
+			}
+		}
+		return best;
+	};
+
+	return (candidate: SymbolCandidate): number => {
+		let best = 0;
+		for (const group of sigilEntries) {
+			const score = bestEntryScore(group, candidate);
+			if (score > best) {
+				best = score;
+			}
+		}
+		if (best >= DECOMPOSITION_DOMINANT_SIGIL_SCORE) {
+			return best;
+		}
+		for (const group of signEntries) {
+			const score = bestEntryScore(group, candidate);
+			if (score > best) {
+				best = score;
+			}
+		}
+		return best;
+	};
 }
 
 // Recognition scores each grouped symbol candidate against every dictionary
@@ -578,20 +673,38 @@ export function recognizeCandidates(
 	return candidates.map((candidate) => {
 		const thresholds = recognitionThresholds(config);
 		const features = candidateFeatures(candidate);
+		const scoreCache = new Map<string, PrecomputedExampleScore>();
+		const scoreExample = (
+			kind: RecognitionKind,
+			entry: DictionaryEntry,
+			example: RecognitionExample
+		): PrecomputedExampleScore => {
+			const cached = scoreCache.get(example.id);
+			if (cached) {
+				return cached;
+			}
+			const recognitionPlan = recognitionPlanForSymbol(kind, entry, candidate);
+			const matchFeatures =
+				kind === 'sign' ? candidateFeatures(recognitionPlan.candidate) : features;
+			const matcher = scoreRecognitionExample(
+				recognitionPlan.candidate.strokes,
+				example,
+				recognitionPlan.options
+			);
+			const score = { recognitionPlan, matchFeatures, matcher };
+			scoreCache.set(example.id, score);
+			return score;
+		};
 		const nearestExampleMatches = allExamples.flatMap((example) => {
 			const entryInfo = entryByKey.get(recognitionKey(example.kind, example.symbolId));
 			if (!entryInfo) {
 				return [];
 			}
-			const recognitionPlan = recognitionPlanForSymbol(entryInfo.kind, entryInfo.entry, candidate);
+			const scoredExample = scoreExample(entryInfo.kind, entryInfo.entry, example);
 			return [
 				{
 					example,
-					match: scoreRecognitionExample(
-						recognitionPlan.candidate.strokes,
-						example,
-						recognitionPlan.options
-					)
+					match: scoredExample.matcher
 				}
 			];
 		});
@@ -601,7 +714,15 @@ export function recognizeCandidates(
 				const scoredExamples = examples
 					.map((example) => ({
 						example,
-						score: scoreByStrokeTemplate(kind, entry, example, candidate, features, knn)
+						score: scoreByStrokeTemplate(
+							kind,
+							entry,
+							example,
+							candidate,
+							features,
+							knn,
+							scoreExample(kind, entry, example)
+						)
 					}))
 					.sort((a, b) => b.score.confidence - a.score.confidence);
 				const bestExample = scoredExamples[0];

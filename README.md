@@ -32,7 +32,7 @@ The app turns a freehand spell diagram into parser output, compiled spell behavi
 - The current compiler expects one primary sigil. Multiple primary sigils are detected as unsupported.
 - Recognition is seeded from local stroke templates and can accept additional stored examples, so it still works best with clean, deliberate drawings.
 - The recognizer is not perfect. Some valid-looking drawings may fail to match, and some rough drawings may need to be redrawn more clearly.
-- Decomposition currently groups whole strokes only. It does not split a stroke into fragments when two symbols are drawn without lifting the pointer.
+- Candidate grouping currently works on whole strokes and proximity-connected components. It does not split a stroke into fragments when two symbols are drawn without lifting the pointer.
 - The dictionaries only cover a small fan-made subset of sigils, signs, and observed spell ideas.
 - The visual effects are interpretive canvas animations, not a faithful reproduction of manga or anime effects.
 - Raster images can be used as visual references, but the app cannot recover true stroke order from an image.

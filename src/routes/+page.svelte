@@ -9,7 +9,8 @@
 	import { loadDictionary } from '$lib/dictionary/dictionaryLoader.js';
 	import { DrawingCapture } from '$lib/input/drawingCapture.js';
 	import { createStrokeStore } from '$lib/input/strokeStore.js';
-	import { classifyDrawing } from '$lib/parser/drawingClassifier.js';
+	import { classifyDrawingAsync } from '$lib/parser/drawingClassifier.js';
+	import { disposeRecognitionPool } from '$lib/parser/recognitionPool.js';
 	import { CanvasRenderer } from '$lib/renderer/canvasRenderer.js';
 	import { setupCanvasSizing } from '$lib/ui/canvasSizing.js';
 	import { computeSummary, INITIAL_SUMMARY } from '$lib/ui/spellSummary.js';
@@ -64,17 +65,28 @@
 		};
 	}
 
-	function recompute() {
+	let recomputeSeq = 0;
+
+	async function recompute() {
 		if (!dictionary) {
 			return;
 		}
 
-		pipeline = classifyDrawing({
+		// Recognition runs on a worker pool, so it is async. Guard with a sequence
+		// token: rapid strokes can overlap, and only the newest result should win.
+		// previousRing is read synchronously here, before the await.
+		const seq = ++recomputeSeq;
+		const result = await classifyDrawingAsync({
 			strokes: store.getStrokes(),
 			previousRing,
 			dictionary,
 			config: CONFIG
 		});
+		if (seq !== recomputeSeq) {
+			return;
+		}
+
+		pipeline = result;
 		previousRing = pipeline.ring;
 		spellIR = compileSpell({ glyphAST: pipeline.glyphAST, config: CONFIG });
 		summary = computeSummary({ store, pipeline, spellIR, showGuides });
@@ -200,6 +212,7 @@
 			capture?.disable();
 			resizeObserver?.disconnect();
 			window.removeEventListener('keydown', handleKeydown);
+			disposeRecognitionPool();
 		};
 	});
 </script>

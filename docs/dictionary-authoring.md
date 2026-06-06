@@ -152,7 +152,7 @@ Important conventions:
 - Draw cleanly, but do not over-optimize. The user drawing will be imperfect.
 - The tool for stroke template maker exports only the `strokeTemplate` object. Paste that object into the dictionary entry.
 - The recognizer is tolerant of stroke order during point-cloud matching, but stroke count and stroke-length profile still influence structural confidence.
-- Keep a multi-stroke symbol as separate strokes when those strokes are natural lifts in the intended drawing. Decomposition currently groups whole strokes and does not split a single stroke into fragments.
+- Keep a multi-stroke symbol as separate strokes when those strokes are natural lifts in the intended drawing. Candidate grouping works on whole strokes and proximity-connected components; it does not split a single stroke into fragments.
 
 ## Recognition Examples
 
@@ -453,6 +453,7 @@ For sample spells, check the Dictionary panel preview instead. Sample spell entr
 If recognition fails, check:
 
 - Is the symbol grouped as one candidate?
+- Are strokes that belong to the same symbol close enough to become one proximity-connected component?
 - Is it inside an allowed layer?
 - Is the drawing big enough to be legible without becoming a merged or distorted candidate?
 - Is the final recognition score below `CONFIG.recognition.minConfidence`?

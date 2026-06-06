@@ -1,6 +1,6 @@
 # Recognition Pipeline
 
-The parser now uses a two-layer recognizer:
+The parser uses a two-layer recognizer:
 
 1. A decomposition layer proposes plausible stroke groups.
 2. A shape recognizer scores each group against dictionary-backed recognition examples.
@@ -15,28 +15,33 @@ The public entrypoint remains `classifyDrawing(...)`. Callers still receive comp
 2. Detect the spell ring and remove ring strokes from symbol recognition.
 3. When no ring is found, build a synthetic standalone sigil preview candidate so diagnostics can show a tentative sigil label before the enclosing circle exists.
 4. When a ring is found, classify strokes by ring-relative layer and boundary position.
-5. Build symbol candidates from non-ring strokes with tree-cut decomposition.
+5. Build symbol candidates from non-ring strokes with proximity grouping.
 6. Recognize each candidate with the hybrid shape matcher.
 7. Build `GlyphAST`, warnings, parser diagnostics, and compiler-ready recognitions.
 
 The no-ring preview is diagnostics-only. It can show a likely sigil while drawing, but it does not create a valid spell because the spell still needs a ring.
 
+`classifyDrawingAsync(...)` produces the same result, but dispatches the final per-candidate recognition across a Web Worker pool when one is available. It falls back to the synchronous recognizer for non-browser runtimes, a single candidate, or any worker error, so both entrypoints return identical output. See [Parallel Recognition](#parallel-recognition).
+
 ## Decomposition
 
 The decomposition layer works on whole cleaned strokes. It intentionally does not split a stroke into fragments yet.
 
-The current grouping algorithm:
+The default grouping algorithm:
 
 - Starts from non-ring strokes that are usable by the parser.
 - Builds a proximity graph using bounding-box gap, sampled point distance, center distance, layer compatibility, and nearby polar angle.
 - Gives center sigils extra tolerance so multi-stroke sigils can stay together even when their pieces do not overlap tightly.
-- Builds a merge forest for each connected component.
-- Scores each tree node as a possible whole symbol using the recognizer.
-- Uses a tree-cut decision to choose either the whole node or its child groups.
+- Uses connected components from that proximity graph as symbol candidates.
+- Filters out oversized groups before shape recognition.
 
-Merged groups pay `CONFIG.recognition.groupPenalty`, currently `0.45`. Oversized groups and groups with too many strokes are skipped before full recognition. This keeps obvious accidental merges from winning over separate symbols.
+This keeps grouping cheap enough to run after committed strokes and avoids splitting hand-drawn multi-stroke signs before the recognizer sees them. The recognizer still handles identity, ambiguity, contamination, and confidence after grouping.
 
-The boxes shown by glyph diagnostics are candidate bounds, not the entire decomposition tree. A box around a tentative symbol means "these strokes were selected as one candidate for this parse." It does not mean the recognizer only sees square pixels.
+`CONFIG.recognition.recognitionGuidedDecomposition` enables the experimental tree-cut path. When enabled, each connected component is clustered into a single-linkage merge forest with union-find, every viable whole-symbol tree node is scored, and the parser chooses between keeping a node whole or taking its child groups. Merged groups pay `CONFIG.recognition.groupPenalty`, currently `0.45`.
+
+Node scoring during the tree cut is deliberately lightweight. It runs only the `$P` + chamfer shape match, not kNN voting or the full structural blend, and it stops scoring signs for a node once a sigil clears a dominant threshold. The full hybrid recognizer runs once afterward on the chosen groups, so the expensive pass is not repeated per tree node. The union-find clustering also replaces an earlier all-pairs rescan, so the path is dramatically cheaper than it used to be. It still does recognizer-guided scoring and remains too eager to split rough hand-drawn multi-stroke signs, which is why it is off by default.
+
+The boxes shown by glyph diagnostics are candidate bounds, not every internal grouping possibility. A box around a tentative symbol means "these strokes were selected as one candidate for this parse." It does not mean the recognizer only sees square pixels.
 
 ## Shape Matching
 
@@ -61,6 +66,18 @@ For v1, the core matcher confidence is:
 ```
 
 The symbol recognizer then blends that matcher confidence with structural compatibility, layer fit, size fit, and candidate neatness. Structural compatibility checks aspect ratio, stroke count, stroke-length profile, and dominant-axis alignment. Simple signs get extra caps so a lone line is not too easily accepted as a complete sign.
+
+Dictionary-derived recognition examples are cached per dictionary object, and candidate/example matcher scores are reused within a recognition pass. This keeps repeated kNN voting and final entry scoring from recomputing the same normalized shape match.
+
+## Parallel Recognition
+
+Final candidate recognition is the dominant cost once candidates are grouped, and each candidate is scored independently. `classifyDrawingAsync(...)` fans those per-candidate scores across a long-lived Web Worker pool in `src/lib/parser/recognitionPool.ts`:
+
+- The pool sizes itself to `min(8, hardwareConcurrency - 1)` module workers.
+- Each worker (`src/lib/parser/recognitionWorker.ts`) is initialized once per dictionary, so its example caches warm up and persist across the candidates it scores.
+- Candidates are dispatched independently and reassembled in their original order.
+
+The pool degrades to the synchronous `recognizeCandidates(...)` when `Worker` is unavailable (server or test runtime), when there is at most one candidate, or when a worker errors. Output is identical to the synchronous path either way, so `classifyDrawing(...)` stays correct for tests and server use while the browser UI uses `classifyDrawingAsync(...)`. The UI guards overlapping recomputes with a sequence token so only the newest result is applied, and disposes the pool when the parser view unmounts.
 
 ## Acceptance Rules
 
@@ -122,7 +139,7 @@ The browser parser modules stay pure and server-portable. They do not import Neo
 
 Glyph diagnostics now show tentative names from recognition diagnostics, not just final accepted labels. If a candidate is not accepted yet, the overlay can display the top match with a question mark and confidence value. This makes in-progress sigil recognition visible before the ring is completed.
 
-The overlay still draws candidate bounds. It does not visualize every possible merge tree node or the chamfer ink map.
+The overlay still draws candidate bounds. It does not visualize proximity graph edges, experimental merge tree nodes, or the chamfer ink map.
 
 ## Tests
 

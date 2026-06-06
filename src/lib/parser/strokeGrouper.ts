@@ -13,7 +13,8 @@ import {
 	strokeLength
 } from '../utils/geometry.js';
 import { summarizePolar } from './coordinateNormalizer.js';
-import { recognizeCandidates } from './symbolRecognizer.js';
+import { createDecompositionScorer } from './symbolRecognizer.js';
+import type { DecompositionScorer } from './symbolRecognizer.js';
 import type { RecognitionExample } from './shapeMatcher.js';
 import type {
 	AppConfig,
@@ -37,6 +38,13 @@ const ENDPOINT_DISTANCE_NORM = 0.085;
 const MAX_SYMBOL_SIZE_NORM = 0.58;
 const MERGE_SCORE_FLOOR = 0.42;
 const TREE_WHOLE_EPSILON = 0.015;
+// Above this many strokes in one component, skip computing proximity for pairs
+// whose bounding boxes are farther apart than SEGMENT_PRUNE_GAP_NORM * radius.
+// Bbox gap lower-bounds closest-point distance, and a pair that far apart cannot
+// reach MERGE_SCORE_FLOOR (even the center-sigil shortcut needs the centers
+// within 0.54 * radius), so the pruned edges would never have merged.
+const SEGMENT_ALLPAIRS_CAP = 48;
+const SEGMENT_PRUNE_GAP_NORM = 0.6;
 
 interface DecompositionNode {
 	id: string;
@@ -281,92 +289,92 @@ function connectedComponents(strokes: CleanedStroke[], ring: RingInfo, config: A
 	return components;
 }
 
-function nodeConnectionScore(
-	a: DecompositionNode,
-	b: DecompositionNode,
-	ring: RingInfo,
-	config: AppConfig
-) {
-	let best = 0;
-	for (const strokeA of a.strokes) {
-		for (const strokeB of b.strokes) {
-			best = Math.max(best, strokePairProximity(strokeA, strokeB, ring, config).score);
-		}
-	}
-	return best;
+interface MergeEdge {
+	a: number;
+	b: number;
+	score: number;
 }
 
+// Single-linkage agglomerative clustering via union-find. Sorting the leaf
+// pairs by descending proximity and merging with union-find reproduces the same
+// merge-forest topology as repeatedly merging the closest pair, but without the
+// O(n^3) all-pairs rescan after every merge. Each connected component collapses
+// to one dendrogram root because the edges that formed the component all clear
+// MERGE_SCORE_FLOOR and are therefore present here.
 function buildMergeForest(
 	component: CleanedStroke[],
 	ring: RingInfo,
 	config: AppConfig,
 	nextId: { value: number }
 ): DecompositionNode[] {
-	const nodes: DecompositionNode[] = component.map((stroke) => ({
+	const leaves: DecompositionNode[] = component.map((stroke) => ({
 		id: `n${nextId.value++}`,
 		strokes: [stroke],
 		children: [],
 		proximityScore: 1
 	}));
 
-	while (nodes.length > 1) {
-		let bestA = -1;
-		let bestB = -1;
-		let bestScore = -1;
+	const count = leaves.length;
+	if (count <= 1) {
+		return leaves;
+	}
 
-		for (let a = 0; a < nodes.length; a += 1) {
-			for (let b = a + 1; b < nodes.length; b += 1) {
-				const score = nodeConnectionScore(nodes[a], nodes[b], ring, config);
-				if (score > bestScore) {
-					bestA = a;
-					bestB = b;
-					bestScore = score;
-				}
+	const usePruning = count > SEGMENT_ALLPAIRS_CAP;
+	const pruneGap = ring.radius * SEGMENT_PRUNE_GAP_NORM;
+	const edges: MergeEdge[] = [];
+	for (let a = 0; a < count; a += 1) {
+		for (let b = a + 1; b < count; b += 1) {
+			if (usePruning && boundsGap(component[a], component[b]) > pruneGap) {
+				continue;
+			}
+			const score = strokePairProximity(component[a], component[b], ring, config).score;
+			if (score >= MERGE_SCORE_FLOOR) {
+				edges.push({ a, b, score });
 			}
 		}
+	}
 
-		if (bestA < 0 || bestB < 0 || bestScore < MERGE_SCORE_FLOOR) {
-			break;
+	edges.sort((x, y) => y.score - x.score);
+
+	const parent = leaves.map((_, index) => index);
+	const rootNode = [...leaves];
+	const find = (x: number): number => {
+		while (parent[x] !== x) {
+			parent[x] = parent[parent[x]];
+			x = parent[x];
 		}
+		return x;
+	};
 
-		const first = nodes[bestA];
-		const second = nodes[bestB];
-		const merged: DecompositionNode = {
+	for (const edge of edges) {
+		const rootA = find(edge.a);
+		const rootB = find(edge.b);
+		if (rootA === rootB) {
+			continue;
+		}
+		const first = rootNode[rootA];
+		const second = rootNode[rootB];
+		rootNode[rootA] = {
 			id: `n${nextId.value++}`,
 			strokes: [...first.strokes, ...second.strokes],
 			children: [first, second],
-			proximityScore: bestScore
+			proximityScore: edge.score
 		};
-		nodes.splice(bestB, 1);
-		nodes.splice(bestA, 1);
-		nodes.push(merged);
+		parent[rootB] = rootA;
 	}
 
-	return nodes;
-}
-
-function candidateScoreForCut(
-	candidate: SymbolCandidate,
-	dictionary: Dictionary,
-	config: AppConfig,
-	recognitionExamples: RecognitionExample[]
-): number {
-	const recognition = recognizeCandidates([candidate], dictionary, config, recognitionExamples)[0];
-	if (!recognition) {
-		return 0;
+	const roots: DecompositionNode[] = [];
+	const seen = new Set<number>();
+	for (let index = 0; index < count; index += 1) {
+		const root = find(index);
+		if (seen.has(root)) {
+			continue;
+		}
+		seen.add(root);
+		roots.push(rootNode[root]);
 	}
 
-	const bestGuess = recognition.diagnostics?.topMatches?.[0]?.confidence ?? 0;
-	if (recognition.recognized) {
-		return recognition.confidence;
-	}
-	if (recognition.recognitionStatus === 'contaminated') {
-		return bestGuess * 0.25;
-	}
-	if (recognition.recognitionStatus === 'ambiguous') {
-		return bestGuess * 0.72;
-	}
-	return bestGuess * 0.5;
+	return roots;
 }
 
 function canScoreWholeNode(
@@ -385,19 +393,14 @@ function canScoreWholeNode(
 function selectTreeCut(
 	node: DecompositionNode,
 	ring: RingInfo,
-	dictionary: Dictionary,
 	config: AppConfig,
 	maxStrokeCount: number,
-	recognitionExamples: RecognitionExample[]
+	scoreCut: DecompositionScorer
 ): TreeSelection {
 	const groupPenalty = config.recognition.groupPenalty ?? 0.45;
 	const wholeCandidate = buildCandidate(node.strokes, 0, ring, config);
 	const wholeValue = canScoreWholeNode(node, ring, config, maxStrokeCount)
-		? Math.max(
-				candidateScoreForCut(wholeCandidate, dictionary, config, recognitionExamples) -
-					groupPenalty,
-				0
-			)
+		? Math.max(scoreCut(wholeCandidate) - groupPenalty, 0)
 		: 0;
 
 	if (!node.children.length) {
@@ -408,7 +411,7 @@ function selectTreeCut(
 	}
 
 	const childSelections = node.children.map((child) =>
-		selectTreeCut(child, ring, dictionary, config, maxStrokeCount, recognitionExamples)
+		selectTreeCut(child, ring, config, maxStrokeCount, scoreCut)
 	);
 	const childValue = childSelections.reduce((sum, selection) => sum + selection.value, 0);
 	const childGroups = childSelections.flatMap((selection) => selection.groups);
@@ -490,6 +493,10 @@ export function buildSymbolCandidates(
 		return fallbackCandidates(strokes, classifications, ring, config);
 	}
 
+	if (!config.recognition.recognitionGuidedDecomposition) {
+		return fallbackCandidates(strokes, classifications, ring, config);
+	}
+
 	const classificationById = new Map(
 		classifications.map((classification) => [classification.strokeId, classification])
 	);
@@ -501,10 +508,10 @@ export function buildSymbolCandidates(
 
 	const nextId = { value: 1 };
 	const maxStrokeCount = maxTemplateStrokeCount(dictionary);
+	const scoreCut = createDecompositionScorer(dictionary, config, recognitionExamples);
 	const groups = connectedComponents(symbolStrokes, ring, config).flatMap((component) =>
 		buildMergeForest(component, ring, config, nextId).flatMap(
-			(node) =>
-				selectTreeCut(node, ring, dictionary, config, maxStrokeCount, recognitionExamples).groups
+			(node) => selectTreeCut(node, ring, config, maxStrokeCount, scoreCut).groups
 		)
 	);
 

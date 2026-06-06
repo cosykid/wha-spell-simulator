@@ -47,7 +47,11 @@ export const CONFIG = {
 		contaminationThreshold: 0.5,
 
 		// 0..1 required template coverage before a match can be accepted.
-		minTemplateCoverage: 0.55
+		minTemplateCoverage: 0.55,
+
+		// Experimental; when enabled, grouping asks the recognizer to choose tree cuts.
+		// This is slower and currently too eager to split hand-drawn multi-stroke signs.
+		recognitionGuidedDecomposition: false
 	},
 	compiler: {
 		// 0..1 confidence; minimum primary sigil confidence before a spell is valid.

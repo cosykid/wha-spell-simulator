@@ -3,6 +3,7 @@ import { detectRing } from './ringDetector.js';
 import { classifyStrokesAgainstRing } from './coordinateNormalizer.js';
 import { buildSymbolCandidates } from './strokeGrouper.js';
 import { recognizeCandidates } from './symbolRecognizer.js';
+import { recognizeCandidatesAsync } from './recognitionPool.js';
 import { GLYPH_WARNINGS } from './glyphWarnings.js';
 import {
 	allPoints,
@@ -267,19 +268,29 @@ function noRingPreview(
 	};
 }
 
-export function classifyDrawing({
-	strokes,
-	previousRing = null,
-	dictionary,
-	config,
-	recognitionExamples = []
-}: {
+interface ClassifyDrawingInput {
 	strokes: Stroke[];
 	previousRing?: RingInfo | null;
 	dictionary: Dictionary;
 	config: AppConfig;
 	recognitionExamples?: RecognitionExample[];
-}): ClassifiedDrawing {
+}
+
+interface RecognitionPrep {
+	cleanedStrokes: Stroke[];
+	ring: RingInfo;
+	classifications: ReturnType<typeof classifyStrokesAgainstRing>;
+	candidates: SymbolCandidate[];
+}
+
+// Runs everything up to (but not including) final candidate recognition. Returns
+// a finished drawing for the no-ring preview path, or the prep needed to score
+// candidates. Both the sync and async entrypoints share this so the only thing
+// that differs between them is how the final recognition pass is dispatched.
+function prepareRecognition(
+	input: ClassifyDrawingInput
+): { done: ClassifiedDrawing } | { prep: RecognitionPrep } {
+	const { strokes, previousRing = null, dictionary, config, recognitionExamples = [] } = input;
 	const cleanedStrokes = cleanStrokes(strokes, config);
 	const ring = detectRing(cleanedStrokes, previousRing, config);
 
@@ -302,12 +313,14 @@ export function classifyDrawing({
 			warnings: [GLYPH_WARNINGS.noRingDetected]
 		};
 		return {
-			cleanedStrokes,
-			ring,
-			classifications: [],
-			candidates: preview.candidates,
-			recognitions: roundedDeep(preview.recognitions) as Recognition[],
-			glyphAST
+			done: {
+				cleanedStrokes,
+				ring,
+				classifications: [],
+				candidates: preview.candidates,
+				recognitions: roundedDeep(preview.recognitions) as Recognition[],
+				glyphAST
+			}
 		};
 	}
 
@@ -320,7 +333,18 @@ export function classifyDrawing({
 		dictionary,
 		recognitionExamples
 	);
-	const recognitions = recognizeCandidates(candidates, dictionary, config, recognitionExamples);
+
+	return { prep: { cleanedStrokes, ring, classifications, candidates } };
+}
+
+// Builds the final ClassifiedDrawing from already-scored recognitions. Shared by
+// the sync and async paths; whichever produced `recognitions` does not matter.
+function assembleDrawing(
+	prep: RecognitionPrep,
+	recognitions: Recognition[],
+	config: AppConfig
+): ClassifiedDrawing {
+	const { cleanedStrokes, ring, classifications, candidates } = prep;
 	const sigils = recognizedSigils(recognitions);
 	const primarySigil = selectPrimarySigil(sigils);
 	const unsupportedMultipleSigils = sigils
@@ -360,4 +384,40 @@ export function classifyDrawing({
 		recognitions: roundedDeep(recognitions) as Recognition[],
 		glyphAST
 	};
+}
+
+export function classifyDrawing(input: ClassifyDrawingInput): ClassifiedDrawing {
+	const prepared = prepareRecognition(input);
+	if ('done' in prepared) {
+		return prepared.done;
+	}
+
+	const recognitions = recognizeCandidates(
+		prepared.prep.candidates,
+		input.dictionary,
+		input.config,
+		input.recognitionExamples ?? []
+	);
+	return assembleDrawing(prepared.prep, recognitions, input.config);
+}
+
+// Same result as classifyDrawing, but the per-candidate final recognition pass
+// is dispatched across a Web Worker pool when one is available. Falls back to
+// the synchronous recognizer (no workers, single candidate, or non-browser
+// runtime), so callers always get an identical ClassifiedDrawing either way.
+export async function classifyDrawingAsync(
+	input: ClassifyDrawingInput
+): Promise<ClassifiedDrawing> {
+	const prepared = prepareRecognition(input);
+	if ('done' in prepared) {
+		return prepared.done;
+	}
+
+	const recognitions = await recognizeCandidatesAsync(
+		prepared.prep.candidates,
+		input.dictionary,
+		input.config,
+		input.recognitionExamples ?? []
+	);
+	return assembleDrawing(prepared.prep, recognitions, input.config);
 }

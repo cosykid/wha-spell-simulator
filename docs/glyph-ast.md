@@ -56,7 +56,7 @@ When `unsupportedMultipleRings` is non-empty, the app treats the drawing as inva
 
 ## Candidate Fields
 
-`candidates` are grouped symbol-like marks selected by decomposition. For ringed drawings, they are inside the spell ring and exclude ring strokes. For no-ring diagnostic preview, the parser may expose one synthetic standalone sigil candidate with id `preview-symbol`.
+`candidates` are grouped symbol-like marks selected by decomposition. By default, grouping uses whole-stroke proximity-connected components. For ringed drawings, candidates are inside the spell ring and exclude ring strokes. For no-ring diagnostic preview, the parser may expose one synthetic standalone sigil candidate with id `preview-symbol`.
 
 Candidates are useful for diagnostics and recognition debugging. Their boxes in the overlay are bounding boxes around the selected stroke group. They are not the recognition algorithm itself; the matcher scores normalized point clouds and ink distance maps derived from the candidate strokes.
 
