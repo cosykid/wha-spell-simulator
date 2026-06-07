@@ -18,6 +18,10 @@
 	import DictionaryReference from '$lib/components/DictionaryReference.svelte';
 	import Diagnostics from '$lib/components/Diagnostics.svelte';
 
+	const ZOOM_MIN = 0.5;
+	const ZOOM_MAX = 3;
+	const ZOOM_STEP = 0.25;
+
 	// Reactive UI state.
 	let dictionary = $state<Dictionary | null>(null);
 	let summary = $state<typeof INITIAL_SUMMARY>({ ...INITIAL_SUMMARY });
@@ -32,11 +36,11 @@
 	let zoomLevel = $state(1);
 
 	function handleZoomIn() {
-		zoomLevel = Math.min(3, zoomLevel + 0.25);
+		zoomLevel = Math.min(ZOOM_MAX, zoomLevel + ZOOM_STEP);
 	}
 
 	function handleZoomOut() {
-		zoomLevel = Math.max(0.5, zoomLevel - 0.25);
+		zoomLevel = Math.max(ZOOM_MIN, zoomLevel - ZOOM_STEP);
 	}
 
 	// Bound DOM nodes.
@@ -267,7 +271,7 @@
 					type="button"
 					class="zoom-btn"
 					onclick={handleZoomOut}
-					disabled={zoomLevel <= 0.5}
+					disabled={zoomLevel <= ZOOM_MIN}
 					aria-label="Zoom out"
 				>
 					<svg
@@ -288,7 +292,7 @@
 					type="button"
 					class="zoom-btn"
 					onclick={handleZoomIn}
-					disabled={zoomLevel >= 3}
+					disabled={zoomLevel >= ZOOM_MAX}
 					aria-label="Zoom in"
 				>
 					<svg

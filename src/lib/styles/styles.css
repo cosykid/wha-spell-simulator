@@ -270,6 +270,7 @@ body:not(.sigil-maker-page) .app-shell {
 	transform-origin: center center;
 	transition: transform 0.22s cubic-bezier(0.25, 1, 0.5, 1);
 	will-change: transform;
+	transform-style: preserve-3d;
 }
 
 .canvas-controls {
