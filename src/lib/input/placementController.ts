@@ -1,12 +1,3 @@
-import { canvasPointFromEvent } from './pointerNormalizer.js';
-import { distance } from '../utils/geometry.js';
-import {
-	clampShapeSize,
-	hitTestHandles,
-	hitTestPlacement,
-	rotationDegToPoint,
-	toLocalPoint
-} from './shapeBaker.js';
 import type {
 	PlacementControllerApi,
 	PlacementHandle,
@@ -14,12 +5,24 @@ import type {
 	PlacementTransform,
 	Vector
 } from '../types.js';
+import {
+	clampShapeSize,
+	hitTestHandles,
+	hitTestPlacement,
+	rotationDegToPoint,
+	toLocalPoint
+} from './shapeBaker.js';
+
+import { canvasPointFromEvent } from './pointerNormalizer.js';
+import { distance } from '../utils/geometry.js';
 
 type DragOp =
 	| { type: 'move'; id: string; last: Vector }
 	| { type: 'scale'; id: string; startDistance: number; startScaleX: number; startScaleY: number }
 	| { type: 'elongate-x'; id: string }
+	| { type: 'elongate-x-left'; id: string }
 	| { type: 'elongate-y'; id: string }
+	| { type: 'elongate-y-top'; id: string }
 	| { type: 'rotate'; id: string };
 
 // Drives shape placement and transform handles on the glyph canvas while arrange mode
@@ -155,11 +158,11 @@ export class PlacementController {
 				scaleX: clampShapeSize(this.dragOp.startScaleX * factor),
 				scaleY: clampShapeSize(this.dragOp.startScaleY * factor)
 			});
-		} else if (this.dragOp.type === 'elongate-x') {
+		} else if (this.dragOp.type === 'elongate-x' || this.dragOp.type === 'elongate-x-left') {
 			this.store.update(this.dragOp.id, {
 				scaleX: clampShapeSize(Math.abs(toLocalPoint(transform, point).x) * 2)
 			});
-		} else if (this.dragOp.type === 'elongate-y') {
+		} else if (this.dragOp.type === 'elongate-y' || this.dragOp.type === 'elongate-y-top') {
 			this.store.update(this.dragOp.id, {
 				scaleY: clampShapeSize(Math.abs(toLocalPoint(transform, point).y) * 2)
 			});
