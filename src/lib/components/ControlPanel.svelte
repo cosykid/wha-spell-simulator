@@ -94,7 +94,8 @@
 		</div>
 		<div>
 			<span class="label">Manifestations</span>
-			<strong id="manifestationValue" data-testid="manifestation-value">{summary.manifestation}</strong
+			<strong id="manifestationValue" data-testid="manifestation-value"
+				>{summary.manifestation}</strong
 			>
 		</div>
 	</section>
