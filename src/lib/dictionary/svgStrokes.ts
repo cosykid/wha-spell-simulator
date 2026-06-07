@@ -77,7 +77,10 @@ function parseSvg(svgText: string): ParsedSvg {
 		throw new Error('SVG asset is missing its <svg> or <path>');
 	}
 
-	const viewBox = (svg.getAttribute('viewBox') ?? '').trim().split(/[\s,]+/).map(Number);
+	const viewBox = (svg.getAttribute('viewBox') ?? '')
+		.trim()
+		.split(/[\s,]+/)
+		.map(Number);
 	const [, , width, height] = viewBox;
 	if (!Number.isFinite(width) || !Number.isFinite(height)) {
 		throw new Error('SVG asset has no usable viewBox');

@@ -182,11 +182,7 @@
 				<option value="sigils">Sigils</option>
 				<option value="signs">Signs</option>
 			</select>
-			<select
-				class="select-control"
-				bind:value={referenceId}
-				disabled={!paperOverlay}
-			>
+			<select class="select-control" bind:value={referenceId} disabled={!paperOverlay}>
 				<option value="">No trace reference</option>
 				{#each overlayEntries as entry (entry.id)}
 					<option value={entry.id}>{entry.displayName ?? entry.id}</option>

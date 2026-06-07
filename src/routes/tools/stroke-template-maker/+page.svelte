@@ -53,7 +53,6 @@
 		output = '';
 		setStatus('Cleared', 'inactive');
 	}
-
 </script>
 
 <svelte:head>

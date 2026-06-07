@@ -34,7 +34,7 @@ export type Stroke = Point[];
  * Drives both the labelling UI and benchmark scoring (symmetry handling).
  * See: https://witchhatatelier.telepedia.net/wiki/Signs_Explained#Directional_Signs
  */
-export type Directionality = "directional" | "non-directional" | "semi-directional";
+export type Directionality = 'directional' | 'non-directional' | 'semi-directional';
 
 /**
  * The human-asserted ground truth. Produced by dragging/resizing/rotating the
@@ -83,7 +83,7 @@ export type SampleMeta = {
 	devicePixelRatio: number;
 
 	/** Discriminative signal, also useful for abuse filtering. */
-	pointerType: "pen" | "touch" | "mouse" | "unknown";
+	pointerType: 'pen' | 'touch' | 'mouse' | 'unknown';
 
 	/** ISO 8601 timestamp of capture. */
 	capturedAt: string;
@@ -100,7 +100,7 @@ export type SampleMeta = {
 export type SampleSubmission = {
 	data: Stroke[];
 	label: Label;
-	meta: Omit<SampleMeta, "capturedAt">;
+	meta: Omit<SampleMeta, 'capturedAt'>;
 };
 
 /** The complete unit stored in the database. */

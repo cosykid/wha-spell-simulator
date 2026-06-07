@@ -19,7 +19,11 @@ export function templateBoundsEntity(template: StrokeTemplate): Entity {
 	};
 }
 
-export function templateStrokeEntity(points: Point[], id: string, template: StrokeTemplate): Entity {
+export function templateStrokeEntity(
+	points: Point[],
+	id: string,
+	template: StrokeTemplate
+): Entity {
 	return {
 		id,
 		z: 0,
