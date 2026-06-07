@@ -24,15 +24,15 @@ function bearerToken(request: Request): string | null {
 /**
  * Guards every method of this endpoint with the shared bearer token. Returns a
  * Response to short-circuit the handler when access is denied, or null to allow
- * it. The whole API (reads included) is off until RECOGNITION_WRITE_TOKEN is set.
+ * it. The whole API (reads included) is off until TRAINING_DATA_API_TOKEN is set.
  */
 function requireToken(request: Request): Response | null {
-	const apiToken = env.RECOGNITION_WRITE_TOKEN;
+	const apiToken = env.TRAINING_DATA_API_TOKEN;
 	if (!apiToken) {
 		return json(
 			{
 				ok: false,
-				error: 'Recognition API is disabled. Set RECOGNITION_WRITE_TOKEN to enable it.'
+				error: 'Training data API is disabled. Set TRAINING_DATA_API_TOKEN to enable it.'
 			},
 			{ status: 503 }
 		);

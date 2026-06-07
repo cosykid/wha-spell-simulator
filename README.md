@@ -78,7 +78,7 @@ Set these Vercel project environment variables as needed:
 # DATABASE_URL is preferred; NEON_DATABASE_URL is accepted as a fallback alias. Set one.
 DATABASE_URL=postgres://...
 NEON_DATABASE_URL=postgres://...
-RECOGNITION_WRITE_TOKEN=...
+TRAINING_DATA_API_TOKEN=...
 ```
 
 Vercel can use the default build command:
@@ -129,7 +129,7 @@ npm run db:seed:recognition
 
 ### Recognition Examples API
 
-Set `RECOGNITION_WRITE_TOKEN` to expose a token-guarded JSON API over the
+Set `TRAINING_DATA_API_TOKEN` to expose a token-guarded JSON API over the
 `recognition_examples` table so a teammate can manage the corpus directly. Every
 request must send the token as `Authorization: Bearer <token>`; if the variable
 is unset the whole API returns `503`. (The browser app reads active examples
@@ -147,11 +147,11 @@ Listing includes inactive rows unless you pass `active=true`. Example:
 
 ```sh
 # List every active sign
-curl -H "Authorization: Bearer $RECOGNITION_WRITE_TOKEN" \
+curl -H "Authorization: Bearer $TRAINING_DATA_API_TOKEN" \
   "https://<deployment>/api/recognition/examples?kind=sign&active=true"
 
 # Submit a labeled example
-curl -X POST -H "Authorization: Bearer $RECOGNITION_WRITE_TOKEN" \
+curl -X POST -H "Authorization: Bearer $TRAINING_DATA_API_TOKEN" \
   -H "content-type: application/json" \
   -d '{"kind":"sigil","symbolId":"crystal","strokes":[[{"x":0,"y":0},{"x":1,"y":1}]]}' \
   "https://<deployment>/api/recognition/examples"
