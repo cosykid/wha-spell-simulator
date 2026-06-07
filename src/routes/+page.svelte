@@ -1,12 +1,12 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
 	import { resolve } from '$app/paths';
-	import type { ClassifiedDrawing, Dictionary, RingInfo, SpellIR } from '$lib/types.js';
 	import type { RecognitionExample } from '$lib/parser/shapeMatcher.js';
+	import type { ClassifiedDrawing, Dictionary, RingInfo, SpellIR } from '$lib/types.js';
+	import { onMount } from 'svelte';
 
-	import { CONFIG } from '$lib/config.js';
 	import { loadRecognitionAssets } from '$lib/api/recognitionAssets.js';
 	import { compileSpell } from '$lib/compiler/spellBuilder.js';
+	import { CONFIG } from '$lib/config.js';
 	import { buildDiagnosticState } from '$lib/debug/diagnosticState.js';
 	import { loadDictionary } from '$lib/dictionary/dictionaryLoader.js';
 	import { DrawingCapture } from '$lib/input/drawingCapture.js';
@@ -18,8 +18,8 @@
 	import { computeSummary, INITIAL_SUMMARY } from '$lib/ui/spellSummary.js';
 
 	import ControlPanel from '$lib/components/ControlPanel.svelte';
-	import DictionaryReference from '$lib/components/DictionaryReference.svelte';
 	import Diagnostics from '$lib/components/Diagnostics.svelte';
+	import DictionaryReference from '$lib/components/DictionaryReference.svelte';
 
 	const ZOOM_MIN = 0.5;
 	const ZOOM_MAX = 3;
@@ -36,6 +36,10 @@
 	});
 	let showGuides = $state(true);
 	let showDiagnostics = $state(false);
+	// True once drawing capture has attached its pointer listeners. The status
+	// text can leave "Loading" before this (a resize-triggered recompute), so this
+	// is the authoritative "the canvas accepts strokes now" signal.
+	let inputReady = $state(false);
 	let rootTab = $state('dictionary');
 	let zoomLevel = $state(1);
 
@@ -246,6 +250,7 @@
 				dictionarySnapshot = $state.snapshot(dictionary) as Dictionary;
 				await refreshRecognitionAssets();
 				capture.enable();
+				inputReady = true;
 				void recompute();
 				if (!cancelled) {
 					rafId = requestAnimationFrame(animationFrame);
@@ -283,6 +288,7 @@
 			}
 			cancelScheduledRecompute();
 			capture?.disable();
+			inputReady = false;
 			resizeObserver?.disconnect();
 			window.removeEventListener('keydown', handleKeydown);
 			disposeRecognitionPool();
@@ -346,6 +352,7 @@
 					<canvas
 						id="glyphCanvas"
 						data-testid="glyph-canvas"
+						data-input-ready={inputReady}
 						bind:this={glyphCanvas}
 						class:locked={summary.inputLocked}
 						width="1000"

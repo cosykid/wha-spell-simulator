@@ -117,12 +117,17 @@ export class SpellCanvasPage {
 	}
 
 	/**
-	 * The status starts at "Loading" and flips to an empty-canvas message once the
-	 * dictionary, recognition assets, and the first recompute have completed.
+	 * Waits until the canvas actually accepts strokes. The status text can leave
+	 * "Loading" before drawing capture has attached its pointer listeners (a
+	 * resize-triggered recompute can publish a status while the dictionary /
+	 * recognition assets are still loading), so we wait on the explicit
+	 * `data-input-ready` signal the page sets the moment capture is enabled.
 	 */
 	async waitForReady(): Promise<void> {
 		await expect(this.glyphCanvas).toBeVisible();
-		await expect(this.statusValue).not.toHaveText('Loading', { timeout: 30_000 });
+		await expect(this.glyphCanvas).toHaveAttribute('data-input-ready', 'true', {
+			timeout: 30_000
+		});
 	}
 
 	// --- Drawing primitives --------------------------------------------------

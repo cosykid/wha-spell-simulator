@@ -19,8 +19,6 @@ jobs:
         run: npx playwright install --with-deps chromium
       - name: Build
         run: npm run build
-      - name: Start preview server
-        run: npm run preview -- --port 5173 &
       - name: Run Playwright tests
         run: npx playwright test
       - uses: actions/upload-artifact@v7
