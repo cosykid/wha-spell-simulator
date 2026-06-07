@@ -323,20 +323,41 @@
 		/>
 
 		<section class="canvas-panel" aria-label="Spell drawing surface">
-			<div class="canvas-shell" bind:this={canvasShell} class:portal-active={summary.portalActive}>
-				<p class="canvas-hint" id="canvasHint" class:hidden={summary.hintHidden}>
+			<div
+				class="canvas-shell"
+				data-testid="canvas-shell"
+				bind:this={canvasShell}
+				class:portal-active={summary.portalActive}
+			>
+				<p
+					class="canvas-hint"
+					id="canvasHint"
+					data-testid="canvas-hint"
+					class:hidden={summary.hintHidden}
+				>
 					Draw an open spell ring. Place sigils in the center and signs around them. When everything
 					is ready, seal the circle to awaken the spell.
 				</p>
-				<div class="canvas-container" style="transform: scale({zoomLevel});">
+				<div
+					class="canvas-container"
+					data-testid="canvas-container"
+					style="transform: scale({zoomLevel});"
+				>
 					<canvas
 						id="glyphCanvas"
+						data-testid="glyph-canvas"
 						bind:this={glyphCanvas}
 						class:locked={summary.inputLocked}
 						width="1000"
 						height="1000"
 					></canvas>
-					<canvas id="effectCanvas" bind:this={effectCanvas} width="1000" height="1000"></canvas>
+					<canvas
+						id="effectCanvas"
+						data-testid="effect-canvas"
+						bind:this={effectCanvas}
+						width="1000"
+						height="1000"
+					></canvas>
 				</div>
 			</div>
 			<div class="canvas-controls">
