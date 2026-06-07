@@ -18,6 +18,10 @@
 	import DictionaryReference from '$lib/components/DictionaryReference.svelte';
 	import Diagnostics from '$lib/components/Diagnostics.svelte';
 
+	const ZOOM_MIN = 0.5;
+	const ZOOM_MAX = 3;
+	const ZOOM_STEP = 0.25;
+
 	// Reactive UI state.
 	let dictionary = $state<Dictionary | null>(null);
 	let summary = $state<typeof INITIAL_SUMMARY>({ ...INITIAL_SUMMARY });
@@ -29,6 +33,15 @@
 	let showGuides = $state(true);
 	let showDiagnostics = $state(false);
 	let rootTab = $state('dictionary');
+	let zoomLevel = $state(1);
+
+	function handleZoomIn() {
+		zoomLevel = Math.min(ZOOM_MAX, zoomLevel + ZOOM_STEP);
+	}
+
+	function handleZoomOut() {
+		zoomLevel = Math.max(ZOOM_MIN, zoomLevel - ZOOM_STEP);
+	}
 
 	// Bound DOM nodes.
 	let glyphCanvas: HTMLCanvasElement;
@@ -242,14 +255,61 @@
 					Draw an open spell ring. Place sigils in the center and signs around them. When everything
 					is ready, seal the circle to awaken the spell.
 				</p>
-				<canvas
-					id="glyphCanvas"
-					bind:this={glyphCanvas}
-					class:locked={summary.inputLocked}
-					width="1200"
-					height="800"
-				></canvas>
-				<canvas id="effectCanvas" bind:this={effectCanvas} width="1200" height="800"></canvas>
+				<div class="canvas-container" style="transform: scale({zoomLevel});">
+					<canvas
+						id="glyphCanvas"
+						bind:this={glyphCanvas}
+						class:locked={summary.inputLocked}
+						width="1200"
+						height="800"
+					></canvas>
+					<canvas id="effectCanvas" bind:this={effectCanvas} width="1200" height="800"></canvas>
+				</div>
+			</div>
+			<div class="canvas-controls">
+				<button
+					type="button"
+					class="zoom-btn"
+					onclick={handleZoomOut}
+					disabled={zoomLevel <= ZOOM_MIN}
+					aria-label="Zoom out"
+				>
+					<svg
+						xmlns="http://www.w3.org/2000/svg"
+						width="16"
+						height="16"
+						viewBox="0 0 24 24"
+						fill="none"
+						stroke="currentColor"
+						stroke-width="2.5"
+						stroke-linecap="round"
+						stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line></svg
+					>
+					<span>Zoom Out</span>
+				</button>
+				<span class="zoom-level-display">{Math.round(zoomLevel * 100)}%</span>
+				<button
+					type="button"
+					class="zoom-btn"
+					onclick={handleZoomIn}
+					disabled={zoomLevel >= ZOOM_MAX}
+					aria-label="Zoom in"
+				>
+					<svg
+						xmlns="http://www.w3.org/2000/svg"
+						width="16"
+						height="16"
+						viewBox="0 0 24 24"
+						fill="none"
+						stroke="currentColor"
+						stroke-width="2.5"
+						stroke-linecap="round"
+						stroke-linejoin="round"
+						><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"
+						></line></svg
+					>
+					<span>Zoom In</span>
+				</button>
 			</div>
 		</section>
 
