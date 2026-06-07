@@ -4,6 +4,7 @@ A fan-made browser-based spell drawing simulator inspired by _[Witch Hat Atelier
 
 <div align="center">
   <img src="./assets/demo.gif" width="720"/>
+  <p>Try here: <a href="https://cosykid.github.io/wha-spell-simulator/">https://cosykid.github.io/wha-spell-simulator/</a></p>
 </div>
 
 ## Fan Project Notice
