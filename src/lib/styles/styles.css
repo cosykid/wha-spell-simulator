@@ -628,7 +628,8 @@ body:not(.sigil-maker-page) .app-shell {
 
 .canvas-shell.portal-active #glyphCanvas,
 .canvas-shell.portal-active #labGlyphCanvas {
-	transform: translateY(16%) rotateX(62deg) scale(0.98); /* tilt the canvas angle */
+	transform: translateY(16%) rotateX(62deg) scale(0.98);
+	/* tilt the canvas angle */
 	box-shadow:
 		0 1px 0 rgba(255, 251, 233, 0.52) inset,
 		0 28px 38px rgba(36, 27, 22, 0.3);
@@ -667,6 +668,7 @@ body:not(.sigil-maker-page) .app-shell {
  * the square.
  */
 @media (min-width: 1051px) {
+
 	/*
 	 * The canvas column shrinks to exactly the square drawing surface (its width
 	 * follows the available row height via aspect-ratio), so no panel background
@@ -698,6 +700,7 @@ body:not(.sigil-maker-page) .app-shell {
 	align-items: stretch;
 	justify-content: flex-start;
 	flex-direction: column;
+	aspect-ratio: auto;
 }
 
 .detector-lab-workspace {

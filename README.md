@@ -173,6 +173,30 @@ curl -X POST \
   "https://wha-spell-simulator.vercel.app/api/recognition/examples"
 ```
 
+### Labelled Samples API
+
+`/api/samples` persists the by-eye labelled handwriting samples produced by the
+[Sample Maker](#tools) tool to the `labelled_samples` table. Strokes are stored
+**raw** (no normalization), alongside the asserted `label` (sign, scale, angle)
+and capture `meta`. The server assigns the `id` and `capturedAt`.
+
+| Method | Path           | Purpose                                                                              |
+| ------ | -------------- | ------------------------------------------------------------------------------------ |
+| `GET`  | `/api/samples` | List recent samples. Optional filters: `signId`, `limit` (default/cap 200).          |
+| `POST` | `/api/samples` | Store one `SampleSubmission` (`data`, `label`, `meta`). Returns `201` with the `id`. |
+
+Submissions are validated with [zod](https://zod.dev); a malformed body is
+rejected with `400`. **De-duplication is enforced in the database**: a STORED
+generated column hashes the raw `data`, and a unique constraint makes a
+byte-identical re-submission fail — the endpoint surfaces that as `409`.
+
+```sh
+curl -X POST \
+  -H "content-type: application/json" \
+  -d '{"data":[[{"x":0,"y":0,"t":0}]],"label":{"signId":"fire","directionality":"directional","scale_x":1,"scale_y":1,"angle":0},"meta":{"schemaVersion":1,"referenceSize":240,"canvasWidth":800,"canvasHeight":800,"devicePixelRatio":1,"pointerType":"pen"}}' \
+  "https://wha-spell-simulator.vercel.app/api/samples"
+```
+
 ## Documentation
 
 - [Dictionary authoring](docs/dictionary-authoring.md)

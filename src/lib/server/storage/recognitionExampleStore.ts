@@ -1,6 +1,8 @@
+import { sql } from 'kysely';
+
 import { buildExamplesFromDictionary, type RecognitionExample } from '../../parser/shapeMatcher.js';
 import type { Dictionary, Point, RecognitionKind } from '../../types.js';
-import { getNeonSql, type NeonSql } from './neon.js';
+import { getDb, type Db } from './neon.js';
 
 interface RecognitionExampleRow {
 	id: string;
@@ -35,18 +37,17 @@ export interface RecognitionExampleQuery {
 	active?: boolean;
 }
 
-const DETAIL_COLUMNS = `
-	id,
-	kind,
-	symbol_id,
-	strokes,
-	source,
-	rotation_invariant,
-	allowed_rotations_deg,
-	active,
-	created_at,
-	updated_at
-`;
+const SUMMARY_COLUMNS = [
+	'id',
+	'kind',
+	'symbol_id',
+	'strokes',
+	'source',
+	'rotation_invariant',
+	'allowed_rotations_deg'
+] as const;
+
+const DETAIL_COLUMNS = [...SUMMARY_COLUMNS, 'active', 'created_at', 'updated_at'] as const;
 
 function toIso(value: unknown): string {
 	if (value instanceof Date) {
@@ -80,23 +81,16 @@ function rowToRecord(row: RecognitionExampleDetailRow): RecognitionExampleRecord
 	};
 }
 
-export async function listRecognitionExamples(
-	sql: NeonSql = getNeonSql()
-): Promise<RecognitionExample[]> {
-	const rows = (await sql.query(
-		`
-			select id,
-			       kind,
-			       symbol_id,
-			       strokes,
-			       source,
-			       rotation_invariant,
-			       allowed_rotations_deg
-			from recognition_examples
-			where active = true
-			order by source, kind, symbol_id, id
-		`
-	)) as RecognitionExampleRow[];
+export async function listRecognitionExamples(db: Db = getDb()): Promise<RecognitionExample[]> {
+	const rows = (await db
+		.selectFrom('recognition_examples')
+		.select(SUMMARY_COLUMNS)
+		.where('active', '=', true)
+		.orderBy('source')
+		.orderBy('kind')
+		.orderBy('symbol_id')
+		.orderBy('id')
+		.execute()) as RecognitionExampleRow[];
 
 	return rows.map(rowToExample);
 }
@@ -108,110 +102,102 @@ export async function listRecognitionExamples(
  */
 export async function queryRecognitionExamples(
 	query: RecognitionExampleQuery = {},
-	sql: NeonSql = getNeonSql()
+	db: Db = getDb()
 ): Promise<RecognitionExampleRecord[]> {
-	const conditions: string[] = [];
-	const params: unknown[] = [];
+	let builder = db
+		.selectFrom('recognition_examples')
+		.select(DETAIL_COLUMNS)
+		.orderBy('source')
+		.orderBy('kind')
+		.orderBy('symbol_id')
+		.orderBy('id');
 
 	if (query.kind !== undefined) {
-		params.push(query.kind);
-		conditions.push(`kind = $${params.length}`);
+		builder = builder.where('kind', '=', query.kind);
 	}
 	if (query.symbolId !== undefined) {
-		params.push(query.symbolId);
-		conditions.push(`symbol_id = $${params.length}`);
+		builder = builder.where('symbol_id', '=', query.symbolId);
 	}
 	if (query.source !== undefined) {
-		params.push(query.source);
-		conditions.push(`source = $${params.length}`);
+		builder = builder.where('source', '=', query.source);
 	}
 	if (query.active !== undefined) {
-		params.push(query.active);
-		conditions.push(`active = $${params.length}`);
+		builder = builder.where('active', '=', query.active);
 	}
 
-	const where = conditions.length ? `where ${conditions.join(' and ')}` : '';
-	const rows = (await sql.query(
-		`select ${DETAIL_COLUMNS} from recognition_examples ${where} order by source, kind, symbol_id, id`,
-		params
-	)) as RecognitionExampleDetailRow[];
-
+	const rows = (await builder.execute()) as RecognitionExampleDetailRow[];
 	return rows.map(rowToRecord);
 }
 
 /** Fetches a single example (active or not) by id, or null when it does not exist. */
 export async function getRecognitionExample(
 	id: string,
-	sql: NeonSql = getNeonSql()
+	db: Db = getDb()
 ): Promise<RecognitionExampleRecord | null> {
-	const rows = (await sql.query(
-		`select ${DETAIL_COLUMNS} from recognition_examples where id = $1`,
-		[id]
-	)) as RecognitionExampleDetailRow[];
+	const row = (await db
+		.selectFrom('recognition_examples')
+		.select(DETAIL_COLUMNS)
+		.where('id', '=', id)
+		.executeTakeFirst()) as RecognitionExampleDetailRow | undefined;
 
-	return rows.length ? rowToRecord(rows[0]) : null;
+	return row ? rowToRecord(row) : null;
 }
 
 /**
  * Soft-deletes an example by flipping `active` to false. Returns true when a row
  * was updated, false when no example with that id exists.
  */
-export async function deactivateRecognitionExample(
-	id: string,
-	sql: NeonSql = getNeonSql()
-): Promise<boolean> {
-	const rows = (await sql.query(
-		`update recognition_examples set active = false, updated_at = now() where id = $1 returning id`,
-		[id]
-	)) as { id: string }[];
+export async function deactivateRecognitionExample(id: string, db: Db = getDb()): Promise<boolean> {
+	const row = await db
+		.updateTable('recognition_examples')
+		.set({ active: false, updated_at: sql`now()` })
+		.where('id', '=', id)
+		.returning('id')
+		.executeTakeFirst();
 
-	return rows.length > 0;
+	return row !== undefined;
 }
 
 export async function upsertRecognitionExamples(
 	examples: RecognitionExample[],
-	sql: NeonSql = getNeonSql()
+	db: Db = getDb()
 ): Promise<void> {
-	for (const example of examples) {
-		await sql.query(
-			`
-				insert into recognition_examples (
-					id,
-					kind,
-					symbol_id,
-					strokes,
-					source,
-					rotation_invariant,
-					allowed_rotations_deg,
-					active
-				)
-				values ($1, $2, $3, $4::jsonb, $5, $6, $7::int[], true)
-				on conflict (id) do update set
-					kind = excluded.kind,
-					symbol_id = excluded.symbol_id,
-					strokes = excluded.strokes,
-					source = excluded.source,
-					rotation_invariant = excluded.rotation_invariant,
-					allowed_rotations_deg = excluded.allowed_rotations_deg,
-					active = true,
-					updated_at = now()
-			`,
-			[
-				example.id,
-				example.kind,
-				example.symbolId,
-				JSON.stringify(example.strokes),
-				example.source,
-				example.rotationInvariant,
-				example.allowedRotationsDeg ?? null
-			]
-		);
+	if (examples.length === 0) {
+		return;
 	}
+
+	await db
+		.insertInto('recognition_examples')
+		.values(
+			examples.map((example) => ({
+				id: example.id,
+				kind: example.kind,
+				symbol_id: example.symbolId,
+				strokes: JSON.stringify(example.strokes),
+				source: example.source,
+				rotation_invariant: example.rotationInvariant,
+				allowed_rotations_deg: example.allowedRotationsDeg ?? null,
+				active: true
+			}))
+		)
+		.onConflict((oc) =>
+			oc.column('id').doUpdateSet((eb) => ({
+				kind: eb.ref('excluded.kind'),
+				symbol_id: eb.ref('excluded.symbol_id'),
+				strokes: eb.ref('excluded.strokes'),
+				source: eb.ref('excluded.source'),
+				rotation_invariant: eb.ref('excluded.rotation_invariant'),
+				allowed_rotations_deg: eb.ref('excluded.allowed_rotations_deg'),
+				active: true,
+				updated_at: sql`now()`
+			}))
+		)
+		.execute();
 }
 
 export async function seedDictionaryRecognitionExamples(
 	dictionary: Dictionary,
-	sql: NeonSql = getNeonSql()
+	db: Db = getDb()
 ): Promise<void> {
-	await upsertRecognitionExamples(buildExamplesFromDictionary(dictionary), sql);
+	await upsertRecognitionExamples(buildExamplesFromDictionary(dictionary), db);
 }

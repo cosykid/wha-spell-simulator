@@ -11,15 +11,15 @@
 	import { createDrawTool } from '$canvas/tools/drawTool.svelte.js';
 	import { createSelectTool } from '$canvas/tools/selectTool.svelte.js';
 	import { loadSymbolBaseStrokes } from '$lib/dictionary/svgStrokes.js';
-	import type { Placement, Stroke } from '$lib/types.js';
-	import { createKeyDownHandler, type ButtonWithShortcut } from '$lib/ui/keybindings.js';
+	import type { Placement } from '$lib/types.js';
+	import ButtonWithShortcut from '$lib/ui/ButtonWithShortcut.svelte';
+	import { createKeyDownHandler, type ButtonWithShortcut as ButtonWithShortcutDef } from '$lib/ui/keybindings.js';
 	import Labels from './Labels.svelte';
-	import { REFERENCE_SIZE, buildSampleSubmission } from './buildSample.js';
+	import SampleSubmit from './SampleSubmit.svelte';
+	import { REFERENCE_SIZE } from './buildSample.js';
+	import { SYMBOL_ID } from './constants.js';
 	import { optimizePlacement } from './optimize.js';
 	import { SAMPLE_SYMBOLS, type SampleSymbol } from './symbols.js';
-
-	/** The lone reference glyph: stamping a sign replaces any previous one. */
-	const SYMBOL_ID = 'sample-symbol';
 
 	// Scene and tools
 	const scene = createScene([paperEntity(), gridEntity(REFERENCE_SIZE)]);
@@ -27,12 +27,24 @@
 	const select = createSelectTool(scene);
 
 	// State
-	const hasStrokes = $derived(scene.getEntities().some(isStrokeEntity));
 	let selected = $state<SampleSymbol | null>(null);
-	let output = $state('');
 	let ctx = $state<CanvasRenderingContext2D | null>(null);
+	let sampleSubmit = $state<ReturnType<typeof SampleSubmit>>();
 	let mode = $state<'draw' | 'select'>('draw');
+
+	// Computed state
 	const tool = $derived<CanvasBehavior>(mode === 'draw' ? draw : select);
+	const hasStrokes = $derived(scene.getEntities().some(isStrokeEntity));
+	const strokes = $derived(
+		scene
+			.getEntities()
+			.filter(isStrokeEntity)
+			.map((e) => e.stroke)
+	);
+	const symbolEntity = $derived.by(() => {
+		const e = scene.get(SYMBOL_ID);
+		return e && isTransformable(e) ? e : null;
+	});
 
 	// Automatically switch mode based on whether the symbol entity is in the scene.
 	const symbolInScene = $derived(scene.getEntities().some((e) => e.id === SYMBOL_ID));
@@ -91,54 +103,15 @@
 	};
 
 	/**
-	 * Check if all the requirements for submissions are met, then builds a LabelledSample payload and prints it to the output textarea for preview.
-	 * TODO: upload the payload to the database.
-	 */
-	const submit = (): void => {
-		if (!selected) {
-			output = '// Pick a sign label first.';
-			return;
-		}
-
-		const symbolEntity = scene.get(SYMBOL_ID);
-		if (!symbolEntity || !isTransformable(symbolEntity)) {
-			output = '// The reference glyph is missing — pick a sign label again.';
-			return;
-		}
-
-		const strokes: Stroke[] = scene
-			.getEntities()
-			.filter(isStrokeEntity)
-			.map((entity) => entity.stroke);
-		if (strokes.length === 0) {
-			output = '// Draw the sign before submitting.';
-			return;
-		}
-
-		const canvas = ctx?.canvas;
-		const submission = buildSampleSubmission({
-			strokes,
-			symbol: selected,
-			transform: symbolEntity.placement.transform,
-			canvasWidth: canvas?.width ?? 0,
-			canvasHeight: canvas?.height ?? 0,
-			devicePixelRatio: typeof window !== 'undefined' ? window.devicePixelRatio : 1
-		});
-
-		// TODO: upload this LabelledSample to the database.
-		output = `// TODO: upload this LabelledSample to the DB\n${JSON.stringify(submission, null, 2)}`;
-	};
-
-	/**
 	 * Reset the state completely.
 	 */
 	const clear = (): void => {
 		scene.clear();
 		selected = null;
-		output = '';
+		sampleSubmit?.reset();
 	};
 
-	const toolbar: ButtonWithShortcut[] = [
+	const toolbar: ButtonWithShortcutDef[] = [
 		{
 			key: 'z',
 			shift: false,
@@ -164,15 +137,15 @@
 		{ key: 'l', shortcut: 'Ctrl+L', description: 'Clear', action: clear }
 	];
 
-	const submitButton: ButtonWithShortcut = {
+	const submitShortcut: ButtonWithShortcutDef = {
 		key: 's',
 		shortcut: 'Ctrl+S',
 		description: 'Submit sample',
 		disabled: () => !selected || !hasStrokes,
-		action: submit
+		action: () => sampleSubmit?.submit()
 	};
 
-	const onKeyDown = createKeyDownHandler([...toolbar, submitButton]);
+	const onKeyDown = createKeyDownHandler([...toolbar, submitShortcut]);
 </script>
 
 <svelte:window onkeydown={onKeyDown} />
@@ -181,17 +154,16 @@
 	<title>Sample Maker</title>
 </svelte:head>
 
-{#snippet buttonWithShortcut(item: ButtonWithShortcut)}
-	<button type="button" disabled={item.disabled?.() ?? false} onclick={item.action}>
-		{item.description} <kbd>{item.shortcut}</kbd>
-	</button>
-{/snippet}
-
 <main class="workspace maker-workspace">
 	<section class="canvas-panel maker-canvas-panel">
 		<div class="toolbar">
 			{#each toolbar as item (item.key)}
-				{@render buttonWithShortcut(item)}
+				<ButtonWithShortcut
+					description={item.description}
+					shortcut={item.shortcut}
+					disabled={item.disabled?.() ?? false}
+					onclick={item.action}
+				/>
 			{/each}
 		</div>
 		<Canvas {scene} controller={tool} bind:ctx />
@@ -200,15 +172,13 @@
 		<h2 class="panel-section-title">Sign label</h2>
 		<Labels symbols={SAMPLE_SYMBOLS} selectedId={selected?.id ?? null} onpick={pickSymbol} />
 
-		{@render buttonWithShortcut(submitButton)}
-
-		<h2 class="panel-section-title">Sample output</h2>
-		<textarea
-			class="sample-output"
-			readonly
-			placeholder="Submit to preview the LabelledSample that will be uploaded…"
-			value={output}
-		></textarea>
+		<SampleSubmit
+			bind:this={sampleSubmit}
+			{symbolEntity}
+			{strokes}
+			{selected}
+			{ctx}
+		/>
 	</aside>
 </main>
 
@@ -220,30 +190,5 @@
 		padding: 14px;
 		min-width: 0;
 		overflow: auto;
-	}
-
-	button kbd {
-		display: inline-block;
-		padding: 1px 5px;
-		font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
-		font-size: 10px;
-		background: rgba(36, 27, 22, 0.07);
-		border: 1px solid rgba(36, 27, 22, 0.18);
-		border-radius: 3px;
-		pointer-events: none;
-	}
-
-	.sample-output {
-		flex: 1 1 auto;
-		min-height: 220px;
-		resize: vertical;
-		font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
-		font-size: 12px;
-		line-height: 1.45;
-		white-space: pre;
-		border: 1px solid rgba(36, 27, 22, 0.2);
-		border-radius: 6px;
-		padding: 10px;
-		background: rgba(255, 255, 255, 0.55);
 	}
 </style>
