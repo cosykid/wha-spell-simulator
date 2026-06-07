@@ -1,5 +1,4 @@
 import { randomUUID } from 'node:crypto';
-import { env } from '$env/dynamic/private';
 import { json } from '@sveltejs/kit';
 
 import {
@@ -14,34 +13,6 @@ import type { Point, RecognitionKind } from '$lib/types.js';
 import type { RecognitionExample } from '$lib/parser/shapeMatcher.js';
 
 export const prerender = false;
-
-function bearerToken(request: Request): string | null {
-	const header = request.headers.get('authorization') ?? '';
-	const [scheme, token] = header.split(/\s+/, 2);
-	return scheme?.toLowerCase() === 'bearer' && token ? token : null;
-}
-
-/**
- * Guards every method of this endpoint with the shared bearer token. Returns a
- * Response to short-circuit the handler when access is denied, or null to allow
- * it. The whole API (reads included) is off until TRAINING_DATA_API_TOKEN is set.
- */
-function requireToken(request: Request): Response | null {
-	const apiToken = env.TRAINING_DATA_API_TOKEN;
-	if (!apiToken) {
-		return json(
-			{
-				ok: false,
-				error: 'Training data API is disabled. Set TRAINING_DATA_API_TOKEN to enable it.'
-			},
-			{ status: 503 }
-		);
-	}
-	if (bearerToken(request) !== apiToken) {
-		return json({ ok: false, error: 'Missing or invalid bearer token.' }, { status: 401 });
-	}
-	return null;
-}
 
 function isPoint(value: unknown): value is Point {
 	return (
@@ -125,12 +96,7 @@ function serverError(error: unknown, fallback: string): Response {
  * narrowed by the optional `kind`, `symbolId`, `source`, and `active` filters.
  * Inactive (soft-deleted) rows are included unless `active=true` is passed.
  */
-export async function GET({ request, url }) {
-	const denied = requireToken(request);
-	if (denied) {
-		return denied;
-	}
-
+export async function GET({ url }) {
 	try {
 		const id = url.searchParams.get('id');
 		if (id) {
@@ -170,11 +136,6 @@ export async function GET({ request, url }) {
 
 /** Inserts or updates one example (upsert by id). */
 export async function POST({ request }) {
-	const denied = requireToken(request);
-	if (denied) {
-		return denied;
-	}
-
 	try {
 		const example = bodyToExample(await request.json());
 		await upsertRecognitionExamples([example]);
@@ -189,12 +150,7 @@ export async function POST({ request }) {
 }
 
 /** Soft-deletes an example (`?id=`) by marking it inactive; the row is retained. */
-export async function DELETE({ request, url }) {
-	const denied = requireToken(request);
-	if (denied) {
-		return denied;
-	}
-
+export async function DELETE({ url }) {
 	const id = url.searchParams.get('id');
 	if (!id) {
 		return json({ ok: false, error: 'An "id" query parameter is required.' }, { status: 400 });

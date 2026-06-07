@@ -154,13 +154,13 @@ The browser parser modules stay pure and server-portable. They do not import Neo
 
 ### Examples API
 
-`/api/recognition/examples` exposes the corpus over HTTP for offline collaborators. All methods require `Authorization: Bearer $TRAINING_DATA_API_TOKEN`; the endpoint returns `503` when the token is unset and `401` when it is wrong.
+`/api/recognition/examples` exposes the corpus over HTTP for offline collaborators. It is a public API with no app-level authorization; the deployment only needs a Neon connection string for the storage calls to work.
 
 - `GET` — list examples (filters: `kind`, `symbolId`, `source`, `active`) or fetch one via `?id=`.
 - `POST` — upsert one example (`kind`, `symbolId`, `strokes` required; strokes are canonicalized through `normalizeStrokesForShape`).
 - `DELETE` — soft-delete via `?id=`.
 
-The unauthenticated `/api/recognition/assets` loader stays separate so the browser app can read active examples without a token.
+The `/api/recognition/assets` loader stays separate so the browser app can read active examples without pulling lifecycle metadata.
 
 ## Diagnostics Overlay
 

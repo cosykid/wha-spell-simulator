@@ -4,7 +4,7 @@ A fan-made browser-based spell drawing simulator inspired by _[Witch Hat Atelier
 
 <div align="center">
   <img src="./assets/demo.gif" width="720"/>
-  <p>Try here: <a href="https://cosykid.github.io/wha-spell-simulator/">https://cosykid.github.io/wha-spell-simulator/</a></p>
+  <p>Try here: <a href="https://wha-spell-simulator.vercel.app/">https://wha-spell-simulator.vercel.app/</a></p>
 </div>
 
 ## Fan Project Notice
@@ -67,18 +67,23 @@ npm run build
 
 ## Deploy To Vercel
 
-This app now targets Vercel through `@sveltejs/adapter-vercel`. The prerendered
-canvas shell is served as static output, while SvelteKit API routes are deployed
-as Vercel serverless functions. That keeps Neon credentials server-side and lets
-the browser fetch recognition assets through `/api/recognition/assets`.
+This app is deployed at
+[https://wha-spell-simulator.vercel.app/](https://wha-spell-simulator.vercel.app/)
+and targets Vercel through `@sveltejs/adapter-vercel`. The prerendered canvas
+shell is served as static output, while SvelteKit API routes are deployed as
+Vercel serverless functions. That keeps Neon credentials server-side and lets the
+browser fetch recognition assets through `/api/recognition/assets`.
+
+Once the GitHub repo is connected to Vercel, pull requests get preview
+deployments and merges to `main` deploy to production.
 
 Set these Vercel project environment variables as needed:
 
 ```sh
-# DATABASE_URL is preferred; NEON_DATABASE_URL is accepted as a fallback alias. Set one.
+# Optional: enables Neon-backed training data storage.
+# DATABASE_URL is preferred; NEON_DATABASE_URL is accepted as a fallback alias.
 DATABASE_URL=postgres://...
 NEON_DATABASE_URL=postgres://...
-TRAINING_DATA_API_TOKEN=...
 ```
 
 Vercel can use the default build command:
@@ -111,7 +116,9 @@ npm test
 
 ## Optional Storage
 
-Recognition examples can be stored in Neon Postgres for future user-drawing corpora. The browser app still works from dictionary templates alone, but the Vercel deployment can read active examples through `/api/recognition/assets`.
+Recognition examples can be stored in Neon Postgres for future user-drawing
+corpora. The browser app still works from dictionary templates alone, but the
+Vercel deployment can read active examples through `/api/recognition/assets`.
 
 Set one of these private environment variables before using the storage helpers. For local work, put real values in `.env`; the migration and seed scripts load it automatically. Keep `.env.example` as placeholders only.
 
@@ -129,12 +136,10 @@ npm run db:seed:recognition
 
 ### Recognition Examples API
 
-Set `TRAINING_DATA_API_TOKEN` to expose a token-guarded JSON API over the
-`recognition_examples` table so a teammate can manage the corpus directly. Every
-request must send the token as `Authorization: Bearer <token>`; if the variable
-is unset the whole API returns `503`. (The browser app reads active examples
-through the separate, unauthenticated `/api/recognition/assets` loader, so the
-canvas keeps working without the token.)
+`/api/recognition/examples` exposes a public JSON API over the
+`recognition_examples` table so teammates can manage the corpus directly. No
+authorization header is required. The API is available when the deployment has a
+Neon connection string configured.
 
 | Method   | Path                                | Purpose                                                                                                |
 | -------- | ----------------------------------- | ------------------------------------------------------------------------------------------------------ |
@@ -147,14 +152,13 @@ Listing includes inactive rows unless you pass `active=true`. Example:
 
 ```sh
 # List every active sign
-curl -H "Authorization: Bearer $TRAINING_DATA_API_TOKEN" \
-  "https://<deployment>/api/recognition/examples?kind=sign&active=true"
+curl "https://wha-spell-simulator.vercel.app/api/recognition/examples?kind=sign&active=true"
 
 # Submit a labeled example
-curl -X POST -H "Authorization: Bearer $TRAINING_DATA_API_TOKEN" \
+curl -X POST \
   -H "content-type: application/json" \
   -d '{"kind":"sigil","symbolId":"crystal","strokes":[[{"x":0,"y":0},{"x":1,"y":1}]]}' \
-  "https://<deployment>/api/recognition/examples"
+  "https://wha-spell-simulator.vercel.app/api/recognition/examples"
 ```
 
 ## Documentation
