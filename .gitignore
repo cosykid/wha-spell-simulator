@@ -27,3 +27,6 @@ Icon?
 # Obsidian local vault state
 docs/.obsidian/
 docs/.trash/
+
+# Playwright
+test-results
