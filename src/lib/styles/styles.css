@@ -70,6 +70,17 @@ textarea {
 	background: #fff2c5;
 }
 
+.text-control {
+	min-width: 0;
+	width: 100%;
+	min-height: 36px;
+	border: 1px solid rgba(36, 27, 22, 0.28);
+	border-radius: 6px;
+	padding: 0 12px;
+	color: var(--ink);
+	background: #fff2c5;
+}
+
 button:hover {
 	background: #ffe6a3;
 }
@@ -270,6 +281,11 @@ body:not(.sigil-maker-page) .app-shell {
 	flex-direction: column;
 }
 
+.control-panel {
+	overflow-y: auto;
+	scrollbar-gutter: stable;
+}
+
 .control-section {
 	display: grid;
 	gap: 10px;
@@ -294,7 +310,13 @@ body:not(.sigil-maker-page) .app-shell {
 }
 
 .control-section .toggle {
+	gap: 6px;
 	justify-content: space-between;
+	padding: 0 10px;
+}
+
+.control-section .toggle span {
+	white-space: nowrap;
 }
 
 .toolbar {
@@ -418,6 +440,37 @@ body:not(.sigil-maker-page) .app-shell {
 
 #glyphCanvas.locked {
 	cursor: not-allowed;
+}
+
+/*
+ * Desktop: keep the drawing surface locked to a fixed 1:1 (square) aspect ratio
+ * so the canvas never changes shape as the window resizes (which would skew
+ * strokes). The panel becomes a size container and the shell is fitted to the
+ * largest square that fits within it: width = min(panel width, panel height).
+ * Below 1050px the single-column rules at the bottom of this file already keep
+ * the square.
+ */
+@media (min-width: 1051px) {
+	/*
+	 * The canvas column shrinks to exactly the square drawing surface (its width
+	 * follows the available row height via aspect-ratio), so no panel background
+	 * shows beside it. The freed horizontal space is absorbed by the side panels'
+	 * fr tracks, which expand to fill it.
+	 */
+	.workspace {
+		grid-template-columns: minmax(230px, 0.85fr) auto minmax(280px, 1.05fr);
+	}
+
+	.canvas-panel {
+		aspect-ratio: 1 / 1;
+		height: 100%;
+	}
+
+	.canvas-shell {
+		width: 100%;
+		height: 100%;
+		aspect-ratio: 1 / 1;
+	}
 }
 
 .maker-workspace {
@@ -1046,7 +1099,7 @@ body:not(.sigil-maker-page) .app-shell {
 		width: 100%;
 		height: auto;
 		max-height: none;
-		aspect-ratio: 3 / 2;
+		aspect-ratio: 1 / 1;
 	}
 
 	.canvas-hint {

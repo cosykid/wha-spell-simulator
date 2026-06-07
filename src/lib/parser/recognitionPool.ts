@@ -4,10 +4,11 @@ import type { RecognitionExample } from './shapeMatcher.js';
 
 // Final candidate recognition is the dominant cost once decomposition is cheap,
 // and each candidate is scored independently. This module fans those per-
-// candidate scores across a long-lived Web Worker pool. It always degrades to
-// the synchronous recognizer when workers are unavailable (non-browser runtime,
-// a single candidate, or any worker failure), so callers get an identical
-// RecognizedSymbol[] regardless of which path runs.
+// candidate scores across a long-lived Web Worker pool. When learned examples
+// are loaded, even a single candidate can be expensive, so it also goes through
+// a worker. The pool degrades to the synchronous recognizer when workers are
+// unavailable or fail, so callers get an identical RecognizedSymbol[] regardless
+// of which path runs.
 
 const MIN_CANDIDATES_FOR_PARALLEL = 2;
 const MAX_WORKERS = 8;
@@ -107,6 +108,13 @@ function ensurePool(
 	config: AppConfig,
 	examples: RecognitionExample[]
 ): PoolWorker[] {
+	// The pool is a fixed size for the whole session and reused across strokes.
+	// It must NOT be rebuilt when the candidate count changes: each rebuild
+	// re-clones the entire dictionary + learned assets into every worker via
+	// postMessage, which is expensive and runs on the calling thread. Candidates
+	// are instead queued across the existing workers (see pumpQueue), so a fixed
+	// pool handles any number of candidates. Only a change to the dictionary or
+	// learned assets (stable references between reloads) rebuilds it.
 	if (
 		pool &&
 		sessionDictionary === dictionary &&
@@ -127,7 +135,12 @@ function ensurePool(
 		const entry: PoolWorker = { worker, taskId: null };
 		worker.onmessage = (event) => handleWorkerMessage(entry, event);
 		worker.onerror = () => teardownPool(new Error('recognition worker error'));
-		worker.postMessage({ type: 'init', dictionary, config, recognitionExamples: examples });
+		worker.postMessage({
+			type: 'init',
+			dictionary,
+			config,
+			recognitionExamples: examples
+		});
 		workers.push(entry);
 	}
 
@@ -155,8 +168,12 @@ export async function recognizeCandidatesAsync(
 	recognitionExamples: RecognitionExample[] = EMPTY_EXAMPLES
 ): Promise<RecognizedSymbol[]> {
 	const examples = recognitionExamples.length ? recognitionExamples : EMPTY_EXAMPLES;
+	const hasLearnedAssets = examples.length > 0;
 
-	if (!workersSupported() || candidates.length < MIN_CANDIDATES_FOR_PARALLEL) {
+	if (
+		!workersSupported() ||
+		(!hasLearnedAssets && candidates.length < MIN_CANDIDATES_FOR_PARALLEL)
+	) {
 		return recognizeCandidates(candidates, dictionary, config, examples);
 	}
 

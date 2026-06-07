@@ -21,9 +21,11 @@
 
 This document explains how to add or edit sigils, signs, and sample spells in:
 
-- `src/lib/dictionary/sigils.json`
-- `src/lib/dictionary/signs.json`
+- `src/lib/dictionary/sigils/*.json`
+- `src/lib/dictionary/signs/*.json`
 - `src/lib/dictionary/sample-spells.json`
+
+Sigils and signs are split one entry per file. The numeric filename prefix controls dictionary order; the `id` field inside the file remains the stable symbol identifier.
 
 The sigil and sign dictionaries define both recognition data and spell meaning. Recognition is seeded from `strokeTemplate`; semantics tell the compiler what the recognized symbol should do. Sample spells are drawing references shown in the Dictionary panel, not compiler grammar.
 
@@ -37,11 +39,14 @@ The current compiler supports one recognized sigil per spell. If the parser reco
 
 Current sigil ids:
 
+- `aeriform`
+- `crystal`
+- `earth`
 - `fire`
+- `light`
 - `water`
 - `wind-directs-air`
-- `earth`
-- `light`
+- `wind-underfoot`
 
 ### Signs
 
@@ -49,13 +54,22 @@ Signs modify how the primary element manifests. They affect `manifestations`, di
 
 Current sign ids:
 
+- `billowing`
+- `collection`
 - `column`
-- `levitation`
 - `convergence`
+- `crush`
+- `dispersion`
+- `float`
+- `levitation`
+- `pull`
+- `region`
+- `repetition`
+- `weave`
 
 ### Sample Spells
 
-Sample spells are complete seal layouts stored in `src/dictionary/sample-spells.json` and shown in the Dictionary panel. They are reference-only examples for us to copy by eye. They do not load strokes into the canvas, feed recognition, or affect compiler output.
+Sample spells are complete seal layouts stored in `src/lib/dictionary/sample-spells.json` and shown in the Dictionary panel. They are reference-only examples for us to copy by eye. They do not load strokes into the canvas, feed recognition, or affect compiler output.
 
 ## Common Properties
 
@@ -152,7 +166,7 @@ Important conventions:
 - Draw cleanly, but do not over-optimize. The user drawing will be imperfect.
 - The tool for stroke template maker exports only the `strokeTemplate` object. Paste that object into the dictionary entry.
 - The recognizer is tolerant of stroke order during point-cloud matching, but stroke count and stroke-length profile still influence structural confidence.
-- Keep a multi-stroke symbol as separate strokes when those strokes are natural lifts in the intended drawing. Candidate grouping works on whole strokes and proximity-connected components; it does not split a single stroke into fragments.
+- Keep a multi-stroke symbol as separate strokes when those strokes are natural lifts in the intended drawing. Candidate grouping works on whole strokes: live and prepared drawings use proximity-connected components, and complete rings can refine close components with recognition-guided cuts. It does not split a single stroke into fragments.
 
 ## Recognition Examples
 
@@ -237,9 +251,17 @@ The sign's main behavior. The compiler aggregates signs into `SpellIR.manifestat
 
 Current values:
 
+- `billowing`
+- `collection`
 - `column`
-- `levitation`
 - `convergence`
+- `crush`
+- `directed`
+- `dispersion`
+- `levitation`
+- `pull`
+- `repetition`
+- `weave`
 
 ### `semantic.directionMode`
 
@@ -341,7 +363,7 @@ Paste it like:
 
 Use this checklist:
 
-1. Add a new entry to `src/dictionary/sigils.json`.
+1. Add a new entry file to `src/lib/dictionary/sigils/NN-example-sigil.json`.
 2. Choose a stable `id`.
 3. Set `displayName`.
 4. Set `element`.
@@ -378,7 +400,7 @@ Minimal shape:
 
 Use this checklist:
 
-1. Add a new entry to `src/dictionary/signs.json`.
+1. Add a new entry file to `src/lib/dictionary/signs/NN-example-sign.json`.
 2. Choose a stable `id`.
 3. Set `displayName`.
 4. Set `allowedLayers`.
@@ -417,7 +439,7 @@ Minimal shape:
 
 Use this checklist:
 
-1. Add a new entry to `src/dictionary/sample-spells.json`.
+1. Add a new entry to `src/lib/dictionary/sample-spells.json`.
 2. Choose a stable `id`.
 3. Set `displayName` and a short `description`.
 4. Set `element` to the primary element shown by the sample.

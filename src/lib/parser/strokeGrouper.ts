@@ -162,15 +162,23 @@ function strokePairProximity(
 	};
 }
 
-function shouldGroup(a: CleanedStroke, b: CleanedStroke, ring: RingInfo): boolean {
+function shouldGroup(
+	a: CleanedStroke,
+	b: CleanedStroke,
+	ring: RingInfo,
+	config: AppConfig
+): boolean {
 	const padding = ring.radius * BBOX_PADDING_NORM;
 	const aBounds = expandBounds(a.metrics.bounds, padding);
 	const bBounds = expandBounds(b.metrics.bounds, padding);
+	const aPolar = summarizePolar(centerOfBounds(a.metrics.bounds), ring, config);
+	const bPolar = summarizePolar(centerOfBounds(b.metrics.bounds), ring, config);
+	const sameLayer = aPolar.layer === bPolar.layer || aPolar.nearBoundary || bPolar.nearBoundary;
 	const centersClose =
 		distance(centerOfBounds(a.metrics.bounds), centerOfBounds(b.metrics.bounds)) <=
 		ring.radius * CENTER_DISTANCE_NORM;
 	const endpointsClose = endpointDistance(a, b) <= ring.radius * ENDPOINT_DISTANCE_NORM;
-	return boundsOverlap(aBounds, bBounds) || centersClose || endpointsClose;
+	return endpointsClose || (sameLayer && (boundsOverlap(aBounds, bBounds) || centersClose));
 }
 
 function maxTemplateStrokeCount(dictionary: Dictionary): number {
@@ -399,9 +407,8 @@ function selectTreeCut(
 ): TreeSelection {
 	const groupPenalty = config.recognition.groupPenalty ?? 0.45;
 	const wholeCandidate = buildCandidate(node.strokes, 0, ring, config);
-	const wholeValue = canScoreWholeNode(node, ring, config, maxStrokeCount)
-		? Math.max(scoreCut(wholeCandidate) - groupPenalty, 0)
-		: 0;
+	const canScoreWhole = canScoreWholeNode(node, ring, config, maxStrokeCount);
+	const wholeValue = canScoreWhole ? Math.max(scoreCut(wholeCandidate) - groupPenalty, 0) : 0;
 
 	if (!node.children.length) {
 		return {
@@ -416,7 +423,7 @@ function selectTreeCut(
 	const childValue = childSelections.reduce((sum, selection) => sum + selection.value, 0);
 	const childGroups = childSelections.flatMap((selection) => selection.groups);
 
-	if (wholeValue > childValue + TREE_WHOLE_EPSILON) {
+	if (canScoreWhole && wholeValue + TREE_WHOLE_EPSILON >= childValue) {
 		return {
 			value: wholeValue,
 			groups: [node.strokes]
@@ -462,7 +469,7 @@ function fallbackCandidates(
 				if (visited.has(other.id)) {
 					continue;
 				}
-				if (shouldGroup(current, other, ring)) {
+				if (shouldGroup(current, other, ring, config)) {
 					visited.add(other.id);
 					queue.push(other);
 				}
@@ -475,6 +482,76 @@ function fallbackCandidates(
 	return groups
 		.map((group, index) => buildCandidate(group, index, ring, config))
 		.filter((candidate) => candidate.sizeNorm <= MAX_SYMBOL_SIZE_NORM);
+}
+
+function groupsTouch(a: CleanedStroke[], b: CleanedStroke[], ring: RingInfo): boolean {
+	const radius = Math.max(1, ring.radius);
+	for (const strokeA of a) {
+		for (const strokeB of b) {
+			if (endpointDistance(strokeA, strokeB) <= radius * 0.045) {
+				return true;
+			}
+			if (pointDistance(strokeA, strokeB) <= radius * 0.035) {
+				return true;
+			}
+		}
+	}
+	return false;
+}
+
+function shouldMergeFragmentGroups(
+	a: CleanedStroke[],
+	b: CleanedStroke[],
+	ring: RingInfo,
+	config: AppConfig
+): boolean {
+	if (a.length > 2 && b.length > 2) {
+		return false;
+	}
+
+	const candidateA = buildCandidate(a, 0, ring, config);
+	const candidateB = buildCandidate(b, 0, ring, config);
+	const sameLayer =
+		candidateA.layer === candidateB.layer || candidateA.nearBoundary || candidateB.nearBoundary;
+	if (!sameLayer) {
+		return false;
+	}
+
+	const mergedCandidate = buildCandidate([...a, ...b], 0, ring, config);
+	if (mergedCandidate.sizeNorm > MAX_SYMBOL_SIZE_NORM) {
+		return false;
+	}
+
+	return groupsTouch(a, b, ring);
+}
+
+function mergeFragmentGroups(
+	groups: CleanedStroke[][],
+	ring: RingInfo,
+	config: AppConfig
+): CleanedStroke[][] {
+	const merged = groups.map((group) => [...group]);
+	let changed = true;
+
+	while (changed) {
+		changed = false;
+		for (let a = 0; a < merged.length; a += 1) {
+			for (let b = a + 1; b < merged.length; b += 1) {
+				if (!shouldMergeFragmentGroups(merged[a], merged[b], ring, config)) {
+					continue;
+				}
+				merged[a] = [...merged[a], ...merged[b]];
+				merged.splice(b, 1);
+				changed = true;
+				break;
+			}
+			if (changed) {
+				break;
+			}
+		}
+	}
+
+	return merged;
 }
 
 export function buildSymbolCandidates(
@@ -515,7 +592,7 @@ export function buildSymbolCandidates(
 		)
 	);
 
-	return groups
+	return mergeFragmentGroups(groups, ring, config)
 		.map((group, index) => buildCandidate(group, index, ring, config))
 		.filter((candidate) => candidate.sizeNorm <= MAX_SYMBOL_SIZE_NORM);
 }

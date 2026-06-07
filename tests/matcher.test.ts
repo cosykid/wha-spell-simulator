@@ -2,11 +2,9 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import {
-	classifyWithKnn,
 	pointCloudDistanceForStrokes,
 	renderInkDistanceMap,
-	scoreChamferDistance,
-	type RecognitionExample
+	scoreChamferDistance
 } from '../src/lib/parser/shapeMatcher.js';
 import type { Point } from '../src/lib/types.js';
 
@@ -36,17 +34,6 @@ const column = [
 ];
 
 const columnReordered = [column[1], column[0]];
-
-function example(id: string, symbolId: string, strokes: Point[][]): RecognitionExample {
-	return {
-		id,
-		kind: 'sign',
-		symbolId,
-		strokes,
-		source: 'test',
-		rotationInvariant: false
-	};
-}
 
 test('$P point cloud matches the same template at different scales', () => {
 	const scaled = line([
@@ -117,44 +104,4 @@ test('chamfer contamination rises when extra ink is unrelated', () => {
 
 	assert.ok(score.unexplainedInkRatio > 0.35);
 	assert.ok(score.contaminationRisk > 0.4);
-});
-
-test('kNN nearest examples vote for the correct symbol', () => {
-	const result = classifyWithKnn(vertical, [
-		example('line-a', 'line', vertical),
-		example('column-a', 'column', column)
-	]);
-
-	assert.equal(result.winnerId, 'line');
-	assert.equal(result.tied, false);
-	assert.ok(result.voteConfidence > 0.7);
-});
-
-test('kNN reports tied votes when nearest examples are equally close', () => {
-	const result = classifyWithKnn(vertical, [
-		example('line-a', 'line-a', vertical),
-		example('line-b', 'line-b', vertical)
-	]);
-
-	assert.equal(result.tied, true);
-	assert.equal(result.voteConfidence, 0);
-});
-
-test('kNN keeps far examples low confidence', () => {
-	const circleish = [
-		[
-			{ x: 50, y: 0 },
-			{ x: 90, y: 20 },
-			{ x: 100, y: 60 },
-			{ x: 80, y: 100 },
-			{ x: 30, y: 100 },
-			{ x: 0, y: 60 },
-			{ x: 10, y: 20 },
-			{ x: 50, y: 0 }
-		]
-	];
-	const result = classifyWithKnn(circleish, [example('line-a', 'line', vertical)]);
-
-	assert.equal(result.winnerId, 'line');
-	assert.ok(result.voteConfidence < 0.35);
 });

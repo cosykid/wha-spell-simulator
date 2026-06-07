@@ -1,0 +1,78 @@
+{
+	"id": "crystal",
+	"displayName": "Crystal",
+	"element": "earth",
+	"allowedLayers": ["center", "middle", "outer"],
+	"sourceNotes": "Crystal is a variant of the earth sigil. It produces hard, faceted, crystalline matter rather than loose soil, so its output is compact, rigid, and slow to disperse.",
+	"recognitionRotationInvariant": false,
+	"semantic": {
+		"force": -0.02,
+		"focus": 0.06,
+		"spread": -0.04,
+		"range": 0,
+		"lifetimeBias": 0.05
+	},
+	"strokeTemplate": {
+		"sourceAspectRatio": 1,
+		"strokes": [
+			[
+				{
+					"x": 0.1296,
+					"y": 0.1306
+				},
+				{
+					"x": 0.8684,
+					"y": 0.8694
+				}
+			],
+			[
+				{
+					"x": 0.94,
+					"y": 0.6702
+				},
+				{
+					"x": 0.501,
+					"y": 0.2408
+				}
+			],
+			[
+				{
+					"x": 0.06,
+					"y": 0.3317
+				},
+				{
+					"x": 0.4952,
+					"y": 0.7592
+				},
+				{
+					"x": 0.5164,
+					"y": 0.7553
+				},
+				{
+					"x": 0.94,
+					"y": 0.3317
+				}
+			],
+			[
+				{
+					"x": 0.06,
+					"y": 0.6702
+				},
+				{
+					"x": 0.499,
+					"y": 0.2408
+				}
+			],
+			[
+				{
+					"x": 0.1316,
+					"y": 0.8694
+				},
+				{
+					"x": 0.8704,
+					"y": 0.1306
+				}
+			]
+		]
+	}
+}

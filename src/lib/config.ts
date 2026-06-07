@@ -44,9 +44,6 @@ export const CONFIG = {
 		// (a center sigil beside a ring sign, two adjacent signs) still split apart.
 		groupPenalty: 0.75,
 
-		// Count; nearest examples included in kNN recognition voting.
-		knnK: 5,
-
 		// 0..1 allowed extra ink before a match is considered contaminated.
 		contaminationThreshold: 0.5,
 
@@ -68,6 +65,12 @@ export const CONFIG = {
 		maxUnknownsBeforeInstability: 4
 	},
 	renderer: {
+		// Milliseconds the spell paper takes to tilt into the screen before the
+		// effect animation begins. MUST match the CSS `--portal-tilt-duration`
+		// variable in styles.css; the renderer holds the effect/glow back for this
+		// long so the canvas visibly tilts first, then the spell erupts.
+		portalTiltMs: 980,
+
 		// CSS color; drawn ink color.
 		inkColor: '#241b16',
 

@@ -1,10 +1,10 @@
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
 import { CONFIG } from '../src/lib/config.js';
 import { classifyDrawing } from '../src/lib/parser/drawingClassifier.js';
 import { angleDegFromCenter, degreesToRadians } from '../src/lib/utils/geometry.js';
+import { readRealDictionary } from './dictionaryFixtures.js';
 import type {
 	Dictionary,
 	Point,
@@ -74,14 +74,7 @@ const dictionary: Dictionary = {
 	signs: [column]
 };
 
-const realDictionary: Dictionary = {
-	sigils: JSON.parse(
-		readFileSync(new URL('../src/lib/dictionary/sigils.json', import.meta.url), 'utf8')
-	),
-	signs: JSON.parse(
-		readFileSync(new URL('../src/lib/dictionary/signs.json', import.meta.url), 'utf8')
-	)
-};
+const realDictionary: Dictionary = readRealDictionary();
 
 function arcStroke(
 	id: string,
@@ -106,11 +99,38 @@ function arcStroke(
 	return { id, points };
 }
 
+function resampledStroke(id: string, controlPoints: Point[], spacing = 8): Stroke {
+	const points: Point[] = [];
+
+	for (let index = 1; index < controlPoints.length; index += 1) {
+		const previous = controlPoints[index - 1];
+		const current = controlPoints[index];
+		const steps = Math.max(
+			2,
+			Math.ceil(Math.hypot(current.x - previous.x, current.y - previous.y) / spacing)
+		);
+		for (let step = 0; step < steps; step += 1) {
+			const local = step / steps;
+			points.push({
+				x: previous.x + (current.x - previous.x) * local,
+				y: previous.y + (current.y - previous.y) * local
+			});
+		}
+	}
+	points.push({ ...controlPoints[controlPoints.length - 1] });
+
+	return { id, points };
+}
+
 function ringStrokes(): Stroke[] {
 	return [
 		arcStroke('ring-open', ringCenter.x, ringCenter.y, 180, 25, 335, 160),
 		arcStroke('ring-close', ringCenter.x, ringCenter.y, 180, 335, 385, 32)
 	];
+}
+
+function preparedRingStrokes(): Stroke[] {
+	return [arcStroke('prepared-ring', ringCenter.x, ringCenter.y, 180, 25, 325, 160)];
 }
 
 function rotationTransform(degrees: number): RotationTransform | null {
@@ -179,6 +199,34 @@ function classify(strokes: Stroke[]) {
 		dictionary,
 		config: CONFIG
 	});
+}
+
+function roughTriangleSigilStrokes(): Stroke[] {
+	return [
+		resampledStroke('rough-triangle', [
+			{ x: ringCenter.x - 60, y: ringCenter.y + 30 },
+			{ x: ringCenter.x, y: ringCenter.y - 60 },
+			{ x: ringCenter.x + 65, y: ringCenter.y + 30 },
+			{ x: ringCenter.x - 60, y: ringCenter.y + 30 }
+		]),
+		resampledStroke('rough-tail', [
+			{ x: ringCenter.x, y: ringCenter.y + 30 },
+			{ x: ringCenter.x, y: ringCenter.y + 75 }
+		]),
+		resampledStroke('rough-inner', [
+			{ x: ringCenter.x + 10, y: ringCenter.y - 60 },
+			{ x: ringCenter.x + 35, y: ringCenter.y + 20 }
+		])
+	];
+}
+
+function roughTouchingSignStrokes(): Stroke[] {
+	const joint = { x: ringCenter.x + 105, y: ringCenter.y - 70 };
+	return [
+		resampledStroke('rough-sign-stem', [{ x: ringCenter.x + 135, y: ringCenter.y - 105 }, joint]),
+		resampledStroke('rough-sign-bar', [joint, { x: ringCenter.x + 155, y: ringCenter.y - 70 }]),
+		resampledStroke('rough-sign-arm', [joint, { x: ringCenter.x + 150, y: ringCenter.y - 105 }])
+	];
 }
 
 test('decomposition keeps one sigil and one sign as two candidates', () => {
@@ -265,6 +313,107 @@ test('decomposition keeps real dictionary sigils whole after stroke cleaning', (
 		assert.equal(result.recognitions[0].id, sigil.id, sigil.id);
 		assert.equal(result.recognitions[0].recognized, true, sigil.id);
 	}
+});
+
+test('prepared open ring keeps sigil and sign separate on the fast grouping path', () => {
+	const fire = realDictionary.sigils.find((sigil) => sigil.id === 'fire');
+	const column = realDictionary.signs.find((sign) => sign.id === 'column');
+	assert.ok(fire?.strokeTemplate);
+	assert.ok(column?.strokeTemplate);
+
+	const signCenter = { x: ringCenter.x, y: ringCenter.y - 120 };
+	const signRotation = 270 - angleDegFromCenter(signCenter, ringCenter);
+	const result = classifyDrawing({
+		strokes: [
+			...preparedRingStrokes(),
+			...strokesFromTemplate(fire.strokeTemplate, 'fire', ringCenter.x, ringCenter.y, 96),
+			...strokesFromTemplate(
+				column.strokeTemplate,
+				'column',
+				signCenter.x,
+				signCenter.y,
+				74,
+				signRotation
+			)
+		],
+		previousRing: null,
+		dictionary: realDictionary,
+		config: CONFIG
+	});
+	const ids = result.recognitions
+		.filter((recognition) => recognition.recognized)
+		.map((recognition) => recognition.id);
+
+	assert.equal(result.ring.found, true);
+	assert.equal(result.ring.complete, false);
+	assert.equal(result.candidates.length, 2);
+	assert.ok(ids.includes('fire'));
+	assert.ok(ids.includes('column'));
+});
+
+test('decomposition keeps rough center strokes together instead of accepting sign fragments', () => {
+	const result = classify(roughTriangleSigilStrokes());
+	const [candidate] = result.candidates;
+
+	assert.equal(result.candidates.length, 1);
+	assert.deepEqual(
+		new Set(candidate.strokeIds),
+		new Set(['rough-triangle', 'rough-tail', 'rough-inner'])
+	);
+	assert.equal(
+		result.recognitions.some(
+			(recognition) => recognition.recognized && recognition.kind === 'sign'
+		),
+		false
+	);
+});
+
+test('decomposition rejoins touching sign fragments after tree cutting', () => {
+	const result = classify(roughTouchingSignStrokes());
+	const [candidate] = result.candidates;
+
+	assert.equal(result.candidates.length, 1);
+	assert.deepEqual(
+		new Set(candidate.strokeIds),
+		new Set(['rough-sign-stem', 'rough-sign-bar', 'rough-sign-arm'])
+	);
+	assert.equal(
+		result.recognitions.some((recognition) => recognition.strokeIds.length === 1),
+		false
+	);
+});
+
+test('no-ring guide preview separates rough center and sign clusters', () => {
+	const result = classifyDrawing({
+		strokes: [...roughTriangleSigilStrokes(), ...roughTouchingSignStrokes()],
+		previousRing: null,
+		canvasWidth: ringCenter.x * 2,
+		canvasHeight: ringCenter.y * 2,
+		dictionary: realDictionary,
+		config: CONFIG
+	});
+	const strokeSets = result.candidates.map((candidate) => new Set(candidate.strokeIds));
+
+	assert.equal(result.ring.found, false);
+	assert.equal(result.candidates.length, 2);
+	assert.ok(
+		strokeSets.some(
+			(ids) =>
+				ids.has('rough-triangle') &&
+				ids.has('rough-tail') &&
+				ids.has('rough-inner') &&
+				ids.size === 3
+		)
+	);
+	assert.ok(
+		strokeSets.some(
+			(ids) =>
+				ids.has('rough-sign-stem') &&
+				ids.has('rough-sign-bar') &&
+				ids.has('rough-sign-arm') &&
+				ids.size === 3
+		)
+	);
 });
 
 test('decomposition separates a center sigil from an adjacent sign', () => {

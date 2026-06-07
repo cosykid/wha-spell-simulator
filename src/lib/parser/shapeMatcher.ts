@@ -77,27 +77,6 @@ export interface ShapeMatcherResult extends ChamferScore {
 	recognitionRotationDeg: number;
 }
 
-export interface NearestExample {
-	id: string;
-	kind: KnownRecognitionKind;
-	symbolId: string;
-	source: string;
-	distance: number;
-	$pDistance: number;
-	chamferDistance: number;
-	rotationDeg: number;
-}
-
-export interface KnnVoteResult {
-	winnerKey: string | null;
-	winnerKind: KnownRecognitionKind | null;
-	winnerId: string | null;
-	tied: boolean;
-	voteConfidence: number;
-	votes: Record<string, number>;
-	nearestExamples: NearestExample[];
-}
-
 interface ExampleCacheEntry {
 	shape: NormalizedShape;
 	ink: InkDistanceMap;
@@ -697,80 +676,4 @@ export function buildExamplesFromDictionary(dictionary: Dictionary): Recognition
 
 export function recognitionKey(kind: RecognitionKind, id: string | null | undefined): string {
 	return `${kind}:${id ?? 'unknown'}`;
-}
-
-function normalizeVotes(votes: Map<string, number>): Record<string, number> {
-	const total = [...votes.values()].reduce((sum, value) => sum + value, 0);
-	if (!total) {
-		return {};
-	}
-
-	return Object.fromEntries(
-		[...votes.entries()].map(([key, value]) => [key, clamp(value / total)])
-	);
-}
-
-export function voteNearestExamples(
-	matches: Array<{
-		example: RecognitionExample;
-		match: ShapeMatcherResult;
-	}>,
-	k = 5
-): KnnVoteResult {
-	const nearest = matches
-		.filter(({ match }) => match.available)
-		.map(({ example, match }) => ({
-			id: example.id,
-			kind: example.kind,
-			symbolId: example.symbolId,
-			source: example.source,
-			distance: match.directDistance,
-			$pDistance: match.$pDistance,
-			chamferDistance: match.chamferDistance,
-			rotationDeg: match.rotationDeg
-		}))
-		.sort((a, b) => a.distance - b.distance)
-		.slice(0, Math.max(1, k));
-	const rawVotes = new Map<string, number>();
-
-	for (const item of nearest) {
-		const key = recognitionKey(item.kind, item.symbolId);
-		const weight = 1 / (0.08 + item.distance * 1.75) ** 2;
-		rawVotes.set(key, (rawVotes.get(key) ?? 0) + weight);
-	}
-
-	const normalizedVotes = normalizeVotes(rawVotes);
-	const rankedVotes = Object.entries(normalizedVotes).sort((a, b) => b[1] - a[1]);
-	const [winnerKey, winnerShare = 0] = rankedVotes[0] ?? [null, 0];
-	const secondShare = rankedVotes[1]?.[1] ?? 0;
-	const bestDistance = nearest[0]?.distance ?? 1;
-	const tied = Boolean(winnerKey && Math.abs(winnerShare - secondShare) < 0.015);
-	const [winnerKind, winnerId] = winnerKey ? winnerKey.split(':') : [null, null];
-
-	return {
-		winnerKey,
-		winnerKind: winnerKind as KnownRecognitionKind | null,
-		winnerId,
-		tied,
-		voteConfidence: tied ? 0 : clamp(winnerShare * clamp(1 - bestDistance / 0.86)),
-		votes: normalizedVotes,
-		nearestExamples: nearest
-	};
-}
-
-export function classifyWithKnn(
-	candidateStrokes: Array<Point[] | Stroke>,
-	examples: RecognitionExample[],
-	k = 5
-): KnnVoteResult {
-	return voteNearestExamples(
-		examples.map((example) => ({
-			example,
-			match: scoreRecognitionExample(candidateStrokes, example, {
-				rotationInvariant: example.rotationInvariant,
-				allowedRotationsDeg: example.allowedRotationsDeg
-			})
-		})),
-		k
-	);
 }

@@ -1,0 +1,163 @@
+{
+	"id": "column",
+	"displayName": "Column",
+	"allowedLayers": ["middle", "outer"],
+	"sourceNotes": "Column causes the magic of its glyph to manifest in a column or beam above the glyph. If the signs are not balanced, the spell manifests from the side with the most column signs toward the opposite side of the ring. A column sign on the left pushes the effect to the right. The shorter line on the sign typically faces outwards, and while it is sometimes shown inverted, it is unclear how this changes the effect.",
+	"semantic": {
+		"manifestation": "column",
+		"directionMode": "inward",
+		"force": 0.3,
+		"focus": 0.35,
+		"spread": -0.24,
+		"range": 0.18
+	},
+	"strokeTemplate": {
+		"sourceAspectRatio": 1,
+		"strokes": [
+			[
+				{
+					"x": 0.5,
+					"y": 0.12
+				},
+				{
+					"x": 0.5,
+					"y": 0.16
+				},
+				{
+					"x": 0.5,
+					"y": 0.2
+				},
+				{
+					"x": 0.5,
+					"y": 0.24
+				},
+				{
+					"x": 0.5,
+					"y": 0.28
+				},
+				{
+					"x": 0.5,
+					"y": 0.32
+				},
+				{
+					"x": 0.5,
+					"y": 0.36
+				},
+				{
+					"x": 0.5,
+					"y": 0.4
+				},
+				{
+					"x": 0.5,
+					"y": 0.44
+				},
+				{
+					"x": 0.5,
+					"y": 0.48
+				},
+				{
+					"x": 0.5,
+					"y": 0.52
+				},
+				{
+					"x": 0.5,
+					"y": 0.56
+				},
+				{
+					"x": 0.5,
+					"y": 0.6
+				},
+				{
+					"x": 0.5,
+					"y": 0.64
+				},
+				{
+					"x": 0.5,
+					"y": 0.68
+				},
+				{
+					"x": 0.5,
+					"y": 0.72
+				},
+				{
+					"x": 0.5,
+					"y": 0.76
+				},
+				{
+					"x": 0.5,
+					"y": 0.8
+				}
+			],
+			[
+				{
+					"x": 0.18,
+					"y": 0.8
+				},
+				{
+					"x": 0.22,
+					"y": 0.8
+				},
+				{
+					"x": 0.26,
+					"y": 0.8
+				},
+				{
+					"x": 0.3,
+					"y": 0.8
+				},
+				{
+					"x": 0.34,
+					"y": 0.8
+				},
+				{
+					"x": 0.38,
+					"y": 0.8
+				},
+				{
+					"x": 0.42,
+					"y": 0.8
+				},
+				{
+					"x": 0.46,
+					"y": 0.8
+				},
+				{
+					"x": 0.5,
+					"y": 0.8
+				},
+				{
+					"x": 0.54,
+					"y": 0.8
+				},
+				{
+					"x": 0.58,
+					"y": 0.8
+				},
+				{
+					"x": 0.62,
+					"y": 0.8
+				},
+				{
+					"x": 0.66,
+					"y": 0.8
+				},
+				{
+					"x": 0.7,
+					"y": 0.8
+				},
+				{
+					"x": 0.74,
+					"y": 0.8
+				},
+				{
+					"x": 0.78,
+					"y": 0.8
+				},
+				{
+					"x": 0.82,
+					"y": 0.8
+				}
+			]
+		]
+	}
+}

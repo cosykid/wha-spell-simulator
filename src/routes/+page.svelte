@@ -2,8 +2,10 @@
 	import { onMount } from 'svelte';
 	import { resolve } from '$app/paths';
 	import type { ClassifiedDrawing, Dictionary, RingInfo, SpellIR } from '$lib/types.js';
+	import type { RecognitionExample } from '$lib/parser/shapeMatcher.js';
 
 	import { CONFIG } from '$lib/config.js';
+	import { loadRecognitionAssets } from '$lib/api/recognitionAssets.js';
 	import { compileSpell } from '$lib/compiler/spellBuilder.js';
 	import { buildDiagnosticState } from '$lib/debug/diagnosticState.js';
 	import { loadDictionary } from '$lib/dictionary/dictionaryLoader.js';
@@ -21,6 +23,7 @@
 
 	// Reactive UI state.
 	let dictionary = $state<Dictionary | null>(null);
+	let recognitionExamples = $state<RecognitionExample[]>([]);
 	let summary = $state<typeof INITIAL_SUMMARY>({ ...INITIAL_SUMMARY });
 	let diagnostics = $state<{ ast: unknown; ir: unknown; parser: unknown }>({
 		ast: null,
@@ -45,10 +48,20 @@
 	let previousRing: RingInfo | null = null;
 	let resizeObserver: ResizeObserver | null = null;
 	let rafId: number | null = null;
+	let recomputeTimer: ReturnType<typeof setTimeout> | null = null;
+
+	// Plain (non-reactive) snapshots of the recognition inputs, posted to the
+	// classifier/recognition workers. `$state` proxies are not structured-cloneable,
+	// so posting the reactive values directly throws DataCloneError and silently
+	// drops every recognition onto the main thread. Snapshot once per load (not per
+	// recompute) so the references stay stable and the workers keep their cached
+	// dictionary instead of re-initializing on every stroke.
+	let dictionarySnapshot: Dictionary | null = null;
+	let recognitionExamplesSnapshot: RecognitionExample[] = [];
 
 	function buildDiagnostics() {
 		const state = buildDiagnosticState({
-			rawStrokes: store.getStrokes(),
+			rawStrokes: store.peekStrokes(),
 			pipeline,
 			spellIR
 		});
@@ -65,23 +78,63 @@
 		};
 	}
 
+	async function refreshRecognitionAssets() {
+		const recognitionAssets = await loadRecognitionAssets();
+		recognitionExamples = recognitionAssets.recognitionExamples;
+		recognitionExamplesSnapshot = $state.snapshot(recognitionExamples) as RecognitionExample[];
+	}
+
 	let recomputeSeq = 0;
 
+	function cancelScheduledRecompute() {
+		if (recomputeTimer) {
+			clearTimeout(recomputeTimer);
+			recomputeTimer = null;
+		}
+	}
+
+	function cancelActiveRecognition() {
+		// Invalidate any in-flight recognition so a stale result can't apply while a
+		// new stroke is being drawn. The recognition worker pool is intentionally
+		// left running: its workers cache the dictionary and learned assets, and the
+		// sequence guard in recompute() already drops superseded results, so bumping
+		// the sequence is enough to cancel without tearing anything down.
+		cancelScheduledRecompute();
+		recomputeSeq += 1;
+	}
+
+	function scheduleRecompute(delay: number) {
+		cancelScheduledRecompute();
+		recomputeTimer = setTimeout(() => {
+			recomputeTimer = null;
+			void recompute();
+		}, delay);
+	}
+
 	async function recompute() {
-		if (!dictionary) {
+		if (!dictionary || !dictionarySnapshot) {
 			return;
 		}
 
-		// Recognition runs on a worker pool, so it is async. Guard with a sequence
-		// token: rapid strokes can overlap, and only the newest result should win.
-		// previousRing is read synchronously here, before the await.
+		// Recognition is fanned out across a worker pool, so this is async. Guard with
+		// a sequence token: rapid strokes can overlap, and only the newest result
+		// should win. previousRing is read synchronously here, before the await.
 		const seq = ++recomputeSeq;
-		const result = await classifyDrawingAsync({
-			strokes: store.getStrokes(),
-			previousRing,
-			dictionary,
-			config: CONFIG
-		});
+		let result: ClassifiedDrawing;
+		try {
+			result = await classifyDrawingAsync({
+				strokes: store.getStrokes(),
+				previousRing,
+				canvasWidth: glyphCanvas.width,
+				canvasHeight: glyphCanvas.height,
+				dictionary: dictionarySnapshot,
+				config: CONFIG,
+				recognitionExamples: recognitionExamplesSnapshot
+			});
+		} catch (error) {
+			console.error(error);
+			return;
+		}
 		if (seq !== recomputeSeq) {
 			return;
 		}
@@ -95,9 +148,10 @@
 	}
 
 	function animationFrame(timestamp: number) {
+		const strokes = store.peekStrokes();
 		renderer!.renderGlyph({
-			strokes: store.getStrokes(),
-			currentStroke: capture!.getCurrentStroke(),
+			strokes,
+			currentStroke: capture!.getCurrentStrokeView(),
 			pipeline,
 			showGuides,
 			showDebug: showDiagnostics
@@ -107,7 +161,7 @@
 			renderer!.renderActivatedGlyph({
 				activatedAt: spellIR.activatedAt,
 				duration: spellIR.duration,
-				strokes: store.getStrokes(),
+				strokes,
 				pipeline,
 				timestamp
 			});
@@ -123,21 +177,24 @@
 	}
 
 	function handleUndo() {
+		cancelActiveRecognition();
 		store.undo();
 		previousRing = null;
-		recompute();
+		void recompute();
 	}
 
 	function handleRedo() {
+		cancelActiveRecognition();
 		store.redo();
 		previousRing = null;
-		recompute();
+		void recompute();
 	}
 
 	function handleClear() {
+		cancelActiveRecognition();
 		store.clear();
 		previousRing = null;
-		recompute();
+		void recompute();
 	}
 
 	function handleToggleGuides() {
@@ -157,15 +214,15 @@
 	onMount(() => {
 		renderer = new CanvasRenderer({ glyphCanvas, effectCanvas, config: CONFIG });
 		capture = new DrawingCapture(glyphCanvas, store, CONFIG, {
-			onPreview: () => {},
-			onCommit: recompute
+			onStart: cancelActiveRecognition,
+			onCommit: () => void recompute()
 		});
 		resizeObserver = setupCanvasSizing({
 			elements: { canvasShell, glyphCanvas, effectCanvas },
 			store,
 			onCanvasResized: () => {
 				previousRing = null;
-				recompute();
+				scheduleRecompute(60);
 			}
 		});
 
@@ -173,8 +230,10 @@
 		(async () => {
 			try {
 				dictionary = await loadDictionary();
+				dictionarySnapshot = $state.snapshot(dictionary) as Dictionary;
+				await refreshRecognitionAssets();
 				capture.enable();
-				recompute();
+				void recompute();
 				if (!cancelled) {
 					rafId = requestAnimationFrame(animationFrame);
 				}
@@ -209,6 +268,7 @@
 			if (rafId) {
 				cancelAnimationFrame(rafId);
 			}
+			cancelScheduledRecompute();
 			capture?.disable();
 			resizeObserver?.disconnect();
 			window.removeEventListener('keydown', handleKeydown);
@@ -244,6 +304,7 @@
 			bind:showGuides
 			bind:showDiagnostics
 			onUndo={handleUndo}
+			onRedo={handleRedo}
 			onClear={handleClear}
 			onToggleGuides={handleToggleGuides}
 		/>
@@ -258,10 +319,10 @@
 					id="glyphCanvas"
 					bind:this={glyphCanvas}
 					class:locked={summary.inputLocked}
-					width="1200"
-					height="800"
+					width="1000"
+					height="1000"
 				></canvas>
-				<canvas id="effectCanvas" bind:this={effectCanvas} width="1200" height="800"></canvas>
+				<canvas id="effectCanvas" bind:this={effectCanvas} width="1000" height="1000"></canvas>
 			</div>
 		</section>
 

@@ -29,13 +29,14 @@ This file is the compact contract for parser, compiler, and renderer behavior. U
 ## Recognition Terms
 
 - `strokeTemplate` is the reference ink shape.
-- Candidate grouping works on whole strokes: proximity components first, then recognition-guided tree cuts to separate close-together symbols before final recognition.
+- Candidate grouping works on whole strokes. No-ring guide preview and prepared open rings use fast layer-aware proximity grouping for responsiveness; complete rings can use recognition-guided tree cuts to separate close-together symbols before final recognition.
 - Template recognition rasterizes normalized candidate and reference strokes into bitmap masks, then combines ink overlap with structural checks.
 - `CONFIG.recognition.minConfidence` is the minimum final recognizer score for accepting a symbol.
 - `recognitionRotationInvariant` controls sigil matching only. Current sigils should usually be `false`.
 - Sign templates are authored in the bottom-of-ring pose at `270` degrees. Sign recognition rotates candidates from their ring position back to that canonical pose.
 - Uniformly larger symbols can keep the same identity. Size and stroke length still affect gameplay after recognition.
 - Distortion, missing simple sign strokes, or a close competing match should lower identity confidence or produce `ambiguous` instead of choosing a wrong symbol.
+- Rough simple sign candidates can be diagnostically preferred over weak sigil guesses in sign-capable layers, but acceptance still requires confidence, ink coverage, and nearest-neighbor agreement.
 
 ## Keep Out Of Public Data
 

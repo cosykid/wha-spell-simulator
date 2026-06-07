@@ -206,6 +206,10 @@ function activeGlowStrokes(activatedStrokeIds: Set<string>, strokes: Stroke[]): 
 
 function glowAlphaAt(timestamp: number, activatedAt: number, duration: number): number {
 	const elapsed = timestamp - activatedAt;
+	if (elapsed < 0) {
+		// Activation is still in the future (the canvas is tilting in); no glow yet.
+		return 0;
+	}
 	const t = Math.min(1, elapsed / duration);
 	return Math.pow(1 - t, 2);
 }

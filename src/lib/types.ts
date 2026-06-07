@@ -114,7 +114,6 @@ export interface TemplateMatch {
 	pScore?: number;
 	chamferDistance?: number;
 	chamferScore?: number;
-	knnVoteConfidence?: number;
 	inkScore: number;
 	softDiceScore: number;
 	candidateExplainedRatio: number;
@@ -221,7 +220,6 @@ export interface TopMatch {
 	templateConfidence?: number;
 	$pDistance?: number;
 	chamferDistance?: number;
-	knnVoteConfidence?: number;
 	inkScore?: number;
 	candidateExplainedRatio?: number;
 	templateCoveredRatio?: number;
@@ -229,6 +227,7 @@ export interface TopMatch {
 	aspectScore?: number;
 	strokeCountScore?: number;
 	strokeProfileScore?: number;
+	shapeScore?: number;
 	rotationDeg?: number;
 	recognitionRotationDeg?: number;
 }
@@ -246,17 +245,6 @@ export interface RecognitionDiagnostics {
 	matcher?: {
 		$pDistance: number;
 		chamferDistance: number;
-		knnVoteConfidence: number;
-		knnVotes: Record<string, number>;
-		nearestExamples: Array<{
-			id: string;
-			kind: RecognitionKind;
-			symbolId: string;
-			source: string;
-			distance: number;
-			$pDistance: number;
-			chamferDistance: number;
-		}>;
 		candidateExplainedRatio: number;
 		templateCoveredRatio: number;
 		unexplainedInkRatio: number;
@@ -393,6 +381,7 @@ export interface SpellIR {
 // ---------------------------------------------------------------------------
 
 export interface DrawingCaptureCallbacks {
+	onStart?: () => void;
 	onPreview?: (stroke: Stroke | null) => void;
 	onCommit?: () => void;
 }
@@ -404,6 +393,7 @@ export interface StrokeStore {
 	clear(): void;
 	scale(scaleX: number, scaleY: number): void;
 	getStrokes(): Stroke[];
+	peekStrokes(): Stroke[];
 	count(): number;
 	canRedo(): boolean;
 }
