@@ -3,7 +3,7 @@ import type { Stroke } from '../../../types.js';
 import type { Entity } from '../entity.js';
 
 export interface StrokeEntity extends Entity {
-  readonly stroke: Stroke;
+	readonly stroke: Stroke;
 }
 
 const INK_LINE_WIDTH = 4.4;
@@ -17,15 +17,17 @@ const COMMITTED_ALPHA = 0.94;
 export function renderStrokeInk(
 	ctx: CanvasRenderingContext2D,
 	stroke: Stroke,
-	alpha = COMMITTED_ALPHA
+	alpha = COMMITTED_ALPHA,
+	color = CONFIG.renderer.inkColor,
+	lineWidth = INK_LINE_WIDTH
 ): void {
 	if (stroke.points.length === 0) {
 		return;
 	}
 
 	ctx.save();
-	ctx.strokeStyle = CONFIG.renderer.inkColor;
-	ctx.lineWidth = INK_LINE_WIDTH;
+	ctx.strokeStyle = color;
+	ctx.lineWidth = lineWidth;
 	ctx.lineCap = 'round';
 	ctx.lineJoin = 'round';
 	ctx.globalAlpha = alpha;
@@ -59,4 +61,11 @@ export function makeStrokeEntity(stroke: Stroke, z = 0): StrokeEntity {
 			}
 		}
 	};
+}
+
+/**
+ * Check if an Entity is a StrokeEntity.
+ */
+export function isStrokeEntity(entity: { id: string }): entity is StrokeEntity {
+	return 'stroke' in entity;
 }

@@ -13,7 +13,6 @@ import type {
 	PlacementTransform,
 	Vector
 } from '../../../types.js';
-import { distance } from '../../../utils/geometry.js';
 import type { CanvasBehavior } from '../canvasBehavior.js';
 import { transformEntity } from '../commands.js';
 import { isTransformable, type TransformableEntity } from '../entity.js';
@@ -65,6 +64,7 @@ function drawSelection(ctx: CanvasRenderingContext2D, handles: PlacementHandles)
 	for (const edge of handles.edgeHandles) {
 		drawHandleSquare(ctx, edge);
 	}
+	drawHandleSquare(ctx, handles.topMid);
 
 	ctx.beginPath();
 	ctx.arc(handles.rotate.x, handles.rotate.y, ROTATE_HANDLE_RADIUS, 0, Math.PI * 2);
@@ -75,13 +75,55 @@ function drawSelection(ctx: CanvasRenderingContext2D, handles: PlacementHandles)
 
 type DragOp =
 	| { type: 'move'; last: Vector }
-	| { type: 'scale'; startDistance: number; startScaleX: number; startScaleY: number }
-	| { type: 'elongate-x' }
-	| { type: 'elongate-y' }
+	| {
+			type: 'scale';
+			startDistance: number;
+			startScaleX: number;
+			startScaleY: number;
+			/** Local-space sign of the dragged corner: +1 or -1 on each axis. */
+			lxSign: number;
+			lySign: number;
+			/** Canvas-space direction vector from anchor to start point (not normalised). */
+			startDirX: number;
+			startDirY: number;
+			/** Canvas-space position of the opposite corner, held fixed during the scale gesture. */
+			anchorX: number;
+			anchorY: number;
+	  }
+	| {
+			type: 'elongate-x';
+			anchorX: number;
+			anchorY: number;
+			startDistance: number;
+			startDirX: number;
+			startDirY: number;
+			startScaleX: number;
+	  }
+	| {
+			type: 'elongate-x-left';
+			anchorX: number;
+			anchorY: number;
+			startDistance: number;
+			startDirX: number;
+			startDirY: number;
+			startScaleX: number;
+	  }
+	| {
+			type: 'elongate-y';
+			anchorX: number;
+			anchorY: number;
+			startDistance: number;
+			startDirX: number;
+			startDirY: number;
+			startScaleY: number;
+	  }
+	| { type: 'elongate-y-top'; baseX: number; baseY: number }
 	| { type: 'rotate' };
 
 export interface SelectTool extends CanvasBehavior {
 	getSelectedId(): string | null;
+	/** Programmatically select an entity by id (pass null to deselect). */
+	setSelectedId(id: string | null): void;
 }
 
 /**
@@ -125,12 +167,101 @@ export function createSelectTool(scene: Scene): SelectTool {
 		): void {
 			const transform = entity.placement.transform;
 			if (handle.type === 'scale') {
-				const center = { x: transform.cx, y: transform.cy };
+				const { cx, cy, scaleX, scaleY, rotationDeg } = transform;
+				const angle = (rotationDeg ?? 0) * (Math.PI / 180);
+				const cos = Math.cos(angle);
+				const sin = Math.sin(angle);
+				const hx = scaleX / 2;
+				const hy = scaleY / 2;
+				// Determine which corner was hit by converting to local space.
+				const local = toLocalPoint(transform, point);
+				const lxSign = local.x >= 0 ? 1 : -1;
+				const lySign = local.y >= 0 ? 1 : -1;
+				// Opposite corner in canvas space — stays fixed during the scale gesture.
+				const anchorX = cx - lxSign * hx * cos + lySign * hy * sin;
+				const anchorY = cy - lxSign * hx * sin - lySign * hy * cos;
+				const startDirX = point.x - anchorX;
+				const startDirY = point.y - anchorY;
+				const startDistance = Math.max(1, Math.sqrt(startDirX * startDirX + startDirY * startDirY));
 				beginDrag(event, entity, {
 					type: 'scale',
-					startDistance: Math.max(1, distance(center, point)),
-					startScaleX: transform.scaleX,
-					startScaleY: transform.scaleY
+					startDistance,
+					startScaleX: scaleX,
+					startScaleY: scaleY,
+					lxSign,
+					lySign,
+					startDirX,
+					startDirY,
+					anchorX,
+					anchorY
+				});
+			} else if (handle.type === 'elongate-y-top') {
+				const { cx, cy, scaleY, rotationDeg } = transform;
+				const angle = (rotationDeg ?? 0) * (Math.PI / 180);
+				const cos = Math.cos(angle);
+				const sin = Math.sin(angle);
+				beginDrag(event, entity, {
+					type: 'elongate-y-top',
+					// Bottom-center of the symbol in canvas space; stays fixed during top-drag.
+					baseX: cx - (scaleY / 2) * sin,
+					baseY: cy + (scaleY / 2) * cos
+				});
+			} else if (handle.type === 'elongate-x') {
+				const { cx, cy, scaleX, rotationDeg } = transform;
+				const angle = (rotationDeg ?? 0) * (Math.PI / 180);
+				const cos = Math.cos(angle);
+				const sin = Math.sin(angle);
+				// Anchor = left-mid (opposite of right-mid).
+				const anchorX = cx - (scaleX / 2) * cos;
+				const anchorY = cy - (scaleX / 2) * sin;
+				const startDirX = point.x - anchorX;
+				const startDirY = point.y - anchorY;
+				beginDrag(event, entity, {
+					type: 'elongate-x',
+					anchorX,
+					anchorY,
+					startDistance: Math.max(1, Math.sqrt(startDirX * startDirX + startDirY * startDirY)),
+					startDirX,
+					startDirY,
+					startScaleX: scaleX
+				});
+			} else if (handle.type === 'elongate-x-left') {
+				const { cx, cy, scaleX, rotationDeg } = transform;
+				const angle = (rotationDeg ?? 0) * (Math.PI / 180);
+				const cos = Math.cos(angle);
+				const sin = Math.sin(angle);
+				// Anchor = right-mid (opposite of left-mid).
+				const anchorX = cx + (scaleX / 2) * cos;
+				const anchorY = cy + (scaleX / 2) * sin;
+				const startDirX = point.x - anchorX;
+				const startDirY = point.y - anchorY;
+				beginDrag(event, entity, {
+					type: 'elongate-x-left',
+					anchorX,
+					anchorY,
+					startDistance: Math.max(1, Math.sqrt(startDirX * startDirX + startDirY * startDirY)),
+					startDirX,
+					startDirY,
+					startScaleX: scaleX
+				});
+			} else if (handle.type === 'elongate-y') {
+				const { cx, cy, scaleY, rotationDeg } = transform;
+				const angle = (rotationDeg ?? 0) * (Math.PI / 180);
+				const cos = Math.cos(angle);
+				const sin = Math.sin(angle);
+				// Anchor = top-mid (opposite of bottom-mid).
+				const anchorX = cx + (scaleY / 2) * sin;
+				const anchorY = cy - (scaleY / 2) * cos;
+				const startDirX = point.x - anchorX;
+				const startDirY = point.y - anchorY;
+				beginDrag(event, entity, {
+					type: 'elongate-y',
+					anchorX,
+					anchorY,
+					startDistance: Math.max(1, Math.sqrt(startDirX * startDirX + startDirY * startDirY)),
+					startDirX,
+					startDirY,
+					startScaleY: scaleY
 				});
 			} else {
 				beginDrag(event, entity, { type: handle.type });
@@ -181,14 +312,87 @@ export function createSelectTool(scene: Scene): SelectTool {
 				transform.cy += point.y - dragOp.last.y;
 				dragOp.last = point;
 			} else if (dragOp.type === 'scale') {
-				const center = { x: transform.cx, y: transform.cy };
-				const factor = distance(center, point) / dragOp.startDistance;
-				transform.scaleX = clampShapeSize(dragOp.startScaleX * factor);
-				transform.scaleY = clampShapeSize(dragOp.startScaleY * factor);
+				const {
+					startDistance,
+					startScaleX,
+					startScaleY,
+					lxSign,
+					lySign,
+					startDirX,
+					startDirY,
+					anchorX,
+					anchorY
+				} = dragOp;
+				// Project pointer onto the start direction to get the scale factor.
+				const pointerFromAnchorX = point.x - anchorX;
+				const pointerFromAnchorY = point.y - anchorY;
+				const factor = Math.max(
+					0.01,
+					(pointerFromAnchorX * startDirX + pointerFromAnchorY * startDirY) /
+						(startDistance * startDistance)
+				);
+				const newScaleX = clampShapeSize(startScaleX * factor);
+				const newScaleY = clampShapeSize(startScaleY * factor);
+				const angle = (transform.rotationDeg ?? 0) * (Math.PI / 180);
+				const cos = Math.cos(angle);
+				const sin = Math.sin(angle);
+				const newHx = newScaleX / 2;
+				const newHy = newScaleY / 2;
+				transform.scaleX = newScaleX;
+				transform.scaleY = newScaleY;
+				// Re-anchor cx/cy so the opposite corner stays fixed.
+				transform.cx = anchorX + lxSign * newHx * cos - lySign * newHy * sin;
+				transform.cy = anchorY + lxSign * newHx * sin + lySign * newHy * cos;
 			} else if (dragOp.type === 'elongate-x') {
-				transform.scaleX = clampShapeSize(Math.abs(toLocalPoint(transform, point).x) * 2);
+				const { anchorX, anchorY, startDistance, startDirX, startDirY, startScaleX } = dragOp;
+				const factor = Math.max(
+					0.01,
+					((point.x - anchorX) * startDirX + (point.y - anchorY) * startDirY) /
+						(startDistance * startDistance)
+				);
+				const newScaleX = clampShapeSize(startScaleX * factor);
+				const angle = (transform.rotationDeg ?? 0) * (Math.PI / 180);
+				transform.scaleX = newScaleX;
+				// Center = anchor (left-mid) + newHx in local +X direction (cos, sin).
+				transform.cx = anchorX + (newScaleX / 2) * Math.cos(angle);
+				transform.cy = anchorY + (newScaleX / 2) * Math.sin(angle);
+			} else if (dragOp.type === 'elongate-x-left') {
+				const { anchorX, anchorY, startDistance, startDirX, startDirY, startScaleX } = dragOp;
+				const factor = Math.max(
+					0.01,
+					((point.x - anchorX) * startDirX + (point.y - anchorY) * startDirY) /
+						(startDistance * startDistance)
+				);
+				const newScaleX = clampShapeSize(startScaleX * factor);
+				const angle = (transform.rotationDeg ?? 0) * (Math.PI / 180);
+				transform.scaleX = newScaleX;
+				// Center = anchor (right-mid) - newHx in local +X direction (cos, sin).
+				transform.cx = anchorX - (newScaleX / 2) * Math.cos(angle);
+				transform.cy = anchorY - (newScaleX / 2) * Math.sin(angle);
 			} else if (dragOp.type === 'elongate-y') {
-				transform.scaleY = clampShapeSize(Math.abs(toLocalPoint(transform, point).y) * 2);
+				const { anchorX, anchorY, startDistance, startDirX, startDirY, startScaleY } = dragOp;
+				const factor = Math.max(
+					0.01,
+					((point.x - anchorX) * startDirX + (point.y - anchorY) * startDirY) /
+						(startDistance * startDistance)
+				);
+				const newScaleY = clampShapeSize(startScaleY * factor);
+				const angle = (transform.rotationDeg ?? 0) * (Math.PI / 180);
+				transform.scaleY = newScaleY;
+				// Center = anchor (top-mid) + newHy in local +Y direction (-sin, cos).
+				transform.cx = anchorX - (newScaleY / 2) * Math.sin(angle);
+				transform.cy = anchorY + (newScaleY / 2) * Math.cos(angle);
+			} else if (dragOp.type === 'elongate-y-top') {
+				const angle = (transform.rotationDeg ?? 0) * (Math.PI / 180);
+				const cos = Math.cos(angle);
+				const sin = Math.sin(angle);
+				// Project (base → pointer) onto the local Y axis to get the new scaleY.
+				const newScaleY = clampShapeSize(
+					(dragOp.baseX - point.x) * -sin + (dragOp.baseY - point.y) * cos
+				);
+				transform.scaleY = newScaleY;
+				transform.cx = dragOp.baseX + (newScaleY / 2) * sin;
+				transform.cy = dragOp.baseY - (newScaleY / 2) * cos;
 			} else if (dragOp.type === 'rotate') {
 				transform.rotationDeg = rotationDegToPoint(transform, point);
 			}
@@ -232,6 +436,9 @@ export function createSelectTool(scene: Scene): SelectTool {
 	return {
 		attach,
 		getSelectedId: () => selectedId,
+		setSelectedId: (id) => {
+			selectedId = id;
+		},
 		render(ctx) {
 			const selected = selectedEntity();
 			if (selected) {

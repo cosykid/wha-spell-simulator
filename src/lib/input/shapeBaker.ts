@@ -1,4 +1,3 @@
-import { degreesToRadians, distance, radiansToDegrees } from '../utils/geometry.js';
 import type {
 	Placement,
 	PlacementHandle,
@@ -7,6 +6,7 @@ import type {
 	Stroke,
 	Vector
 } from '../types.js';
+import { degreesToRadians, distance, radiansToDegrees } from '../utils/geometry.js';
 
 export const HANDLE_HIT_RADIUS = 12;
 const MIN_SHAPE_SIZE = 24;
@@ -77,6 +77,7 @@ export function placementHandles(placement: Placement): PlacementHandles {
 		corners: [corner(-hx, -hy), corner(hx, -hy), corner(hx, hy), corner(-hx, hy)],
 		edgeHandles: [
 			{ type: 'elongate-x', ...corner(hx, 0) },
+			{ type: 'elongate-x-left', ...corner(-hx, 0) },
 			{ type: 'elongate-y', ...corner(0, hy) }
 		],
 		topMid: corner(0, -hy),
@@ -100,6 +101,7 @@ export function hitTestHandles(
 	const handles = placementHandles(placement);
 	const candidates: PlacementHandle[] = [
 		{ type: 'rotate', x: handles.rotate.x, y: handles.rotate.y },
+		{ type: 'elongate-y-top', x: handles.topMid.x, y: handles.topMid.y },
 		...handles.corners.map(
 			(corner): PlacementHandle => ({ type: 'scale', x: corner.x, y: corner.y })
 		),

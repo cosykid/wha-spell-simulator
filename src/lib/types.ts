@@ -36,12 +36,15 @@ export interface StrokeMetrics {
 	pointCount: number;
 }
 
+export type PointerType = 'pen' | 'touch' | 'mouse' | 'unknown';
+
 export interface Stroke {
 	id: string;
 	points: Point[];
 	startedAt?: number;
 	endedAt?: number;
 	metrics?: StrokeMetrics;
+	pointerType?: PointerType;
 }
 
 /** A stroke after `cleanStrokes` has attached geometry metrics. */
@@ -439,7 +442,7 @@ export interface ShapeLibrary {
 }
 
 export interface PlacementHandle extends Vector {
-	type: 'scale' | 'elongate-x' | 'elongate-y' | 'rotate';
+	type: 'scale' | 'elongate-x' | 'elongate-x-left' | 'elongate-y' | 'elongate-y-top' | 'rotate';
 }
 
 export interface PlacementHandles {

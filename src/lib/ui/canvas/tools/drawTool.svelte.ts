@@ -1,5 +1,5 @@
 import { canvasPointFromEvent, shouldKeepPoint } from '../../../input/pointerNormalizer.js';
-import type { Point, Stroke } from '../../../types.js';
+import type { Point, PointerType, Stroke } from '../../../types.js';
 import { makeStrokeEntity, renderStrokeInk } from '../entities/strokeEntity.js';
 
 import type { Attachment } from 'svelte/attachments';
@@ -34,6 +34,7 @@ export function createDrawTool(scene: Scene): DrawTool {
 
 	const attach: Attachment<HTMLCanvasElement> = (canvas) => {
 		let pointerId: number | null = null;
+		let currentPointerType: PointerType = 'unknown';
 
 		function handlePointerDown(event: PointerEvent): void {
 			if (event.button !== undefined && event.button !== 0) {
@@ -41,6 +42,12 @@ export function createDrawTool(scene: Scene): DrawTool {
 			}
 			event.preventDefault();
 			pointerId = event.pointerId;
+			currentPointerType =
+				event.pointerType === 'pen' ||
+				event.pointerType === 'touch' ||
+				event.pointerType === 'mouse'
+					? event.pointerType
+					: 'unknown';
 			canvas.setPointerCapture?.(event.pointerId);
 			current = [canvasPointFromEvent(event, canvas)];
 		}
@@ -73,7 +80,8 @@ export function createDrawTool(scene: Scene): DrawTool {
 					id: `s${(committed += 1)}`,
 					points: points.map((point) => ({ ...point })),
 					startedAt: points[0]?.t ?? now,
-					endedAt: points[points.length - 1]?.t ?? now
+					endedAt: points[points.length - 1]?.t ?? now,
+					pointerType: currentPointerType
 				};
 				scene.do(addEntity(scene, makeStrokeEntity(stroke)));
 			}
