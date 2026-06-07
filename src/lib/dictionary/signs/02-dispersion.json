@@ -1,0 +1,38 @@
+{
+	"id": "dispersion",
+	"displayName": "Dispersion",
+	"allowedLayers": ["middle", "outer"],
+	"sourceNotes": "Dispersion (non-directional) causes the spell's element to pour out on every side at once, like an overflowing bucket. Paired with a water sigil the water spills outward in all directions; it spreads the effect rather than aiming it. Acts the same regardless of orientation.",
+	"semantic": {
+		"manifestation": "dispersion",
+		"directionMode": "position",
+		"force": -0.04,
+		"focus": -0.3,
+		"spread": 0.34,
+		"range": 0.1
+	},
+	"strokeTemplate": {
+		"sourceAspectRatio": 1,
+		"strokes": [
+			[
+				{ "x": 0.5029, "y": 0.06 },
+				{ "x": 0.4971, "y": 0.6563 }
+			],
+			[
+				{ "x": 0.2134, "y": 0.6621 },
+				{ "x": 0.4971, "y": 0.6563 },
+				{ "x": 0.7808, "y": 0.6679 }
+			],
+			[
+				{ "x": 0.2018, "y": 0.8068 },
+				{ "x": 0.2945, "y": 0.8879 },
+				{ "x": 0.3524, "y": 0.9168 },
+				{ "x": 0.4508, "y": 0.94 },
+				{ "x": 0.555, "y": 0.94 },
+				{ "x": 0.6476, "y": 0.9168 },
+				{ "x": 0.7229, "y": 0.8763 },
+				{ "x": 0.7982, "y": 0.8068 }
+			]
+		]
+	}
+}

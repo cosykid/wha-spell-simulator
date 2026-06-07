@@ -73,6 +73,16 @@ export class DrawingCapture {
 		};
 	}
 
+	getCurrentStrokeView(): Stroke | null {
+		if (this.currentPoints.length === 0) {
+			return null;
+		}
+		return {
+			id: 'preview',
+			points: this.currentPoints
+		};
+	}
+
 	clearPreview(): void {
 		this.currentPoints = [];
 		this.pointerId = null;
@@ -90,7 +100,10 @@ export class DrawingCapture {
 		this.pointerId = event.pointerId;
 		this.canvas.setPointerCapture?.(event.pointerId);
 		this.currentPoints = [canvasPointFromEvent(event, this.canvas)];
-		this.callbacks.onPreview?.(this.getCurrentStroke());
+		this.callbacks.onStart?.();
+		if (this.callbacks.onPreview) {
+			this.callbacks.onPreview(this.getCurrentStroke());
+		}
 	}
 
 	private _handlePointerMove(event: PointerEvent): void {
@@ -105,7 +118,9 @@ export class DrawingCapture {
 		const point = canvasPointFromEvent(event, this.canvas);
 		if (shouldKeepPoint(this.currentPoints, point, this.config.input.minPointDistance)) {
 			this.currentPoints.push(point);
-			this.callbacks.onPreview?.(this.getCurrentStroke());
+			if (this.callbacks.onPreview) {
+				this.callbacks.onPreview(this.getCurrentStroke());
+			}
 		}
 	}
 

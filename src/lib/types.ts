@@ -78,6 +78,7 @@ export interface SigilEntry {
 	displayName: string;
 	element?: ElementId;
 	allowedLayers?: string[];
+	sourceNotes?: string;
 	strokeTemplate?: StrokeTemplate;
 	recognitionRotationInvariant?: boolean;
 	allowedRotationsDeg?: number[];
@@ -109,6 +110,10 @@ export interface TemplateMatch {
 	confidence: number;
 	rotationDeg: number;
 	recognitionRotationDeg: number;
+	$pDistance?: number;
+	pScore?: number;
+	chamferDistance?: number;
+	chamferScore?: number;
 	inkScore: number;
 	softDiceScore: number;
 	candidateExplainedRatio: number;
@@ -213,6 +218,8 @@ export interface TopMatch {
 	id: string;
 	confidence: number;
 	templateConfidence?: number;
+	$pDistance?: number;
+	chamferDistance?: number;
 	inkScore?: number;
 	candidateExplainedRatio?: number;
 	templateCoveredRatio?: number;
@@ -220,6 +227,7 @@ export interface TopMatch {
 	aspectScore?: number;
 	strokeCountScore?: number;
 	strokeProfileScore?: number;
+	shapeScore?: number;
 	rotationDeg?: number;
 	recognitionRotationDeg?: number;
 }
@@ -234,6 +242,13 @@ export interface RecognitionDiagnostics {
 	bestGuess?: RecognitionBestGuess | null;
 	recognitionRotationDeg: number;
 	template: Record<string, number>;
+	matcher?: {
+		$pDistance: number;
+		chamferDistance: number;
+		candidateExplainedRatio: number;
+		templateCoveredRatio: number;
+		unexplainedInkRatio: number;
+	};
 	structure: Record<string, number>;
 	topMatches: TopMatch[];
 }
@@ -339,6 +354,8 @@ export interface SpellIR {
 	status: string;
 	activatedAt: number | null;
 	element: ElementId | null;
+	/** The id of the primary sigil, so effects can vary by element-variant sigils (e.g. crystal, aeriform). */
+	sigil: string | null;
 	elementConfidence: number;
 	primarySizeNorm: number;
 	effectScale: number;
@@ -364,6 +381,7 @@ export interface SpellIR {
 // ---------------------------------------------------------------------------
 
 export interface DrawingCaptureCallbacks {
+	onStart?: () => void;
 	onPreview?: (stroke: Stroke | null) => void;
 	onCommit?: () => void;
 }
@@ -375,6 +393,7 @@ export interface StrokeStore {
 	clear(): void;
 	scale(scaleX: number, scaleY: number): void;
 	getStrokes(): Stroke[];
+	peekStrokes(): Stroke[];
 	count(): number;
 	canRedo(): boolean;
 }

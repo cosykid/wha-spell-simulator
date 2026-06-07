@@ -100,9 +100,16 @@ export class CanvasRenderer {
 	}: ActivatedGlyphRenderParams): void {
 		const activatedStrokeIds = getActivatedStrokeIds(pipeline);
 		const glowDuration = Math.max(250, duration * 1000);
+		// Delay the stroke glow until the canvas has finished tilting into the
+		// screen, so it lights up together with the effect rather than during the
+		// tilt. Matches the hold in SpellEffectRenderer.
+		const glowActivatedAt =
+			typeof activatedAt === 'number'
+				? activatedAt + this.config.renderer.portalTiltMs
+				: activatedAt;
 		drawGlowingStrokes(
 			this.glyphCtx,
-			activatedAt,
+			glowActivatedAt,
 			activatedStrokeIds,
 			strokes,
 			glowDuration,

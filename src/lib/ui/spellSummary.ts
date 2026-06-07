@@ -115,6 +115,7 @@ export function computeSummary({
 		stability: clamp(spellIR?.stability ?? 0),
 		force: clamp(spellIR?.force ?? 0),
 		inputLocked,
+		undoDisabled: store.count() === 0,
 		redoDisabled: spellIR?.active || !store.canRedo(),
 		portalActive: Boolean(spellIR?.active),
 		hintHidden: store.count() > 0 || !showGuides

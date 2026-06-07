@@ -3,11 +3,27 @@ import { detectRing } from './ringDetector.js';
 import { classifyStrokesAgainstRing } from './coordinateNormalizer.js';
 import { buildSymbolCandidates } from './strokeGrouper.js';
 import { recognizeCandidates } from './symbolRecognizer.js';
+import { recognizeCandidatesAsync } from './recognitionPool.js';
 import { GLYPH_WARNINGS } from './glyphWarnings.js';
-import { clamp, formatNumber, mean, vectorFromAngleDeg } from '../utils/geometry.js';
+import {
+	allPoints,
+	angleDegFromCenter,
+	boundsForStrokes,
+	centerOfBounds,
+	clamp,
+	directedStrokeAngle,
+	dominantAxisOrientationDeg,
+	endpointClosedness,
+	formatNumber,
+	mean,
+	strokeLength,
+	vectorFromAngleDeg
+} from '../utils/geometry.js';
+import type { RecognitionExample } from './shapeMatcher.js';
 import type {
 	AppConfig,
 	ClassifiedDrawing,
+	CleanedStroke,
 	Dictionary,
 	GlobalMetrics,
 	GlyphAST,
@@ -189,50 +205,182 @@ function warningList(
 	return warnings;
 }
 
-export function classifyDrawing({
-	strokes,
-	previousRing = null,
-	dictionary,
-	config
-}: {
+function buildNoRingPreviewCandidate(strokes: Stroke[]): SymbolCandidate | null {
+	const points = allPoints(strokes);
+	if (!points.length) {
+		return null;
+	}
+
+	const bounds = boundsForStrokes(strokes);
+	const center = centerOfBounds(bounds);
+	const length = strokes.reduce((sum, stroke) => sum + strokeLength(stroke), 0);
+	const size = Math.max(bounds.width, bounds.height, 1);
+	const syntheticRingRadius = Math.max(size * 1.35, 1);
+	const orientationDeg = dominantAxisOrientationDeg(points);
+	const directedOrientationDeg = directedStrokeAngle(strokes);
+	const compactPerimeter = Math.max(1, (bounds.width + bounds.height) * 2);
+	const overdrawAmount = clamp(length / compactPerimeter - 0.72, 0, 1);
+
+	return {
+		candidateId: 'preview-symbol',
+		strokeIds: strokes.map((stroke) => stroke.id),
+		rawStrokeCount: strokes.length,
+		cleanedStrokeCount: strokes.length,
+		bounds,
+		center,
+		radiusNorm: 0.5,
+		angleDeg: angleDegFromCenter(center, center),
+		layer: 'any',
+		nearBoundary: false,
+		sizeNorm: size / Math.max(1, syntheticRingRadius * 2),
+		lengthNorm: length / Math.max(1, Math.PI * 2 * syntheticRingRadius),
+		orientationDeg,
+		directedOrientationDeg,
+		radialFacing: 'unclear',
+		closedness: endpointClosedness(strokes, size),
+		overdrawAmount,
+		neatness: clamp(0.92 - overdrawAmount * 0.28 - Math.max(0, strokes.length - 4) * 0.035),
+		strokes
+	};
+}
+
+function noRingPreview(
+	cleanedStrokes: CleanedStroke[],
+	dictionary: Dictionary,
+	config: AppConfig,
+	recognitionExamples: RecognitionExample[],
+	guideRing: RingInfo | null = null
+): NoRingPreview {
+	if (guideRing) {
+		const classifications = classifyStrokesAgainstRing(cleanedStrokes, guideRing, config);
+		const candidates = buildSymbolCandidates(cleanedStrokes, classifications, guideRing, config);
+		return {
+			classifications,
+			candidates,
+			recognitionDictionary: dictionary,
+			recognitionExamples
+		};
+	}
+
+	const sigilOnlyDictionary = { sigils: dictionary.sigils, signs: [] };
+	const sigilExamples = recognitionExamples.filter((example) => example.kind === 'sigil');
+	const candidate = buildNoRingPreviewCandidate(cleanedStrokes);
+	if (!candidate) {
+		return {
+			classifications: [] as ReturnType<typeof classifyStrokesAgainstRing>,
+			candidates: [] as SymbolCandidate[],
+			recognitionDictionary: sigilOnlyDictionary,
+			recognitionExamples: sigilExamples
+		};
+	}
+
+	return {
+		classifications: [] as ReturnType<typeof classifyStrokesAgainstRing>,
+		candidates: [candidate],
+		recognitionDictionary: sigilOnlyDictionary,
+		recognitionExamples: sigilExamples
+	};
+}
+
+export interface ClassifyDrawingInput {
 	strokes: Stroke[];
 	previousRing?: RingInfo | null;
+	canvasWidth?: number;
+	canvasHeight?: number;
 	dictionary: Dictionary;
 	config: AppConfig;
-}): ClassifiedDrawing {
+	recognitionExamples?: RecognitionExample[];
+}
+
+interface RecognitionPrep {
+	cleanedStrokes: Stroke[];
+	ring: RingInfo;
+	classifications: ReturnType<typeof classifyStrokesAgainstRing>;
+	candidates: SymbolCandidate[];
+}
+
+interface NoRingPreview {
+	classifications: ReturnType<typeof classifyStrokesAgainstRing>;
+	candidates: SymbolCandidate[];
+	recognitionDictionary: Dictionary;
+	recognitionExamples: RecognitionExample[];
+}
+
+interface NoRingRecognitionPrep extends RecognitionPrep {
+	recognitionDictionary: Dictionary;
+	recognitionExamples: RecognitionExample[];
+}
+
+// Runs everything up to (but not including) final candidate recognition. Returns
+// a finished drawing for the no-ring preview path, or the prep needed to score
+// candidates. Both the sync and async entrypoints share this so the only thing
+// that differs between them is how the final recognition pass is dispatched.
+function prepareRecognition(
+	input: ClassifyDrawingInput
+): { noRing: NoRingRecognitionPrep } | { prep: RecognitionPrep } {
+	const {
+		strokes,
+		previousRing = null,
+		canvasWidth,
+		canvasHeight,
+		dictionary,
+		config,
+		recognitionExamples = []
+	} = input;
 	const cleanedStrokes = cleanStrokes(strokes, config);
 	const ring = detectRing(cleanedStrokes, previousRing, config);
 
 	if (!ring.found) {
-		const glyphAST: GlyphAST = {
-			type: 'GlyphAST',
-			version: config.appVersion,
-			ring,
-			candidates: [],
-			primarySigil: null,
-			unsupportedMultipleSigils: [],
-			signs: [],
-			unknowns: [],
-			globalMetrics: {
-				neatness: 0,
-				radialSymmetry: 0,
-				instability: 1
-			},
-			warnings: [GLYPH_WARNINGS.noRingDetected]
-		};
-		return {
+		const guideRing =
+			canvasWidth && canvasHeight
+				? {
+						found: true,
+						complete: false,
+						center: { x: canvasWidth / 2, y: canvasHeight / 2 },
+						radius: Math.min(canvasWidth, canvasHeight) * 0.36,
+						strokeIds: [] as string[]
+					}
+				: null;
+		const preview = noRingPreview(
 			cleanedStrokes,
-			ring,
-			classifications: [],
-			candidates: [],
-			recognitions: [],
-			glyphAST
+			dictionary,
+			config,
+			recognitionExamples,
+			guideRing
+		);
+		return {
+			noRing: {
+				cleanedStrokes,
+				ring,
+				candidates: preview.candidates,
+				classifications: preview.classifications,
+				recognitionDictionary: preview.recognitionDictionary,
+				recognitionExamples: preview.recognitionExamples
+			}
 		};
 	}
 
 	const classifications = classifyStrokesAgainstRing(cleanedStrokes, ring, config);
-	const candidates = buildSymbolCandidates(cleanedStrokes, classifications, ring, config);
-	const recognitions = recognizeCandidates(candidates, dictionary, config);
+	const decompositionDictionary = ring.complete ? dictionary : undefined;
+	const candidates = buildSymbolCandidates(
+		cleanedStrokes,
+		classifications,
+		ring,
+		config,
+		decompositionDictionary
+	);
+
+	return { prep: { cleanedStrokes, ring, classifications, candidates } };
+}
+
+// Builds the final ClassifiedDrawing from already-scored recognitions. Shared by
+// the sync and async paths; whichever produced `recognitions` does not matter.
+function assembleDrawing(
+	prep: RecognitionPrep,
+	recognitions: Recognition[],
+	config: AppConfig
+): ClassifiedDrawing {
+	const { cleanedStrokes, ring, classifications, candidates } = prep;
 	const sigils = recognizedSigils(recognitions);
 	const primarySigil = selectPrimarySigil(sigils);
 	const unsupportedMultipleSigils = sigils
@@ -272,4 +420,87 @@ export function classifyDrawing({
 		recognitions: roundedDeep(recognitions) as Recognition[],
 		glyphAST
 	};
+}
+
+function assembleNoRingDrawing(
+	prep: NoRingRecognitionPrep,
+	recognitions: Recognition[],
+	config: AppConfig
+): ClassifiedDrawing {
+	const glyphAST: GlyphAST = {
+		type: 'GlyphAST',
+		version: config.appVersion,
+		ring: prep.ring,
+		candidates: [],
+		primarySigil: null,
+		unsupportedMultipleSigils: [],
+		signs: [],
+		unknowns: [],
+		globalMetrics: {
+			neatness: 0,
+			radialSymmetry: 0,
+			instability: 1
+		},
+		warnings: [GLYPH_WARNINGS.noRingDetected]
+	};
+
+	return {
+		cleanedStrokes: prep.cleanedStrokes,
+		ring: prep.ring,
+		classifications: roundedDeep(prep.classifications) as unknown[],
+		candidates: prep.candidates,
+		recognitions: roundedDeep(recognitions) as Recognition[],
+		glyphAST
+	};
+}
+
+export function classifyDrawing(input: ClassifyDrawingInput): ClassifiedDrawing {
+	const prepared = prepareRecognition(input);
+	if ('noRing' in prepared) {
+		const recognitions = recognizeCandidates(
+			prepared.noRing.candidates,
+			prepared.noRing.recognitionDictionary,
+			input.config,
+			prepared.noRing.recognitionExamples
+		);
+		return assembleNoRingDrawing(prepared.noRing, recognitions, input.config);
+	}
+
+	const recognitions = recognizeCandidates(
+		prepared.prep.candidates,
+		input.dictionary,
+		input.config,
+		input.recognitionExamples ?? []
+	);
+	return assembleDrawing(prepared.prep, recognitions, input.config);
+}
+
+// Same result as classifyDrawing, but the heavy per-candidate recognition pass
+// is fanned out across a long-lived Web Worker pool so it runs in parallel,
+// off the UI thread. Prep (cleaning, ring detection, candidate grouping) is
+// comparatively cheap and stays on the calling thread; recognition is the
+// dominant cost and the only part that benefits from parallelism. The pool
+// degrades to the synchronous recognizer when workers are unavailable, so
+// callers always get an identical ClassifiedDrawing either way.
+export async function classifyDrawingAsync(
+	input: ClassifyDrawingInput
+): Promise<ClassifiedDrawing> {
+	const prepared = prepareRecognition(input);
+	if ('noRing' in prepared) {
+		const recognitions = await recognizeCandidatesAsync(
+			prepared.noRing.candidates,
+			prepared.noRing.recognitionDictionary,
+			input.config,
+			prepared.noRing.recognitionExamples
+		);
+		return assembleNoRingDrawing(prepared.noRing, recognitions, input.config);
+	}
+
+	const recognitions = await recognizeCandidatesAsync(
+		prepared.prep.candidates,
+		input.dictionary,
+		input.config,
+		input.recognitionExamples ?? []
+	);
+	return assembleDrawing(prepared.prep, recognitions, input.config);
 }

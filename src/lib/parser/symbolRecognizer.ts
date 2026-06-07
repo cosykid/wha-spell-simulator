@@ -2,13 +2,20 @@ import {
 	angularDifference,
 	boundsForPoints,
 	clamp,
+	distance,
 	dominantAxisOrientationDeg,
 	normalizeAngleDeg,
 	pathLength,
 	strokeLength
 } from '../utils/geometry.js';
 import { recognitionPlanForSymbol } from './signRotation.js';
-import { scoreStrokeTemplate } from './templateMatcher.js';
+import {
+	buildExamplesFromDictionary,
+	recognitionKey,
+	scoreRecognitionExample,
+	type RecognitionExample,
+	type ShapeMatcherResult
+} from './shapeMatcher.js';
 import type {
 	AppConfig,
 	Dictionary,
@@ -24,8 +31,20 @@ import type {
 
 const RECOGNITION_AMBIGUITY_GAP = 0.065;
 const SIMPLE_SIGN_STROKE_LIMIT = 6;
+const SIMPLE_SIGN_STRUCTURAL_FLOOR_STROKE_LIMIT = 2;
+const SIMPLE_SIGN_STRUCTURAL_FLOOR_SCORE = 0.86;
+const SIMPLE_SIGN_STRUCTURAL_FLOOR_CONFIDENCE = 0.54;
+const DECOMPOSITION_DOMINANT_SIGIL_SCORE = 0.85;
 const SIMPLE_SIGN_MIN_TEMPLATE_COVERAGE = 0.78;
 const templateFeatureCache = new WeakMap<StrokeTemplate, TemplateFeatures>();
+const dictionaryExampleCache = new WeakMap<Dictionary, RecognitionExample[]>();
+
+interface ShapeSignature {
+	// Arc-length fraction of the ink that runs locally straight (1 = all straight lines).
+	straightness: number;
+	// Arc-length fraction of the ink that lives in closed (looping) strokes.
+	loopRatio: number;
+}
 
 interface TemplateFeatures {
 	aspectRatio: number;
@@ -33,6 +52,7 @@ interface TemplateFeatures {
 	strokeCount: number;
 	orientationDeg: number;
 	strokeProfile: number[];
+	shapeSignature: ShapeSignature;
 }
 
 interface CandidateFeatures {
@@ -43,6 +63,7 @@ interface CandidateFeatures {
 	strokeLengthImbalance: number;
 	axisDominance: number;
 	strokeProfile: number[];
+	shapeSignature: ShapeSignature;
 }
 
 interface StructuralMatch {
@@ -50,6 +71,7 @@ interface StructuralMatch {
 	aspectScore: number;
 	strokeCountScore: number;
 	strokeProfileScore: number;
+	shapeScore: number;
 	axisScore: number;
 	candidateAspectRatio: number;
 	templateAspectRatio: number;
@@ -61,16 +83,26 @@ interface ScoredTemplate {
 	confidence: number;
 	templateMatch: TemplateMatch | null;
 	structuralMatch: StructuralMatch | null;
+	matcher: ShapeMatcherResult | null;
+}
+
+interface PrecomputedExampleScore {
+	recognitionPlan: ReturnType<typeof recognitionPlanForSymbol>;
+	matchFeatures: CandidateFeatures;
+	matcher: ShapeMatcherResult;
 }
 
 type ScoredEntry = ScoredTemplate & {
 	kind: RecognitionKind;
 	entry: DictionaryEntry;
+	example: RecognitionExample | null;
 };
 
 interface RecognitionThresholds {
 	minConfidence: number;
 	ambiguityGap: number;
+	contaminationThreshold: number;
+	minTemplateCoverage: number;
 }
 
 function allowedLayerScore(entry: DictionaryEntry, candidate: SymbolCandidate): number {
@@ -107,7 +139,9 @@ function recognitionThresholds(config: AppConfig): RecognitionThresholds {
 	const recognition = config.recognition ?? {};
 	return {
 		minConfidence: recognition.minConfidence ?? 0.48,
-		ambiguityGap: RECOGNITION_AMBIGUITY_GAP
+		ambiguityGap: RECOGNITION_AMBIGUITY_GAP,
+		contaminationThreshold: recognition.contaminationThreshold ?? 0.5,
+		minTemplateCoverage: recognition.minTemplateCoverage ?? 0.55
 	};
 }
 
@@ -152,6 +186,123 @@ function strokeLengthProfile<T>(
 	return lengths.map((length) => length / total);
 }
 
+// Step (in bounds-normalized units) used when resampling a polyline before measuring its local
+// curvature. Coarse enough that hand jitter averages out over the baseline, fine enough that a
+// real arc still registers sustained turning and a sharp corner stays a single spike.
+const SHAPE_RESAMPLE_STEP = 0.12;
+// Turning per unit length (radians) below which a vertex is treated as "running straight".
+// A smooth arc sustains turning above this across many vertices; a polygon only spikes at corners.
+const STRAIGHT_CURVATURE_LIMIT = 1.1;
+// Endpoint gap (as a fraction of the stroke's own path length) under which a stroke counts as a
+// closed loop. Aeriform's little circles close; straight facet lines never do.
+const LOOP_CLOSE_FRACTION = 0.24;
+
+function resampleByStep(
+	points: { x: number; y: number }[],
+	step: number
+): { x: number; y: number }[] {
+	if (points.length < 2) {
+		return points.slice();
+	}
+	const result: { x: number; y: number }[] = [points[0]];
+	let carry = 0;
+	for (let index = 1; index < points.length; index += 1) {
+		const previous = points[index - 1];
+		const current = points[index];
+		const segment = distance(previous, current);
+		if (segment <= 0.000001) {
+			continue;
+		}
+		let position = carry;
+		while (position + step <= segment) {
+			position += step;
+			const t = position / segment;
+			result.push({
+				x: previous.x + (current.x - previous.x) * t,
+				y: previous.y + (current.y - previous.y) * t
+			});
+		}
+		carry = position - segment;
+	}
+	const last = points[points.length - 1];
+	if (distance(result[result.length - 1], last) > step * 0.5) {
+		result.push(last);
+	}
+	return result;
+}
+
+function turningAngle(
+	a: { x: number; y: number },
+	b: { x: number; y: number },
+	c: { x: number; y: number }
+): number {
+	const x1 = b.x - a.x;
+	const y1 = b.y - a.y;
+	const x2 = c.x - b.x;
+	const y2 = c.y - b.y;
+	const cross = x1 * y2 - y1 * x2;
+	const dot = x1 * x2 + y1 * y2;
+	return Math.abs(Math.atan2(cross, dot));
+}
+
+// Describes the kind of line a glyph is made of, independent of how its ink is split into
+// strokes: how much of it runs straight vs. curves, and how much lives in closed loops.
+// This separates angular glyphs (crystal) from flowing/looping ones (aeriform) even when both
+// fill the same bounding box, which the ink-proximity matcher cannot do on its own.
+function shapeSignature(strokes: Array<{ x: number; y: number }[]>): ShapeSignature {
+	const polylines = strokes.filter((points) => points.length >= 2);
+	if (!polylines.length) {
+		return { straightness: 1, loopRatio: 0 };
+	}
+	const bounds = boundsForPoints(polylines.flat());
+	const scale = Math.max(bounds.width, bounds.height, 0.000001);
+	let straightWeight = 0;
+	let curveWeight = 0;
+	let totalPathLength = 0;
+	let loopPathLength = 0;
+	for (const polyline of polylines) {
+		const normalized = polyline.map((point) => ({
+			x: (point.x - bounds.minX) / scale,
+			y: (point.y - bounds.minY) / scale
+		}));
+		const length = pathLength(normalized);
+		if (length <= 0.000001) {
+			continue;
+		}
+		totalPathLength += length;
+		if (distance(normalized[0], normalized[normalized.length - 1]) < LOOP_CLOSE_FRACTION * length) {
+			loopPathLength += length;
+		}
+		const resampled = resampleByStep(normalized, SHAPE_RESAMPLE_STEP);
+		for (let index = 1; index < resampled.length - 1; index += 1) {
+			const previous = resampled[index - 1];
+			const current = resampled[index];
+			const next = resampled[index + 1];
+			const span = (distance(previous, current) + distance(current, next)) / 2;
+			if (span <= 0.000001) {
+				continue;
+			}
+			const curvature = turningAngle(previous, current, next) / span;
+			if (curvature <= STRAIGHT_CURVATURE_LIMIT) {
+				straightWeight += span;
+			} else {
+				curveWeight += span;
+			}
+		}
+	}
+	const measured = straightWeight + curveWeight;
+	return {
+		straightness: measured ? clamp(straightWeight / measured) : 1,
+		loopRatio: totalPathLength ? clamp(loopPathLength / totalPathLength) : 0
+	};
+}
+
+function shapeCompatibility(candidate: ShapeSignature, template: ShapeSignature): number {
+	const straightnessScore = 1 - Math.abs(candidate.straightness - template.straightness);
+	const loopScore = 1 - Math.abs(candidate.loopRatio - template.loopRatio);
+	return clamp(straightnessScore * 0.7 + loopScore * 0.3);
+}
+
 function profileCompatibility(candidateProfile: number[], templateProfile: number[]): number {
 	const count = Math.max(candidateProfile.length, templateProfile.length);
 	if (!count) {
@@ -190,7 +341,8 @@ function templateFeatures(strokeTemplate: StrokeTemplate): TemplateFeatures {
 		elongation: Math.max(width, height) / Math.max(0.001, Math.min(width, height)),
 		strokeCount: strokes.length,
 		orientationDeg: dominantAxisOrientationDeg(points),
-		strokeProfile: strokeLengthProfile(strokes, (stroke) => stroke)
+		strokeProfile: strokeLengthProfile(strokes, (stroke) => stroke),
+		shapeSignature: shapeSignature(strokes)
 	};
 	templateFeatureCache.set(strokeTemplate, features);
 	return features;
@@ -224,7 +376,8 @@ function candidateFeatures(candidate: SymbolCandidate): CandidateFeatures {
 		strokeCount: candidate.strokes.length,
 		strokeLengthImbalance,
 		axisDominance,
-		strokeProfile: strokeLengthProfile(candidate.strokes, (stroke: Stroke) => stroke.points ?? [])
+		strokeProfile: strokeLengthProfile(candidate.strokes, (stroke: Stroke) => stroke.points ?? []),
+		shapeSignature: shapeSignature(candidate.strokes.map((stroke) => stroke.points ?? []))
 	};
 }
 
@@ -261,20 +414,24 @@ function structuralCompatibility(
 	const axisScore = clamp(
 		1 - undirectedAngularDifference(rotatedCandidateAxis, template.orientationDeg) / 90
 	);
+	const shapeScore = shapeCompatibility(features.shapeSignature, template.shapeSignature);
 	const smallSign = kind === 'sign' && template.strokeCount <= SIMPLE_SIGN_STROKE_LIMIT;
 	const strokeStructureScore = smallSign
 		? countScore * 0.58 + profileScore * 0.42
 		: countScore * 0.24 + profileScore * 0.76;
+	// For sigils, aspect ratio is near-useless (most fill a square box) while curve character is
+	// the strongest style-invariant discriminator, so it carries the most weight here.
 	const score =
 		kind === 'sign'
 			? strokeStructureScore * 0.68 + aspectScore * 0.2 + axisScore * 0.12
-			: aspectScore * 0.54 + profileScore * 0.28 + countScore * 0.18;
+			: shapeScore * 0.5 + aspectScore * 0.2 + profileScore * 0.18 + countScore * 0.12;
 
 	return {
 		score: clamp(score),
 		aspectScore,
 		strokeCountScore: countScore,
 		strokeProfileScore: profileScore,
+		shapeScore,
 		axisScore,
 		candidateAspectRatio: features.aspectRatio,
 		templateAspectRatio: template.aspectRatio,
@@ -283,24 +440,32 @@ function structuralCompatibility(
 	};
 }
 
-function isContaminatedMatch(candidate: SymbolCandidate, best: ScoredEntry | undefined): boolean {
+function isContaminatedMatch(
+	candidate: SymbolCandidate,
+	best: ScoredEntry | undefined,
+	thresholds: RecognitionThresholds
+): boolean {
 	if (!best?.templateMatch) {
 		return false;
 	}
 	const templateMatch = best.templateMatch;
 
 	const highRiskExtraInk =
-		templateMatch.contaminationRisk >= 0.62 && templateMatch.unexplainedInkRatio >= 0.34;
+		templateMatch.contaminationRisk >= 0.62 &&
+		templateMatch.unexplainedInkRatio >= thresholds.contaminationThreshold * 0.68;
 	const oversizedWeakMatch =
 		candidate.sizeNorm >= 0.42 &&
-		templateMatch.unexplainedInkRatio >= 0.26 &&
+		templateMatch.unexplainedInkRatio >= thresholds.contaminationThreshold * 0.52 &&
 		best.confidence < 0.7;
 	const wrongRegionInk =
 		templateMatch.forbiddenCellInkRatio >= 0.42 &&
 		templateMatch.requiredCellCoverage <= 0.82 &&
 		best.confidence < 0.72;
+	const excessUnexplainedInk =
+		templateMatch.unexplainedInkRatio >= thresholds.contaminationThreshold &&
+		templateMatch.templateCoveredRatio >= thresholds.minTemplateCoverage;
 
-	return highRiskExtraInk || oversizedWeakMatch || wrongRegionInk;
+	return highRiskExtraInk || oversizedWeakMatch || wrongRegionInk || excessUnexplainedInk;
 }
 
 function isMessyMatch(candidate: SymbolCandidate, best: ScoredEntry | undefined): boolean {
@@ -327,8 +492,14 @@ function recognitionStatus(
 	if (!best) {
 		return 'unknown';
 	}
-	if (isContaminatedMatch(candidate, best)) {
+	if (isContaminatedMatch(candidate, best, thresholds)) {
 		return 'contaminated';
+	}
+	if (
+		best.templateMatch &&
+		best.templateMatch.templateCoveredRatio < thresholds.minTemplateCoverage
+	) {
+		return best.confidence >= thresholds.minConfidence * 0.9 ? 'ambiguous' : 'unknown';
 	}
 	if (best.structuralMatch && best.structuralMatch.score < 0.42 && best.confidence < 0.7) {
 		return 'ambiguous';
@@ -356,8 +527,11 @@ function recognitionStatus(
 function scoreByStrokeTemplate(
 	kind: RecognitionKind,
 	entry: DictionaryEntry,
+	example: RecognitionExample,
 	candidate: SymbolCandidate,
-	features: CandidateFeatures
+	features: CandidateFeatures,
+	thresholds: RecognitionThresholds,
+	precomputed?: PrecomputedExampleScore
 ): ScoredTemplate {
 	const layerScore = allowedLayerScore(entry, candidate);
 	const strokeTemplate = entryStrokeTemplate(entry);
@@ -366,17 +540,46 @@ function scoreByStrokeTemplate(
 		return {
 			confidence: 0,
 			templateMatch: null,
-			structuralMatch: null
+			structuralMatch: null,
+			matcher: null
 		};
 	}
 
-	const recognitionPlan = recognitionPlanForSymbol(kind, entry, candidate);
-	const matchFeatures = kind === 'sign' ? candidateFeatures(recognitionPlan.candidate) : features;
-	const rawTemplateMatch = scoreStrokeTemplate(
-		recognitionPlan.candidate,
-		strokeTemplate,
-		recognitionPlan.options
-	);
+	const recognitionPlan =
+		precomputed?.recognitionPlan ?? recognitionPlanForSymbol(kind, entry, candidate);
+	const matchFeatures =
+		precomputed?.matchFeatures ??
+		(kind === 'sign' ? candidateFeatures(recognitionPlan.candidate) : features);
+	const matcher =
+		precomputed?.matcher ??
+		scoreRecognitionExample(recognitionPlan.candidate.strokes, example, recognitionPlan.options);
+	// Matcher confidence is the $P point-cloud and chamfer blend only. The kNN
+	// example vote and the metric/embedding recognizer were removed (they return
+	// once enough labeled data is collected), so the former `+ 0.20 *
+	// knnVoteConfidence` term is simply dropped — deliberately NOT renormalized, so
+	// the kNN headroom stays unfilled and weak/ambiguous matches keep the lower
+	// confidence they had when kNN abstained.
+	const matcherConfidence = clamp(matcher.pScore * 0.45 + matcher.chamferScore * 0.35);
+	const rawTemplateMatch: TemplateMatch = {
+		available: matcher.available,
+		confidence: matcherConfidence,
+		rotationDeg: matcher.rotationDeg,
+		recognitionRotationDeg: matcher.recognitionRotationDeg,
+		$pDistance: matcher.$pDistance,
+		pScore: matcher.pScore,
+		chamferDistance: matcher.chamferDistance,
+		chamferScore: matcher.chamferScore,
+		inkScore: matcher.inkScore,
+		softDiceScore: matcher.softDiceScore,
+		candidateExplainedRatio: matcher.candidateExplainedRatio,
+		templateCoveredRatio: matcher.templateCoveredRatio,
+		unexplainedInkRatio: matcher.unexplainedInkRatio,
+		missingInkRatio: matcher.missingInkRatio,
+		contaminationRisk: matcher.contaminationRisk,
+		requiredCellCoverage: matcher.templateCoveredRatio,
+		forbiddenCellInkRatio: matcher.unexplainedInkRatio,
+		regionScore: clamp(matcher.templateCoveredRatio * 0.65 + matcher.candidateExplainedRatio * 0.35)
+	};
 	const templateMatch: TemplateMatch = {
 		...rawTemplateMatch,
 		rotationDeg: normalizeAngleDeg(
@@ -405,23 +608,37 @@ function scoreByStrokeTemplate(
 		templateMatch.templateCoveredRatio < SIMPLE_SIGN_MIN_TEMPLATE_COVERAGE
 			? 0.44
 			: 1;
+	const simpleSignStructuralFloor =
+		kind === 'sign' &&
+		candidate.layer !== 'center' &&
+		structuralMatch.templateStrokeCount <= SIMPLE_SIGN_STRUCTURAL_FLOOR_STROKE_LIMIT &&
+		structuralMatch.candidateStrokeCount === structuralMatch.templateStrokeCount &&
+		structuralMatch.score >= SIMPLE_SIGN_STRUCTURAL_FLOOR_SCORE &&
+		templateMatch.templateCoveredRatio >= 0.34 &&
+		templateMatch.candidateExplainedRatio >= 0.3
+			? SIMPLE_SIGN_STRUCTURAL_FLOOR_CONFIDENCE
+			: 0;
 	const grossStructureMismatchCap =
 		structuralMatch.score < 0.18 && templateMatch.templateCoveredRatio < 0.5 ? 0.44 : 1;
 	const contextualScore =
-		templateMatch.confidence * 0.68 +
-		structuralMatch.score * 0.13 +
-		layerScore * 0.1 +
+		templateMatch.confidence * 0.66 +
+		structuralMatch.score * 0.16 +
+		layerScore * 0.09 +
 		sizeScore * 0.04 +
 		candidate.neatness * 0.05;
-	const contextLiftCap = templateMatch.confidence + 0.035;
+	const contextLiftCap = templateMatch.confidence + 0.04;
 	return {
-		confidence: Math.min(
-			clamp(Math.min(contextualScore, contextLiftCap) * simpleSignStructureMultiplier),
-			simpleSignIncompleteCap,
-			grossStructureMismatchCap
+		confidence: Math.max(
+			Math.min(
+				clamp(Math.min(contextualScore, contextLiftCap) * simpleSignStructureMultiplier),
+				simpleSignIncompleteCap,
+				grossStructureMismatchCap
+			),
+			simpleSignStructuralFloor
 		),
 		templateMatch,
-		structuralMatch
+		structuralMatch,
+		matcher
 	};
 }
 
@@ -444,6 +661,105 @@ function publicCandidate(candidate: SymbolCandidate) {
 	};
 }
 
+function recognitionExamplesFor(
+	dictionary: Dictionary,
+	extraExamples: RecognitionExample[] = []
+): RecognitionExample[] {
+	const baseExamples = (() => {
+		const cached = dictionaryExampleCache.get(dictionary);
+		if (cached) {
+			return cached;
+		}
+		const built = buildExamplesFromDictionary(dictionary);
+		dictionaryExampleCache.set(dictionary, built);
+		return built;
+	})();
+
+	if (!extraExamples.length) {
+		return baseExamples;
+	}
+
+	const examples = new Map<string, RecognitionExample>();
+	for (const example of baseExamples) {
+		examples.set(example.id, example);
+	}
+	for (const example of extraExamples) {
+		examples.set(example.id, example);
+	}
+	return [...examples.values()];
+}
+
+export interface DecompositionScorer {
+	(candidate: SymbolCandidate): number;
+}
+
+// Lightweight scorer for the decomposition tree-cut. It only runs the $P +
+// chamfer shape matcher (the directScore that scoreRecognitionExample exposes
+// as `confidence`) and deliberately skips structural blending and status logic.
+// Those richer signals are reserved for the final
+// recognizeCandidates pass over the chosen groups, so scoring a tree node stays
+// cheap. Sigils are scored first; once one clears the dominant threshold, sign
+// scoring is skipped for that node.
+export function createDecompositionScorer(
+	dictionary: Dictionary,
+	config: AppConfig,
+	recognitionExamples: RecognitionExample[] = []
+): DecompositionScorer {
+	void config;
+	const allExamples = recognitionExamplesFor(dictionary, recognitionExamples);
+	const examplesByKey = new Map<string, RecognitionExample[]>();
+	for (const example of allExamples) {
+		const key = recognitionKey(example.kind, example.symbolId);
+		examplesByKey.set(key, [...(examplesByKey.get(key) ?? []), example]);
+	}
+
+	type EntryGroup = {
+		kind: RecognitionKind;
+		entry: DictionaryEntry;
+		examples: RecognitionExample[];
+	};
+	const sigilEntries: EntryGroup[] = dictionary.sigils.flatMap((entry) => {
+		const examples = examplesByKey.get(recognitionKey('sigil', entry.id)) ?? [];
+		return examples.length ? [{ kind: 'sigil' as const, entry, examples }] : [];
+	});
+	const signEntries: EntryGroup[] = dictionary.signs.flatMap((entry) => {
+		const examples = examplesByKey.get(recognitionKey('sign', entry.id)) ?? [];
+		return examples.length ? [{ kind: 'sign' as const, entry, examples }] : [];
+	});
+
+	const bestEntryScore = (group: EntryGroup, candidate: SymbolCandidate): number => {
+		const plan = recognitionPlanForSymbol(group.kind, group.entry, candidate);
+		let best = 0;
+		for (const example of group.examples) {
+			const matcher = scoreRecognitionExample(plan.candidate.strokes, example, plan.options);
+			if (matcher.confidence > best) {
+				best = matcher.confidence;
+			}
+		}
+		return best * allowedLayerScore(group.entry, candidate);
+	};
+
+	return (candidate: SymbolCandidate): number => {
+		let best = 0;
+		for (const group of sigilEntries) {
+			const score = bestEntryScore(group, candidate);
+			if (score > best) {
+				best = score;
+			}
+		}
+		if (best >= DECOMPOSITION_DOMINANT_SIGIL_SCORE) {
+			return best;
+		}
+		for (const group of signEntries) {
+			const score = bestEntryScore(group, candidate);
+			if (score > best) {
+				best = score;
+			}
+		}
+		return best;
+	};
+}
+
 // Recognition scores each grouped symbol candidate against every dictionary
 // sigil and sign:
 // 1. Extract candidate geometry such as aspect ratio, elongation, stroke count,
@@ -451,33 +767,94 @@ function publicCandidate(candidate: SymbolCandidate) {
 // 2. For signs, rotate the candidate into the bottom-of-ring canonical frame so
 //    template matching can compare shape while preserving the original
 //    ring-relative orientation as spell meaning.
-// 3. Rasterize the candidate and dictionary template, test the allowed
-//    rotations, and keep the best ink overlap, template coverage, and
-//    unexplained-ink measurements.
-// 4. Blend ink score with structural compatibility, layer fit, size fit, and
-//    neatness, then cap obvious incomplete or contaminated matches.
+// 3. Score the candidate against dictionary/user examples with $P point-cloud
+//    distance and chamfer distance maps.
+// 4. Blend matcher score with structural compatibility, layer fit, size fit,
+//    and neatness, then cap obvious incomplete or contaminated matches.
 // 5. Sort all dictionary matches, decide whether the best score is accepted,
 //    ambiguous, contaminated, messy-valid, or unknown, and keep the top matches
 //    only in diagnostics.
 export function recognizeCandidates(
 	candidates: SymbolCandidate[],
 	dictionary: Dictionary,
-	config: AppConfig
+	config: AppConfig,
+	recognitionExamples: RecognitionExample[] = []
 ): RecognizedSymbol[] {
-	const entries: Array<{ kind: RecognitionKind; entry: DictionaryEntry }> = [
-		...dictionary.sigils.map((entry) => ({ kind: 'sigil' as const, entry })),
-		...dictionary.signs.map((entry) => ({ kind: 'sign' as const, entry }))
+	const allExamples = recognitionExamplesFor(dictionary, recognitionExamples);
+	const examplesByKey = new Map<string, RecognitionExample[]>();
+	for (const example of allExamples) {
+		const key = recognitionKey(example.kind, example.symbolId);
+		examplesByKey.set(key, [...(examplesByKey.get(key) ?? []), example]);
+	}
+	const entries: Array<{
+		kind: RecognitionKind;
+		entry: DictionaryEntry;
+		examples: RecognitionExample[];
+	}> = [
+		...dictionary.sigils.flatMap((entry) => {
+			const examples = examplesByKey.get(recognitionKey('sigil', entry.id)) ?? [];
+			return examples.length ? [{ kind: 'sigil' as const, entry, examples }] : [];
+		}),
+		...dictionary.signs.flatMap((entry) => {
+			const examples = examplesByKey.get(recognitionKey('sign', entry.id)) ?? [];
+			return examples.length ? [{ kind: 'sign' as const, entry, examples }] : [];
+		})
 	];
 
 	return candidates.map((candidate) => {
 		const thresholds = recognitionThresholds(config);
 		const features = candidateFeatures(candidate);
+		const scoreCache = new Map<string, PrecomputedExampleScore>();
+		const scoreExample = (
+			kind: RecognitionKind,
+			entry: DictionaryEntry,
+			example: RecognitionExample
+		): PrecomputedExampleScore => {
+			const cached = scoreCache.get(example.id);
+			if (cached) {
+				return cached;
+			}
+			const recognitionPlan = recognitionPlanForSymbol(kind, entry, candidate);
+			const matchFeatures =
+				kind === 'sign' ? candidateFeatures(recognitionPlan.candidate) : features;
+			const matcher = scoreRecognitionExample(
+				recognitionPlan.candidate.strokes,
+				example,
+				recognitionPlan.options
+			);
+			const score = { recognitionPlan, matchFeatures, matcher };
+			scoreCache.set(example.id, score);
+			return score;
+		};
 		const scored: ScoredEntry[] = entries
-			.map(({ kind, entry }) => ({
-				kind,
-				entry,
-				...scoreByStrokeTemplate(kind, entry, candidate, features)
-			}))
+			.map(({ kind, entry, examples }) => {
+				const scoredExamples = examples
+					.map((example) => ({
+						example,
+						score: scoreByStrokeTemplate(
+							kind,
+							entry,
+							example,
+							candidate,
+							features,
+							thresholds,
+							scoreExample(kind, entry, example)
+						)
+					}))
+					.sort((a, b) => b.score.confidence - a.score.confidence);
+				const bestExample = scoredExamples[0];
+				return {
+					kind,
+					entry,
+					example: bestExample?.example ?? null,
+					...(bestExample?.score ?? {
+						confidence: 0,
+						templateMatch: null,
+						structuralMatch: null,
+						matcher: null
+					})
+				};
+			})
 			.sort((a, b) => b.confidence - a.confidence);
 
 		const best = scored[0];
@@ -488,12 +865,18 @@ export function recognizeCandidates(
 			confidence: 0
 		};
 		const acceptedByConfidence = Boolean(best && best.confidence >= thresholds.minConfidence);
+		const acceptedByInk = Boolean(
+			best?.templateMatch &&
+			best.templateMatch.unexplainedInkRatio <= thresholds.contaminationThreshold &&
+			best.templateMatch.templateCoveredRatio >= thresholds.minTemplateCoverage
+		);
+		const acceptedByLayer = Boolean(best && allowedLayerScore(best.entry, candidate) >= 0.7);
 		const status = recognitionStatus(
 			candidate,
 			best,
 			second,
 			secondSameKind,
-			acceptedByConfidence,
+			acceptedByConfidence && acceptedByInk && acceptedByLayer,
 			thresholds
 		);
 		const accepted = acceptedByConfidence && (status === 'valid' || status === 'valid_messy');
@@ -504,6 +887,8 @@ export function recognizeCandidates(
 			id: score.entry.id,
 			confidence: score.confidence,
 			templateConfidence: score.templateMatch?.confidence ?? 0,
+			$pDistance: score.templateMatch?.$pDistance ?? 1,
+			chamferDistance: score.templateMatch?.chamferDistance ?? 1,
 			inkScore: score.templateMatch?.inkScore ?? 0,
 			candidateExplainedRatio: score.templateMatch?.candidateExplainedRatio ?? 0,
 			templateCoveredRatio: score.templateMatch?.templateCoveredRatio ?? 0,
@@ -511,6 +896,7 @@ export function recognizeCandidates(
 			aspectScore: score.structuralMatch?.aspectScore ?? 0,
 			strokeCountScore: score.structuralMatch?.strokeCountScore ?? 0,
 			strokeProfileScore: score.structuralMatch?.strokeProfileScore ?? 0,
+			shapeScore: score.structuralMatch?.shapeScore ?? 0,
 			rotationDeg: score.templateMatch?.rotationDeg ?? 0,
 			recognitionRotationDeg:
 				score.templateMatch?.recognitionRotationDeg ?? score.templateMatch?.rotationDeg ?? 0
@@ -546,6 +932,10 @@ export function recognizeCandidates(
 				recognitionRotationDeg:
 					bestTemplateMatch?.recognitionRotationDeg ?? bestTemplateMatch?.rotationDeg ?? 0,
 				template: {
+					$pDistance: bestTemplateMatch?.$pDistance ?? 1,
+					pScore: bestTemplateMatch?.pScore ?? 0,
+					chamferDistance: bestTemplateMatch?.chamferDistance ?? 1,
+					chamferScore: bestTemplateMatch?.chamferScore ?? 0,
 					inkScore: bestTemplateMatch?.inkScore ?? 0,
 					softDiceScore: bestTemplateMatch?.softDiceScore ?? 0,
 					candidateExplainedRatio: bestTemplateMatch?.candidateExplainedRatio ?? 0,
@@ -555,11 +945,19 @@ export function recognizeCandidates(
 					contaminationRisk: bestTemplateMatch?.contaminationRisk ?? 0,
 					forbiddenCellInkRatio: bestTemplateMatch?.forbiddenCellInkRatio ?? 1
 				},
+				matcher: {
+					$pDistance: bestTemplateMatch?.$pDistance ?? 1,
+					chamferDistance: bestTemplateMatch?.chamferDistance ?? 1,
+					candidateExplainedRatio: bestTemplateMatch?.candidateExplainedRatio ?? 0,
+					templateCoveredRatio: bestTemplateMatch?.templateCoveredRatio ?? 0,
+					unexplainedInkRatio: bestTemplateMatch?.unexplainedInkRatio ?? 1
+				},
 				structure: {
 					score: bestStructuralMatch?.score ?? 0,
 					aspectScore: bestStructuralMatch?.aspectScore ?? 0,
 					strokeCountScore: bestStructuralMatch?.strokeCountScore ?? 0,
 					strokeProfileScore: bestStructuralMatch?.strokeProfileScore ?? 0,
+					shapeScore: bestStructuralMatch?.shapeScore ?? 0,
 					axisScore: bestStructuralMatch?.axisScore ?? 0,
 					candidateAspectRatio: bestStructuralMatch?.candidateAspectRatio ?? features.aspectRatio,
 					templateAspectRatio: bestStructuralMatch?.templateAspectRatio ?? 1,

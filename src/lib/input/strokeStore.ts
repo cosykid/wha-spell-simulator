@@ -66,6 +66,10 @@ export function createStrokeStore(): StrokeStore {
 			}));
 		},
 
+		peekStrokes(): Stroke[] {
+			return strokes;
+		},
+
 		count(): number {
 			return strokes.length;
 		},

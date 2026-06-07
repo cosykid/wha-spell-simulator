@@ -19,9 +19,9 @@ The app turns a freehand spell diagram into parser output, compiled spell behavi
 
 - Lets you draw spell diagrams on a paper-like canvas.
 - Detects one enclosing ring and distinguishes prepared versus active spells.
-- Recognizes dictionary-backed primary sigils for fire, water, wind, earth, and light.
+- Recognizes dictionary-backed primary sigils for fire, water, wind, earth, and light with a hybrid point-cloud (`$P`), chamfer, and kNN matcher.
 - Recognizes signs that modify direction, levitation, convergence, force, spread, focus, range, duration, and stability.
-- Produces parser diagnostics, `GlyphAST`, and `SpellIR` output for inspection.
+- Produces parser diagnostics, `GlyphAST`, and `SpellIR` output for inspection, including tentative glyph labels while symbols are still being drawn.
 - Renders animated element effects from the compiled spell behavior.
 - Shows sample spell layouts in the Dictionary panel as drawing references.
 - Includes reference tools for making, viewing, and testing stroke templates, plus a spell effect lab for visual and animation tuning.
@@ -30,8 +30,9 @@ The app turns a freehand spell diagram into parser output, compiled spell behavi
 
 - The app supports one enclosing spell ring at a time. Multiple rings are detected as unsupported.
 - The current compiler expects one primary sigil. Multiple primary sigils are detected as unsupported.
-- Recognition is based on local stroke templates, so it works best with clean, deliberate drawings.
+- Recognition is seeded from local stroke templates and can accept additional stored examples, so it still works best with clean, deliberate drawings.
 - The recognizer is not perfect. Some valid-looking drawings may fail to match, and some rough drawings may need to be redrawn more clearly.
+- Candidate grouping works on whole strokes. Live and prepared drawings use fast layer-aware proximity grouping for responsiveness; complete rings can use recognition-guided tree cuts to separate symbols drawn close together. It does not split a single stroke into fragments when two symbols are drawn without lifting the pointer.
 - The dictionaries only cover a small fan-made subset of sigils, signs, and observed spell ideas.
 - The visual effects are interpretive canvas animations, not a faithful reproduction of manga or anime effects.
 - Raster images can be used as visual references, but the app cannot recover true stroke order from an image.
@@ -58,7 +59,29 @@ Then open:
 http://127.0.0.1:5173/
 ```
 
-To build the static site (output in `build/`):
+To build the production app:
+
+```sh
+npm run build
+```
+
+## Deploy To Vercel
+
+This app now targets Vercel through `@sveltejs/adapter-vercel`. The prerendered
+canvas shell is served as static output, while SvelteKit API routes are deployed
+as Vercel serverless functions. That keeps Neon credentials server-side and lets
+the browser fetch recognition assets through `/api/recognition/assets`.
+
+Set these Vercel project environment variables as needed:
+
+```sh
+# DATABASE_URL is preferred; NEON_DATABASE_URL is accepted as a fallback alias. Set one.
+DATABASE_URL=postgres://...
+NEON_DATABASE_URL=postgres://...
+TRAINING_DATA_API_TOKEN=...
+```
+
+Vercel can use the default build command:
 
 ```sh
 npm run build
@@ -86,9 +109,58 @@ Run the Node test suite:
 npm test
 ```
 
+## Optional Storage
+
+Recognition examples can be stored in Neon Postgres for future user-drawing corpora. The browser app still works from dictionary templates alone, but the Vercel deployment can read active examples through `/api/recognition/assets`.
+
+Set one of these private environment variables before using the storage helpers. For local work, put real values in `.env`; the migration and seed scripts load it automatically. Keep `.env.example` as placeholders only.
+
+```sh
+DATABASE_URL=postgres://...
+NEON_DATABASE_URL=postgres://...
+```
+
+Then migrate and seed dictionary-derived recognition assets:
+
+```sh
+npm run db:migrate
+npm run db:seed:recognition
+```
+
+### Recognition Examples API
+
+Set `TRAINING_DATA_API_TOKEN` to expose a token-guarded JSON API over the
+`recognition_examples` table so a teammate can manage the corpus directly. Every
+request must send the token as `Authorization: Bearer <token>`; if the variable
+is unset the whole API returns `503`. (The browser app reads active examples
+through the separate, unauthenticated `/api/recognition/assets` loader, so the
+canvas keeps working without the token.)
+
+| Method   | Path                                | Purpose                                                                                                |
+| -------- | ----------------------------------- | ------------------------------------------------------------------------------------------------------ |
+| `GET`    | `/api/recognition/examples`         | List examples. Optional filters: `kind=sigil\|sign`, `symbolId`, `source`, `active=true\|false`.       |
+| `GET`    | `/api/recognition/examples?id=<id>` | Fetch a single example by id (`404` if missing).                                                       |
+| `POST`   | `/api/recognition/examples`         | Upsert one example by id (JSON body: `kind`, `symbolId`, `strokes`, and optional `id`/`source`/flags). |
+| `DELETE` | `/api/recognition/examples?id=<id>` | Soft-delete (mark `active = false`); the row is retained.                                              |
+
+Listing includes inactive rows unless you pass `active=true`. Example:
+
+```sh
+# List every active sign
+curl -H "Authorization: Bearer $TRAINING_DATA_API_TOKEN" \
+  "https://<deployment>/api/recognition/examples?kind=sign&active=true"
+
+# Submit a labeled example
+curl -X POST -H "Authorization: Bearer $TRAINING_DATA_API_TOKEN" \
+  -H "content-type: application/json" \
+  -d '{"kind":"sigil","symbolId":"crystal","strokes":[[{"x":0,"y":0},{"x":1,"y":1}]]}' \
+  "https://<deployment>/api/recognition/examples"
+```
+
 ## Documentation
 
 - [Dictionary authoring](docs/dictionary-authoring.md)
+- [Recognition pipeline](docs/recognition.md)
 - [Parser and spell semantics rules](docs/play-rules.md)
 - [Parsed glyph output contract](docs/glyph-ast.md)
 - [Compiled spell output contract](docs/spell-ir.md)
