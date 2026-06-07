@@ -11,7 +11,8 @@
 		"check": "svelte-check --tsconfig ./tsconfig.json",
 		"db:migrate": "node --import tsx scripts/migrate-neon.ts",
 		"db:seed:recognition": "node --import tsx scripts/seed-recognition-assets.ts",
-		"test": "node --import tsx --test tests/*.test.ts && npm run test:e2e",
+		"test": "npm run test:unit && npm run test:e2e",
+		"test:unit": "node --import tsx --test tests/*.test.ts",
 		"lint": "prettier --check . && eslint .",
 		"format": "prettier --write .",
 		"test:e2e": "playwright install && playwright test"
