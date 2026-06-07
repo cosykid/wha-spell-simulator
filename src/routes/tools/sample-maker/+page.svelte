@@ -13,7 +13,10 @@
 	import { loadSymbolBaseStrokes } from '$lib/dictionary/svgStrokes.js';
 	import type { Placement } from '$lib/types.js';
 	import ButtonWithShortcut from '$lib/ui/ButtonWithShortcut.svelte';
-	import { createKeyDownHandler, type ButtonWithShortcut as ButtonWithShortcutDef } from '$lib/ui/keybindings.js';
+	import {
+		createKeyDownHandler,
+		type ButtonWithShortcut as ButtonWithShortcutDef
+	} from '$lib/ui/keybindings.js';
 	import Labels from './Labels.svelte';
 	import SampleSubmit from './SampleSubmit.svelte';
 	import { REFERENCE_SIZE } from './buildSample.js';
@@ -172,13 +175,7 @@
 		<h2 class="panel-section-title">Sign label</h2>
 		<Labels symbols={SAMPLE_SYMBOLS} selectedId={selected?.id ?? null} onpick={pickSymbol} />
 
-		<SampleSubmit
-			bind:this={sampleSubmit}
-			{symbolEntity}
-			{strokes}
-			{selected}
-			{ctx}
-		/>
+		<SampleSubmit bind:this={sampleSubmit} {symbolEntity} {strokes} {selected} {ctx} />
 	</aside>
 </main>
 

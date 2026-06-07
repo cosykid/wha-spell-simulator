@@ -668,7 +668,6 @@ body:not(.sigil-maker-page) .app-shell {
  * the square.
  */
 @media (min-width: 1051px) {
-
 	/*
 	 * The canvas column shrinks to exactly the square drawing surface (its width
 	 * follows the available row height via aspect-ratio), so no panel background
