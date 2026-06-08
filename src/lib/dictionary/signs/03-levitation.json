@@ -2,7 +2,7 @@
 	"id": "levitation",
 	"displayName": "Levitation",
 	"allowedLayers": ["middle", "outer"],
-	"sourceNotes": "Levitation causes the spell's magic to float above the glyph, or causes the movement of the object it is drawn on. If the latter, the movement depends on which direction the signs point. The pointed, arrow-like side of the sign typically faces inwards.",
+	"sourceNotes": "Levitation is a directional sign with different behavior depending on the sigil. With water, fire, or light it can hold magic or objects aloft; with air or wind it moves the object bearing the seal in the direction the sign points.",
 	"semantic": {
 		"manifestation": "levitation",
 		"directionMode": "orientation",

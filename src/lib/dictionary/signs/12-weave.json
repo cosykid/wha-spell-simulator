@@ -2,7 +2,7 @@
 	"id": "weave",
 	"displayName": "Weave (Ribbon)",
 	"allowedLayers": ["middle", "outer"],
-	"sourceNotes": "Weave, also called ribbon, turns solid objects that touch the seal into long, flexible ribbons, making rigid matter pliable and able to be wound or woven.",
+	"sourceNotes": "Weave, also called ribbon, turns solid objects affected by the spell into long flexible ribbons when they touch the seal. It is likely semi-directional, has not been seen inverted, and is associated with Richeh's ribbon spells.",
 	"semantic": {
 		"manifestation": "weave",
 		"directionMode": "position",

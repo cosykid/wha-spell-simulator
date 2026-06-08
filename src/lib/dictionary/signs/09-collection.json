@@ -2,7 +2,7 @@
 	"id": "collection",
 	"displayName": "Collection",
 	"allowedLayers": ["middle", "outer"],
-	"sourceNotes": "Collection (directional or semi-directional) draws together material located above and around the seal so a spell can make use of it, concentrating loose matter at the seal rather than dispersing it. It has never been seen inverted, and its open side is typically seen facing inwards.",
+	"sourceNotes": "Collection gathers material from above and around the seal so the spell can use it. It may be directional or semi-directional, has not been seen inverted, and is usually drawn with its open side facing inward.",
 	"semantic": {
 		"manifestation": "collection",
 		"directionMode": "inward",

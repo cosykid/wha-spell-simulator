@@ -2,7 +2,7 @@
 	"id": "column",
 	"displayName": "Column",
 	"allowedLayers": ["middle", "outer"],
-	"sourceNotes": "Column causes the magic of its glyph to manifest in a column or beam above the glyph. If the signs are not balanced, the spell manifests from the side with the most column signs toward the opposite side of the ring. A column sign on the left pushes the effect to the right. The shorter line on the sign typically faces outwards, and while it is sometimes shown inverted, it is unclear how this changes the effect.",
+	"sourceNotes": "Column is a directional sign that makes a spell manifest as a column or beam above the seal. If column signs are unbalanced, the effect leans toward the side with the most or largest signs; inverted column appears to emit outward like dispersion, but the distinction is unclear.",
 	"semantic": {
 		"manifestation": "column",
 		"directionMode": "inward",

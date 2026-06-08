@@ -6,6 +6,7 @@
 		Dictionary,
 		Placement,
 		PlacementTransform,
+		Point,
 		RingInfo,
 		ShapeItem,
 		ShapeLibrary,
@@ -40,6 +41,13 @@
 	const ZOOM_MIN = 0.5;
 	const ZOOM_MAX = 3;
 	const ZOOM_STEP = 0.25;
+	const TOGGLE_PREFERENCES_STORAGE_KEY = 'wha-spell-simulator:toggle-preferences';
+
+	interface TogglePreferences {
+		showGuides: boolean;
+		showDiagnostics: boolean;
+		arrangeShapes: boolean;
+	}
 
 	// Reactive UI state.
 	let dictionary = $state<Dictionary | null>(null);
@@ -52,6 +60,7 @@
 	});
 	let showGuides = $state(true);
 	let showDiagnostics = $state(false);
+	let togglePreferencesLoaded = $state(false);
 	// True once drawing capture has attached its pointer listeners. The status
 	// text can leave "Loading" before this (a resize-triggered recompute), so this
 	// is the authoritative "the canvas accepts strokes now" signal.
@@ -59,11 +68,15 @@
 	let rootTab = $state('dictionary');
 	let zoomLevel = $state(1);
 	let arrangeShapes = $state(false);
+	let canvasHintDismissed = $state(false);
 	let shapeLibrary = $state<ShapeLibrary | null>(null);
 	let armedShapeId = $state<string | null>(null);
 	let selected = $state<{ kind: string; sourceId: string; transform: PlacementTransform } | null>(
 		null
 	);
+	let draggedShape: ShapeItem | null = null;
+	let dragPreview = $state<{ item: ShapeItem; x: number; y: number } | null>(null);
+	let shapeDragPointerId: number | null = null;
 
 	function handleZoomIn() {
 		zoomLevel = Math.min(ZOOM_MAX, zoomLevel + ZOOM_STEP);
@@ -102,6 +115,39 @@
 	// dictionary instead of re-initializing on every stroke.
 	let dictionarySnapshot: Dictionary | null = null;
 	let recognitionExamplesSnapshot: RecognitionExample[] = [];
+
+	function loadTogglePreferences() {
+		try {
+			const stored = localStorage.getItem(TOGGLE_PREFERENCES_STORAGE_KEY);
+			if (!stored) {
+				return;
+			}
+
+			const preferences = JSON.parse(stored) as Partial<TogglePreferences>;
+			if (typeof preferences.showGuides === 'boolean') {
+				showGuides = preferences.showGuides;
+			}
+			if (typeof preferences.showDiagnostics === 'boolean') {
+				showDiagnostics = preferences.showDiagnostics;
+			}
+			if (typeof preferences.arrangeShapes === 'boolean') {
+				arrangeShapes = preferences.arrangeShapes;
+			}
+		} catch {
+			// Ignore invalid or unavailable local storage and keep the defaults.
+		}
+	}
+
+	function saveTogglePreferences() {
+		try {
+			localStorage.setItem(
+				TOGGLE_PREFERENCES_STORAGE_KEY,
+				JSON.stringify({ showGuides, showDiagnostics, arrangeShapes })
+			);
+		} catch {
+			// Preference persistence is best-effort.
+		}
+	}
 
 	// Unified undo/redo history. A snapshot captures the full drawing state (freehand
 	// strokes plus editable placements) so undo and redo work the same for both. Oldest
@@ -213,6 +259,14 @@
 		recomputeSeq += 1;
 	}
 
+	function dismissCanvasHint() {
+		if (canvasHintDismissed) {
+			return;
+		}
+		canvasHintDismissed = true;
+		summary = { ...summary, hintHidden: true };
+	}
+
 	function scheduleRecompute(delay: number) {
 		cancelScheduledRecompute();
 		recomputeTimer = setTimeout(() => {
@@ -263,6 +317,7 @@
 			showGuides,
 			arrangeMode: arrangeShapes,
 			placementCount: placements.count(),
+			hintDismissed: canvasHintDismissed,
 			canUndo: historyIndex > 0,
 			canRedo: historyIndex < history.length - 1
 		});
@@ -343,22 +398,36 @@
 			: null;
 	}
 
-	function placeArmedShape(point: Vector): string | null {
-		if (!armedShape) {
-			return null;
-		}
+	function canvasPointFromClient(clientX: number, clientY: number): Vector {
+		const rect = glyphCanvas.getBoundingClientRect();
+		return {
+			x: (clientX - rect.left) * (glyphCanvas.width / rect.width),
+			y: (clientY - rect.top) * (glyphCanvas.height / rect.height)
+		};
+	}
+
+	function placeShape(item: ShapeItem, point: Vector): string {
+		dismissCanvasHint();
 		const placement = placements.add({
-			kind: armedShape.kind,
-			sourceId: armedShape.sourceId,
-			baseStrokes: armedShape.baseStrokes,
-			transform: defaultTransformForShape(armedShape, point, glyphCanvas)
+			kind: item.kind,
+			sourceId: item.sourceId,
+			baseStrokes: item.baseStrokes,
+			transform: defaultTransformForShape(item, point, glyphCanvas)
 		});
-		armedShape = null;
-		armedShapeId = null;
 		setSelected(placement.id);
 		pushHistory();
 		recompute();
 		return placement.id;
+	}
+
+	function placeArmedShape(point: Vector): string | null {
+		if (!armedShape) {
+			return null;
+		}
+		const placed = placeShape(armedShape, point);
+		armedShape = null;
+		armedShapeId = null;
+		return placed;
 	}
 
 	function deletePlacement(id: string) {
@@ -400,24 +469,79 @@
 		if (!on) {
 			armedShape = null;
 			armedShapeId = null;
-			const hadPlacements = placements.count() > 0;
-			placements
-				.getPlacements()
-				.map((placement) => placement.id)
-				.forEach((id) => commitPlacement(id));
 			setSelected(null);
-			if (hadPlacements) {
-				pushHistory();
-			}
 		}
 		recompute();
 	}
 
-	function armShape(item: ShapeItem) {
+	function shapePreviewPoints(stroke: Point[]): string {
+		return stroke
+			.map((point) => {
+				const x = Number(point.x);
+				const y = Number(point.y);
+				if (!Number.isFinite(x) || !Number.isFinite(y)) {
+					return null;
+				}
+				return `${Math.round((8 + x * 84) * 10) / 10},${Math.round((8 + y * 84) * 10) / 10}`;
+			})
+			.filter(Boolean)
+			.join(' ');
+	}
+
+	function beginShapeDrag(item: ShapeItem, event: PointerEvent) {
+		if (event.button !== undefined && event.button !== 0) {
+			return;
+		}
+		event.preventDefault();
+		endShapeDrag();
+		draggedShape = item;
 		armedShape = item;
 		armedShapeId = item.id;
+		shapeDragPointerId = event.pointerId;
+		dragPreview = { item, x: event.clientX, y: event.clientY };
 		if (!arrangeShapes) {
 			setArrangeMode(true);
+		}
+		window.addEventListener('pointermove', handleShapeDragMove);
+		window.addEventListener('pointerup', handleShapeDragEnd);
+		window.addEventListener('pointercancel', handleShapeDragEnd);
+	}
+
+	function endShapeDrag() {
+		draggedShape = null;
+		armedShape = null;
+		armedShapeId = null;
+		shapeDragPointerId = null;
+		dragPreview = null;
+		window.removeEventListener('pointermove', handleShapeDragMove);
+		window.removeEventListener('pointerup', handleShapeDragEnd);
+		window.removeEventListener('pointercancel', handleShapeDragEnd);
+	}
+
+	function handleShapeDragMove(event: PointerEvent) {
+		if (!draggedShape || shapeDragPointerId !== event.pointerId) {
+			return;
+		}
+		event.preventDefault();
+		dragPreview = { item: draggedShape, x: event.clientX, y: event.clientY };
+	}
+
+	function handleShapeDragEnd(event: PointerEvent) {
+		if (!draggedShape || shapeDragPointerId !== event.pointerId) {
+			return;
+		}
+		event.preventDefault();
+		const item = draggedShape;
+		const rect = glyphCanvas.getBoundingClientRect();
+		const insideCanvas =
+			event.clientX >= rect.left &&
+			event.clientX <= rect.right &&
+			event.clientY >= rect.top &&
+			event.clientY <= rect.bottom;
+		endShapeDrag();
+		if (insideCanvas) {
+			placeShape(item, canvasPointFromClient(event.clientX, event.clientY));
+			canvasShell.focus();
 		}
 	}
 
@@ -441,6 +565,7 @@
 				showGuides,
 				arrangeMode: arrangeShapes,
 				placementCount: placements.count(),
+				hintDismissed: canvasHintDismissed,
 				canUndo: historyIndex > 0,
 				canRedo: historyIndex < history.length - 1
 			});
@@ -459,19 +584,28 @@
 	}
 
 	function handleToggleArrange() {
-		setArrangeMode(arrangeShapes);
+		setArrangeMode(!arrangeShapes);
 	}
 
 	// Mirror the original `body.diagnostics-visible` toggle the debug CSS keys off.
 	$effect(() => {
 		document.body.classList.toggle('diagnostics-visible', showDiagnostics);
+		if (togglePreferencesLoaded) {
+			saveTogglePreferences();
+		}
 		return () => document.body.classList.remove('diagnostics-visible');
 	});
 
 	onMount(() => {
+		loadTogglePreferences();
+		togglePreferencesLoaded = true;
+
 		renderer = new CanvasRenderer({ glyphCanvas, effectCanvas, config: CONFIG });
 		capture = new DrawingCapture(glyphCanvas, store, CONFIG, {
-			onStart: cancelActiveRecognition,
+			onStart: () => {
+				cancelActiveRecognition();
+				dismissCanvasHint();
+			},
 			onCommit: () => {
 				pushHistory();
 				void recompute();
@@ -494,8 +628,8 @@
 			}
 		});
 		controller.enable();
-		controller.setActive(false);
-		glyphCanvas.style.cursor = 'crosshair';
+		controller.setActive(arrangeShapes);
+		glyphCanvas.style.cursor = arrangeShapes ? 'default' : 'crosshair';
 		resizeObserver = setupCanvasSizing({
 			elements: { canvasShell, glyphCanvas, effectCanvas },
 			store,
@@ -512,21 +646,28 @@
 			}
 		});
 
+		rafId = requestAnimationFrame(animationFrame);
+
 		let cancelled = false;
 		(async () => {
 			try {
 				dictionary = await loadDictionary();
+				if (cancelled) {
+					return;
+				}
 				dictionarySnapshot = $state.snapshot(dictionary) as Dictionary;
-				await refreshRecognitionAssets();
 				shapeLibrary = buildShapeLibrary(dictionary);
 				capture.enable();
 				history = [snapshot()];
 				historyIndex = 0;
 				inputReady = true;
 				void recompute();
-				if (!cancelled) {
-					rafId = requestAnimationFrame(animationFrame);
-				}
+
+				void refreshRecognitionAssets().then(() => {
+					if (!cancelled) {
+						void recompute();
+					}
+				});
 			} catch (error) {
 				console.error(error);
 				summary = { ...summary, statusText: 'Dictionary load failed', statusClass: 'invalid' };
@@ -537,6 +678,11 @@
 			const target = event.target as HTMLElement | null;
 			const typing = target?.tagName === 'INPUT' || target?.tagName === 'TEXTAREA';
 			if (arrangeShapes && selectedPlacementId && !typing) {
+				if (event.key === 'Enter') {
+					event.preventDefault();
+					handleCommitSelected();
+					return;
+				}
 				if (event.key === 'Delete' || event.key === 'Backspace') {
 					event.preventDefault();
 					deletePlacement(selectedPlacementId);
@@ -572,6 +718,7 @@
 			capture?.disable();
 			controller?.disable();
 			inputReady = false;
+			endShapeDrag();
 			resizeObserver?.disconnect();
 			window.removeEventListener('keydown', handleKeydown);
 			disposeRecognitionPool();
@@ -605,12 +752,7 @@
 			{summary}
 			bind:showGuides
 			bind:showDiagnostics
-			bind:arrangeShapes
-			onUndo={handleUndo}
-			onRedo={handleRedo}
-			onClear={handleClear}
 			onToggleGuides={handleToggleGuides}
-			onToggleArrange={handleToggleArrange}
 		/>
 
 		<section class="canvas-panel" aria-label="Spell drawing surface">
@@ -619,16 +761,73 @@
 				data-testid="canvas-shell"
 				bind:this={canvasShell}
 				class:portal-active={summary.portalActive}
+				role="region"
+				aria-label="Spell drawing canvas"
+				tabindex="-1"
 			>
 				<p
 					class="canvas-hint"
 					id="canvasHint"
 					data-testid="canvas-hint"
 					class:hidden={summary.hintHidden}
+					class:below-actions={!summary.hintHidden && !summary.undoDisabled}
 				>
 					Draw an open spell ring. Place sigils in the center and signs around them. When everything
 					is ready, seal the circle to awaken the spell.
 				</p>
+				<div
+					class="canvas-action-controls"
+					class:hidden={!summary.hintHidden && summary.undoDisabled}
+					aria-label="Canvas actions"
+				>
+					<button
+						type="button"
+						id="undoButton"
+						data-testid="undo-button"
+						aria-label="Undo"
+						title="Undo"
+						data-tooltip="Undo"
+						disabled={summary.undoDisabled}
+						onclick={handleUndo}
+					>
+						<svg aria-hidden="true" viewBox="0 0 24 24">
+							<path d="M9 14 4 9l5-5" />
+							<path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11" />
+						</svg>
+					</button>
+					<button
+						type="button"
+						id="redoButton"
+						data-testid="redo-button"
+						aria-label="Redo"
+						title="Redo"
+						data-tooltip="Redo"
+						disabled={summary.redoDisabled}
+						onclick={handleRedo}
+					>
+						<svg aria-hidden="true" viewBox="0 0 24 24">
+							<path d="m15 14 5-5-5-5" />
+							<path d="M20 9H9.5a5.5 5.5 0 0 0 0 11H13" />
+						</svg>
+					</button>
+					<button
+						type="button"
+						id="clearButton"
+						data-testid="clear-button"
+						aria-label="Clear"
+						title="Clear"
+						data-tooltip="Clear"
+						onclick={handleClear}
+					>
+						<svg aria-hidden="true" viewBox="0 0 24 24">
+							<path d="M3 6h18" />
+							<path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
+							<path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
+							<path d="M10 11v6" />
+							<path d="M14 11v6" />
+						</svg>
+					</button>
+				</div>
 				<div
 					class="canvas-container"
 					data-testid="canvas-container"
@@ -651,51 +850,51 @@
 						height="1000"
 					></canvas>
 				</div>
-			</div>
-			<div class="canvas-controls">
-				<button
-					type="button"
-					class="zoom-btn"
-					onclick={handleZoomOut}
-					disabled={zoomLevel <= ZOOM_MIN}
-					aria-label="Zoom out"
-				>
-					<svg
-						xmlns="http://www.w3.org/2000/svg"
-						width="16"
-						height="16"
-						viewBox="0 0 24 24"
-						fill="none"
-						stroke="currentColor"
-						stroke-width="2.5"
-						stroke-linecap="round"
-						stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line></svg
+				<div class="zoom-controls" aria-label="Canvas zoom controls">
+					<button
+						type="button"
+						id="arrangeToggle"
+						data-testid="arrange-toggle"
+						class="tool-btn"
+						class:active={arrangeShapes}
+						aria-pressed={arrangeShapes}
+						aria-label="Arrange shapes"
+						title="Arrange shapes"
+						data-tooltip="Arrange shapes"
+						onclick={handleToggleArrange}
 					>
-					<span>Zoom Out</span>
-				</button>
-				<span class="zoom-level-display">{Math.round(zoomLevel * 100)}%</span>
-				<button
-					type="button"
-					class="zoom-btn"
-					onclick={handleZoomIn}
-					disabled={zoomLevel >= ZOOM_MAX}
-					aria-label="Zoom in"
-				>
-					<svg
-						xmlns="http://www.w3.org/2000/svg"
-						width="16"
-						height="16"
-						viewBox="0 0 24 24"
-						fill="none"
-						stroke="currentColor"
-						stroke-width="2.5"
-						stroke-linecap="round"
-						stroke-linejoin="round"
-						><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"
-						></line></svg
+						<svg aria-hidden="true" viewBox="0 0 24 24">
+							<path d="M18 11V6a2 2 0 0 0-2-2 2 2 0 0 0-2 2" />
+							<path d="M14 10V4a2 2 0 0 0-2-2 2 2 0 0 0-2 2v2" />
+							<path d="M10 10.5V6a2 2 0 0 0-2-2 2 2 0 0 0-2 2v8" />
+							<path
+								d="M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-6-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15"
+							/>
+						</svg>
+					</button>
+					<button
+						type="button"
+						class="zoom-btn"
+						onclick={handleZoomOut}
+						disabled={zoomLevel <= ZOOM_MIN}
+						aria-label="Zoom out"
+						title="Zoom out"
+						data-tooltip="Zoom out"
 					>
-					<span>Zoom In</span>
-				</button>
+						-
+					</button>
+					<button
+						type="button"
+						class="zoom-btn"
+						onclick={handleZoomIn}
+						disabled={zoomLevel >= ZOOM_MAX}
+						aria-label="Zoom in"
+						title="Zoom in"
+						data-tooltip="Zoom in"
+					>
+						+
+					</button>
+				</div>
 			</div>
 		</section>
 
@@ -736,7 +935,7 @@
 					library={shapeLibrary}
 					{armedShapeId}
 					{selected}
-					onArm={armShape}
+					onDragStart={beginShapeDrag}
 					onChange={updateSelectedTransform}
 					onCommitTransform={pushHistory}
 					onCommit={handleCommitSelected}
@@ -749,6 +948,23 @@
 			</section>
 		</aside>
 	</main>
+
+	{#if dragPreview}
+		<div
+			class="shape-drag-overlay"
+			style="left: {dragPreview.x}px; top: {dragPreview.y}px;"
+			aria-hidden="true"
+		>
+			<svg viewBox="0 0 100 100" focusable="false">
+				{#each dragPreview.item.baseStrokes as stroke, strokeIndex (strokeIndex)}
+					{@const points = shapePreviewPoints(stroke)}
+					{#if points}
+						<polyline {points}></polyline>
+					{/if}
+				{/each}
+			</svg>
+		</div>
+	{/if}
 
 	<footer class="app-footer">
 		<p>

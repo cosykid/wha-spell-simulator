@@ -84,6 +84,7 @@ export function computeSummary({
 	showGuides,
 	arrangeMode = false,
 	placementCount = 0,
+	hintDismissed = false,
 	canUndo,
 	canRedo
 }: {
@@ -93,6 +94,7 @@ export function computeSummary({
 	showGuides: boolean;
 	arrangeMode?: boolean;
 	placementCount?: number;
+	hintDismissed?: boolean;
 	canUndo?: boolean;
 	canRedo?: boolean;
 }) {
@@ -133,7 +135,7 @@ export function computeSummary({
 		undoDisabled: canUndo === undefined ? store.count() === 0 : !canUndo,
 		redoDisabled: Boolean(spellIR?.active) || (canRedo === undefined ? !store.canRedo() : !canRedo),
 		portalActive: Boolean(spellIR?.active),
-		hintHidden: store.count() > 0 || placementCount > 0 || !showGuides
+		hintHidden: hintDismissed || store.count() > 0 || placementCount > 0 || !showGuides
 	};
 }
 

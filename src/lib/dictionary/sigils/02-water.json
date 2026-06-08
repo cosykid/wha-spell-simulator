@@ -3,6 +3,7 @@
 	"displayName": "Water",
 	"element": "water",
 	"allowedLayers": ["center", "middle", "outer"],
+	"sourceNotes": "The water sigil is one of the four primary tetrad sigils. It can manipulate, collect, and create water, though long-running water spells often collect existing water rather than generating it from nothing.",
 	"strokeTemplate": {
 		"sourceAspectRatio": 1,
 		"strokes": [

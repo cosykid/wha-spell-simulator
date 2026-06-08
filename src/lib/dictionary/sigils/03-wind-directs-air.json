@@ -3,6 +3,7 @@
 	"displayName": "Wind (Directs Air)",
 	"element": "wind",
 	"allowedLayers": ["center", "middle", "outer"],
+	"sourceNotes": "The wind sigil is one of the four primary tetrad sigils and is also associated with levitation. It moves and manipulates air, but the source notes distinguish that from creating new air.",
 	"strokeTemplate": {
 		"sourceAspectRatio": 1,
 		"strokes": [
