@@ -175,7 +175,14 @@
 		<h2 class="panel-section-title">Sign label</h2>
 		<Labels symbols={SAMPLE_SYMBOLS} selectedId={selected?.id ?? null} onpick={pickSymbol} />
 
-		<SampleSubmit bind:this={sampleSubmit} {symbolEntity} {strokes} {selected} {ctx} />
+		<SampleSubmit
+			bind:this={sampleSubmit}
+			{symbolEntity}
+			{strokes}
+			{selected}
+			{ctx}
+			onSuccess={clear}
+		/>
 	</aside>
 </main>
 

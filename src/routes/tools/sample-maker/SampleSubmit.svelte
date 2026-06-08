@@ -19,9 +19,11 @@ The component that handles the sample submission flow: building the payload, sub
 		selected: SampleSymbol | null;
 		/** Canvas context, used to read the pixel dimensions baked into the sample. */
 		ctx: CanvasRenderingContext2D | null;
+		/** Callback invoked after a successful submission. */
+		onSuccess?: () => void;
 	}
 
-	let { symbolEntity, strokes, selected, ctx }: Props = $props();
+	let { symbolEntity, strokes, selected, ctx, onSuccess }: Props = $props();
 
 	let submitting = $state(false);
 	let status = $state('');
@@ -42,8 +44,9 @@ The component that handles the sample submission flow: building the payload, sub
 
 	const payload = $derived(submission ? JSON.stringify(submission, null, 2) : '');
 
-	const handleSubmit = async (e: SubmitEvent) => {
-		e.preventDefault();
+	// Use enhance so only one submission path exists — spreading {...submitSample} on the form
+	// already adds its own submit listener, so a separate onsubmit handler would cause two fetches.
+	submitSample.enhance(async (instance) => {
 		if (submitting) return;
 
 		if (!selected) {
@@ -62,10 +65,11 @@ The component that handles the sample submission flow: building the payload, sub
 		submitting = true;
 		status = 'Uploading…';
 		try {
-			await submitSample.submit();
+			await instance.submit();
 			const result = submitSample.result;
 			if (result?.ok) {
-				status = `✓ Uploaded — id: ${result.id}`;
+				status = `✓ Uploaded (Time: ${new Date().toLocaleString()})`;
+				onSuccess?.();
 			} else if (result?.reason === 'duplicate') {
 				status = 'Already submitted — identical strokes are on record.';
 			} else if (result?.reason === 'server-error') {
@@ -80,7 +84,7 @@ The component that handles the sample submission flow: building the payload, sub
 		} finally {
 			submitting = false;
 		}
-	};
+	});
 
 	export const submit = () => formEl.requestSubmit();
 
@@ -89,7 +93,7 @@ The component that handles the sample submission flow: building the payload, sub
 	};
 </script>
 
-<form {...submitSample} bind:this={formEl} onsubmit={handleSubmit}>
+<form {...submitSample} bind:this={formEl}>
 	<input {...submitSample.fields.payload.as('hidden', payload)} />
 	<ButtonWithShortcut
 		type="submit"
