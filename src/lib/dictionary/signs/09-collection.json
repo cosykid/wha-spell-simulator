@@ -1,0 +1,31 @@
+{
+	"id": "collection",
+	"displayName": "Collection",
+	"allowedLayers": ["middle", "outer"],
+	"sourceNotes": "Collection gathers material from above and around the seal so the spell can use it. It may be directional or semi-directional, has not been seen inverted, and is usually drawn with its open side facing inward.",
+	"semantic": {
+		"manifestation": "collection",
+		"directionMode": "inward",
+		"force": 0.08,
+		"focus": 0.2,
+		"spread": -0.22,
+		"range": -0.06
+	},
+	"strokeTemplate": {
+		"sourceAspectRatio": 1,
+		"strokes": [
+			[
+				{ "x": 0.177, "y": 0.067 },
+				{ "x": 0.837, "y": 0.067 }
+			],
+			[
+				{ "x": 0.177, "y": 0.067 },
+				{ "x": 0.865, "y": 0.933 }
+			],
+			[
+				{ "x": 0.837, "y": 0.067 },
+				{ "x": 0.135, "y": 0.94 }
+			]
+		]
+	}
+}

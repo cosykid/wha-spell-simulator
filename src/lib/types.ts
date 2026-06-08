@@ -78,6 +78,7 @@ export interface SigilEntry {
 	displayName: string;
 	element?: ElementId;
 	allowedLayers?: string[];
+	sourceNotes?: string;
 	strokeTemplate?: StrokeTemplate;
 	recognitionRotationInvariant?: boolean;
 	allowedRotationsDeg?: number[];
@@ -109,6 +110,10 @@ export interface TemplateMatch {
 	confidence: number;
 	rotationDeg: number;
 	recognitionRotationDeg: number;
+	$pDistance?: number;
+	pScore?: number;
+	chamferDistance?: number;
+	chamferScore?: number;
 	inkScore: number;
 	softDiceScore: number;
 	candidateExplainedRatio: number;
@@ -213,6 +218,8 @@ export interface TopMatch {
 	id: string;
 	confidence: number;
 	templateConfidence?: number;
+	$pDistance?: number;
+	chamferDistance?: number;
 	inkScore?: number;
 	candidateExplainedRatio?: number;
 	templateCoveredRatio?: number;
@@ -220,6 +227,7 @@ export interface TopMatch {
 	aspectScore?: number;
 	strokeCountScore?: number;
 	strokeProfileScore?: number;
+	shapeScore?: number;
 	rotationDeg?: number;
 	recognitionRotationDeg?: number;
 }
@@ -234,6 +242,13 @@ export interface RecognitionDiagnostics {
 	bestGuess?: RecognitionBestGuess | null;
 	recognitionRotationDeg: number;
 	template: Record<string, number>;
+	matcher?: {
+		$pDistance: number;
+		chamferDistance: number;
+		candidateExplainedRatio: number;
+		templateCoveredRatio: number;
+		unexplainedInkRatio: number;
+	};
 	structure: Record<string, number>;
 	topMatches: TopMatch[];
 }
@@ -339,6 +354,8 @@ export interface SpellIR {
 	status: string;
 	activatedAt: number | null;
 	element: ElementId | null;
+	/** The id of the primary sigil, so effects can vary by element-variant sigils (e.g. crystal, aeriform). */
+	sigil: string | null;
 	elementConfidence: number;
 	primarySizeNorm: number;
 	effectScale: number;
@@ -364,6 +381,7 @@ export interface SpellIR {
 // ---------------------------------------------------------------------------
 
 export interface DrawingCaptureCallbacks {
+	onStart?: () => void;
 	onPreview?: (stroke: Stroke | null) => void;
 	onCommit?: () => void;
 }
@@ -374,7 +392,82 @@ export interface StrokeStore {
 	redo(): Stroke | null;
 	clear(): void;
 	scale(scaleX: number, scaleY: number): void;
+	load(strokes: Stroke[]): void;
 	getStrokes(): Stroke[];
+	peekStrokes(): Stroke[];
 	count(): number;
 	canRedo(): boolean;
+}
+
+// ---------------------------------------------------------------------------
+// Shape placement
+// ---------------------------------------------------------------------------
+
+export type PlacementKind = 'sigil' | 'sign' | 'ring';
+
+export interface PlacementTransform {
+	cx: number;
+	cy: number;
+	scaleX: number;
+	scaleY: number;
+	rotationDeg: number;
+}
+
+export interface Placement {
+	id: string;
+	kind: PlacementKind;
+	sourceId: string;
+	baseStrokes: Point[][];
+	transform: PlacementTransform;
+}
+
+/** A palette entry the user can stamp onto the canvas. */
+export interface ShapeItem {
+	id: string;
+	kind: PlacementKind;
+	sourceId: string;
+	label: string;
+	element: ElementId | null;
+	baseStrokes: Point[][];
+}
+
+export interface ShapeLibrary {
+	ring: ShapeItem;
+	sigils: ShapeItem[];
+	signs: ShapeItem[];
+	items: ShapeItem[];
+}
+
+export interface PlacementHandle extends Vector {
+	type: 'scale' | 'elongate-x' | 'elongate-y' | 'rotate';
+}
+
+export interface PlacementHandles {
+	center: Vector;
+	corners: Vector[];
+	edgeHandles: PlacementHandle[];
+	topMid: Vector;
+	rotate: Vector;
+}
+
+export interface PlacementStore {
+	add(input: Omit<Placement, 'id'>): Placement;
+	update(id: string, patch: Partial<PlacementTransform>): Placement | null;
+	remove(id: string): Placement | null;
+	get(id: string): Placement | null;
+	clear(): void;
+	load(placements: Placement[]): void;
+	getPlacements(): Placement[];
+	count(): number;
+}
+
+export interface PlacementControllerApi {
+	getSelectedId(): string | null;
+	setSelectedId(id: string | null): void;
+	hasArmedShape(): boolean;
+	placeShape(point: Vector): string | null;
+	onChange(): void;
+	// Fired once when a drag gesture that actually moved a shape ends, so the caller can
+	// record a single undo step for the whole gesture rather than one per pointer move.
+	onInteractionEnd(): void;
 }

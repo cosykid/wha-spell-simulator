@@ -9,4 +9,7 @@
 	let { children }: Props = $props();
 </script>
 
-{@render children()}
+<div class="app-background" aria-hidden="true"></div>
+<div class="app-content">
+	{@render children()}
+</div>

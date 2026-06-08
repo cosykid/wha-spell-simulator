@@ -81,12 +81,22 @@ export function computeSummary({
 	store,
 	pipeline,
 	spellIR,
-	showGuides
+	showGuides,
+	arrangeMode = false,
+	placementCount = 0,
+	hintDismissed = false,
+	canUndo,
+	canRedo
 }: {
 	store: StrokeStore;
 	pipeline: ClassifiedDrawing | null | undefined;
 	spellIR: SpellIR | null | undefined;
 	showGuides: boolean;
+	arrangeMode?: boolean;
+	placementCount?: number;
+	hintDismissed?: boolean;
+	canUndo?: boolean;
+	canRedo?: boolean;
 }) {
 	const ringClosed = Boolean(pipeline?.ring?.complete);
 	const hasUnsupportedMultipleRings = Boolean(pipeline?.ring?.unsupportedMultipleRings?.length);
@@ -104,7 +114,10 @@ export function computeSummary({
 				? closedWithoutSpellStatus(spellIR)
 				: (spellIR?.status ?? 'No ring detected');
 
-	const inputLocked = ringClosed || hasUnsupportedStructure;
+	// The canvas shows its sealed/locked styling only for finished spells, while arrange
+	// mode locks freehand capture without that styling so shapes can still be edited.
+	const canvasLocked = ringClosed || hasUnsupportedStructure;
+	const inputLocked = canvasLocked || arrangeMode;
 
 	return {
 		statusText,
@@ -115,9 +128,14 @@ export function computeSummary({
 		stability: clamp(spellIR?.stability ?? 0),
 		force: clamp(spellIR?.force ?? 0),
 		inputLocked,
-		redoDisabled: spellIR?.active || !store.canRedo(),
+		canvasLocked,
+		// Undo/redo availability comes from the unified history when the caller
+		// tracks it (strokes + placements); otherwise fall back to the stroke
+		// store so consumers without placements still get correct button states.
+		undoDisabled: canUndo === undefined ? store.count() === 0 : !canUndo,
+		redoDisabled: Boolean(spellIR?.active) || (canRedo === undefined ? !store.canRedo() : !canRedo),
 		portalActive: Boolean(spellIR?.active),
-		hintHidden: store.count() > 0 || !showGuides
+		hintHidden: hintDismissed || store.count() > 0 || placementCount > 0 || !showGuides
 	};
 }
 
@@ -131,6 +149,7 @@ export const INITIAL_SUMMARY = {
 	stability: 0,
 	force: 0,
 	inputLocked: false,
+	canvasLocked: false,
 	undoDisabled: true,
 	redoDisabled: true,
 	portalActive: false,

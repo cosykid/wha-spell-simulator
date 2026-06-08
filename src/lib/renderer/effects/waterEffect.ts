@@ -1,6 +1,7 @@
 import { clamp, perpendicularVector, randomBetween } from '../../utils/geometry.js';
 import {
 	activePortalPlane,
+	boltBurst,
 	convergenceFlow,
 	convergePoint,
 	effectFocus,
@@ -8,6 +9,7 @@ import {
 	effectOpacity,
 	effectScale,
 	effectSuspension,
+	emissionModifier,
 	particleAlpha,
 	portalOutDirection,
 	pruneParticles,
@@ -21,7 +23,8 @@ import type {
 	EffectState,
 	Particle,
 	Portal,
-	ConvergenceFlow
+	ConvergenceFlow,
+	EmissionModifier
 } from './effectUtils.js';
 
 const DEPTH_SCALE = 0.58;
@@ -33,6 +36,7 @@ const WATER_ALPHA_SCALE = 0.58;
 
 interface WaterFlowConfig {
 	suspended: boolean;
+	mod: EmissionModifier;
 	gravity: number;
 	suspension: number;
 	direction: Vector;
@@ -105,13 +109,19 @@ function waterFlowConfig(
 	const convergence = convergenceFlow(spellIR, portal, frame);
 	const convergenceStrength = convergence.strength;
 	const convergenceProgress = convergence.progress;
+	const mod = emissionModifier(spellIR);
+	// Dispersion widens the spilling source and weakens the forward jet so the
+	// water pours out on all sides; bolt speeds the stream up via the modifier.
+	const dispersionWiden = 1 + mod.dispersion * 0.7;
+	const dispersionPush = 1 + mod.dispersion * 1.3;
+	const dispersionForward = 1 - mod.dispersion * 0.45;
 	const horizontalShare = clamp(Math.hypot(directionIR.x ?? 0, directionIR.y ?? 0));
 	const verticalShare = clamp(directionIR.z ?? 1);
 	const sourceScale =
-		Math.min(0.64, 0.22 + scale * 0.06 + spellIR.spread * 0.18) *
+		Math.min(0.72, (0.22 + scale * 0.06 + spellIR.spread * 0.18) * dispersionWiden) *
 		(1 - convergenceStrength * 0.36) *
 		(1 - focus * 0.24);
-	const pressure = (3.15 + spellIR.force * 5.65) * (0.88 + scale * 0.12);
+	const pressure = (3.15 + spellIR.force * 5.65) * (0.88 + scale * 0.12) * mod.speedMul;
 	const suspendedRadius =
 		ring.radius *
 		(0.18 + spellIR.spread * 0.18 + scale * 0.035) *
@@ -121,6 +131,7 @@ function waterFlowConfig(
 
 	return {
 		suspended,
+		mod,
 		gravity,
 		suspension,
 		direction,
@@ -131,8 +142,10 @@ function waterFlowConfig(
 		convergenceProgress: convergence.progress,
 		sourceRadiusX: portal.radiusX * sourceScale,
 		sourceRadiusY: portal.radiusY * sourceScale,
-		horizontalSpeed: pressure * (0.08 + (0.22 + horizontalShare * 0.86) * travelFactor),
-		verticalSpeed: pressure * (0.16 + (0.62 + verticalShare * 0.52) * travelFactor),
+		horizontalSpeed:
+			pressure * (0.08 + (0.22 + horizontalShare * 0.86) * travelFactor) * dispersionForward,
+		verticalSpeed:
+			pressure * (0.16 + (0.62 + verticalShare * 0.52) * travelFactor) * dispersionForward,
 		gravityForce:
 			(0.052 + spellIR.force * 0.038 + (1 - spellIR.stability) * 0.018) *
 			gravity *
@@ -152,13 +165,15 @@ function waterFlowConfig(
 			(0.004 + spellIR.spread * 0.018) *
 			(1.12 - spellIR.stability * 0.38) *
 			(1 - convergenceStrength * 0.44) *
-			(1 - focus * 0.42),
+			(1 - focus * 0.42) *
+			dispersionPush,
 		depthPush:
 			ring.radius *
 			(0.004 + spellIR.spread * 0.016) *
 			(1.08 - spellIR.stability * 0.34) *
 			(1 - convergenceStrength * 0.44) *
-			(1 - focus * 0.42),
+			(1 - focus * 0.42) *
+			dispersionPush,
 		maxHeightHint: ring.radius * (0.9 + spellIR.force * 1.2 + scale * 0.12),
 		suspendedLife: spellLifetimeFrames(spellIR),
 		suspendedHeight:
@@ -272,7 +287,7 @@ function spawnWaterParticle(
 		age: 0,
 		life: flow.converging
 			? flow.suspendedLife
-			: randomBetween(56, 98) * (0.84 + spellIR.stability * 0.32)
+			: randomBetween(56, 98) * (0.84 + spellIR.stability * 0.32) * flow.mod.lifeMul
 	};
 }
 
@@ -502,7 +517,10 @@ export function drawWaterEffect(
 	const baseCount = flow.suspended
 		? 118 + spellIR.force * 74 + spellIR.spread * 56
 		: 96 + spellIR.force * 122;
-	const targetCount = scaledParticleCount(baseCount * (0.66 + scale * 0.22), spellIR, config);
+	const targetCount = Math.round(
+		scaledParticleCount(baseCount * (0.66 + scale * 0.22), spellIR, config) *
+			boltBurst(state.waterFrame as number, flow.mod.bolt)
+	);
 
 	while (state.particles.length < targetCount) {
 		state.particles.push(

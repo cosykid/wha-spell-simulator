@@ -5,9 +5,9 @@ export function drawPaper(ctx: CanvasRenderingContext2D, width: number, height: 
 	ctx.clearRect(0, 0, width, height);
 
 	const gradient = ctx.createLinearGradient(0, 0, width, 0);
-	gradient.addColorStop(0, '#f7dfac');
-	gradient.addColorStop(0.45, '#f4df9f');
-	gradient.addColorStop(1, '#fae8a5');
+	gradient.addColorStop(0, '#ece0bd');
+	gradient.addColorStop(0.45, '#e7dab4');
+	gradient.addColorStop(1, '#f0e5c6');
 	ctx.fillStyle = gradient;
 	ctx.fillRect(0, 0, width, height);
 }

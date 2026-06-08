@@ -128,8 +128,8 @@
 				<h2>Placement</h2>
 				<pre class="diagnostic-output">Paste the exported object into the matching dictionary entry:
 
-src/lib/dictionary/sigils.json
-src/lib/dictionary/signs.json
+src/lib/dictionary/sigils/NN-id.json
+src/lib/dictionary/signs/NN-id.json
 -> strokeTemplate</pre>
 			</section>
 		</aside>

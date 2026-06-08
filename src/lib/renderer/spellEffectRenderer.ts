@@ -50,13 +50,23 @@ function spellDurationMs(spellIR: SpellIR | null | undefined): number {
 	return Number.isFinite(durationSeconds) && durationSeconds > 0 ? durationSeconds * 1000 : 0;
 }
 
-function spellEmission(spellIR: SpellIR | null | undefined, timestamp: number): number {
+// Exported for unit testing the portal-tilt hold (see spellEffectTiming.test.ts).
+export function spellEmission(
+	spellIR: SpellIR | null | undefined,
+	timestamp: number,
+	tiltMs: number
+): number {
 	const durationMs = spellDurationMs(spellIR);
 	if (!spellIR?.active || durationMs <= 0 || typeof spellIR.activatedAt !== 'number') {
 		return 0;
 	}
 
-	const elapsed = Math.max(0, timestamp - spellIR.activatedAt);
+	// The canvas tilts into the screen first; hold all emission back until that
+	// portal-open animation has finished, then start the spell's own timeline.
+	const elapsed = timestamp - spellIR.activatedAt - tiltMs;
+	if (elapsed < 0) {
+		return 0;
+	}
 	if (elapsed <= durationMs) {
 		return 1;
 	}
@@ -138,7 +148,7 @@ export class SpellEffectRenderer {
 			return;
 		}
 
-		const emission = spellEmission(spellIR, timestamp);
+		const emission = spellEmission(spellIR, timestamp, this.config.renderer.portalTiltMs);
 		if (emission <= 0 && !this.state.particles.length) {
 			return;
 		}

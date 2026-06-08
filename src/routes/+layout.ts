@@ -1,3 +1,3 @@
-// Single-page canvas app: prerender the static shell and ship it as a flat
-// set of files (no server runtime) so it can deploy to GitHub Pages.
+// Prerender the canvas shell while leaving API routes dynamic. On Vercel this
+// gives the app static page delivery plus serverless functions for Neon access.
 export const prerender = true;

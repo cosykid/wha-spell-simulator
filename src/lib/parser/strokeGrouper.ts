@@ -13,9 +13,13 @@ import {
 	strokeLength
 } from '../utils/geometry.js';
 import { summarizePolar } from './coordinateNormalizer.js';
+import { createDecompositionScorer } from './symbolRecognizer.js';
+import type { DecompositionScorer } from './symbolRecognizer.js';
+import type { RecognitionExample } from './shapeMatcher.js';
 import type {
 	AppConfig,
 	CleanedStroke,
+	Dictionary,
 	RadialFacing,
 	RingInfo,
 	Stroke,
@@ -31,7 +35,28 @@ interface StrokeClassification {
 const BBOX_PADDING_NORM = 0.075;
 const CENTER_DISTANCE_NORM = 0.2;
 const ENDPOINT_DISTANCE_NORM = 0.085;
-const MAX_SYMBOL_SIZE_NORM = 0.52;
+const MAX_SYMBOL_SIZE_NORM = 0.58;
+const MERGE_SCORE_FLOOR = 0.42;
+const TREE_WHOLE_EPSILON = 0.015;
+// Above this many strokes in one component, skip computing proximity for pairs
+// whose bounding boxes are farther apart than SEGMENT_PRUNE_GAP_NORM * radius.
+// Bbox gap lower-bounds closest-point distance, and a pair that far apart cannot
+// reach MERGE_SCORE_FLOOR (even the center-sigil shortcut needs the centers
+// within 0.54 * radius), so the pruned edges would never have merged.
+const SEGMENT_ALLPAIRS_CAP = 48;
+const SEGMENT_PRUNE_GAP_NORM = 0.6;
+
+interface DecompositionNode {
+	id: string;
+	strokes: CleanedStroke[];
+	children: DecompositionNode[];
+	proximityScore: number;
+}
+
+interface TreeSelection {
+	value: number;
+	groups: CleanedStroke[][];
+}
 
 function endpointDistance(a: Stroke, b: Stroke): number {
 	const endpointsA = [a.points[0], a.points[a.points.length - 1]].filter(Boolean);
@@ -45,15 +70,122 @@ function endpointDistance(a: Stroke, b: Stroke): number {
 	return best;
 }
 
-function shouldGroup(a: CleanedStroke, b: CleanedStroke, ring: RingInfo): boolean {
+function sampledStrokePoints(stroke: Stroke): Stroke['points'] {
+	const points = stroke.points ?? [];
+	if (points.length <= 28) {
+		return points;
+	}
+
+	const stride = Math.ceil(points.length / 28);
+	return points.filter((_, index) => index % stride === 0);
+}
+
+function pointDistance(a: Stroke, b: Stroke): number {
+	const pointsA = sampledStrokePoints(a);
+	const pointsB = sampledStrokePoints(b);
+	let best = Infinity;
+	for (const pointA of pointsA) {
+		for (const pointB of pointsB) {
+			best = Math.min(best, distance(pointA, pointB));
+		}
+	}
+	return best;
+}
+
+function boundsGap(a: CleanedStroke, b: CleanedStroke): number {
+	const dx = Math.max(
+		0,
+		Math.max(
+			a.metrics.bounds.minX - b.metrics.bounds.maxX,
+			b.metrics.bounds.minX - a.metrics.bounds.maxX
+		)
+	);
+	const dy = Math.max(
+		0,
+		Math.max(
+			a.metrics.bounds.minY - b.metrics.bounds.maxY,
+			b.metrics.bounds.minY - a.metrics.bounds.maxY
+		)
+	);
+	return Math.hypot(dx, dy);
+}
+
+function strokePairProximity(
+	a: CleanedStroke,
+	b: CleanedStroke,
+	ring: RingInfo,
+	config: AppConfig
+) {
+	const radius = Math.max(1, ring.radius);
+	const aCenter = centerOfBounds(a.metrics.bounds);
+	const bCenter = centerOfBounds(b.metrics.bounds);
+	const aPolar = summarizePolar(aCenter, ring, config);
+	const bPolar = summarizePolar(bCenter, ring, config);
+	const sameLayer = aPolar.layer === bPolar.layer || aPolar.nearBoundary || bPolar.nearBoundary;
+	const angleDifference = angularDifference(aPolar.angleDeg, bPolar.angleDeg);
+	const centerDistanceNorm = distance(aCenter, bCenter) / radius;
+	const bboxDistanceNorm = boundsGap(a, b) / radius;
+	const pointDistanceNorm = pointDistance(a, b) / radius;
+	const centerCompatible =
+		Math.min(aPolar.radiusNorm, bPolar.radiusNorm) <= config.layers.centerMax ||
+		angleDifference <= 30;
+	const bothCenter =
+		Math.max(aPolar.radiusNorm, bPolar.radiusNorm) <=
+		config.layers.centerMax + config.layers.boundaryTolerance * 1.5;
+	const centerSigilCompatible = bothCenter && centerDistanceNorm <= 0.54;
+	const paddedOverlap = boundsOverlap(
+		expandBounds(a.metrics.bounds, radius * BBOX_PADDING_NORM),
+		expandBounds(b.metrics.bounds, radius * BBOX_PADDING_NORM)
+	);
+	const connected =
+		paddedOverlap ||
+		pointDistanceNorm <= ENDPOINT_DISTANCE_NORM ||
+		centerSigilCompatible ||
+		(sameLayer && centerDistanceNorm <= CENTER_DISTANCE_NORM * 1.2 && centerCompatible);
+	const weightedScore = clamp(
+		clamp(1 - bboxDistanceNorm / 0.13) * 0.28 +
+			clamp(1 - pointDistanceNorm / 0.12) * 0.34 +
+			clamp(1 - centerDistanceNorm / 0.27) * 0.2 +
+			(sameLayer ? 0.11 : 0.03) +
+			clamp(1 - angleDifference / 42) * 0.07
+	);
+	const score = Math.max(
+		weightedScore,
+		paddedOverlap ? 0.72 : 0,
+		pointDistanceNorm <= ENDPOINT_DISTANCE_NORM ? 0.68 : 0,
+		centerSigilCompatible ? 0.6 : 0
+	);
+
+	return {
+		connected,
+		score
+	};
+}
+
+function shouldGroup(
+	a: CleanedStroke,
+	b: CleanedStroke,
+	ring: RingInfo,
+	config: AppConfig
+): boolean {
 	const padding = ring.radius * BBOX_PADDING_NORM;
 	const aBounds = expandBounds(a.metrics.bounds, padding);
 	const bBounds = expandBounds(b.metrics.bounds, padding);
+	const aPolar = summarizePolar(centerOfBounds(a.metrics.bounds), ring, config);
+	const bPolar = summarizePolar(centerOfBounds(b.metrics.bounds), ring, config);
+	const sameLayer = aPolar.layer === bPolar.layer || aPolar.nearBoundary || bPolar.nearBoundary;
 	const centersClose =
 		distance(centerOfBounds(a.metrics.bounds), centerOfBounds(b.metrics.bounds)) <=
 		ring.radius * CENTER_DISTANCE_NORM;
 	const endpointsClose = endpointDistance(a, b) <= ring.radius * ENDPOINT_DISTANCE_NORM;
-	return boundsOverlap(aBounds, bBounds) || centersClose || endpointsClose;
+	return endpointsClose || (sameLayer && (boundsOverlap(aBounds, bBounds) || centersClose));
+}
+
+function maxTemplateStrokeCount(dictionary: Dictionary): number {
+	const counts = [...dictionary.sigils, ...dictionary.signs].map(
+		(entry) => entry.strokeTemplate?.strokes?.length ?? 0
+	);
+	return Math.max(8, ...counts) * 2 + 4;
 }
 
 function classifyRadialFacing(directedAngle: number, radialAngle: number): RadialFacing {
@@ -122,16 +254,194 @@ function buildCandidate(
 	};
 }
 
-export function buildSymbolCandidates(
+function connectedComponents(strokes: CleanedStroke[], ring: RingInfo, config: AppConfig) {
+	const adjacency = new Map<string, CleanedStroke[]>();
+	for (const stroke of strokes) {
+		adjacency.set(stroke.id, []);
+	}
+
+	for (let a = 0; a < strokes.length; a += 1) {
+		for (let b = a + 1; b < strokes.length; b += 1) {
+			const proximity = strokePairProximity(strokes[a], strokes[b], ring, config);
+			if (!proximity.connected || proximity.score < MERGE_SCORE_FLOOR) {
+				continue;
+			}
+			adjacency.get(strokes[a].id)!.push(strokes[b]);
+			adjacency.get(strokes[b].id)!.push(strokes[a]);
+		}
+	}
+
+	const visited = new Set<string>();
+	const components: CleanedStroke[][] = [];
+	for (const stroke of strokes) {
+		if (visited.has(stroke.id)) {
+			continue;
+		}
+		const component: CleanedStroke[] = [];
+		const queue = [stroke];
+		visited.add(stroke.id);
+		while (queue.length) {
+			const current = queue.shift()!;
+			component.push(current);
+			for (const next of adjacency.get(current.id) ?? []) {
+				if (visited.has(next.id)) {
+					continue;
+				}
+				visited.add(next.id);
+				queue.push(next);
+			}
+		}
+		components.push(component);
+	}
+
+	return components;
+}
+
+interface MergeEdge {
+	a: number;
+	b: number;
+	score: number;
+}
+
+// Single-linkage agglomerative clustering via union-find. Sorting the leaf
+// pairs by descending proximity and merging with union-find reproduces the same
+// merge-forest topology as repeatedly merging the closest pair, but without the
+// O(n^3) all-pairs rescan after every merge. Each connected component collapses
+// to one dendrogram root because the edges that formed the component all clear
+// MERGE_SCORE_FLOOR and are therefore present here.
+function buildMergeForest(
+	component: CleanedStroke[],
+	ring: RingInfo,
+	config: AppConfig,
+	nextId: { value: number }
+): DecompositionNode[] {
+	const leaves: DecompositionNode[] = component.map((stroke) => ({
+		id: `n${nextId.value++}`,
+		strokes: [stroke],
+		children: [],
+		proximityScore: 1
+	}));
+
+	const count = leaves.length;
+	if (count <= 1) {
+		return leaves;
+	}
+
+	const usePruning = count > SEGMENT_ALLPAIRS_CAP;
+	const pruneGap = ring.radius * SEGMENT_PRUNE_GAP_NORM;
+	const edges: MergeEdge[] = [];
+	for (let a = 0; a < count; a += 1) {
+		for (let b = a + 1; b < count; b += 1) {
+			if (usePruning && boundsGap(component[a], component[b]) > pruneGap) {
+				continue;
+			}
+			const score = strokePairProximity(component[a], component[b], ring, config).score;
+			if (score >= MERGE_SCORE_FLOOR) {
+				edges.push({ a, b, score });
+			}
+		}
+	}
+
+	edges.sort((x, y) => y.score - x.score);
+
+	const parent = leaves.map((_, index) => index);
+	const rootNode = [...leaves];
+	const find = (x: number): number => {
+		while (parent[x] !== x) {
+			parent[x] = parent[parent[x]];
+			x = parent[x];
+		}
+		return x;
+	};
+
+	for (const edge of edges) {
+		const rootA = find(edge.a);
+		const rootB = find(edge.b);
+		if (rootA === rootB) {
+			continue;
+		}
+		const first = rootNode[rootA];
+		const second = rootNode[rootB];
+		rootNode[rootA] = {
+			id: `n${nextId.value++}`,
+			strokes: [...first.strokes, ...second.strokes],
+			children: [first, second],
+			proximityScore: edge.score
+		};
+		parent[rootB] = rootA;
+	}
+
+	const roots: DecompositionNode[] = [];
+	const seen = new Set<number>();
+	for (let index = 0; index < count; index += 1) {
+		const root = find(index);
+		if (seen.has(root)) {
+			continue;
+		}
+		seen.add(root);
+		roots.push(rootNode[root]);
+	}
+
+	return roots;
+}
+
+function canScoreWholeNode(
+	node: DecompositionNode,
+	ring: RingInfo,
+	config: AppConfig,
+	maxStrokeCount: number
+): boolean {
+	if (node.strokes.length > maxStrokeCount) {
+		return false;
+	}
+	const candidate = buildCandidate(node.strokes, 0, ring, config);
+	return candidate.sizeNorm <= MAX_SYMBOL_SIZE_NORM;
+}
+
+function selectTreeCut(
+	node: DecompositionNode,
+	ring: RingInfo,
+	config: AppConfig,
+	maxStrokeCount: number,
+	scoreCut: DecompositionScorer
+): TreeSelection {
+	const groupPenalty = config.recognition.groupPenalty ?? 0.45;
+	const wholeCandidate = buildCandidate(node.strokes, 0, ring, config);
+	const canScoreWhole = canScoreWholeNode(node, ring, config, maxStrokeCount);
+	const wholeValue = canScoreWhole ? Math.max(scoreCut(wholeCandidate) - groupPenalty, 0) : 0;
+
+	if (!node.children.length) {
+		return {
+			value: wholeValue,
+			groups: [node.strokes]
+		};
+	}
+
+	const childSelections = node.children.map((child) =>
+		selectTreeCut(child, ring, config, maxStrokeCount, scoreCut)
+	);
+	const childValue = childSelections.reduce((sum, selection) => sum + selection.value, 0);
+	const childGroups = childSelections.flatMap((selection) => selection.groups);
+
+	if (canScoreWhole && wholeValue + TREE_WHOLE_EPSILON >= childValue) {
+		return {
+			value: wholeValue,
+			groups: [node.strokes]
+		};
+	}
+
+	return {
+		value: childValue,
+		groups: childGroups
+	};
+}
+
+function fallbackCandidates(
 	strokes: CleanedStroke[],
 	classifications: StrokeClassification[],
 	ring: RingInfo,
 	config: AppConfig
 ): SymbolCandidate[] {
-	if (!ring.found) {
-		return [];
-	}
-
 	const classificationById = new Map(
 		classifications.map((classification) => [classification.strokeId, classification])
 	);
@@ -159,7 +469,7 @@ export function buildSymbolCandidates(
 				if (visited.has(other.id)) {
 					continue;
 				}
-				if (shouldGroup(current, other, ring)) {
+				if (shouldGroup(current, other, ring, config)) {
 					visited.add(other.id);
 					queue.push(other);
 				}
@@ -170,6 +480,119 @@ export function buildSymbolCandidates(
 	}
 
 	return groups
+		.map((group, index) => buildCandidate(group, index, ring, config))
+		.filter((candidate) => candidate.sizeNorm <= MAX_SYMBOL_SIZE_NORM);
+}
+
+function groupsTouch(a: CleanedStroke[], b: CleanedStroke[], ring: RingInfo): boolean {
+	const radius = Math.max(1, ring.radius);
+	for (const strokeA of a) {
+		for (const strokeB of b) {
+			if (endpointDistance(strokeA, strokeB) <= radius * 0.045) {
+				return true;
+			}
+			if (pointDistance(strokeA, strokeB) <= radius * 0.035) {
+				return true;
+			}
+		}
+	}
+	return false;
+}
+
+function shouldMergeFragmentGroups(
+	a: CleanedStroke[],
+	b: CleanedStroke[],
+	ring: RingInfo,
+	config: AppConfig
+): boolean {
+	if (a.length > 2 && b.length > 2) {
+		return false;
+	}
+
+	const candidateA = buildCandidate(a, 0, ring, config);
+	const candidateB = buildCandidate(b, 0, ring, config);
+	const sameLayer =
+		candidateA.layer === candidateB.layer || candidateA.nearBoundary || candidateB.nearBoundary;
+	if (!sameLayer) {
+		return false;
+	}
+
+	const mergedCandidate = buildCandidate([...a, ...b], 0, ring, config);
+	if (mergedCandidate.sizeNorm > MAX_SYMBOL_SIZE_NORM) {
+		return false;
+	}
+
+	return groupsTouch(a, b, ring);
+}
+
+function mergeFragmentGroups(
+	groups: CleanedStroke[][],
+	ring: RingInfo,
+	config: AppConfig
+): CleanedStroke[][] {
+	const merged = groups.map((group) => [...group]);
+	let changed = true;
+
+	while (changed) {
+		changed = false;
+		for (let a = 0; a < merged.length; a += 1) {
+			for (let b = a + 1; b < merged.length; b += 1) {
+				if (!shouldMergeFragmentGroups(merged[a], merged[b], ring, config)) {
+					continue;
+				}
+				merged[a] = [...merged[a], ...merged[b]];
+				merged.splice(b, 1);
+				changed = true;
+				break;
+			}
+			if (changed) {
+				break;
+			}
+		}
+	}
+
+	return merged;
+}
+
+export function buildSymbolCandidates(
+	strokes: CleanedStroke[],
+	classifications: StrokeClassification[],
+	ring: RingInfo,
+	config: AppConfig,
+	dictionary?: Dictionary,
+	recognitionExamples: RecognitionExample[] = []
+): SymbolCandidate[] {
+	if (!ring.found) {
+		return [];
+	}
+
+	if (!dictionary) {
+		return fallbackCandidates(strokes, classifications, ring, config);
+	}
+
+	if (!config.recognition.recognitionGuidedDecomposition) {
+		return fallbackCandidates(strokes, classifications, ring, config);
+	}
+
+	const classificationById = new Map(
+		classifications.map((classification) => [classification.strokeId, classification])
+	);
+	const symbolStrokes = strokes.filter(
+		(stroke) =>
+			classificationById.get(stroke.id)?.canJoinSymbol ||
+			classificationById.get(stroke.id)?.usedByParser
+	);
+
+	const nextId = { value: 1 };
+	const maxStrokeCount = maxTemplateStrokeCount(dictionary);
+	const scoreCut = createDecompositionScorer(dictionary, config, recognitionExamples);
+	const groups = connectedComponents(symbolStrokes, ring, config).flatMap((component) =>
+		buildMergeForest(component, ring, config, nextId).flatMap(
+			(node) => selectTreeCut(node, ring, config, maxStrokeCount, scoreCut).groups
+		)
+	);
+
+	return mergeFragmentGroups(groups, ring, config)
 		.map((group, index) => buildCandidate(group, index, ring, config))
 		.filter((candidate) => candidate.sizeNorm <= MAX_SYMBOL_SIZE_NORM);
 }

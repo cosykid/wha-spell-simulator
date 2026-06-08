@@ -1,4 +1,13 @@
-import type { AppConfig, Stroke, RingInfo, SymbolCandidate, Recognition, Point } from '../types.js';
+import type {
+	AppConfig,
+	Stroke,
+	RingInfo,
+	SymbolCandidate,
+	Recognition,
+	Point,
+	PlacementHandles,
+	Vector
+} from '../types.js';
 
 // ---------------------------------------------------------------------------
 // Glow layer descriptors
@@ -206,6 +215,10 @@ function activeGlowStrokes(activatedStrokeIds: Set<string>, strokes: Stroke[]): 
 
 function glowAlphaAt(timestamp: number, activatedAt: number, duration: number): number {
 	const elapsed = timestamp - activatedAt;
+	if (elapsed < 0) {
+		// Activation is still in the future (the canvas is tilting in); no glow yet.
+		return 0;
+	}
 	const t = Math.min(1, elapsed / duration);
 	return Math.pow(1 - t, 2);
 }
@@ -292,6 +305,58 @@ export function drawStrokeIdDebug(
 	ctx.restore();
 }
 
+function drawHandleSquare(ctx: CanvasRenderingContext2D, point: Vector, size = 9): void {
+	ctx.beginPath();
+	ctx.rect(point.x - size / 2, point.y - size / 2, size, size);
+	ctx.fill();
+	ctx.stroke();
+}
+
+export function drawPlacementSelection(
+	ctx: CanvasRenderingContext2D,
+	handles: PlacementHandles | null | undefined
+): void {
+	if (!handles) {
+		return;
+	}
+
+	ctx.save();
+	ctx.strokeStyle = 'rgba(31, 111, 115, 0.85)';
+	ctx.fillStyle = 'rgba(255, 251, 233, 0.96)';
+	ctx.lineWidth = 1.5;
+
+	ctx.setLineDash([6, 4]);
+	ctx.beginPath();
+	handles.corners.forEach((corner, index) => {
+		if (index === 0) {
+			ctx.moveTo(corner.x, corner.y);
+		} else {
+			ctx.lineTo(corner.x, corner.y);
+		}
+	});
+	ctx.closePath();
+	ctx.stroke();
+	ctx.setLineDash([]);
+
+	ctx.beginPath();
+	ctx.moveTo(handles.topMid.x, handles.topMid.y);
+	ctx.lineTo(handles.rotate.x, handles.rotate.y);
+	ctx.stroke();
+
+	for (const corner of handles.corners) {
+		drawHandleSquare(ctx, corner);
+	}
+	for (const edge of handles.edgeHandles) {
+		drawHandleSquare(ctx, edge);
+	}
+
+	ctx.beginPath();
+	ctx.arc(handles.rotate.x, handles.rotate.y, 5.5, 0, Math.PI * 2);
+	ctx.fill();
+	ctx.stroke();
+	ctx.restore();
+}
+
 export function drawCandidateDebug(
 	ctx: CanvasRenderingContext2D,
 	candidates: SymbolCandidate[] | null | undefined,
@@ -306,8 +371,19 @@ export function drawCandidateDebug(
 	for (const candidate of candidates ?? []) {
 		const recognition = byCandidate.get(candidate.candidateId);
 		const accepted = recognition?.recognized;
-		ctx.strokeStyle = accepted ? 'rgba(31, 111, 115, 0.82)' : 'rgba(184, 69, 49, 0.74)';
-		ctx.fillStyle = accepted ? 'rgba(31, 111, 115, 0.92)' : 'rgba(184, 69, 49, 0.92)';
+		const tentativeMatch =
+			recognition?.diagnostics?.topMatches?.[0] ?? recognition?.diagnostics?.bestGuess;
+		const hasTentativeName = Boolean(tentativeMatch?.id);
+		ctx.strokeStyle = accepted
+			? 'rgba(31, 111, 115, 0.82)'
+			: hasTentativeName
+				? 'rgba(156, 110, 35, 0.78)'
+				: 'rgba(184, 69, 49, 0.74)';
+		ctx.fillStyle = accepted
+			? 'rgba(31, 111, 115, 0.92)'
+			: hasTentativeName
+				? 'rgba(156, 110, 35, 0.94)'
+				: 'rgba(184, 69, 49, 0.92)';
 		ctx.strokeRect(
 			candidate.bounds.minX,
 			candidate.bounds.minY,
@@ -316,7 +392,9 @@ export function drawCandidateDebug(
 		);
 		const label = accepted
 			? `${recognition!.id} ${Math.round(recognition!.confidence * 100)}`
-			: `${candidate.candidateId}`;
+			: hasTentativeName
+				? `${tentativeMatch!.id}? ${Math.round((tentativeMatch!.confidence ?? 0) * 100)}`
+				: `${candidate.candidateId}`;
 		ctx.fillText(label, candidate.bounds.minX, Math.max(12, candidate.bounds.minY - 5));
 	}
 	ctx.restore();

@@ -9,8 +9,6 @@
 		quality: number;
 		stability: number;
 		force: number;
-		undoDisabled: boolean;
-		redoDisabled: boolean;
 		[key: string]: unknown;
 	}
 
@@ -18,9 +16,6 @@
 		summary: Summary;
 		showGuides?: boolean;
 		showDiagnostics?: boolean;
-		onUndo?: () => void;
-		onRedo?: () => void;
-		onClear?: () => void;
 		onToggleGuides?: () => void;
 	}
 
@@ -28,9 +23,6 @@
 		summary,
 		showGuides = $bindable(),
 		showDiagnostics = $bindable(),
-		onUndo,
-		onRedo,
-		onClear,
 		onToggleGuides
 	}: Props = $props();
 
@@ -42,16 +34,6 @@
 </script>
 
 <aside class="control-panel" aria-label="Spell controls">
-	<section class="control-section">
-		<button type="button" id="undoButton" disabled={summary.undoDisabled} onclick={onUndo}
-			>Undo</button
-		>
-		<button type="button" id="redoButton" disabled={summary.redoDisabled} onclick={onRedo}
-			>Redo</button
-		>
-		<button type="button" id="clearButton" onclick={onClear}>Clear</button>
-	</section>
-
 	<section class="control-section">
 		<label class="toggle">
 			<input
@@ -69,27 +51,38 @@
 	</section>
 
 	<h2 class="panel-section-title">Spell State</h2>
-	<div class="spell-state-status {summary.statusClass}" id="statusValue">{summary.statusText}</div>
+	<div
+		class="spell-state-status {summary.statusClass}"
+		id="statusValue"
+		data-testid="status-value"
+		data-status-class={summary.statusClass}
+	>
+		{summary.statusText}
+	</div>
 	<section class="summary-band">
 		<div>
 			<span class="label">Element</span>
-			<strong id="elementValue">{summary.element}</strong>
+			<strong id="elementValue" data-testid="element-value">{summary.element}</strong>
 		</div>
 		<div>
 			<span class="label">Manifestations</span>
-			<strong id="manifestationValue">{summary.manifestation}</strong>
+			<strong id="manifestationValue" data-testid="manifestation-value"
+				>{summary.manifestation}</strong
+			>
 		</div>
 	</section>
 
 	<section class="meter-list">
 		{#each meters as meter (meter.label)}
-			<div class="meter-row">
+			<div class="meter-row" data-testid="meter-{meter.label.toLowerCase()}">
 				<span>{meter.label}</span>
 				<div class="meter">
 					<span style="width: {meterPercent(meter.value)}" data-level={meterLevel(meter.value)}
 					></span>
 				</div>
-				<span class="diagnostic-meter-value">{meterPercent(meter.value)}</span>
+				<span class="diagnostic-meter-value" data-testid="meter-value-{meter.label.toLowerCase()}"
+					>{meterPercent(meter.value)}</span
+				>
 			</div>
 		{/each}
 	</section>

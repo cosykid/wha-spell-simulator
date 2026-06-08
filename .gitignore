@@ -9,10 +9,16 @@
 node_modules/
 npm-debug.log*
 
+# local secrets
+.env
+.env.*
+!.env.example
+
 # build output
 dist/
 build/
 .svelte-kit/
+.vercel/
 
 # macOS
 .DS_Store
@@ -21,3 +27,6 @@ Icon?
 # Obsidian local vault state
 docs/.obsidian/
 docs/.trash/
+
+# Playwright
+test-results

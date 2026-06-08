@@ -1,23 +1,25 @@
 import type { Dictionary, SigilEntry, SignEntry, SampleSpell } from '../types.js';
+import sampleSpells from './sample-spells.json';
 
-async function readJson(url: URL | string): Promise<unknown> {
-	const response = await fetch(url);
-	if (!response.ok) {
-		throw new Error(`Unable to load ${url}: ${response.status}`);
-	}
-	return response.json();
+const sigilModules = import.meta.glob<SigilEntry>('./sigils/*.json', {
+	eager: true,
+	import: 'default'
+});
+const signModules = import.meta.glob<SignEntry>('./signs/*.json', {
+	eager: true,
+	import: 'default'
+});
+
+function dictionaryEntries<T>(modules: Record<string, T>): T[] {
+	return Object.keys(modules)
+		.sort((left, right) => left.localeCompare(right, undefined, { numeric: true }))
+		.map((path) => modules[path]);
 }
 
 export async function loadDictionary(): Promise<Dictionary> {
-	const [sigils, signs, sampleSpells] = await Promise.all([
-		readJson(new URL('./sigils.json', import.meta.url)),
-		readJson(new URL('./signs.json', import.meta.url)),
-		readJson(new URL('./sample-spells.json', import.meta.url))
-	]);
-
 	return {
-		sigils: sigils as SigilEntry[],
-		signs: signs as SignEntry[],
+		sigils: dictionaryEntries(sigilModules),
+		signs: dictionaryEntries(signModules),
 		sampleSpells: sampleSpells as SampleSpell[]
 	};
 }

@@ -1,0 +1,101 @@
+{
+	"id": "weave",
+	"displayName": "Weave (Ribbon)",
+	"allowedLayers": ["middle", "outer"],
+	"sourceNotes": "Weave, also called ribbon, turns solid objects affected by the spell into long flexible ribbons when they touch the seal. It is likely semi-directional, has not been seen inverted, and is associated with Richeh's ribbon spells.",
+	"semantic": {
+		"manifestation": "weave",
+		"directionMode": "position",
+		"force": -0.04,
+		"focus": 0.1,
+		"spread": 0.1,
+		"lifetimeBias": 0.06
+	},
+	"strokeTemplate": {
+		"sourceAspectRatio": 1,
+		"strokes": [
+			[
+				{
+					"x": 0.06,
+					"y": 0.94
+				},
+				{
+					"x": 0.1743,
+					"y": 0.8257
+				},
+				{
+					"x": 0.1667,
+					"y": 0.7914
+				},
+				{
+					"x": 0.0905,
+					"y": 0.6733
+				},
+				{
+					"x": 0.0638,
+					"y": 0.5857
+				},
+				{
+					"x": 0.06,
+					"y": 0.441
+				},
+				{
+					"x": 0.0905,
+					"y": 0.3305
+				},
+				{
+					"x": 0.1438,
+					"y": 0.239
+				},
+				{
+					"x": 0.2314,
+					"y": 0.1476
+				},
+				{
+					"x": 0.3305,
+					"y": 0.0905
+				},
+				{
+					"x": 0.4448,
+					"y": 0.06
+				},
+				{
+					"x": 0.5857,
+					"y": 0.0638
+				},
+				{
+					"x": 0.7267,
+					"y": 0.1171
+				},
+				{
+					"x": 0.8333,
+					"y": 0.2086
+				},
+				{
+					"x": 0.8905,
+					"y": 0.2924
+				},
+				{
+					"x": 0.9362,
+					"y": 0.4257
+				},
+				{
+					"x": 0.9362,
+					"y": 0.5743
+				},
+				{
+					"x": 0.9095,
+					"y": 0.6733
+				},
+				{
+					"x": 0.8219,
+					"y": 0.8181
+				},
+				{
+					"x": 0.94,
+					"y": 0.94
+				}
+			]
+		]
+	}
+}

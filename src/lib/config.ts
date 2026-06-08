@@ -35,7 +35,27 @@ export const CONFIG = {
 	},
 	recognition: {
 		// 0..1 final recognizer score floor.
-		minConfidence: 0.48
+		minConfidence: 0.48,
+
+		// 0..1 value subtracted per group when decomposition scores a tree cut. This
+		// biases toward keeping a node whole; a split only wins when the child groups
+		// clearly outscore the whole. Tuned so complex multi-stroke sigils and signs
+		// (water, wind, light, levitation) stay whole while genuinely separate symbols
+		// (a center sigil beside a ring sign, two adjacent signs) still split apart.
+		groupPenalty: 0.75,
+
+		// 0..1 allowed extra ink before a match is considered contaminated.
+		contaminationThreshold: 0.5,
+
+		// 0..1 required template coverage before a match can be accepted.
+		minTemplateCoverage: 0.55,
+
+		// Grouping asks the recognizer to choose tree cuts so it can separate symbols
+		// that proximity grouping would fuse (for example a center sigil drawn next to
+		// a ring sign). The lightweight cut scorer and the groupPenalty above keep
+		// complex multi-stroke sigils and signs whole. Set false to fall back to plain
+		// whole-stroke proximity-connected-component grouping.
+		recognitionGuidedDecomposition: true
 	},
 	compiler: {
 		// 0..1 confidence; minimum primary sigil confidence before a spell is valid.
@@ -45,6 +65,12 @@ export const CONFIG = {
 		maxUnknownsBeforeInstability: 4
 	},
 	renderer: {
+		// Milliseconds the spell paper takes to tilt into the screen before the
+		// effect animation begins. MUST match the CSS `--portal-tilt-duration`
+		// variable in styles.css; the renderer holds the effect/glow back for this
+		// long so the canvas visibly tilts first, then the spell erupts.
+		portalTiltMs: 980,
+
 		// CSS color; drawn ink color.
 		inkColor: '#241b16',
 

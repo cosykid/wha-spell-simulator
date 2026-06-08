@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { SvelteSet } from 'svelte/reactivity';
 	import type { Dictionary, DictionaryEntry, Point, SampleSpell } from '$lib/types.js';
 
 	type ReferenceEntry = DictionaryEntry & { element?: string; sourceNotes?: string };
@@ -10,6 +11,48 @@
 	let { dictionary = null }: Props = $props();
 
 	let activeTab = $state('sample');
+	const expandedNotes = new SvelteSet<string>();
+	const truncatedNotes = new SvelteSet<string>();
+
+	function toggleNote(key: string) {
+		if (expandedNotes.has(key)) {
+			expandedNotes.delete(key);
+		} else {
+			expandedNotes.add(key);
+		}
+	}
+
+	// A clamped preview that overflows gets a "Show more" toggle. Cards mount
+	// inside a hidden tab (0 height), so we (re)measure once the active tab's
+	// previews are laid out, and on window resize since wrapping is width-driven.
+	function measureClamps() {
+		const previews = document.querySelectorAll<HTMLElement>(
+			'.reference-source-preview.clamped[data-note-key]'
+		);
+		for (const preview of previews) {
+			const key = preview.dataset.noteKey;
+			if (
+				key &&
+				!truncatedNotes.has(key) &&
+				preview.clientHeight > 0 &&
+				preview.scrollHeight > preview.clientHeight + 1
+			) {
+				truncatedNotes.add(key);
+			}
+		}
+	}
+
+	$effect(() => {
+		// Reference activeTab so the effect re-runs when the visible tab changes
+		// and newly shown previews get measured.
+		void activeTab;
+		const frame = requestAnimationFrame(measureClamps);
+		window.addEventListener('resize', measureClamps);
+		return () => {
+			cancelAnimationFrame(frame);
+			window.removeEventListener('resize', measureClamps);
+		};
+	});
 
 	const sampleSpells = $derived(dictionary?.sampleSpells ?? []);
 	const sigils = $derived(dictionary?.sigils ?? []);
@@ -64,21 +107,30 @@
 				<strong>{entry.displayName ?? entry.id}</strong>
 				{#if kind === 'sigil' && entry.element}<span>{entry.element}</span>{/if}
 			</div>
-			<dl>
-				<div>
-					<dt>Layers</dt>
-					<dd>{entry.allowedLayers?.join(', ') || 'any'}</dd>
-				</div>
-				<div>
-					<dt>Recognition</dt>
-					<dd>{hasTemplate ? 'stroke reference' : 'not configured'}</dd>
-				</div>
-			</dl>
-			{#if kind === 'sign' && entry.sourceNotes}
-				<details class="reference-source">
-					<summary>Source notes</summary>
-					<p>{entry.sourceNotes}</p>
-				</details>
+			{#if entry.sourceNotes}
+				{@const noteKey = `${kind}:${entry.id}`}
+				{@const expanded = expandedNotes.has(noteKey)}
+				<p class="reference-source-preview" class:clamped={!expanded} data-note-key={noteKey}>
+					{entry.sourceNotes}
+				</p>
+				{#if truncatedNotes.has(noteKey)}
+					<button
+						type="button"
+						class="reference-source-toggle"
+						aria-expanded={expanded}
+						onclick={() => toggleNote(noteKey)}
+					>
+						<span>{expanded ? 'Show less' : 'Show more'}</span>
+						<svg
+							class="reference-source-chevron"
+							viewBox="0 0 16 16"
+							aria-hidden="true"
+							focusable="false"
+						>
+							<polyline points="4,6 8,10 12,6"></polyline>
+						</svg>
+					</button>
+				{/if}
 			{/if}
 		</div>
 	</article>
@@ -174,3 +226,66 @@
 		</div>
 	</div>
 </section>
+
+<style>
+	.reference-source-preview {
+		margin: 0;
+		color: var(--muted-ink);
+		font-size: 12px;
+		line-height: 1.35;
+	}
+
+	/* Collapsed previews fill at most two lines (with an ellipsis) so a card is
+	   never taller than its stroke thumbnail until the note is expanded. */
+	.reference-source-preview.clamped {
+		display: -webkit-box;
+		-webkit-box-orient: vertical;
+		-webkit-line-clamp: 2;
+		line-clamp: 2;
+		overflow: hidden;
+	}
+
+	.reference-source-toggle {
+		display: inline-flex;
+		align-items: center;
+		gap: 4px;
+		margin-top: 4px;
+		min-height: 0;
+		padding: 0;
+		border: none;
+		background: none;
+		box-shadow: none;
+		cursor: pointer;
+		color: var(--ink);
+		font: inherit;
+		font-size: 12px;
+		font-weight: 600;
+		line-height: 1.35;
+	}
+
+	.reference-source-toggle:hover,
+	.reference-source-toggle:active {
+		background: none;
+	}
+
+	/* Underline only on hover/focus — the label itself stays plain. */
+	.reference-source-toggle:hover span,
+	.reference-source-toggle:focus-visible span {
+		text-decoration: underline;
+	}
+
+	.reference-source-chevron {
+		width: 14px;
+		height: 14px;
+		fill: none;
+		stroke: currentColor;
+		stroke-width: 1.8;
+		stroke-linecap: round;
+		stroke-linejoin: round;
+		transition: transform 0.15s ease;
+	}
+
+	.reference-source-toggle[aria-expanded='true'] .reference-source-chevron {
+		transform: rotate(180deg);
+	}
+</style>

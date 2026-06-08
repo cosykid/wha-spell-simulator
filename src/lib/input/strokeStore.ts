@@ -59,11 +59,27 @@ export function createStrokeStore(): StrokeStore {
 			redoStack = redoStack.map((stroke) => scaleStroke(stroke, scaleX, scaleY));
 		},
 
+		load(loaded: Stroke[]): void {
+			strokes = loaded.map((stroke) => ({
+				...stroke,
+				points: stroke.points.map((point) => ({ ...point }))
+			}));
+			redoStack = [];
+			nextId = strokes.reduce((max, stroke) => {
+				const match = /^s(\d+)$/.exec(stroke.id);
+				return match ? Math.max(max, Number(match[1]) + 1) : max;
+			}, 1);
+		},
+
 		getStrokes(): Stroke[] {
 			return strokes.map((stroke) => ({
 				...stroke,
 				points: stroke.points.map((point) => ({ ...point }))
 			}));
+		},
+
+		peekStrokes(): Stroke[] {
+			return strokes;
 		},
 
 		count(): number {
