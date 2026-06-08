@@ -25,6 +25,8 @@ const SampleSubmissionSchema = z.object({
 		directionality: z.enum(['directional', 'non-directional', 'semi-directional']),
 		scale_x: finite,
 		scale_y: finite,
+		translate_x: finite,
+		translate_y: finite,
 		angle: finite.nullable()
 	}),
 	meta: z.object({

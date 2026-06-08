@@ -1,24 +1,23 @@
 /**
- * Types for a labelled handwriting sample: the raw strokes a contributor drew
- * (the *data*) together with the sign/sigil they represent and its measured
- * scaling/orientation (the *label*).
+ * @file A labelled handwriting sample, to be used for training/testing the recognition of a single sign/sigil. Includes raw stroke data + the human-asserted label (class of sign, scaling, orientation).
  *
- * Design principles:
- *  - Strokes are stored RAW. No geometric normalization is applied at capture
- *    time — normalize in a documented preprocessing step instead, so the
- *    convention can change without invalidating stored data.
- *  - Enough metadata is captured to fully reconstruct the sample even if
- *    conventions later change (reference size, canvas size, DPI, schema version).
+ * All coordinates are relative to the canvas top-left. The canvas size is stored in
+ * `meta.canvasWidth/Height`. To see the math for converting from event coordinates
+ * to this frame, see `canvasPointFromEvent` in `pointerNormalizer.ts`.
+ *
+ * Strokes are stored RAW, along with enough metadata to fully reconstruct the sample
+ * even if conventions later change.
+ *
+ * The schema is also versioned to allow for breaking changes in the future.
  */
 
 /**
- * One captured pointer sample. Coordinates are in the same coordinate frame
- * strokes are recorded in: CSS pixels relative to the canvas bounding rect.
+ * One captured pointer sample.
  */
 export type Point = {
-	/** CSS px, relative to canvas top-left. */
+	/** Backing-store px, relative to canvas top-left. */
 	x: number;
-	/** CSS px, relative to canvas top-left. */
+	/** Backing-store px, relative to canvas top-left. */
 	y: number;
 	/** ms since the first point of the FIRST stroke (t0 = 0). */
 	t: number;
@@ -55,6 +54,12 @@ export type Label = {
 	scale_y: number;
 
 	/**
+	 * Position of the reference glyph's center, in the same coordinate frame as the strokes. This is an absolute position, not a ratio.
+	 */
+	translate_x: number;
+	translate_y: number;
+
+	/**
 	 * Orientation in radians, range (-π, π].
 	 *  - number → meaningful angle (directional, or a labelled semi-directional)
 	 *  - null   → angle is not defined for this glyph (non-directional)
@@ -75,7 +80,7 @@ export type SampleMeta = {
 	/** Pixels the reference SVG viewBox spanned at "scale 1". Unit for scale_*. */
 	referenceSize: number;
 
-	/** Canvas size in CSS px — the frame the raw coordinates live in. */
+	/** Canvas size in backing-store px — the frame the raw coordinates live in. */
 	canvasWidth: number;
 	canvasHeight: number;
 

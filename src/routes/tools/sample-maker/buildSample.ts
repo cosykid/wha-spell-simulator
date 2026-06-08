@@ -88,6 +88,10 @@ export function buildSampleSubmission(args: BuildSampleArgs): SampleSubmission {
 			directionality: symbol.directionality,
 			scale_x: transform.scaleX / REFERENCE_SIZE,
 			scale_y: transform.scaleY / REFERENCE_SIZE,
+			// Center position in the stroke frame (backing-store px); not normalized by
+			// REFERENCE_SIZE since it's a position, not a size ratio.
+			translate_x: transform.cx,
+			translate_y: transform.cy,
 			angle:
 				symbol.directionality === 'non-directional' ? null : toSignedRadians(transform.rotationDeg)
 		},
