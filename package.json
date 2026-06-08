@@ -16,7 +16,8 @@
 		"lint": "prettier --check . && eslint .",
 		"format": "prettier --write .",
 		"test:e2e": "playwright install && playwright test",
-		"normalize:svg": "node scripts/normalize-svgs.mjs src/lib/dictionary/svg --stroke-width 0.1"
+		"normalize:svg": "node scripts/normalize-svgs.mjs src/lib/dictionary/svg --stroke-width 0.1",
+		"sample:svg": "node --import tsx scripts/sample-to-svg.ts"
 	},
 	"devDependencies": {
 		"@eslint/js": "^10.0.1",
