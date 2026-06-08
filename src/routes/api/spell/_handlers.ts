@@ -7,12 +7,9 @@ import { buildSpellIR, valuesFromSpellIR, defaultControlValues } from '$lib/ui/s
 import { analyzeStrokes } from '$lib/ui/sigilDetector.js';
 import { CONFIG } from '$lib/config.js';
 import type { Dictionary, Stroke, GlyphAST } from '$lib/types.js';
+import { loadDictionary } from '$lib/dictionary/dictionaryLoader.js';
 
-import sigils from '$lib/dictionary/sigils.json';
-import signs from '$lib/dictionary/signs.json';
-import sampleSpells from '$lib/dictionary/sample-spells.json';
-
-const dictionary: Dictionary = { sigils, signs, sampleSpells } as Dictionary;
+const dictionary: Dictionary = await loadDictionary();
 
 const DEFAULT_CANVAS_W = 1200;
 
