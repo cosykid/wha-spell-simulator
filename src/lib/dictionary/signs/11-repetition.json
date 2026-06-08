@@ -2,7 +2,7 @@
 	"id": "repetition",
 	"displayName": "Repetition",
 	"allowedLayers": ["middle", "outer"],
-	"sourceNotes": "Repetition continually resets objects affected by the spell to a previous state, in effect rewinding them and sustaining the spell's hold over time. Strongly extends the effect's lifetime.",
+	"sourceNotes": "Repetition continually resets affected objects to a previous state, effectively rewinding time for them. The source notes mention uses like preserving food and cleaning clothes, and note that its status was later retconned from sign to sigil.",
 	"semantic": {
 		"manifestation": "repetition",
 		"directionMode": "position",

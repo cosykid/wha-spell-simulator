@@ -2,7 +2,7 @@
 	"id": "billowing",
 	"displayName": "Billowing",
 	"allowedLayers": ["middle", "outer"],
-	"sourceNotes": "Billowing (non-directional) makes a spell swell into a soft, fluffy cloud said to be extremely comfortable to sit on. It broadens and softens the effect, trading concentrated force for a gentle, voluminous spread.",
+	"sourceNotes": "Billow is a non-directional sign that lets a spell produce a fluffy cloud, described as comfortable to sit on. It may need collection to gather and convert material, and it can sometimes stand in for a sigil.",
 	"semantic": {
 		"manifestation": "billowing",
 		"directionMode": "position",

@@ -79,3 +79,15 @@ test('disables redo while a spell is active even if redo history exists', () => 
 
 	assert.equal(summary.redoDisabled, true);
 });
+
+test('keeps the canvas hint hidden after drawing has started even if the canvas is empty', () => {
+	const summary = computeSummary({
+		store: storeWithCount(0),
+		pipeline: { ring: { complete: false } } as ClassifiedDrawing,
+		spellIR: { active: false, valid: true, status: 'No ring detected' } as SpellIR,
+		showGuides: true,
+		hintDismissed: true
+	});
+
+	assert.equal(summary.hintHidden, true);
+});

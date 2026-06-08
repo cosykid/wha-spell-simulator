@@ -2,7 +2,7 @@
 	"id": "region",
 	"displayName": "Region (Direction)",
 	"allowedLayers": ["middle", "outer"],
-	"sourceNotes": "The region/direction sign (directional) steers a spell's effect along the axis it points, projecting the magic toward a chosen region. It carries the spell's reach in that direction and is commonly paired with signs like bolt to aim them.",
+	"sourceNotes": "Region is a directional sign that determines where magic manifests relative to the seal. Inward-facing region signs confine magic inside the ring, outward-facing signs push it outside, and one-sided arrangements make it shoot in that direction.",
 	"semantic": {
 		"manifestation": "directed",
 		"directionMode": "orientation",

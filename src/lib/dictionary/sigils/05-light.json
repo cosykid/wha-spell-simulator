@@ -3,6 +3,7 @@
 	"displayName": "Light",
 	"element": "light",
 	"allowedLayers": ["center", "middle", "outer"],
+	"sourceNotes": "Light is a variant of the fire sigil. It produces magic that manifests as light rather than ordinary flame or heat.",
 	"strokeTemplate": {
 		"sourceAspectRatio": 1,
 		"strokes": [

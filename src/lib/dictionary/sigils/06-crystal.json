@@ -3,7 +3,7 @@
 	"displayName": "Crystal",
 	"element": "earth",
 	"allowedLayers": ["center", "middle", "outer"],
-	"sourceNotes": "Crystal is a variant of the earth sigil. It produces hard, faceted, crystalline matter rather than loose soil, so its output is compact, rigid, and slow to disperse.",
+	"sourceNotes": "Crystal creates and manipulates crystalline objects. The source notes treat it as a distinct sigil used only in a small number of known spells, especially Richeh's crystal magic.",
 	"recognitionRotationInvariant": false,
 	"semantic": {
 		"force": -0.02,

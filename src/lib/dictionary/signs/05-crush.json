@@ -2,7 +2,7 @@
 	"id": "crush",
 	"displayName": "Crush",
 	"allowedLayers": ["middle", "outer"],
-	"sourceNotes": "Crush (semi-directional) breaks things apart. With an earth sigil it disintegrates objects, grinding them down toward a sand-like or powdered state (as in the Wall Breaker seal). Inverting the sign produces the opposite effect, reforming pulverized matter (as in Integration); the sign's direction does not steer the spell.",
+	"sourceNotes": "Crush is a semi-directional sign that breaks things apart. With earth magic it disintegrates objects into tiny sand-like or powdered pieces; inverted crush can reform powdered material into its original shape until the spell ends.",
 	"semantic": {
 		"manifestation": "crush",
 		"directionMode": "position",

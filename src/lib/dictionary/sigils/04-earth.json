@@ -3,6 +3,7 @@
 	"displayName": "Earth",
 	"element": "earth",
 	"allowedLayers": ["center", "middle", "outer"],
+	"sourceNotes": "The earth sigil is one of the four primary tetrad sigils and is also called the sigil of might. It manipulates solid materials such as stone, sand, soil, and wood, but is not shown creating those substances outright.",
 	"strokeTemplate": {
 		"sourceAspectRatio": 1.302,
 		"strokes": [

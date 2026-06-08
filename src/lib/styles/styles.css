@@ -3,17 +3,17 @@
 
 :root {
 	color-scheme: light;
-	--ink: #241b16;
-	--muted-ink: #6d594b;
-	--paper: #f4dc95;
-	--paper-deep: #d9aa54;
-	--panel: #fff7db;
-	--panel-line: #c59b55;
-	--ember: #b84531;
-	--teal: #2a7987;
+	--ink: #20302f;
+	--muted-ink: #5a6660;
+	--paper: #e7dab4;
+	--paper-deep: #c7ab6e;
+	--panel: #f2ecd6;
+	--panel-line: #b69a5c;
+	--ember: #b25738;
+	--teal: #1f6f7a;
 	--violet: #5d507f;
-	--gold: #c8960c;
-	--shadow: rgba(36, 27, 22, 0.22);
+	--gold: #c4981f;
+	--shadow: rgba(16, 34, 38, 0.28);
 	--radius: 8px;
 	--portal-tilt-duration: 980ms;
 }
@@ -31,7 +31,30 @@ body {
 	margin: 0;
 	font-family: 'IM Fell English', Georgia, serif;
 	color: var(--ink);
-	background: #3f3930;
+	background: #132328;
+}
+
+.app-background {
+	position: fixed;
+	inset: 0;
+	z-index: 0;
+	pointer-events: none;
+	background:
+		linear-gradient(rgba(17, 40, 46, 0.34), rgba(15, 33, 39, 0.5)),
+		url('/images/app-background.webp') center / cover no-repeat;
+	opacity: 0.82;
+}
+
+.app-content {
+	position: relative;
+	z-index: 1;
+	min-height: 100vh;
+}
+
+@media (prefers-reduced-data: reduce) {
+	.app-background {
+		background: linear-gradient(rgba(17, 40, 46, 0.94), rgba(13, 30, 36, 0.92));
+	}
 }
 
 button,
@@ -41,12 +64,12 @@ input {
 
 button {
 	min-height: 36px;
-	border: 1px solid rgba(36, 27, 22, 0.28);
+	border: 1px solid rgba(32, 48, 47, 0.26);
 	border-radius: 6px;
 	padding: 0 14px;
 	color: var(--ink);
-	background: #fff2c5;
-	box-shadow: 0 1px 0 rgba(255, 255, 255, 0.45) inset;
+	background: #f4ebcd;
+	box-shadow: 0 1px 0 rgba(255, 255, 255, 0.4) inset;
 	cursor: pointer;
 }
 
@@ -63,26 +86,26 @@ textarea {
 
 .select-control {
 	min-height: 36px;
-	border: 1px solid rgba(36, 27, 22, 0.28);
+	border: 1px solid rgba(32, 48, 47, 0.26);
 	border-radius: 6px;
 	padding: 0 12px;
 	color: var(--ink);
-	background: #fff2c5;
+	background: #f4ebcd;
 }
 
 .text-control {
 	min-width: 0;
 	width: 100%;
 	min-height: 36px;
-	border: 1px solid rgba(36, 27, 22, 0.28);
+	border: 1px solid rgba(32, 48, 47, 0.26);
 	border-radius: 6px;
 	padding: 0 12px;
 	color: var(--ink);
-	background: #fff2c5;
+	background: #f4ebcd;
 }
 
 button:hover {
-	background: #ffe6a3;
+	background: #ecdfb6;
 }
 
 button:active {
@@ -258,9 +281,9 @@ body:not(.sigil-maker-page) .app-shell {
 .control-panel,
 .dictionary-panel,
 .side-panel {
-	border: 1px solid rgba(255, 247, 219, 0.28);
+	border: 1px solid rgba(245, 240, 219, 0.26);
 	border-radius: var(--radius);
-	background: rgba(255, 247, 219, 0.88);
+	background: rgba(242, 236, 214, 0.9);
 	box-shadow: 0 18px 45px var(--shadow);
 }
 
@@ -271,6 +294,7 @@ body:not(.sigil-maker-page) .app-shell {
 	flex-direction: column;
 	align-items: stretch;
 	justify-content: stretch;
+	background: var(--paper);
 }
 
 .canvas-container {
@@ -284,43 +308,179 @@ body:not(.sigil-maker-page) .app-shell {
 	transform-style: preserve-3d;
 }
 
-.canvas-controls {
+.zoom-controls {
+	position: absolute;
+	top: 12px;
+	right: 12px;
+	z-index: 5;
 	display: flex;
 	align-items: center;
-	justify-content: center;
-	gap: 16px;
-	padding: 8px 16px;
-	background: rgba(255, 246, 213, 0.95);
-	border-top: 1px solid rgba(36, 27, 22, 0.16);
-	z-index: 5;
+	gap: 6px;
 }
 
 .zoom-btn {
+	position: relative;
 	display: inline-flex;
 	align-items: center;
 	justify-content: center;
-	gap: 6px;
-	min-height: 40px;
-	padding: 0 16px;
+	width: 34px;
+	height: 34px;
+	min-height: 34px;
+	padding: 0;
 	font-weight: 600;
-	font-size: 14px;
+	font-size: 20px;
+	line-height: 1;
 	user-select: none;
 	touch-action: manipulation;
 }
 
-.zoom-btn svg {
-	display: block;
-	flex-shrink: 0;
+.zoom-btn::after,
+.canvas-action-controls button::after {
+	position: absolute;
+	top: calc(100% + 8px);
+	z-index: 6;
+	content: attr(data-tooltip);
+	min-width: max-content;
+	border: 1px solid rgba(36, 27, 22, 0.14);
+	border-radius: 3px;
+	padding: 3px 6px;
+	color: rgba(36, 27, 22, 0.72);
+	background: rgba(255, 248, 224, 0.9);
+	box-shadow: 0 4px 10px rgba(36, 27, 22, 0.08);
+	font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+	font-size: 11px;
+	font-weight: 400;
+	line-height: 1.2;
+	opacity: 0;
+	pointer-events: none;
+	transform: translateY(-2px);
+	transition:
+		opacity 120ms ease,
+		transform 120ms ease;
 }
 
-.zoom-level-display {
-	font-family: 'Cinzel', serif;
-	font-weight: 700;
-	font-size: 15px;
-	color: var(--muted-ink);
-	min-width: 60px;
-	text-align: center;
-	user-select: none;
+.zoom-btn::after {
+	right: 0;
+}
+
+.zoom-btn:hover::after,
+.zoom-btn:focus::after,
+.canvas-action-controls button:hover::after,
+.canvas-action-controls button:focus::after {
+	opacity: 1;
+	transform: translateY(0);
+}
+
+.canvas-action-controls {
+	position: absolute;
+	top: 12px;
+	left: 12px;
+	z-index: 5;
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	opacity: 1;
+	transition:
+		opacity 140ms ease,
+		transform 140ms ease;
+}
+
+.canvas-action-controls.hidden {
+	opacity: 0;
+	pointer-events: none;
+	transform: translateY(-3px);
+}
+
+.canvas-action-controls button {
+	position: relative;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 34px;
+	height: 34px;
+	min-height: 34px;
+	padding: 0;
+	color: var(--ink);
+}
+
+.canvas-action-controls button::after {
+	left: 0;
+}
+
+.canvas-action-controls svg {
+	width: 18px;
+	height: 18px;
+	display: block;
+	fill: none;
+	stroke: currentColor;
+	stroke-width: 2.25;
+	stroke-linecap: round;
+	stroke-linejoin: round;
+}
+
+.tool-btn {
+	position: relative;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 34px;
+	height: 34px;
+	min-height: 34px;
+	padding: 0;
+	color: var(--ink);
+}
+
+.tool-btn svg {
+	width: 18px;
+	height: 18px;
+	display: block;
+	fill: none;
+	stroke: currentColor;
+	stroke-width: 2.25;
+	stroke-linecap: round;
+	stroke-linejoin: round;
+}
+
+.tool-btn.active {
+	color: #f6f0d8;
+	border-color: var(--teal);
+	background: var(--teal);
+	box-shadow: 0 1px 2px rgba(16, 34, 38, 0.32) inset;
+}
+
+.tool-btn.active:hover {
+	background: #1a606a;
+}
+
+.tool-btn::after {
+	position: absolute;
+	top: calc(100% + 8px);
+	left: 0;
+	z-index: 6;
+	content: attr(data-tooltip);
+	min-width: max-content;
+	border: 1px solid rgba(36, 27, 22, 0.14);
+	border-radius: 3px;
+	padding: 3px 6px;
+	color: rgba(36, 27, 22, 0.72);
+	background: rgba(255, 248, 224, 0.9);
+	box-shadow: 0 4px 10px rgba(36, 27, 22, 0.08);
+	font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+	font-size: 11px;
+	font-weight: 400;
+	line-height: 1.2;
+	opacity: 0;
+	pointer-events: none;
+	transform: translateY(-2px);
+	transition:
+		opacity 120ms ease,
+		transform 120ms ease;
+}
+
+.tool-btn:hover::after,
+.tool-btn:focus::after {
+	opacity: 1;
+	transform: translateY(0);
 }
 
 .control-panel,
@@ -334,7 +494,12 @@ body:not(.sigil-maker-page) .app-shell {
 
 .control-panel {
 	overflow-y: auto;
-	scrollbar-gutter: stable;
+	scrollbar-width: none;
+}
+
+.control-panel::-webkit-scrollbar {
+	width: 0;
+	height: 0;
 }
 
 .control-section {
@@ -377,7 +542,7 @@ body:not(.sigil-maker-page) .app-shell {
 	min-height: 58px;
 	padding: 10px;
 	border-bottom: 1px solid rgba(36, 27, 22, 0.16);
-	background: rgba(255, 246, 213, 0.9);
+	background: rgba(238, 231, 207, 0.92);
 }
 
 .toggle {
@@ -873,17 +1038,14 @@ body:not(.sigil-maker-page) .app-shell {
 .reference-tabs,
 .diagnostics-tabs {
 	display: grid;
-	gap: 0;
-	margin-bottom: 10px;
-	border-bottom: 1px solid rgba(36, 27, 22, 0.18);
-}
-
-.reference-tabs {
 	grid-template-columns: repeat(3, 1fr);
-}
-
-.diagnostics-tabs {
-	grid-template-columns: repeat(3, 1fr);
+	align-self: stretch;
+	gap: 4px;
+	margin-bottom: 12px;
+	border: 1px solid rgba(36, 27, 22, 0.12);
+	border-radius: 6px;
+	padding: 3px;
+	background: rgba(36, 27, 22, 0.04);
 }
 
 .panel-tab-button,
@@ -924,6 +1086,24 @@ body:not(.sigil-maker-page) .app-shell {
 .dictionary-tab-button:hover,
 .diagnostic-tab-button:hover {
 	background: rgba(255, 242, 197, 0.64);
+}
+
+.dictionary-tab-button,
+.diagnostic-tab-button {
+	min-height: 28px;
+	border-bottom: 0;
+	border-radius: 4px;
+	padding: 0 10px;
+	font-size: 13px;
+	line-height: 1.1;
+	text-align: center;
+}
+
+.dictionary-tab-button.active,
+.diagnostic-tab-button.active {
+	border-bottom-color: transparent;
+	background: rgba(255, 251, 233, 0.72);
+	box-shadow: 0 1px 0 rgba(255, 255, 255, 0.48) inset;
 }
 
 .reference-list {
@@ -977,7 +1157,7 @@ body:not(.sigil-maker-page) .app-shell {
 	aspect-ratio: 1 / 1;
 	border: 1px solid rgba(36, 27, 22, 0.14);
 	border-radius: 6px;
-	background: #fff7db;
+	background: #f4eed8;
 }
 
 .reference-preview svg {
@@ -987,6 +1167,34 @@ body:not(.sigil-maker-page) .app-shell {
 }
 
 .reference-preview polyline {
+	fill: none;
+	stroke: var(--ink);
+	stroke-width: 4;
+	stroke-linecap: round;
+	stroke-linejoin: round;
+}
+
+/* Floating preview that follows the cursor while dragging a shape onto the
+   canvas. left/top are the pointer's viewport coordinates, so it is fixed and
+   centered on the cursor. Without these rules the inline SVG renders unbounded
+   and its polylines fall back to the default solid-black fill. */
+.shape-drag-overlay {
+	position: fixed;
+	z-index: 60;
+	width: 72px;
+	height: 72px;
+	pointer-events: none;
+	transform: translate(-50%, -50%);
+	opacity: 0.9;
+}
+
+.shape-drag-overlay svg {
+	display: block;
+	width: 100%;
+	height: 100%;
+}
+
+.shape-drag-overlay polyline {
 	fill: none;
 	stroke: var(--ink);
 	stroke-width: 4;
@@ -1088,6 +1296,16 @@ body:not(.sigil-maker-page) .app-shell {
 
 .shape-card .reference-preview {
 	width: 100%;
+	/* Without this, a wide glyph's SVG min-content inflates the card's auto grid
+	   track, so width: 100% overflows the content box and the box drifts off-center. */
+	min-width: 0;
+	cursor: grab;
+	touch-action: none;
+	user-select: none;
+}
+
+.shape-card .reference-preview:active {
+	cursor: grabbing;
 }
 
 .shape-card-label {
@@ -1095,8 +1313,17 @@ body:not(.sigil-maker-page) .app-shell {
 	flex-direction: column;
 	align-items: center;
 	gap: 2px;
+	width: 100%;
+	min-width: 0;
 	font-size: 12px;
+	line-height: 1.12;
 	text-align: center;
+}
+
+.shape-card-label strong,
+.shape-card-label span {
+	max-width: 100%;
+	overflow-wrap: anywhere;
 }
 
 .shape-card-label span {

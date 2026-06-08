@@ -110,7 +110,7 @@ export class SpellCanvasPage {
 
 	// --- Navigation / readiness ---------------------------------------------
 
-	/** Loads the simulator and waits until the dictionary/recognition assets are live. */
+	/** Loads the simulator and waits until the canvas accepts strokes. */
 	async goto(): Promise<void> {
 		await this.page.goto('/');
 		await this.waitForReady();
@@ -118,10 +118,9 @@ export class SpellCanvasPage {
 
 	/**
 	 * Waits until the canvas actually accepts strokes. The status text can leave
-	 * "Loading" before drawing capture has attached its pointer listeners (a
-	 * resize-triggered recompute can publish a status while the dictionary /
-	 * recognition assets are still loading), so we wait on the explicit
-	 * `data-input-ready` signal the page sets the moment capture is enabled.
+	 * "Loading" before drawing capture has attached its pointer listeners, so we
+	 * wait on the explicit `data-input-ready` signal the page sets the moment
+	 * capture is enabled.
 	 */
 	async waitForReady(): Promise<void> {
 		await expect(this.glyphCanvas).toBeVisible();

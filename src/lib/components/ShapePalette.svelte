@@ -11,7 +11,7 @@
 		library?: ShapeLibrary | null;
 		armedShapeId?: string | null;
 		selected?: SelectedShape | null;
-		onArm: (item: ShapeItem) => void;
+		onDragStart: (item: ShapeItem, event: PointerEvent) => void;
 		onChange: (patch: Partial<PlacementTransform>) => void;
 		onCommitTransform: () => void;
 		onCommit: () => void;
@@ -22,7 +22,7 @@
 		library = null,
 		armedShapeId = null,
 		selected = null,
-		onArm,
+		onDragStart,
 		onChange,
 		onCommitTransform,
 		onCommit,
@@ -68,8 +68,8 @@
 
 <section class="reference-panel" aria-label="Shape palette">
 	<p class="panel-description">
-		Turn on Arrange Shapes, pick a ring, sigil, or sign, then click the canvas to place it. Select a
-		placed shape to move, scale, elongate, or rotate it.
+		Drag a ring, sigil, or sign onto the canvas. Select a placed shape to move, scale, elongate, or
+		rotate it.
 	</p>
 
 	<div class="shape-palette">
@@ -79,14 +79,13 @@
 				<div class="shape-card-grid">
 					{#each group.items as item (item.id)}
 						{@const polylines = toPolylines(item.baseStrokes)}
-						<button
-							type="button"
-							class="shape-card"
-							class:armed={armedShapeId === item.id}
-							onclick={() => onArm(item)}
-						>
+						<button type="button" class="shape-card" class:armed={armedShapeId === item.id}>
 							{#if polylines.length}
-								<span class="reference-preview" aria-hidden="true">
+								<span
+									class="reference-preview"
+									aria-hidden="true"
+									onpointerdown={(event) => onDragStart(item, event)}
+								>
 									<svg viewBox="0 0 100 100" role="img" focusable="false">
 										{#each polylines as points (points)}
 											<polyline {points}></polyline>

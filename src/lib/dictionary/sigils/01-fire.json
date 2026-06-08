@@ -3,6 +3,7 @@
 	"displayName": "Fire",
 	"element": "fire",
 	"allowedLayers": ["center", "middle", "outer"],
+	"sourceNotes": "The base fire sigil is one of the four primary tetrad sigils. It creates or manipulates flame and heat depending on the signs paired with it in the seal.",
 	"strokeTemplate": {
 		"sourceAspectRatio": 1,
 		"strokes": [

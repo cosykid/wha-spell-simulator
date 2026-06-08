@@ -2,7 +2,7 @@
 	"id": "pull",
 	"displayName": "Pull",
 	"allowedLayers": ["middle", "outer"],
-	"sourceNotes": "Pull (directional) draws anything matching the seal's sigil (water, air, fire, etc.) toward the seal when the arrow-like point of the sign faces inwards. Reversing the sign pushes the matching matter away instead. Possesses bilateral but not radial symmetry.",
+	"sourceNotes": "Pull is a directional sign that draws matching matter, such as water, air, or fire, toward the seal when its arrow portion points inward. If angled, it likely adds a twisting pull; if inverted, it probably pushes matter away.",
 	"semantic": {
 		"manifestation": "pull",
 		"directionMode": "inward",

@@ -2,7 +2,7 @@
 	"id": "float",
 	"displayName": "Float",
 	"allowedLayers": ["middle", "outer"],
-	"sourceNotes": "Float (non-directional) suspends the spell's magic in the air, holding it aloft rather than letting it fall or fire outward. Acts the same regardless of which way it points. Drives the levitation manifestation, reducing the effective gravity on the effect.",
+	"sourceNotes": "Float is a non-directional sign that makes things float in midair, apparently letting them ignore gravity. The source notes say it usually levitates the object bearing the seal, while exceptions require extra instruction or remain ambiguous.",
 	"semantic": {
 		"manifestation": "levitation",
 		"directionMode": "position",

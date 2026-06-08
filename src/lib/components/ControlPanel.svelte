@@ -9,8 +9,6 @@
 		quality: number;
 		stability: number;
 		force: number;
-		undoDisabled: boolean;
-		redoDisabled: boolean;
 		[key: string]: unknown;
 	}
 
@@ -18,24 +16,14 @@
 		summary: Summary;
 		showGuides?: boolean;
 		showDiagnostics?: boolean;
-		arrangeShapes?: boolean;
-		onUndo?: () => void;
-		onRedo?: () => void;
-		onClear?: () => void;
 		onToggleGuides?: () => void;
-		onToggleArrange?: () => void;
 	}
 
 	let {
 		summary,
 		showGuides = $bindable(),
 		showDiagnostics = $bindable(),
-		arrangeShapes = $bindable(),
-		onUndo,
-		onRedo,
-		onClear,
-		onToggleGuides,
-		onToggleArrange
+		onToggleGuides
 	}: Props = $props();
 
 	const meters = $derived([
@@ -46,26 +34,6 @@
 </script>
 
 <aside class="control-panel" aria-label="Spell controls">
-	<section class="control-section">
-		<button
-			type="button"
-			id="undoButton"
-			data-testid="undo-button"
-			disabled={summary.undoDisabled}
-			onclick={onUndo}>Undo</button
-		>
-		<button
-			type="button"
-			id="redoButton"
-			data-testid="redo-button"
-			disabled={summary.redoDisabled}
-			onclick={onRedo}>Redo</button
-		>
-		<button type="button" id="clearButton" data-testid="clear-button" onclick={onClear}
-			>Clear</button
-		>
-	</section>
-
 	<section class="control-section">
 		<label class="toggle">
 			<input
@@ -79,15 +47,6 @@
 		<label class="toggle">
 			<input type="checkbox" id="diagnosticsToggle" bind:checked={showDiagnostics} />
 			<span>Glyph Diagnostics</span>
-		</label>
-		<label class="toggle">
-			<input
-				type="checkbox"
-				id="arrangeToggle"
-				bind:checked={arrangeShapes}
-				onchange={onToggleArrange}
-			/>
-			<span>Arrange Shapes</span>
 		</label>
 	</section>
 

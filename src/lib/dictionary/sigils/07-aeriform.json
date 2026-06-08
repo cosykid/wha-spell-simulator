@@ -3,7 +3,7 @@
 	"displayName": "Aeriform",
 	"element": "wind",
 	"allowedLayers": ["center", "middle", "outer"],
-	"sourceNotes": "Aeriform is a variant of the wind sigil. It manifests as a diffuse, gaseous body of air that drifts and billows softly rather than gusting in a sharp stream.",
+	"sourceNotes": "Aeriforms is an air-family sigil that creates and manipulates air, but does not itself move that air. It complements the wind sigil, which moves air without creating it.",
 	"recognitionRotationInvariant": false,
 	"semantic": {
 		"force": -0.04,
