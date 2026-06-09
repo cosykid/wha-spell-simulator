@@ -30,21 +30,12 @@ export type Point = {
 export type Stroke = Point[];
 
 /**
- * Whether an orientation angle is meaningful for this glyph.
- * Drives both the labelling UI and benchmark scoring (symmetry handling).
- * See: https://witchhatatelier.telepedia.net/wiki/Signs_Explained#Directional_Signs
- */
-export type Directionality = 'directional' | 'non-directional' | 'semi-directional';
-
-/**
  * The human-asserted ground truth. Produced by dragging/resizing/rotating the
  * reference SVG over the strokes — so it is a noisy, by-eye label.
  */
 export type Label = {
 	/** Which ground-truth glyph this sample represents. */
 	signId: string;
-
-	directionality: Directionality;
 
 	/**
 	 * Anisotropic scale relative to the reference rendering:
@@ -60,14 +51,8 @@ export type Label = {
 	translate_x: number;
 	translate_y: number;
 
-	/**
-	 * Orientation in radians, range (-π, π].
-	 *  - number → meaningful angle (directional, or a labelled semi-directional)
-	 *  - null   → angle is not defined for this glyph (non-directional)
-	 * Always present; `null` ("no angle exists") is distinct from the field being
-	 * absent ("not yet labelled").
-	 */
-	angle: number | null;
+	/** Orientation in radians, range (-π, π]. Always captured; the recognizer decides whether orientation is meaningful per sign. */
+	angle: number;
 };
 
 /**

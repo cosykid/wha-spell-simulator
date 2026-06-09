@@ -21,12 +21,11 @@ const SampleSubmissionSchema = z.object({
 	data: z.array(z.array(PointSchema).min(1)).min(1),
 	label: z.object({
 		signId: z.string().min(1),
-		directionality: z.enum(['directional', 'non-directional', 'semi-directional']),
 		scale_x: finite,
 		scale_y: finite,
 		translate_x: finite,
 		translate_y: finite,
-		angle: finite.nullable()
+		angle: finite
 	}),
 	meta: z.object({
 		referenceSize: finite,
