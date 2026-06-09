@@ -19,7 +19,6 @@ import { InkMask } from './inkMask.js';
 const POINT_CLOUD_SIZE = 128;
 const POINT_DISTANCE_NORMALIZER = 0.42;
 const INK_MAP_SIZE = 40;
-const INK_RADIUS = 1;
 const CHAMFER_DISTANCE_NORMALIZER = 0.2;
 const EXPLAINED_DISTANCE = 2.6 / INK_MAP_SIZE;
 const SOFT_DISTANCE = 2.2 / INK_MAP_SIZE;

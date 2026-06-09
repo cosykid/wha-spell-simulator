@@ -175,23 +175,6 @@ function candidateInk(candidate: SymbolCandidate, rotationDeg: number): InkLayer
 	return ink;
 }
 
-function maskOverlap(a: Uint8Array, b: Uint8Array): number {
-	let overlap = 0;
-	for (let index = 0; index < a.length; index += 1) {
-		if (a[index] && b[index]) {
-			overlap += 1;
-		}
-	}
-	return overlap;
-}
-
-function diceScore(a: Uint8Array, b: Uint8Array, aInk: number, bInk: number): number {
-	if (!aInk || !bInk) {
-		return 0;
-	}
-	return clamp((maskOverlap(a, b) * 2) / (aInk + bInk));
-}
-
 function occupiedCells(mask: InkMask, size = INK_SIZE, gridSize = REGION_GRID_SIZE): Uint8Array {
 	const cells = new Uint8Array(gridSize * gridSize);
 
