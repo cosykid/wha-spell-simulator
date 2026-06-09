@@ -5,12 +5,12 @@
 	import { gridEntity } from '$canvas/entities/gridEntity.js';
 	import { paperEntity } from '$canvas/entities/paperEntity';
 	import { isStrokeEntity } from '$canvas/entities/strokeEntity.js';
-	import { makeSymbolEntity } from '$canvas/entities/symbolEntity.js';
+	import { isSymbolEntity, makeSymbolEntity } from '$canvas/entities/symbolEntity.js';
 	import { isTransformable } from '$canvas/entity.js';
 	import { createScene } from '$canvas/scene.svelte.js';
 	import { createDrawTool } from '$canvas/tools/drawTool.svelte.js';
 	import { createSelectTool } from '$canvas/tools/selectTool.svelte.js';
-	import { loadSymbolBaseStrokes } from '$lib/dictionary/svgStrokes.js';
+	import { loadSymbolRenderPath } from '$lib/dictionary/svgStrokes.js';
 	import type { Placement } from '$lib/types.js';
 	import ButtonWithShortcut from '$lib/ui/ButtonWithShortcut.svelte';
 	import {
@@ -68,7 +68,8 @@
 			id: SYMBOL_ID,
 			kind: 'sign',
 			sourceId: symbol.id,
-			baseStrokes: loadSymbolBaseStrokes(symbol.id),
+			// Sampled lazily by the entity's getBaseStrokes() only if the user runs "fit".
+			baseStrokes: [],
 			transform: {
 				cx: 400,
 				cy: 400,
@@ -77,7 +78,7 @@
 				rotationDeg: 0
 			}
 		};
-		scene.do(addEntity(scene, makeSymbolEntity(placement, 10, 7)));
+		scene.do(addEntity(scene, makeSymbolEntity(placement, loadSymbolRenderPath(symbol.id), 10, 7)));
 		selected = symbol;
 		// mode and selection are managed automatically by the symbolInScene effect.
 	};
@@ -87,7 +88,7 @@
 	 */
 	const fitLabel = (): void => {
 		const symbolEntity = scene.get(SYMBOL_ID);
-		if (!symbolEntity || !isTransformable(symbolEntity)) return;
+		if (!symbolEntity || !isSymbolEntity(symbolEntity)) return;
 		const strokes = scene
 			.getEntities()
 			.filter(isStrokeEntity)
@@ -96,7 +97,7 @@
 		const before = symbolEntity.placement.transform;
 		const after = optimizePlacement({
 			strokes,
-			baseStrokes: symbolEntity.placement.baseStrokes,
+			baseStrokes: symbolEntity.getBaseStrokes(),
 			initial: before,
 			canvasWidth: ctx!.canvas.width,
 			canvasHeight: ctx!.canvas.height

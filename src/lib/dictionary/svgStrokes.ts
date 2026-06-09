@@ -40,6 +40,26 @@ export function getSymbolSvg(id: string): string {
 }
 
 /**
+ * The geometry a renderer needs to draw a sign's glyph faithfully: the original
+ * `<path>` data (curves and corners intact) plus its viewBox extent. Drawing this
+ * directly via `Path2D` avoids the polyline-flattening artifacts of `baseStrokes`,
+ * which exist only to feed the placement optimizer. Throws if the id is unknown.
+ */
+export interface SymbolRenderPath {
+	/** Absolute-command path data, straight from the SVG asset. */
+	d: string;
+	/** viewBox width, for centering the glyph in its frame. */
+	width: number;
+	/** viewBox height, for centering the glyph in its frame. */
+	height: number;
+}
+
+export function loadSymbolRenderPath(id: string): SymbolRenderPath {
+	const { d, width, height } = parseSvg(getSymbolSvg(id));
+	return { d, width, height };
+}
+
+/**
  * Convert a sign's SVG path into unit-box `baseStrokes`. Each `M`-delimited subpath
  * becomes one stroke (one pen-down trace). Browser-only: relies on the DOM to parse
  * and measure the path.
@@ -66,6 +86,9 @@ export function loadSymbolBaseStrokes(id: string): Point[][] {
 interface ParsedSvg {
 	width: number;
 	height: number;
+	/** The original path `d`, with all subpaths joined as authored. */
+	d: string;
+	/** Each `M`-delimited subpath, for per-stroke sampling. */
 	subpaths: string[];
 }
 
@@ -93,7 +116,7 @@ function parseSvg(svgText: string): ParsedSvg {
 		.map((s) => s.trim())
 		.filter(Boolean);
 
-	return { width, height, subpaths };
+	return { width, height, d, subpaths };
 }
 
 /** Sample one subpath into unit-box points, centered and aspect-preserving. */
