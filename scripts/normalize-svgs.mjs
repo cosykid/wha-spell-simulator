@@ -4,15 +4,17 @@
  *
  * For each .svg in the target folder it:
  *   1. Flattens every ancestor/element `transform` into the path coordinates.
- *   2. Converts <line>/<polyline>/<polygon> to path data (so all geometry is
- *      treated uniformly).
+ *   2. Converts <line>/<polyline>/<polygon>/<rect>/<circle>/<ellipse> to path
+ *      data (so all geometry is treated uniformly).
  *   3. Computes the tight CENTERLINE bounding box across all geometry
  *      (exact bezier extrema, not just anchor points) and shifts it to (0,0).
  *   4. Rewrites the viewBox to that bbox, dropping intrinsic width/height so
  *      render size is controlled by the consumer (REFERENCE_SIZE). Natural
  *      aspect ratio is preserved.
- *   5. Emits one clean <path> with a uniform stroke style and strips all
- *      Inkscape/editor cruft (comments, <defs>, metadata, ids, namespaces).
+ *   5. Emits a clean <path> per render style — outlined geometry shares one
+ *      uniform stroke, while filled geometry (e.g. solid dots) keeps its fill —
+ *      and strips all Inkscape/editor cruft (comments, <defs>, metadata, ids,
+ *      namespaces).
  *
  * The viewBox bounds the centerline geometry, so round stroke caps extend
  * slightly past the edges by design — render the overlay <svg> with
@@ -93,14 +95,19 @@ Options:
 // ---------------------------------------------------------------------------
 
 const TAG_RE = /<\/?([a-zA-Z][\w:-]*)((?:[^>"']|"[^"]*"|'[^']*')*?)(\/?)>/g;
-const UNSUPPORTED_SHAPES = new Set(['rect', 'circle', 'ellipse', 'text', 'image', 'use']);
+const UNSUPPORTED_SHAPES = new Set(['text', 'image', 'use']);
 
 function getAttr(attrs, name) {
 	const m = attrs.match(new RegExp(`(?:^|\\s)${name}\\s*=\\s*"([^"]*)"`));
 	return m ? m[1] : null;
 }
 
-/** Returns { paths: [{ d, transform }], detectedStrokeWidth, warnings }. */
+/**
+ * Returns { paths: [{ d, transform, fill, stroked }], detectedStrokeWidth, warnings }.
+ * `fill` is the element's fill colour (or null when not filled) and `stroked`
+ * is whether the element draws a stroke — so filled and outlined geometry can be
+ * re-emitted with the right paint instead of being flattened to a single style.
+ */
 function extractGeometry(svg) {
 	const paths = [];
 	const warnings = [];
@@ -130,7 +137,14 @@ function extractGeometry(svg) {
 
 		const d = geometryToPath(name, attrs);
 		if (d) {
-			paths.push({ d, transform: combined });
+			const fillRaw = readPaint(attrs, 'fill');
+			const strokeRaw = readPaint(attrs, 'stroke');
+			const fill = fillRaw && fillRaw !== 'none' ? fillRaw : null;
+			let stroked = strokeRaw != null && strokeRaw !== 'none';
+			// Geometry with neither paint specified would be invisible; keep the
+			// historical behaviour of stroking it so nothing silently disappears.
+			if (!fill && !stroked) stroked = true;
+			paths.push({ d, transform: combined, fill, stroked });
 		} else if (UNSUPPORTED_SHAPES.has(name)) {
 			warnings.push(`unsupported <${name}> skipped (convert to a path in Inkscape)`);
 		}
@@ -151,6 +165,18 @@ function readStrokeWidth(attrs) {
 	if (style) {
 		const sm = style.match(/stroke-width\s*:\s*([\d.]+)/);
 		if (sm) return Number(sm[1]);
+	}
+	return null;
+}
+
+/** Read a paint property (`fill` / `stroke`) from a presentation attr or style. */
+function readPaint(attrs, prop) {
+	const direct = getAttr(attrs, prop);
+	if (direct != null && direct !== '') return direct.trim();
+	const style = getAttr(attrs, 'style');
+	if (style) {
+		const sm = style.match(new RegExp(`(?:^|;)\\s*${prop}\\s*:\\s*([^;]+)`));
+		if (sm) return sm[1].trim();
 	}
 	return null;
 }
@@ -178,6 +204,45 @@ function geometryToPath(name, attrs) {
 			for (let i = 2; i < pts.length - 1; i += 2) d += ` L ${pts[i]} ${pts[i + 1]}`;
 			if (name === 'polygon') d += ' Z';
 			return d;
+		}
+		case 'rect': {
+			const x = Number(getAttr(attrs, 'x') ?? 0);
+			const y = Number(getAttr(attrs, 'y') ?? 0);
+			const w = Number(getAttr(attrs, 'width') ?? 0);
+			const h = Number(getAttr(attrs, 'height') ?? 0);
+			if (!(w > 0) || !(h > 0)) return null;
+			// Corner radii: rx/ry default to each other when only one is given.
+			const rxRaw = getAttr(attrs, 'rx');
+			const ryRaw = getAttr(attrs, 'ry');
+			let rx = rxRaw != null ? Number(rxRaw) : NaN;
+			let ry = ryRaw != null ? Number(ryRaw) : NaN;
+			if (Number.isNaN(rx)) rx = ry;
+			if (Number.isNaN(ry)) ry = rx;
+			rx = Math.min(Math.max(rx || 0, 0), w / 2);
+			ry = Math.min(Math.max(ry || 0, 0), h / 2);
+			if (!(rx > 0) || !(ry > 0)) {
+				return `M ${x} ${y} h ${w} v ${h} h ${-w} Z`;
+			}
+			return (
+				`M ${x + rx} ${y} h ${w - 2 * rx} a ${rx} ${ry} 0 0 1 ${rx} ${ry} ` +
+				`v ${h - 2 * ry} a ${rx} ${ry} 0 0 1 ${-rx} ${ry} h ${-(w - 2 * rx)} ` +
+				`a ${rx} ${ry} 0 0 1 ${-rx} ${-ry} v ${-(h - 2 * ry)} a ${rx} ${ry} 0 0 1 ${rx} ${-ry} Z`
+			);
+		}
+		case 'circle': {
+			const cx = Number(getAttr(attrs, 'cx') ?? 0);
+			const cy = Number(getAttr(attrs, 'cy') ?? 0);
+			const r = Number(getAttr(attrs, 'r') ?? 0);
+			if (!(r > 0)) return null;
+			return `M ${cx - r} ${cy} a ${r} ${r} 0 1 0 ${2 * r} 0 a ${r} ${r} 0 1 0 ${-2 * r} 0 Z`;
+		}
+		case 'ellipse': {
+			const cx = Number(getAttr(attrs, 'cx') ?? 0);
+			const cy = Number(getAttr(attrs, 'cy') ?? 0);
+			const rx = Number(getAttr(attrs, 'rx') ?? 0);
+			const ry = Number(getAttr(attrs, 'ry') ?? 0);
+			if (!(rx > 0) || !(ry > 0)) return null;
+			return `M ${cx - rx} ${cy} a ${rx} ${ry} 0 1 0 ${2 * rx} 0 a ${rx} ${ry} 0 1 0 ${-2 * rx} 0 Z`;
 		}
 		default:
 			return null;
@@ -303,23 +368,36 @@ function normalizeSvg(svg, opts) {
 	const height = round(box.maxY - box.minY, opts.precision);
 	const shift = `translate(${-box.minX} ${-box.minY})`;
 
-	// Merge every subpath into one normalized, origin-aligned path.
-	const d = paths
-		.map(({ d, transform }) => {
-			const sp = transform ? svgpath(d).transform(transform) : svgpath(d);
-			return sp.transform(shift).abs().round(opts.precision).toString().trim();
-		})
-		.join(' ');
-
 	const strokeWidth = opts.strokeWidthExplicit
 		? opts.strokeWidth
 		: (detectedStrokeWidth ?? opts.strokeWidth);
 
+	// Group geometry by render style (fill colour + whether it is stroked) so a
+	// filled dot stays filled while outlined glyphs keep the uniform stroke,
+	// rather than collapsing everything into a single fill="none" path.
+	const groups = new Map();
+	for (const { d, transform, fill, stroked } of paths) {
+		const key = `${fill ?? 'none'}|${stroked}`;
+		const sp = transform ? svgpath(d).transform(transform) : svgpath(d);
+		const normalized = sp.transform(shift).abs().round(opts.precision).toString().trim();
+		const group = groups.get(key);
+		if (group) group.ds.push(normalized);
+		else groups.set(key, { fill, stroked, ds: [normalized] });
+	}
+
+	const pathTags = [...groups.values()]
+		.map(({ fill, stroked, ds }) => {
+			const d = ds.join(' ');
+			const stroke = stroked
+				? `stroke="#000000" stroke-width="${strokeWidth}" stroke-linecap="round" stroke-linejoin="round"`
+				: `stroke="none"`;
+			return `  <path d="${d}"\n        fill="${fill ?? 'none'}" ${stroke} />`;
+		})
+		.join('\n');
+
 	const out =
 		`<svg viewBox="0 0 ${width} ${height}" xmlns="http://www.w3.org/2000/svg">\n` +
-		`  <path d="${d}"\n` +
-		`        fill="none" stroke="#000000" stroke-width="${strokeWidth}"\n` +
-		`        stroke-linecap="round" stroke-linejoin="round" />\n` +
+		`${pathTags}\n` +
 		`</svg>\n`;
 
 	return { svg: out, width, height, warnings };
