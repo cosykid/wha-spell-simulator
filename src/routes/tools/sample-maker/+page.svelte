@@ -15,11 +15,8 @@
 	import ButtonWithShortcut from '$lib/ui/ButtonWithShortcut.svelte';
 	import {
 		createKeyDownHandler,
-		formatShortcut,
-		isApplePlatform,
 		type ButtonWithShortcut as ButtonWithShortcutDef
 	} from '$lib/ui/keybindings.js';
-	import { onMount } from 'svelte';
 	import Labels from './Labels.svelte';
 	import SampleSubmit from './SampleSubmit.svelte';
 	import { REFERENCE_SIZE } from './buildSample.js';
@@ -37,13 +34,6 @@
 	let ctx = $state<CanvasRenderingContext2D | null>(null);
 	let sampleSubmit = $state<ReturnType<typeof SampleSubmit>>();
 	let mode = $state<'draw' | 'select'>('draw');
-
-	// Display ⌘ on macOS, Ctrl elsewhere. Detected after mount so the prerendered
-	// markup (which always renders "Ctrl") hydrates without a mismatch.
-	let isMac = $state(false);
-	onMount(() => {
-		isMac = isApplePlatform();
-	});
 
 	// Computed state
 	const tool = $derived<CanvasBehavior>(mode === 'draw' ? draw : select);
@@ -126,32 +116,27 @@
 
 	const toolbar: ButtonWithShortcutDef[] = [
 		{
-			key: 'z',
-			shift: false,
 			shortcut: 'Ctrl+Z',
 			description: 'Undo',
 			disabled: () => !scene.canUndo(),
 			action: () => scene.undo()
 		},
 		{
-			key: 'y',
 			shortcut: 'Ctrl+Y',
 			description: 'Redo',
 			disabled: () => !scene.canRedo(),
 			action: () => scene.redo()
 		},
 		{
-			key: 'Enter',
 			shortcut: 'Ctrl+Enter',
 			description: 'Fit label',
 			disabled: () => !selected || !hasStrokes,
 			action: fitLabel
 		},
-		{ key: 'l', shortcut: 'Ctrl+L', description: 'Clear', action: clear }
+		{ shortcut: 'Ctrl+L', description: 'Clear', action: clear }
 	];
 
 	const submitShortcut: ButtonWithShortcutDef = {
-		key: 's',
 		shortcut: 'Ctrl+S',
 		description: 'Submit sample',
 		disabled: () => !selected || !hasStrokes,
@@ -170,10 +155,10 @@
 <main class="workspace maker-workspace">
 	<section class="canvas-panel maker-canvas-panel">
 		<div class="toolbar">
-			{#each toolbar as item (item.key)}
+			{#each toolbar as item (item.shortcut)}
 				<ButtonWithShortcut
 					description={item.description}
-					shortcut={formatShortcut(item.shortcut, isMac)}
+					shortcut={item.shortcut}
 					disabled={item.disabled?.() ?? false}
 					onclick={item.action}
 				/>

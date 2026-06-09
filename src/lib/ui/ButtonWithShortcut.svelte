@@ -1,17 +1,23 @@
 <script lang="ts">
+	import { formatShortcut, getPlatform, type Shortcut } from '$lib/ui/keybindings.js';
+
 	interface Props {
 		description: string;
-		shortcut: string;
+		/** Raw "Ctrl+…" chord label; rendered as ⌘ on macOS via the platform context. */
+		shortcut: Shortcut;
 		disabled?: boolean;
 		onclick?: () => void;
 		type?: 'button' | 'submit';
 	}
 
 	let { description, shortcut, disabled = false, onclick, type = 'button' }: Props = $props();
+
+	const platform = getPlatform();
+	const label = $derived(formatShortcut(shortcut, platform.isMac));
 </script>
 
 <button {type} {disabled} {onclick}>
-	{description} <kbd>{shortcut}</kbd>
+	{description} <kbd>{label}</kbd>
 </button>
 
 <style>
