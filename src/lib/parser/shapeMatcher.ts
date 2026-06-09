@@ -14,6 +14,7 @@ import type {
 	TemplateMatchOptions,
 	Vector
 } from '../types.js';
+import { InkMask } from './inkMask.js';
 
 const POINT_CLOUD_SIZE = 128;
 const POINT_DISTANCE_NORMALIZER = 0.42;
@@ -215,37 +216,6 @@ function sampleCountsForStrokes(strokes: Vector[][], pointCount: number): number
 	return counts;
 }
 
-function markMask(mask: Uint8Array, size: number, x: number, y: number, radius = INK_RADIUS): void {
-	const centerX = Math.round(clamp(x, 0, 1) * (size - 1));
-	const centerY = Math.round(clamp(y, 0, 1) * (size - 1));
-	const radiusSq = radius * radius;
-
-	for (let offsetY = -radius; offsetY <= radius; offsetY += 1) {
-		for (let offsetX = -radius; offsetX <= radius; offsetX += 1) {
-			if (offsetX * offsetX + offsetY * offsetY > radiusSq) {
-				continue;
-			}
-			const pixelX = centerX + offsetX;
-			const pixelY = centerY + offsetY;
-			if (pixelX < 0 || pixelX >= size || pixelY < 0 || pixelY >= size) {
-				continue;
-			}
-			mask[pixelY * size + pixelX] = 1;
-		}
-	}
-}
-
-function drawSegment(mask: Uint8Array, size: number, start: Vector, end: Vector): void {
-	const dx = end.x - start.x;
-	const dy = end.y - start.y;
-	const steps = Math.max(1, Math.ceil(Math.hypot(dx, dy) * size * 2));
-
-	for (let index = 0; index <= steps; index += 1) {
-		const local = index / steps;
-		markMask(mask, size, start.x + dx * local, start.y + dy * local);
-	}
-}
-
 function distanceMapForMask(mask: Uint8Array, size: number, inkPixels: number[]): Float32Array {
 	const result = new Float32Array(size * size);
 	if (!inkPixels.length) {
@@ -276,33 +246,33 @@ function distanceMapForMask(mask: Uint8Array, size: number, inkPixels: number[])
 }
 
 function renderNormalizedInk(strokes: Vector[][], size = INK_MAP_SIZE): InkDistanceMap {
-	const mask = new Uint8Array(size * size);
+	const mask = new InkMask(size);
 
 	for (const stroke of strokes) {
 		if (!stroke.length) {
 			continue;
 		}
 		if (stroke.length === 1) {
-			markMask(mask, size, stroke[0].x, stroke[0].y);
+			mask.markPoint(stroke[0].x, stroke[0].y);
 			continue;
 		}
 		for (let index = 1; index < stroke.length; index += 1) {
-			drawSegment(mask, size, stroke[index - 1], stroke[index]);
+			mask.drawSegment(stroke[index - 1], stroke[index]);
 		}
 	}
 
 	const inkPixels: number[] = [];
-	for (let index = 0; index < mask.length; index += 1) {
-		if (mask[index]) {
+	for (let index = 0; index < mask.data.length; index += 1) {
+		if (mask.data[index]) {
 			inkPixels.push(index);
 		}
 	}
 
 	return {
 		size,
-		mask,
+		mask: mask.data,
 		inkPixels,
-		distanceMap: distanceMapForMask(mask, size, inkPixels),
+		distanceMap: distanceMapForMask(mask.data, size, inkPixels),
 		ink: inkPixels.length
 	};
 }

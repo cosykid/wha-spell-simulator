@@ -7,6 +7,7 @@ import type {
 	TemplateMatchOptions,
 	Vector
 } from '../types.js';
+import { InkMask } from './inkMask.js';
 
 const INK_SIZE = 40;
 const CORE_RADIUS = 1;
@@ -22,7 +23,7 @@ interface RotationTransform {
 }
 
 interface InkLayer {
-	mask: Uint8Array;
+	mask: InkMask;
 	ink: number;
 }
 
@@ -82,37 +83,15 @@ function rotatePoint(point: Vector, transform: RotationTransform | null): Vector
 
 function createLayer(size: number): InkLayer {
 	return {
-		mask: new Uint8Array(size * size),
+		mask: new InkMask(size),
 		ink: 0
 	};
 }
 
-function markMask(mask: Uint8Array, size: number, x: number, y: number, radius: number): void {
-	const centerX = Math.round(clamp(x, 0, 1) * (size - 1));
-	const centerY = Math.round(clamp(y, 0, 1) * (size - 1));
-	const radiusSq = radius * radius;
-
-	for (let offsetY = -radius; offsetY <= radius; offsetY += 1) {
-		for (let offsetX = -radius; offsetX <= radius; offsetX += 1) {
-			if (offsetX * offsetX + offsetY * offsetY > radiusSq) {
-				continue;
-			}
-
-			const pixelX = centerX + offsetX;
-			const pixelY = centerY + offsetY;
-			if (pixelX < 0 || pixelX >= size || pixelY < 0 || pixelY >= size) {
-				continue;
-			}
-
-			mask[pixelY * size + pixelX] = 1;
-		}
-	}
-}
-
-function markInk(ink: InkLayers, size: number, x: number, y: number): void {
-	markMask(ink.core.mask, size, x, y, CORE_RADIUS);
-	markMask(ink.soft.mask, size, x, y, SOFT_RADIUS);
-	markMask(ink.loose.mask, size, x, y, LOOSE_RADIUS);
+function markInk(ink: InkLayers, x: number, y: number): void {
+	ink.core.mask.markPoint(x, y, CORE_RADIUS);
+	ink.soft.mask.markPoint(x, y, SOFT_RADIUS);
+	ink.loose.mask.markPoint(x, y, LOOSE_RADIUS);
 }
 
 function drawSegment(ink: InkLayers, size: number, start: Vector, end: Vector): void {
@@ -122,16 +101,8 @@ function drawSegment(ink: InkLayers, size: number, start: Vector, end: Vector): 
 
 	for (let index = 0; index <= steps; index += 1) {
 		const local = index / steps;
-		markInk(ink, size, start.x + dx * local, start.y + dy * local);
+		markInk(ink, start.x + dx * local, start.y + dy * local);
 	}
-}
-
-function countInk(mask: Uint8Array): number {
-	let ink = 0;
-	for (const pixel of mask) {
-		ink += pixel;
-	}
-	return ink;
 }
 
 function renderInk(strokes: Vector[][], rotationDeg = 0, size = INK_SIZE): InkLayers {
@@ -149,7 +120,7 @@ function renderInk(strokes: Vector[][], rotationDeg = 0, size = INK_SIZE): InkLa
 
 		const points = stroke.map((point) => rotatePoint(point, transform));
 		if (points.length === 1) {
-			markInk(ink, size, points[0].x, points[0].y);
+			markInk(ink, points[0].x, points[0].y);
 			continue;
 		}
 
@@ -158,9 +129,9 @@ function renderInk(strokes: Vector[][], rotationDeg = 0, size = INK_SIZE): InkLa
 		}
 	}
 
-	ink.core.ink = countInk(ink.core.mask);
-	ink.soft.ink = countInk(ink.soft.mask);
-	ink.loose.ink = countInk(ink.loose.mask);
+	ink.core.ink = ink.core.mask.count();
+	ink.soft.ink = ink.soft.mask.count();
+	ink.loose.ink = ink.loose.mask.count();
 	return ink;
 }
 
@@ -221,12 +192,12 @@ function diceScore(a: Uint8Array, b: Uint8Array, aInk: number, bInk: number): nu
 	return clamp((maskOverlap(a, b) * 2) / (aInk + bInk));
 }
 
-function occupiedCells(mask: Uint8Array, size = INK_SIZE, gridSize = REGION_GRID_SIZE): Uint8Array {
+function occupiedCells(mask: InkMask, size = INK_SIZE, gridSize = REGION_GRID_SIZE): Uint8Array {
 	const cells = new Uint8Array(gridSize * gridSize);
 
 	for (let y = 0; y < size; y += 1) {
 		for (let x = 0; x < size; x += 1) {
-			if (!mask[y * size + x]) {
+			if (!mask.data[y * size + x]) {
 				continue;
 			}
 			const cellX = Math.min(gridSize - 1, Math.floor((x / size) * gridSize));
@@ -295,13 +266,12 @@ function compareInk(candidateInk: InkLayers, referenceInk: InkLayers) {
 	}
 
 	const candidateExplainedRatio = clamp(
-		maskOverlap(candidateInk.core.mask, referenceInk.loose.mask) / candidateInkCount
+		candidateInk.core.mask.overlap(referenceInk.loose.mask) / candidateInkCount
 	);
 	const templateCoveredRatio = clamp(
-		maskOverlap(referenceInk.core.mask, candidateInk.loose.mask) / referenceInkCount
+		referenceInk.core.mask.overlap(candidateInk.loose.mask) / referenceInkCount
 	);
-	const softDiceScore = diceScore(
-		candidateInk.soft.mask,
+	const softDiceScore = candidateInk.soft.mask.dice(
 		referenceInk.soft.mask,
 		candidateInk.soft.ink,
 		referenceInk.soft.ink
