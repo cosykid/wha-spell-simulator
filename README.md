@@ -84,7 +84,7 @@ This app is deployed at
 and targets Vercel through `@sveltejs/adapter-vercel`. The prerendered canvas
 shell is served as static output, while SvelteKit API routes are deployed as
 Vercel serverless functions. That keeps Neon credentials server-side and lets the
-browser fetch recognition assets through `/api/recognition/assets`.
+browser submit labelled samples through `/api/samples`.
 
 Once the GitHub repo is connected to Vercel, pull requests get preview
 deployments and merges to `main` deploy to production.
@@ -128,49 +128,22 @@ npm test
 
 ## Optional Storage
 
-Recognition examples can be stored in Neon Postgres for future user-drawing
-corpora. The browser app still works from dictionary templates alone, but the
-Vercel deployment can read active examples through `/api/recognition/assets`.
+The browser app recognizes spells entirely from the in-repo dictionary
+templates — no database required. Neon Postgres is used only to persist the
+by-eye **labelled handwriting samples** collected by the Sample Maker tool (see
+the Labelled Samples API below).
 
-Set one of these private environment variables before using the storage helpers. For local work, put real values in `.env`; the migration and seed scripts load it automatically. Keep `.env.example` as placeholders only.
+Set one of these private environment variables before using the storage helpers. For local work, put real values in `.env`; the migration script loads it automatically. Keep `.env.example` as placeholders only.
 
 ```sh
 DATABASE_URL=postgres://...
 NEON_DATABASE_URL=postgres://...
 ```
 
-Then migrate and seed dictionary-derived recognition assets:
+Then run the migration to create the `labelled_samples` table:
 
 ```sh
 npm run db:migrate
-npm run db:seed:recognition
-```
-
-### Recognition Examples API
-
-`/api/recognition/examples` exposes a public JSON API over the
-`recognition_examples` table so teammates can manage the corpus directly. No
-authorization header is required. The API is available when the deployment has a
-Neon connection string configured.
-
-| Method   | Path                                | Purpose                                                                                                |
-| -------- | ----------------------------------- | ------------------------------------------------------------------------------------------------------ |
-| `GET`    | `/api/recognition/examples`         | List examples. Optional filters: `kind=sigil\|sign`, `symbolId`, `source`, `active=true\|false`.       |
-| `GET`    | `/api/recognition/examples?id=<id>` | Fetch a single example by id (`404` if missing).                                                       |
-| `POST`   | `/api/recognition/examples`         | Upsert one example by id (JSON body: `kind`, `symbolId`, `strokes`, and optional `id`/`source`/flags). |
-| `DELETE` | `/api/recognition/examples?id=<id>` | Soft-delete (mark `active = false`); the row is retained.                                              |
-
-Listing includes inactive rows unless you pass `active=true`. Example:
-
-```sh
-# List every active sign
-curl "https://wha-spell-simulator.vercel.app/api/recognition/examples?kind=sign&active=true"
-
-# Submit a labeled example
-curl -X POST \
-  -H "content-type: application/json" \
-  -d '{"kind":"sigil","symbolId":"crystal","strokes":[[{"x":0,"y":0},{"x":1,"y":1}]]}' \
-  "https://wha-spell-simulator.vercel.app/api/recognition/examples"
 ```
 
 ### Labelled Samples API

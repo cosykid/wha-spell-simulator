@@ -15,8 +15,11 @@
 	import ButtonWithShortcut from '$lib/ui/ButtonWithShortcut.svelte';
 	import {
 		createKeyDownHandler,
+		formatShortcut,
+		isApplePlatform,
 		type ButtonWithShortcut as ButtonWithShortcutDef
 	} from '$lib/ui/keybindings.js';
+	import { onMount } from 'svelte';
 	import Labels from './Labels.svelte';
 	import SampleSubmit from './SampleSubmit.svelte';
 	import { REFERENCE_SIZE } from './buildSample.js';
@@ -34,6 +37,13 @@
 	let ctx = $state<CanvasRenderingContext2D | null>(null);
 	let sampleSubmit = $state<ReturnType<typeof SampleSubmit>>();
 	let mode = $state<'draw' | 'select'>('draw');
+
+	// Display ⌘ on macOS, Ctrl elsewhere. Detected after mount so the prerendered
+	// markup (which always renders "Ctrl") hydrates without a mismatch.
+	let isMac = $state(false);
+	onMount(() => {
+		isMac = isApplePlatform();
+	});
 
 	// Computed state
 	const tool = $derived<CanvasBehavior>(mode === 'draw' ? draw : select);
@@ -163,7 +173,7 @@
 			{#each toolbar as item (item.key)}
 				<ButtonWithShortcut
 					description={item.description}
-					shortcut={item.shortcut}
+					shortcut={formatShortcut(item.shortcut, isMac)}
 					disabled={item.disabled?.() ?? false}
 					onclick={item.action}
 				/>

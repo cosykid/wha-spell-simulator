@@ -13,8 +13,7 @@ const finite = z.number().refine(Number.isFinite, 'must be a finite number');
 const PointSchema = z.object({
 	x: finite,
 	y: finite,
-	t: finite,
-	pressure: finite.optional()
+	t: finite
 });
 
 /** Mirrors {@link SampleSubmission}; the server assigns `id` and `capturedAt`. */
@@ -30,12 +29,10 @@ const SampleSubmissionSchema = z.object({
 		angle: finite.nullable()
 	}),
 	meta: z.object({
-		schemaVersion: z.number().int(),
 		referenceSize: finite,
 		canvasWidth: finite,
 		canvasHeight: finite,
 		devicePixelRatio: finite,
-		pointerType: z.enum(['pen', 'touch', 'mouse', 'unknown']),
 		sessionId: z.string().optional(),
 		contributorId: z.string().optional()
 	})

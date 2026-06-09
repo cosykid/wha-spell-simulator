@@ -6,6 +6,8 @@ The component that handles the sample submission flow: building the payload, sub
 	import type { TransformableEntity } from '$canvas/entity.js';
 	import type { Stroke } from '$lib/types.js';
 	import ButtonWithShortcut from '$lib/ui/ButtonWithShortcut.svelte';
+	import { formatShortcut, isApplePlatform } from '$lib/ui/keybindings.js';
+	import { onMount } from 'svelte';
 	import { buildSampleSubmission } from './buildSample.js';
 	import { submitSample } from './samples.remote.js';
 	import type { SampleSymbol } from './symbols.js';
@@ -28,6 +30,13 @@ The component that handles the sample submission flow: building the payload, sub
 	let submitting = $state(false);
 	let status = $state('');
 	let formEl: HTMLFormElement;
+
+	// Display ⌘ on macOS, Ctrl elsewhere. Detected after mount so the prerendered
+	// markup (which always renders "Ctrl") hydrates without a mismatch.
+	let isMac = $state(false);
+	onMount(() => {
+		isMac = isApplePlatform();
+	});
 
 	const submission = $derived.by(() => {
 		if (!selected || !symbolEntity || strokes.length === 0) return null;
@@ -98,7 +107,7 @@ The component that handles the sample submission flow: building the payload, sub
 	<ButtonWithShortcut
 		type="submit"
 		description="Submit sample"
-		shortcut="Ctrl+S"
+		shortcut={formatShortcut('Ctrl+S', isMac)}
 		disabled={!selected || !strokes.length || submitting}
 	/>
 </form>

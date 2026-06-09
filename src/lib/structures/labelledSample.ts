@@ -21,11 +21,12 @@ export type Point = {
 	y: number;
 	/** ms since the first point of the FIRST stroke (t0 = 0). */
 	t: number;
-	/** [0,1] if the device reports it (pen); otherwise omitted. */
-	pressure?: number;
 };
 
-/** A single pen-down → pen-up trace. */
+/**
+ * A single pen-down → pen-up trace. Points are grouped per stroke (each stroke is
+ * its own array) so every point stays associated with the stroke it belongs to.
+ */
 export type Stroke = Point[];
 
 /**
@@ -74,9 +75,6 @@ export type Label = {
  * Captured cheaply at submission time; most of it cannot be recovered later.
  */
 export type SampleMeta = {
-	/** Bump when the schema or normalization/label conventions change. */
-	schemaVersion: number;
-
 	/** Pixels the reference SVG viewBox spanned at "scale 1". Unit for scale_*. */
 	referenceSize: number;
 
@@ -86,9 +84,6 @@ export type SampleMeta = {
 
 	/** Physical-pixel ratio at capture time (for DPI-independent processing). */
 	devicePixelRatio: number;
-
-	/** Discriminative signal, also useful for abuse filtering. */
-	pointerType: 'pen' | 'touch' | 'mouse' | 'unknown';
 
 	/** ISO 8601 timestamp of capture. */
 	capturedAt: string;
@@ -116,6 +111,3 @@ export type LabelledSample = {
 	label: Label;
 	meta: SampleMeta;
 };
-
-/** Current schema version. Bump alongside any breaking convention change. */
-export const SAMPLE_SCHEMA_VERSION = 1;

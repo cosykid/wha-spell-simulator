@@ -1,10 +1,5 @@
-import {
-	SAMPLE_SCHEMA_VERSION,
-	type Point,
-	type SampleSubmission,
-	type Stroke
-} from '$lib/structures/labelledSample.js';
-import type { PlacementTransform, PointerType, Stroke as SceneStroke } from '$lib/types.js';
+import type { Point, SampleSubmission, Stroke } from '$lib/structures/labelledSample.js';
+import type { PlacementTransform, Stroke as SceneStroke } from '$lib/types.js';
 import { degreesToRadians } from '$lib/utils/geometry.js';
 import type { SampleSymbol } from './symbols.js';
 
@@ -58,16 +53,8 @@ function firstTimestamp(strokes: SceneStroke[]): number {
  * reference glyph's measured transform (the *label*). Timestamps are rebased so the
  * first point of the first stroke is `t = 0`, per the schema.
  */
-/** Pick the most common pointer type across strokes, falling back to 'unknown'. */
-function derivePointerType(strokes: SceneStroke[]): PointerType {
-	return (
-		strokes.find((s) => s.pointerType && s.pointerType !== 'unknown')?.pointerType ?? 'unknown'
-	);
-}
-
 export function buildSampleSubmission(args: BuildSampleArgs): SampleSubmission {
 	const { strokes, symbol, transform, canvasWidth, canvasHeight, devicePixelRatio } = args;
-	const pointerType = derivePointerType(strokes);
 
 	const t0 = firstTimestamp(strokes);
 	const data: Stroke[] = strokes.map((stroke) =>
@@ -75,8 +62,7 @@ export function buildSampleSubmission(args: BuildSampleArgs): SampleSubmission {
 			(point): Point => ({
 				x: point.x,
 				y: point.y,
-				t: (point.t ?? t0) - t0,
-				...(typeof point.pressure === 'number' ? { pressure: point.pressure } : {})
+				t: (point.t ?? t0) - t0
 			})
 		)
 	);
@@ -96,12 +82,10 @@ export function buildSampleSubmission(args: BuildSampleArgs): SampleSubmission {
 				symbol.directionality === 'non-directional' ? null : toSignedRadians(transform.rotationDeg)
 		},
 		meta: {
-			schemaVersion: SAMPLE_SCHEMA_VERSION,
 			referenceSize: REFERENCE_SIZE,
 			canvasWidth,
 			canvasHeight,
-			devicePixelRatio,
-			pointerType
+			devicePixelRatio
 		}
 	};
 }

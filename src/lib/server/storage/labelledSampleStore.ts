@@ -22,7 +22,6 @@ const MAX_LIST_LIMIT = 200;
 interface LabelledSampleRow {
 	id: string;
 	sign_id: string;
-	schema_version: number;
 	data: LabelledSample['data'];
 	label: LabelledSample['label'];
 	meta: Omit<LabelledSample['meta'], 'capturedAt'>;
@@ -70,13 +69,12 @@ export async function insertLabelledSample(
 			.values({
 				id,
 				sign_id: submission.label.signId,
-				schema_version: submission.meta.schemaVersion,
 				data: JSON.stringify(submission.data),
 				label: JSON.stringify(submission.label),
 				meta: JSON.stringify(submission.meta),
 				captured_at: capturedAt
 			})
-			.returning(['id', 'sign_id', 'schema_version', 'data', 'label', 'meta', 'captured_at'])
+			.returning(['id', 'sign_id', 'data', 'label', 'meta', 'captured_at'])
 			.executeTakeFirstOrThrow()) as LabelledSampleRow;
 
 		return rowToSample(row);
@@ -95,7 +93,7 @@ export async function listLabelledSamples(
 ): Promise<LabelledSample[]> {
 	let builder = db
 		.selectFrom('labelled_samples')
-		.select(['id', 'sign_id', 'schema_version', 'data', 'label', 'meta', 'captured_at'])
+		.select(['id', 'sign_id', 'data', 'label', 'meta', 'captured_at'])
 		.orderBy('captured_at', 'desc');
 
 	if (query.signId !== undefined) {

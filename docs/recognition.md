@@ -136,31 +136,13 @@ The recognizer consumes `RecognitionExample` objects:
 
 `buildExamplesFromDictionary(...)` converts current dictionary `strokeTemplate`s into seed examples. Additional real user examples can be passed to `classifyDrawing(...)` or `recognizeCandidates(...)` without changing the recognizer API.
 
-## Neon Storage
+## Storage
 
-Neon Postgres is the primary storage layer for future recognition examples. The recognition-example schema lives in `migrations/001_recognition_examples.sql`.
-
-Server helpers are in `src/lib/server/storage`:
-
-- `getNeonSql(...)` creates a cached Neon query function from `DATABASE_URL` or `NEON_DATABASE_URL`.
-- `listRecognitionExamples(...)` reads active examples (used by the app's `/api/recognition/assets` loader).
-- `queryRecognitionExamples(filters)` reads examples with lifecycle metadata, optionally filtered by `kind`/`symbolId`/`source`/`active`; includes inactive rows unless `active` is set.
-- `getRecognitionExample(id)` fetches a single example (active or not).
-- `upsertRecognitionExamples(...)` inserts or updates examples by id.
-- `deactivateRecognitionExample(id)` soft-deletes an example by flipping `active` to false.
-- `seedDictionaryRecognitionExamples(...)` stores dictionary-derived seed examples.
+The recognizer runs entirely from the in-repo dictionary: `buildExamplesFromDictionary(...)` derives every `RecognitionExample` from the dictionary `strokeTemplate`s at runtime, in the browser. No database is involved in recognition.
 
 The browser parser modules stay pure and server-portable. They do not import Neon or browser-only APIs.
 
-### Examples API
-
-`/api/recognition/examples` exposes the corpus over HTTP for offline collaborators. It is a public API with no app-level authorization; the deployment only needs a Neon connection string for the storage calls to work.
-
-- `GET` — list examples (filters: `kind`, `symbolId`, `source`, `active`) or fetch one via `?id=`.
-- `POST` — upsert one example (`kind`, `symbolId`, `strokes` required; strokes are canonicalized through `normalizeStrokesForShape`).
-- `DELETE` — soft-delete via `?id=`.
-
-The `/api/recognition/assets` loader stays separate so the browser app can read active examples without pulling lifecycle metadata.
+Neon Postgres is still used, but only to persist the by-eye labelled handwriting samples produced by the Sample Maker tool — see the Labelled Samples API in the README.
 
 ## Diagnostics Overlay
 

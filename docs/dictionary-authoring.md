@@ -186,9 +186,7 @@ Shape:
 }
 ```
 
-The initial corpus comes from dictionary `strokeTemplate`s. Future real user drawings can be stored as additional examples without changing dictionary entry shape or the recognizer API.
-
-Neon Postgres storage for examples is defined by `migrations/001_recognition_examples.sql`. Server helpers in `src/lib/server/storage/recognitionExampleStore.ts` can list examples, upsert examples, and seed dictionary-derived examples into the database.
+The recognition corpus is derived from dictionary `strokeTemplate`s at runtime via `buildExamplesFromDictionary(...)`. Additional examples can still be passed to the recognizer API without changing dictionary entry shape, but the app supplies none — recognition runs from the dictionary alone, with no database involved.
 
 ## Sigil-Only Properties
 

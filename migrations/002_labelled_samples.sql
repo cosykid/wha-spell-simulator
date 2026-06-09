@@ -1,7 +1,6 @@
 create table if not exists labelled_samples (
 	id text primary key,
 	sign_id text not null,
-	schema_version int not null,
 	data jsonb not null,
 	label jsonb not null,
 	meta jsonb not null,
