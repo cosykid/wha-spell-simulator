@@ -620,7 +620,10 @@
 				if (selectedPlacementId) {
 					setSelected(selectedPlacementId);
 				}
-				recompute();
+				// Refresh the rendered ink so the shape tracks the pointer live, but hold off
+				// on recognition (the expensive part of recompute) until the gesture settles.
+				// onInteractionEnd reclassifies once the shape is dropped.
+				strokes = mergedStrokes();
 			},
 			onInteractionEnd: () => {
 				pushHistory();
