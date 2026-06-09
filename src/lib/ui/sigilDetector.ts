@@ -283,3 +283,6 @@ export function analyzeStrokes({
 		recognizeCandidates([candidate], activeDictionary(dictionary, mode), config)[0] ?? null;
 	return { cleanedStrokes, candidate, recognition, matches };
 }
+
+/** The plain-data result of {@link analyzeStrokes}; safe to clone across a worker boundary. */
+export type AnalysisResult = ReturnType<typeof analyzeStrokes>;

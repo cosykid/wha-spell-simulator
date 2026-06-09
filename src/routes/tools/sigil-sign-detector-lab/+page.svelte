@@ -1,5 +1,5 @@
 <script lang="ts">
-	import type { Dictionary, SigilEntry, StrokeTemplate } from '$lib/types.js';
+	import type { Dictionary, SigilEntry, Stroke, StrokeTemplate } from '$lib/types.js';
 
 	import Canvas from '$canvas/Canvas.svelte';
 	import { CONFIG } from '$lib/config.js';
@@ -12,19 +12,24 @@
 	import { createScene } from '$canvas/scene.svelte.js';
 	import { createDrawTool } from '$canvas/tools/drawTool.svelte.js';
 	import {
-		analyzeStrokes,
+		type AnalysisResult,
 		normalizedTemplateStrokes,
 		percent,
 		statusClass,
 		statusLabel
 	} from '$lib/ui/sigilDetector.js';
+	import { disposeSigilAnalysis, requestSigilAnalysis } from '$lib/ui/sigilAnalysisClient.js';
 	import { roundDeep } from '$lib/utils/json.js';
+	import { onDestroy } from 'svelte';
 
 	let dictionary = $state<Dictionary | null>(null);
+	// Plain (non-reactive) copy of the dictionary for cloning to the analysis
+	// worker; a $state proxy can't be structured-cloned across postMessage.
+	let workerDictionary: Dictionary | null = null;
 	let mode = $state('all');
 	let referenceId = $state('');
 	let paperOverlay = $state(true);
-	let analysis = $state<ReturnType<typeof analyzeStrokes>>({
+	let analysis = $state<AnalysisResult>({
 		cleanedStrokes: [],
 		candidate: null,
 		recognition: null,
@@ -91,23 +96,10 @@
 		}
 	});
 
-	// Re-analyze whenever committed strokes, the in-progress preview, mode, or dictionary change.
-	$effect(() => {
-		if (!dictionary) return;
-
-		const currentStroke = draw.getCurrentStroke();
-		const allStrokes = currentStroke ? [...committedStrokes, currentStroke] : [...committedStrokes];
-
-		// Use the local result for the status below: reading back from `analysis` here
-		// would make this effect depend on the state it just wrote and loop forever.
-		const result = analyzeStrokes({
-			strokes: allStrokes,
-			dictionary,
-			mode,
-			canvasWidth: CANVAS_SIZE,
-			canvasHeight: CANVAS_SIZE,
-			config: CONFIG
-		});
+	// `analysis` is only ever written here, from the worker's result (or the
+	// synchronous fallback). Reading it back inside the requesting effect would
+	// make that effect depend on the state it writes and loop forever.
+	function applyResult(result: AnalysisResult): void {
 		analysis = result;
 
 		const recStatus =
@@ -116,7 +108,32 @@
 			result.matches.length ? statusLabel(recStatus) : 'Ready',
 			statusClass(recStatus, Boolean(result.recognition?.recognized))
 		);
+	}
+
+	// Re-analyze whenever committed strokes, the in-progress preview, mode, or
+	// dictionary change. Analysis runs on a worker via a latest-wins channel, so
+	// this can fire on every pointer sample without ever blocking the draw loop:
+	// stale frames are dropped and only the freshest result is applied.
+	$effect(() => {
+		if (!dictionary || !workerDictionary) return;
+		const activeMode = mode;
+		const currentStroke = draw.getCurrentStroke();
+		const committed = committedStrokes;
+		const allStrokes = currentStroke ? [...committed, currentStroke] : [...committed];
+
+		// Snapshot to plain data: $state proxies can't be cloned to the worker.
+		requestSigilAnalysis(
+			workerDictionary,
+			CONFIG,
+			$state.snapshot(allStrokes) as Stroke[],
+			activeMode,
+			CANVAS_SIZE,
+			CANVAS_SIZE,
+			applyResult
+		);
 	});
+
+	onDestroy(disposeSigilAnalysis);
 
 	function previewPolylines(strokeTemplate: StrokeTemplate | undefined) {
 		return normalizedTemplateStrokes(strokeTemplate)
@@ -155,6 +172,7 @@
 					return;
 				}
 				dictionary = loaded;
+				workerDictionary = loaded;
 			})
 			.catch((error) => {
 				if (!cancelled) {
