@@ -17,8 +17,8 @@
 		createKeyDownHandler,
 		type ButtonWithShortcut as ButtonWithShortcutDef
 	} from '$lib/ui/keybindings.js';
-	import Labels from './Labels.svelte';
 	import SampleSubmit from './SampleSubmit.svelte';
+	import SuggestionPrompt from './SuggestionPrompt.svelte';
 	import { REFERENCE_SIZE } from './buildSample.js';
 	import { SYMBOL_ID } from './constants.js';
 	import { optimizePlacement } from './optimize.js';
@@ -33,6 +33,7 @@
 	let selected = $state<SampleSymbol | null>(null);
 	let ctx = $state<CanvasRenderingContext2D | null>(null);
 	let sampleSubmit = $state<ReturnType<typeof SampleSubmit>>();
+	let suggestionPrompt = $state<ReturnType<typeof SuggestionPrompt>>();
 	let mode = $state<'draw' | 'select'>('draw');
 
 	// Computed state
@@ -49,42 +50,39 @@
 		return e && isTransformable(e) ? e : null;
 	});
 
-	// Automatically switch mode based on whether the symbol entity is in the scene.
+	// Switch mode by whether the symbol is in the scene, autoselecting it so its handles show up.
 	const symbolInScene = $derived(scene.getEntities().some((e) => e.id === SYMBOL_ID));
 	$effect(() => {
 		mode = symbolInScene ? 'select' : 'draw';
-		// Autoselect the symbol entity when it appears, so the handles show up
 		select.setSelectedId(symbolInScene ? SYMBOL_ID : null);
 	});
 
 	/**
-	 * Stamp the picked symbol onto the canvas as the reference glyph, replacing any previous one.
-	 * The symbol is centered on the canvas with a default scale.
+	 * Stamp the picked symbol onto the canvas as the reference glyph (replacing any previous one),
+	 * centered at a default scale and orientation — suggestions pass a random `rotationDeg`.
 	 */
-	const pickSymbol = (symbol: SampleSymbol): void => {
+	const pickSymbol = (symbol: SampleSymbol, rotationDeg = 0): void => {
 		// At most one symbol entity at a time — drop the previous one before stamping.
 		scene.remove(SYMBOL_ID);
 		const placement: Placement = {
 			id: SYMBOL_ID,
 			kind: 'sign',
 			sourceId: symbol.id,
-			// Sampled lazily by the entity's getBaseStrokes() only if the user runs "fit".
-			baseStrokes: [],
+			baseStrokes: [], // sampled lazily by getBaseStrokes() only if the user runs "fit"
 			transform: {
 				cx: 400,
 				cy: 400,
 				scaleX: REFERENCE_SIZE,
 				scaleY: REFERENCE_SIZE,
-				rotationDeg: 0
+				rotationDeg
 			}
 		};
 		scene.do(addEntity(scene, makeSymbolEntity(placement, loadSymbolRenderPath(symbol.id), 10, 7)));
-		selected = symbol;
-		// mode and selection are managed automatically by the symbolInScene effect.
+		selected = symbol; // mode and selection are managed by the symbolInScene effect
 	};
 
 	/**
-	 * Attempt to fit the reference glyph to the drawn strokes. Should make it easier for submitters to align their samples.
+	 * Fit the reference glyph to the drawn strokes, making it easier to align submitted samples.
 	 */
 	const fitLabel = (): void => {
 		const symbolEntity = scene.get(SYMBOL_ID);
@@ -102,17 +100,14 @@
 			canvasWidth: ctx!.canvas.width,
 			canvasHeight: ctx!.canvas.height
 		});
-
 		scene.do(transformEntity(symbolEntity, before, after));
 	};
 
-	/**
-	 * Reset the state completely.
-	 */
+	/** Reset the state completely, then offer a fresh suggestion (a no-op while choosing manually). */
 	const clear = (): void => {
 		scene.clear();
 		selected = null;
-		sampleSubmit?.reset();
+		suggestionPrompt?.suggest();
 	};
 
 	const toolbar: ButtonWithShortcutDef[] = [
@@ -137,6 +132,13 @@
 		{ shortcut: 'Ctrl+L', description: 'Clear', action: clear }
 	];
 
+	// Shortcuts for actions that live in the side-panel components rather than the canvas toolbar.
+	const labelShortcut: ButtonWithShortcutDef = {
+		shortcut: 'Ctrl+D',
+		description: 'Label',
+		disabled: () => !hasStrokes,
+		action: () => suggestionPrompt?.label()
+	};
 	const submitShortcut: ButtonWithShortcutDef = {
 		shortcut: 'Ctrl+S',
 		description: 'Submit sample',
@@ -144,7 +146,7 @@
 		action: () => sampleSubmit?.submit()
 	};
 
-	const onKeyDown = createKeyDownHandler([...toolbar, submitShortcut]);
+	const onKeyDown = createKeyDownHandler([...toolbar, labelShortcut, submitShortcut]);
 </script>
 
 <svelte:window onkeydown={onKeyDown} />
@@ -168,8 +170,17 @@
 		<Canvas {scene} controller={tool} bind:ctx />
 	</section>
 	<aside class="side-panel maker-side-panel">
-		<h2 class="panel-section-title">Sign label</h2>
-		<Labels symbols={SAMPLE_SYMBOLS} selectedId={selected?.id ?? null} onpick={pickSymbol} />
+		<header>
+			<h2 class="panel-section-title">Dataset Builder</h2>
+			<p class="builder-cta">Help us build a dataset to recognize hand-drawn spells!</p>
+		</header>
+
+		<SuggestionPrompt
+			bind:this={suggestionPrompt}
+			symbols={SAMPLE_SYMBOLS}
+			{hasStrokes}
+			onpick={pickSymbol}
+		/>
 
 		<SampleSubmit
 			bind:this={sampleSubmit}
@@ -190,5 +201,12 @@
 		padding: 14px;
 		min-width: 0;
 		overflow: auto;
+	}
+
+	.builder-cta {
+		margin: 0 0 4px;
+		font-size: 13px;
+		line-height: 1.4;
+		color: var(--muted-ink);
 	}
 </style>

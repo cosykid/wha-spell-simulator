@@ -26,6 +26,7 @@
 		"@sveltejs/kit": "^2.8.0",
 		"@sveltejs/vite-plugin-svelte": "^5.0.0",
 		"@types/node": "^24.13.1",
+		"@zerodevx/svelte-toast": "^0.9.6",
 		"eslint": "^10.4.0",
 		"eslint-config-prettier": "^10.1.8",
 		"eslint-plugin-svelte": "^3.17.0",

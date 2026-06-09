@@ -1,6 +1,7 @@
 <script lang="ts">
 	import '$lib/styles/styles.css';
 	import { isApplePlatform, setPlatformContext } from '$lib/ui/keybindings.js';
+	import { SvelteToast } from '@zerodevx/svelte-toast';
 	import { onMount, type Snippet } from 'svelte';
 
 	interface Props {
@@ -27,3 +28,6 @@
 <div class="app-content">
 	{@render children()}
 </div>
+
+<!-- Global toast host: fixed-positioned, so it stays visible above any panel overflow. -->
+<SvelteToast options={{ duration: 4000, pausable: true }} />
