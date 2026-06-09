@@ -16,7 +16,8 @@
 		"format": "prettier --write .",
 		"test:e2e": "playwright install && playwright test",
 		"normalize:svg": "node scripts/normalize-svgs.mjs src/lib/dictionary/svg --stroke-width 0.1",
-		"sample:svg": "node --import tsx scripts/sample-to-svg.ts"
+		"sample:svg": "node --import tsx scripts/sample-to-svg.ts",
+		"prepare": "husky"
 	},
 	"devDependencies": {
 		"@eslint/js": "^10.0.1",
@@ -29,6 +30,7 @@
 		"eslint-config-prettier": "^10.1.8",
 		"eslint-plugin-svelte": "^3.17.0",
 		"globals": "^17.4.0",
+		"husky": "^9.1.7",
 		"prettier": "^3.8.1",
 		"prettier-plugin-svelte": "^3.5.1",
 		"svelte": "^5.1.0",
