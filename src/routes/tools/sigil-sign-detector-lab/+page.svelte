@@ -2,15 +2,16 @@
 	import type { Dictionary, SigilEntry, Stroke, StrokeTemplate } from '$lib/types.js';
 
 	import Canvas from '$canvas/Canvas.svelte';
-	import { CONFIG } from '$lib/config.js';
-	import { writeJson } from '$lib/debug/debugOverlay.js';
-	import { loadDictionary } from '$lib/dictionary/dictionaryLoader.js';
-	import { setStatus } from '$lib/state.svelte';
 	import { paperEntity } from '$canvas/entities/paperEntity.js';
 	import { referenceOverlayEntity } from '$canvas/entities/referenceOverlayEntity.js';
 	import type { StrokeEntity } from '$canvas/entities/strokeEntity.js';
 	import { createScene } from '$canvas/scene.svelte.js';
 	import { createDrawTool } from '$canvas/tools/drawTool.svelte.js';
+	import { CONFIG } from '$lib/config.js';
+	import { writeJson } from '$lib/debug/debugOverlay.js';
+	import { loadDictionary } from '$lib/dictionary/dictionaryLoader.js';
+	import { setStatus } from '$lib/state.svelte';
+	import { disposeSigilAnalysis, requestSigilAnalysis } from '$lib/ui/sigilAnalysisClient.js';
 	import {
 		type AnalysisResult,
 		normalizedTemplateStrokes,
@@ -18,7 +19,6 @@
 		statusClass,
 		statusLabel
 	} from '$lib/ui/sigilDetector.js';
-	import { disposeSigilAnalysis, requestSigilAnalysis } from '$lib/ui/sigilAnalysisClient.js';
 	import { roundDeep } from '$lib/utils/json.js';
 	import { onDestroy } from 'svelte';
 
@@ -211,7 +211,7 @@
 				<span>Paper Overlay</span>
 			</label>
 		</div>
-		<Canvas {scene} controller={draw} width={CANVAS_SIZE} height={CANVAS_SIZE} maxWidth={820} />
+		<Canvas {scene} controller={draw} width={CANVAS_SIZE} height={CANVAS_SIZE} />
 	</section>
 
 	<aside class="side-panel detector-lab-side-panel">
