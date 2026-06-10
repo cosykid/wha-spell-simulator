@@ -8,6 +8,7 @@ outcome (uploading / success / error) through global toast notifications.
 	import type { Stroke } from '$lib/types.js';
 	import ButtonWithShortcut from '$lib/ui/ButtonWithShortcut.svelte';
 	import { toast } from '@zerodevx/svelte-toast';
+	import { onMount } from 'svelte';
 	import Phase from './Phase.svelte';
 	import { buildSampleSubmission } from './buildSample.js';
 	import { submitSample } from './samples.remote.js';
@@ -31,6 +32,22 @@ outcome (uploading / success / error) through global toast notifications.
 	// Guards the button + prevents a double submit; user-facing messages go to the toast host.
 	let submitting = $state(false);
 	let formEl: HTMLFormElement;
+
+	// Optional contributor attribution. Remembered across draws and visits so a
+	// contributor types their handle once, not on every sample.
+	const USERNAME_STORAGE_KEY = 'sample-maker:discord-username';
+	let discordUsername = $state('');
+
+	// Load after hydration (localStorage is browser-only) to avoid an SSR mismatch.
+	onMount(() => {
+		discordUsername = localStorage.getItem(USERNAME_STORAGE_KEY) ?? '';
+	});
+
+	const persistUsername = (): void => {
+		const trimmed = discordUsername.trim();
+		if (trimmed) localStorage.setItem(USERNAME_STORAGE_KEY, trimmed);
+		else localStorage.removeItem(USERNAME_STORAGE_KEY);
+	};
 
 	// Toast palettes matching the Dataset Builder's teal accent and a warm-red error.
 	const SUCCESS_THEME = {
@@ -57,7 +74,8 @@ outcome (uploading / success / error) through global toast notifications.
 			transform: symbolEntity.placement.transform,
 			canvasWidth: canvas?.width ?? 0,
 			canvasHeight: canvas?.height ?? 0,
-			devicePixelRatio: typeof window !== 'undefined' ? window.devicePixelRatio : 1
+			devicePixelRatio: typeof window !== 'undefined' ? window.devicePixelRatio : 1,
+			discordUsername
 		});
 	});
 
@@ -108,6 +126,24 @@ outcome (uploading / success / error) through global toast notifications.
 		Happy with how the reference glyph lines up with your strokes? Send the labelled sample to the
 		dataset.
 	{/snippet}
+	<label class="username-field">
+		<span class="username-label">
+			Discord username <span class="username-optional">(optional)</span>
+		</span>
+		<input
+			class="username-input"
+			type="text"
+			bind:value={discordUsername}
+			oninput={persistUsername}
+			placeholder="e.g. mage_apprentice"
+			maxlength="64"
+			autocomplete="off"
+			autocapitalize="off"
+			spellcheck="false"
+		/>
+		<span class="username-hint">So we can credit who drew it. Remembered for next time.</span>
+	</label>
+
 	<form class="submit-form" {...submitSample} bind:this={formEl}>
 		<input {...submitSample.fields.payload.as('hidden', payload)} />
 		<ButtonWithShortcut
@@ -130,6 +166,45 @@ outcome (uploading / success / error) through global toast notifications.
 -->
 
 <style>
+	.username-field {
+		display: flex;
+		flex-direction: column;
+		gap: 4px;
+		margin-bottom: 12px;
+	}
+
+	.username-label {
+		font-size: 13px;
+		font-weight: 600;
+		color: var(--ink);
+	}
+
+	.username-optional {
+		font-weight: 400;
+		color: var(--muted-ink);
+	}
+
+	.username-input {
+		padding: 7px 9px;
+		font-size: 13px;
+		color: var(--ink);
+		border: 1px solid rgba(36, 27, 22, 0.25);
+		border-radius: 6px;
+		background: rgba(255, 255, 255, 0.6);
+	}
+
+	.username-input:focus-visible {
+		outline: none;
+		border-color: rgba(31, 111, 115, 0.7);
+		box-shadow: 0 0 0 2px rgba(31, 111, 115, 0.2);
+	}
+
+	.username-hint {
+		font-size: 12px;
+		line-height: 1.4;
+		color: var(--muted-ink);
+	}
+
 	.submit-form {
 		display: flex;
 		justify-content: center;

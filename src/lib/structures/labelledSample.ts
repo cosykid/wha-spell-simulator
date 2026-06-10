@@ -76,6 +76,8 @@ export type SampleMeta = {
 	sessionId?: string;
 	/** Contributor attribution, if accounts exist. */
 	contributorId?: string;
+	/** Optional self-reported Discord username, so we know who drew the sample. */
+	discordUsername?: string;
 };
 
 /**

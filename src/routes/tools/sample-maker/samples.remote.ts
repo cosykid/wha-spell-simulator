@@ -33,7 +33,8 @@ const SampleSubmissionSchema = z.object({
 		canvasHeight: finite,
 		devicePixelRatio: finite,
 		sessionId: z.string().optional(),
-		contributorId: z.string().optional()
+		contributorId: z.string().optional(),
+		discordUsername: z.string().trim().max(64).optional()
 	})
 });
 

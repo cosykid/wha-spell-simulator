@@ -30,6 +30,11 @@ interface LabelledSamplesTable {
 	/** Manual QA verdict; null = not reviewed yet. Never set on insert. */
 	review_status: ColumnType<ReviewStatus | null, never, ReviewStatus | null>;
 	reviewed_at: ColumnType<string | null, never, string | null>;
+	/**
+	 * Optional self-reported contributor handle, mirrored from `meta.discordUsername`
+	 * on insert so the reviewer can search it directly. Null when left blank.
+	 */
+	discord_username: ColumnType<string | null, string | null, string | null>;
 }
 
 export interface Database {

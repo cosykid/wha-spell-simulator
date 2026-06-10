@@ -45,6 +45,11 @@ caption and approve/reject controls. Clicking the thumbnail opens the detail dia
 		<span class="sample-meta">
 			{stats.strokes} stroke{stats.strokes === 1 ? '' : 's'} · {stats.points} pts
 		</span>
+		{#if sample.meta.discordUsername}
+			<span class="sample-author" title={sample.meta.discordUsername}>
+				✍ {sample.meta.discordUsername}
+			</span>
+		{/if}
 		{#if overlayMissing}
 			<span class="sample-warning">No reference SVG for “{sample.label.signId}”</span>
 		{/if}
@@ -152,6 +157,14 @@ caption and approve/reject controls. Clicking the thumbnail opens the detail dia
 	.sample-meta {
 		color: var(--muted-ink);
 		font-size: 12px;
+	}
+
+	.sample-author {
+		font-size: 12px;
+		color: var(--ink);
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
 	}
 
 	.sample-warning {

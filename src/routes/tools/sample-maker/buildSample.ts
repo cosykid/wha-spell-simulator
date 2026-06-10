@@ -21,6 +21,8 @@ export interface BuildSampleArgs {
 	canvasWidth: number;
 	canvasHeight: number;
 	devicePixelRatio: number;
+	/** Optional self-reported Discord handle, attributing who drew the sample. */
+	discordUsername?: string;
 }
 
 /** Wrap an angle in degrees into radians within (-π, π]. */
@@ -55,6 +57,7 @@ function firstTimestamp(strokes: SceneStroke[]): number {
  */
 export function buildSampleSubmission(args: BuildSampleArgs): SampleSubmission {
 	const { strokes, symbol, transform, canvasWidth, canvasHeight, devicePixelRatio } = args;
+	const discordUsername = args.discordUsername?.trim();
 
 	const t0 = firstTimestamp(strokes);
 	const data: Stroke[] = strokes.map((stroke) =>
@@ -83,7 +86,9 @@ export function buildSampleSubmission(args: BuildSampleArgs): SampleSubmission {
 			referenceSize: REFERENCE_SIZE,
 			canvasWidth,
 			canvasHeight,
-			devicePixelRatio
+			devicePixelRatio,
+			// Only carry the handle when supplied, so blank meta stays clean.
+			...(discordUsername ? { discordUsername } : {})
 		}
 	};
 }
