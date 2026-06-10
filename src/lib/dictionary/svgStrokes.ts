@@ -4,9 +4,10 @@ import type { Point } from '../types.js';
  * Turns the normalized glyph SVGs in `./svg` into the unit-box `baseStrokes` a
  * {@link Placement} expects (see `makeSymbolEntity` / `bakePlacementToStrokes`).
  *
- * The SVGs are produced by `scripts/normalize-svgs.mjs`: one `<path>` of absolute
- * commands whose `viewBox` tightly bounds the centerline. We sample each subpath
- * into a polyline and map it into `[0,1]²` centered on (0.5, 0.5), preserving the
+ * The SVGs are produced by `scripts/normalize-svgs.mjs`: one or more `<path>`s of
+ * absolute commands whose `viewBox` tightly bounds the centerline. (A few glyphs use
+ * a second `<path>` for filled dots — earth, cool, repetition — so we join them all.)
+ * We sample each subpath into a polyline and map it into `[0,1]²` centered on (0.5, 0.5), preserving the
  * glyph's aspect ratio. These strokes are the on-screen *reference* only — they are
  * never stored in a sample — so uniform-length sampling is plenty.
  */
@@ -95,8 +96,8 @@ interface ParsedSvg {
 function parseSvg(svgText: string): ParsedSvg {
 	const doc = new DOMParser().parseFromString(svgText, 'image/svg+xml');
 	const svg = doc.querySelector('svg');
-	const path = doc.querySelector('path');
-	if (!svg || !path) {
+	const paths = Array.from(doc.querySelectorAll('path'));
+	if (!svg || paths.length === 0) {
 		throw new Error('SVG asset is missing its <svg> or <path>');
 	}
 
@@ -109,7 +110,11 @@ function parseSvg(svgText: string): ParsedSvg {
 		throw new Error('SVG asset has no usable viewBox');
 	}
 
-	const d = path.getAttribute('d') ?? '';
+	// Join every `<path>` (e.g. the strokes plus a separate dots path) into one `d`.
+	const d = paths
+		.map((p) => p.getAttribute('d') ?? '')
+		.join(' ')
+		.trim();
 	// The normalizer emits absolute commands, so subpaths start at an uppercase `M`.
 	const subpaths = d
 		.split(/(?=M)/)
