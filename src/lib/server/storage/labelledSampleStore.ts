@@ -26,6 +26,8 @@ export interface LabelledSampleQuery {
 	discordUsername?: string;
 	/** Most recent first; capped to keep the verification endpoint cheap. */
 	limit?: number;
+	/** Rows to skip before the page; pairs with {@link limit} for infinite scroll. */
+	offset?: number;
 }
 
 /** Escape a user string for a Postgres `LIKE`/`ILIKE` substring pattern. */
@@ -130,7 +132,9 @@ export async function listLabelledSamples(
 	let builder = db
 		.selectFrom('labelled_samples')
 		.select(SAMPLE_COLUMNS)
-		.orderBy('captured_at', 'desc');
+		.orderBy('captured_at', 'desc')
+		// Tiebreaker so rows sharing a `captured_at` keep a stable order across pages.
+		.orderBy('id', 'desc');
 
 	if (query.signId !== undefined) {
 		builder = builder.where('sign_id', '=', query.signId);
@@ -146,6 +150,10 @@ export async function listLabelledSamples(
 	}
 	const limit = Math.min(query.limit ?? MAX_LIST_LIMIT, MAX_LIST_LIMIT);
 	builder = builder.limit(limit);
+	const offset = Math.max(0, Math.trunc(query.offset ?? 0));
+	if (offset > 0) {
+		builder = builder.offset(offset);
+	}
 
 	const rows = (await builder.execute()) as LabelledSampleRow[];
 	return rows.map(rowToSample);

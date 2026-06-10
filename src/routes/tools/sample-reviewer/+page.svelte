@@ -11,8 +11,8 @@
 	import { formatCapturedAt, sampleStats } from './renderSample.js';
 	import { setReviewStatus } from './review.remote.js';
 
-	/** Page-size choices; the API caps a single listing at 200. */
-	const LIMIT_CHOICES = [30, 60, 100, 200];
+	/** Rows fetched per page as the reviewer scrolls; the API caps a listing at 200. */
+	const PAGE_SIZE = 60;
 
 	/** Sample tallies per review state, mirrored from the API response. */
 	type ReviewCounts = Record<'pending' | 'approved' | 'rejected', number>;
@@ -38,7 +38,6 @@
 	// Filters. Status defaults to 'pending' so the page opens on the unreviewed queue.
 	let signFilter = $state<string>('all');
 	let statusFilter = $state<StatusFilter>('pending');
-	let limit = $state(60);
 	let showOverlay = $state(true);
 
 	// Username search. `usernameQuery` tracks the input; `appliedUsername` is the
@@ -51,12 +50,16 @@
 		usernameTimer = setTimeout(() => (appliedUsername = usernameQuery.trim()), 300);
 	}
 
-	// Query state
+	// Query state. `loading` covers the first page; `loadingMore` covers appended pages.
 	let samples = $state<LabelledSample[]>([]);
 	let reviewCounts = $state<ReviewCounts | null>(null);
 	let loading = $state(true);
+	let loadingMore = $state(false);
+	let hasMore = $state(false);
 	let error = $state<string | null>(null);
+	let loadMoreError = $state<string | null>(null);
 	let requestSeq = 0;
+	let sentinel = $state<HTMLElement>();
 
 	// Verdict state: ids with an in-flight save, plus the latest failure (if any).
 	let savingIds = $state<string[]>([]);
@@ -70,55 +73,115 @@
 	const detailStats = $derived(detail ? sampleStats(detail) : null);
 	const detailBusy = $derived(detail !== null && savingIds.includes(detail.id));
 
-	async function loadSamples(
+	type SamplesResponse = {
+		count: number;
+		reviewCounts: ReviewCounts;
+		samples: LabelledSample[];
+	};
+
+	/** Fetches one page of samples for the current filters; throws on a bad response. */
+	async function fetchSamples(
 		signId: string,
 		status: StatusFilter,
-		max: number,
+		username: string,
+		offset: number
+	): Promise<SamplesResponse> {
+		const sign = signId === 'all' ? '' : `&signId=${encodeURIComponent(signId)}`;
+		const review = status === 'all' ? '' : `&reviewStatus=${status}`;
+		const user = username ? `&username=${encodeURIComponent(username)}` : '';
+		const response = await fetch(
+			`${resolve('/api/samples')}?limit=${PAGE_SIZE}&offset=${offset}${sign}${review}${user}`
+		);
+		const body = (await response.json()) as
+			| ({ ok: true } & SamplesResponse)
+			| { ok: false; error?: string };
+		if (!response.ok || !body.ok) {
+			throw new Error(
+				(!body.ok && body.error) || `The samples endpoint replied ${response.status}.`
+			);
+		}
+		return body;
+	}
+
+	/** Note any sign ids the filter doesn't yet offer (older submissions carry them). */
+	function registerSignIds(list: LabelledSample[]): void {
+		for (const { label } of list) {
+			if (!knownSignIds.includes(label.signId)) {
+				knownSignIds = [...knownSignIds, label.signId];
+			}
+		}
+	}
+
+	/** Loads the first page for a filter set, replacing whatever is on screen. */
+	async function loadFirstPage(
+		signId: string,
+		status: StatusFilter,
 		username: string
 	): Promise<void> {
 		const seq = ++requestSeq;
 		loading = true;
 		error = null;
+		loadMoreError = null;
 		try {
-			const sign = signId === 'all' ? '' : `&signId=${encodeURIComponent(signId)}`;
-			const review = status === 'all' ? '' : `&reviewStatus=${status}`;
-			const user = username ? `&username=${encodeURIComponent(username)}` : '';
-			const response = await fetch(
-				`${resolve('/api/samples')}?limit=${max}${sign}${review}${user}`
-			);
-			const body = (await response.json()) as
-				| { ok: true; count: number; reviewCounts: ReviewCounts; samples: LabelledSample[] }
-				| { ok: false; error?: string };
+			const body = await fetchSamples(signId, status, username, 0);
 			if (seq !== requestSeq) return; // superseded by a newer request
-			if (!response.ok || !body.ok) {
-				throw new Error(
-					(!body.ok && body.error) || `The samples endpoint replied ${response.status}.`
-				);
-			}
 			samples = body.samples;
 			reviewCounts = body.reviewCounts;
-			for (const { label } of body.samples) {
-				if (!knownSignIds.includes(label.signId)) {
-					knownSignIds = [...knownSignIds, label.signId];
-				}
-			}
+			hasMore = body.samples.length === PAGE_SIZE;
+			registerSignIds(body.samples);
 		} catch (caught) {
 			if (seq !== requestSeq) return;
 			error = caught instanceof Error ? caught.message : 'Failed to load samples.';
 			samples = [];
 			reviewCounts = null;
+			hasMore = false;
 		} finally {
 			if (seq === requestSeq) loading = false;
 		}
 	}
 
-	// Reload whenever a filter changes. Effects only run in the browser, so this also
-	// performs the initial fetch after the prerendered page hydrates.
+	/** Appends the next page; fired by the scroll sentinel or the retry button. */
+	async function loadMore(): Promise<void> {
+		if (loading || loadingMore || !hasMore) return;
+		const seq = requestSeq; // tie to the current filter set, don't supersede it
+		loadingMore = true;
+		loadMoreError = null;
+		try {
+			const body = await fetchSamples(signFilter, statusFilter, appliedUsername, samples.length);
+			if (seq !== requestSeq) return; // filters changed mid-flight; drop this page
+			samples = [...samples, ...body.samples];
+			hasMore = body.samples.length === PAGE_SIZE;
+			registerSignIds(body.samples);
+		} catch (caught) {
+			if (seq !== requestSeq) return;
+			loadMoreError = caught instanceof Error ? caught.message : 'Failed to load more samples.';
+		} finally {
+			loadingMore = false;
+		}
+	}
+
+	// Reload from the top whenever a filter changes. Effects only run in the browser, so
+	// this also performs the initial fetch after the prerendered page hydrates.
 	$effect(() => {
-		void loadSamples(signFilter, statusFilter, limit, appliedUsername);
+		void loadFirstPage(signFilter, statusFilter, appliedUsername);
 	});
 
-	const refresh = (): void => void loadSamples(signFilter, statusFilter, limit, appliedUsername);
+	// Pull the next page as the sentinel nears the viewport. rootMargin prefetches before
+	// it's visible; the viewport root also clips the inner scroller, so both layouts work.
+	$effect(() => {
+		const el = sentinel;
+		if (!el) return;
+		const observer = new IntersectionObserver(
+			(entries) => {
+				if (entries.some((entry) => entry.isIntersecting)) void loadMore();
+			},
+			{ rootMargin: '400px' }
+		);
+		observer.observe(el);
+		return () => observer.disconnect();
+	});
+
+	const refresh = (): void => void loadFirstPage(signFilter, statusFilter, appliedUsername);
 
 	/**
 	 * Saves a verdict (or clears it with `null`) and patches the local list in place.
@@ -256,14 +319,6 @@
 					spellcheck="false"
 				/>
 			</label>
-			<label class="reviewer-filter">
-				<span class="label">Limit</span>
-				<select class="select-control" bind:value={limit}>
-					{#each LIMIT_CHOICES as choice (choice)}
-						<option value={choice}>{choice}</option>
-					{/each}
-				</select>
-			</label>
 			<label class="toggle">
 				<span>Overlay</span>
 				<input type="checkbox" bind:checked={showOverlay} />
@@ -311,6 +366,16 @@
 						</li>
 					{/each}
 				</ul>
+				{#if hasMore}
+					<div class="reviewer-sentinel" bind:this={sentinel}>
+						{#if loadMoreError}
+							<span class="reviewer-error">{loadMoreError}</span>
+							<button type="button" onclick={() => void loadMore()}>Load more</button>
+						{:else}
+							<span class="reviewer-note">Loading more…</span>
+						{/if}
+					</div>
+				{/if}
 			{/if}
 		</div>
 	</section>
@@ -482,6 +547,14 @@
 		margin: 0;
 		padding: 0;
 		list-style: none;
+	}
+
+	.reviewer-sentinel {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		gap: 12px;
+		padding: 18px 2px 6px;
 	}
 
 	.reviewer-note {

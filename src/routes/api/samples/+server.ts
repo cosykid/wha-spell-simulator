@@ -21,7 +21,7 @@ function serverError(error: unknown, fallback: string): Response {
 
 /**
  * Lists stored samples (optionally `?signId=`, `?reviewStatus=pending|approved|rejected`,
- * `?username=`, `?limit=`) for verifying uploads and backing the Sample Reviewer.
+ * `?username=`, `?limit=`, `?offset=`) for verifying uploads and backing the Sample Reviewer.
  */
 export async function GET({ url }) {
 	try {
@@ -41,6 +41,10 @@ export async function GET({ url }) {
 		const limit = Number(url.searchParams.get('limit'));
 		if (Number.isFinite(limit) && limit > 0) {
 			query.limit = limit;
+		}
+		const offset = Number(url.searchParams.get('offset'));
+		if (Number.isFinite(offset) && offset > 0) {
+			query.offset = offset;
 		}
 
 		const [samples, count, reviewCounts] = await Promise.all([
