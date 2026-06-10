@@ -1,11 +1,7 @@
 <script lang="ts">
 	import { CONFIG } from '$lib/config.js';
 	import { writeJson } from '$lib/debug/debugOverlay.js';
-	import {
-		activePortalPlane,
-		convergenceFlow,
-		resetParticleState
-	} from '$lib/renderer/effects/effectUtils.js';
+	import { activePortalPlane, convergenceFlow } from '$lib/renderer/effects/effectUtils.js';
 	import { drawGlowingStrokes } from '$lib/renderer/glyphOverlayRenderer.js';
 	import { drawGuides, drawPaper } from '$lib/renderer/paperRenderer.js';
 	import { SpellEffectRenderer } from '$lib/renderer/spellEffectRenderer.js';
@@ -47,12 +43,7 @@
 	});
 
 	function resetParticles() {
-		if (!effectRenderer) {
-			return;
-		}
-		effectRenderer.lastSignature = null;
-		effectRenderer.lastTime = null;
-		resetParticleState(effectRenderer.state);
+		effectRenderer?.resetEffects();
 	}
 
 	function restartSpell() {

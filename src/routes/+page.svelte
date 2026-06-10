@@ -641,7 +641,7 @@
 		let cancelled = false;
 		(async () => {
 			try {
-				dictionary = await loadDictionary();
+				dictionary = loadDictionary();
 				if (cancelled) {
 					return;
 				}

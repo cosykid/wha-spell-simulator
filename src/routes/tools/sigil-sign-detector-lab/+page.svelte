@@ -165,24 +165,9 @@
 
 	$effect(() => {
 		setStatus('Loading', '');
-		let cancelled = false;
-		loadDictionary()
-			.then((loaded) => {
-				if (cancelled) {
-					return;
-				}
-				dictionary = loaded;
-				workerDictionary = loaded;
-			})
-			.catch((error) => {
-				if (!cancelled) {
-					console.error(error);
-					setStatus('Dictionary load failed', 'invalid');
-				}
-			});
-		return () => {
-			cancelled = true;
-		};
+		const loaded = loadDictionary();
+		dictionary = loaded;
+		workerDictionary = loaded;
 	});
 </script>
 

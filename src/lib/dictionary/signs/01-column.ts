@@ -1,0 +1,167 @@
+import type { SignEntry } from '../../types.js';
+
+export default {
+	kind: 'sign',
+	id: 'column',
+	displayName: 'Column',
+	allowedLayers: ['middle', 'outer'],
+	sourceNotes:
+		'Column is a directional sign that makes a spell manifest as a column or beam above the seal. If column signs are unbalanced, the effect leans toward the side with the most or largest signs; inverted column appears to emit outward like dispersion, but the distinction is unclear.',
+	semantic: {
+		manifestation: 'column',
+		directionMode: 'inward',
+		force: 0.3,
+		focus: 0.35,
+		spread: -0.24,
+		range: 0.18
+	},
+	strokeTemplate: {
+		sourceAspectRatio: 1,
+		strokes: [
+			[
+				{
+					x: 0.5,
+					y: 0.12
+				},
+				{
+					x: 0.5,
+					y: 0.16
+				},
+				{
+					x: 0.5,
+					y: 0.2
+				},
+				{
+					x: 0.5,
+					y: 0.24
+				},
+				{
+					x: 0.5,
+					y: 0.28
+				},
+				{
+					x: 0.5,
+					y: 0.32
+				},
+				{
+					x: 0.5,
+					y: 0.36
+				},
+				{
+					x: 0.5,
+					y: 0.4
+				},
+				{
+					x: 0.5,
+					y: 0.44
+				},
+				{
+					x: 0.5,
+					y: 0.48
+				},
+				{
+					x: 0.5,
+					y: 0.52
+				},
+				{
+					x: 0.5,
+					y: 0.56
+				},
+				{
+					x: 0.5,
+					y: 0.6
+				},
+				{
+					x: 0.5,
+					y: 0.64
+				},
+				{
+					x: 0.5,
+					y: 0.68
+				},
+				{
+					x: 0.5,
+					y: 0.72
+				},
+				{
+					x: 0.5,
+					y: 0.76
+				},
+				{
+					x: 0.5,
+					y: 0.8
+				}
+			],
+			[
+				{
+					x: 0.18,
+					y: 0.8
+				},
+				{
+					x: 0.22,
+					y: 0.8
+				},
+				{
+					x: 0.26,
+					y: 0.8
+				},
+				{
+					x: 0.3,
+					y: 0.8
+				},
+				{
+					x: 0.34,
+					y: 0.8
+				},
+				{
+					x: 0.38,
+					y: 0.8
+				},
+				{
+					x: 0.42,
+					y: 0.8
+				},
+				{
+					x: 0.46,
+					y: 0.8
+				},
+				{
+					x: 0.5,
+					y: 0.8
+				},
+				{
+					x: 0.54,
+					y: 0.8
+				},
+				{
+					x: 0.58,
+					y: 0.8
+				},
+				{
+					x: 0.62,
+					y: 0.8
+				},
+				{
+					x: 0.66,
+					y: 0.8
+				},
+				{
+					x: 0.7,
+					y: 0.8
+				},
+				{
+					x: 0.74,
+					y: 0.8
+				},
+				{
+					x: 0.78,
+					y: 0.8
+				},
+				{
+					x: 0.82,
+					y: 0.8
+				}
+			]
+		]
+	}
+} satisfies SignEntry;

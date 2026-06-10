@@ -4,7 +4,7 @@ import test from 'node:test';
 import { CONFIG } from '../src/lib/config.js';
 import { classifyDrawing } from '../src/lib/parser/drawingClassifier.js';
 import { angleDegFromCenter, degreesToRadians } from '../src/lib/utils/geometry.js';
-import { readRealDictionary } from './dictionaryFixtures.js';
+import { dictionary as fullDictionary } from '../src/lib/dictionary/dictionaryLoader.js';
 import type {
 	Dictionary,
 	Point,
@@ -50,6 +50,7 @@ const columnTemplate: StrokeTemplate = {
 };
 
 const spark: SigilEntry = {
+	kind: 'sigil',
 	id: 'spark',
 	displayName: 'Spark',
 	element: 'fire',
@@ -59,6 +60,7 @@ const spark: SigilEntry = {
 };
 
 const column: SignEntry = {
+	kind: 'sign',
 	id: 'column',
 	displayName: 'Column',
 	allowedLayers: ['center', 'middle', 'outer'],
@@ -74,7 +76,7 @@ const dictionary: Dictionary = {
 	signs: [column]
 };
 
-const realDictionary: Dictionary = readRealDictionary();
+const realDictionary: Dictionary = fullDictionary;
 
 function arcStroke(
 	id: string,

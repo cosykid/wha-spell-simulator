@@ -7,9 +7,7 @@ import { bakePlacementToStrokes } from '../src/lib/input/shapeBaker.js';
 import { classifyDrawing } from '../src/lib/parser/drawingClassifier.js';
 import { compileSpell } from '../src/lib/compiler/spellBuilder.js';
 import type { Placement, Point, ShapeItem, Stroke, Vector } from '../src/lib/types.js';
-import { readRealDictionary } from './dictionaryFixtures.js';
-
-const dictionary = readRealDictionary();
+import { dictionary } from '../src/lib/dictionary/dictionaryLoader.js';
 
 const library = buildShapeLibrary(dictionary);
 const canvas = { width: 1200, height: 800 };

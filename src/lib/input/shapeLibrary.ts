@@ -33,7 +33,7 @@ function ringBaseStrokes(): Point[][] {
 }
 
 function templateItems(
-	entries: (SigilEntry | SignEntry)[] | undefined,
+	entries: readonly (SigilEntry | SignEntry)[] | undefined,
 	kind: PlacementKind
 ): ShapeItem[] {
 	return (entries ?? [])
@@ -43,7 +43,7 @@ function templateItems(
 			kind,
 			sourceId: entry.id,
 			label: entry.displayName ?? entry.id,
-			element: kind === 'sigil' ? ((entry as SigilEntry).element ?? null) : null,
+			element: entry.kind === 'sigil' ? (entry.element ?? null) : null,
 			baseStrokes: cloneStrokes(entry.strokeTemplate!.strokes)
 		}));
 }

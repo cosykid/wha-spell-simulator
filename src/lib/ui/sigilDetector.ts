@@ -38,8 +38,8 @@ import { scoreStrokeTemplate } from '../parser/templateMatcher.js';
 
 /** A scoped subset of the dictionary used in the lab. */
 interface ActiveDictionary {
-	sigils: SigilEntry[];
-	signs: SignEntry[];
+	sigils: readonly SigilEntry[];
+	signs: readonly SignEntry[];
 }
 
 /** A dictionary entry tagged with its kind ("sigil" or "sign"). */

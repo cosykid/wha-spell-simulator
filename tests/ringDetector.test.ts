@@ -165,6 +165,7 @@ test('classifies symbols inside a detected ring without crashing', () => {
 		]
 	};
 	const columnEntry: SignEntry = {
+		kind: 'sign',
 		id: 'column',
 		displayName: 'Column',
 		allowedLayers: ['center', 'middle', 'outer'],

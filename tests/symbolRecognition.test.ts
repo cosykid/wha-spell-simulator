@@ -12,7 +12,7 @@ import {
 	pathLength
 } from '../src/lib/utils/geometry.js';
 import { recognizeCandidates } from '../src/lib/parser/symbolRecognizer.js';
-import { readRealDictionary } from './dictionaryFixtures.js';
+import { dictionary as fullDictionary } from '../src/lib/dictionary/dictionaryLoader.js';
 import type {
 	Point,
 	Stroke,
@@ -53,6 +53,7 @@ const lineTemplate: StrokeTemplate = {
 const dictionary: { sigils: SigilEntry[]; signs: SignEntry[] } = {
 	sigils: [
 		{
+			kind: 'sigil',
 			id: 'line-sign',
 			displayName: 'Line Sign',
 			allowedLayers: ['middle'],
@@ -63,7 +64,8 @@ const dictionary: { sigils: SigilEntry[]; signs: SignEntry[] } = {
 	signs: []
 };
 
-const realDictionary: { sigils: SigilEntry[]; signs: SignEntry[] } = readRealDictionary();
+const realDictionary: { sigils: readonly SigilEntry[]; signs: readonly SignEntry[] } =
+	fullDictionary;
 
 function stroke(id: string, points: Point[]): Stroke {
 	return { id, points };
@@ -564,6 +566,7 @@ test('fixed-orientation templates do not rotate during recognition', () => {
 	const fixedDictionary: { sigils: SigilEntry[]; signs: SignEntry[] } = {
 		sigils: [
 			{
+				kind: 'sigil',
 				id: 'fixed-line',
 				displayName: 'Fixed Line',
 				allowedLayers: ['middle'],

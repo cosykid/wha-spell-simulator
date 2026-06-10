@@ -76,10 +76,10 @@ export interface Semantic {
 	lifetimeBias?: number;
 }
 
-export interface SigilEntry {
+/** The contract every dictionary symbol (sigil or sign) fulfils. */
+export interface SymbolEntryBase {
 	id: string;
 	displayName: string;
-	element?: ElementId;
 	allowedLayers?: string[];
 	sourceNotes?: string;
 	strokeTemplate?: StrokeTemplate;
@@ -88,17 +88,15 @@ export interface SigilEntry {
 	semantic?: Semantic;
 }
 
-export interface SignEntry {
-	id: string;
-	displayName: string;
-	/** Signs carry no element; declared so the dictionary-entry union stays uniform. */
-	element?: undefined;
-	allowedLayers?: string[];
-	sourceNotes?: string;
-	semantic?: Semantic;
-	strokeTemplate?: StrokeTemplate;
-	recognitionRotationInvariant?: boolean;
-	allowedRotationsDeg?: number[];
+/** A sigil names the spell's primary element or an elemental variant. */
+export interface SigilEntry extends SymbolEntryBase {
+	kind: 'sigil';
+	element?: ElementId;
+}
+
+/** A sign modifies how the spell manifests; it carries no element. */
+export interface SignEntry extends SymbolEntryBase {
+	kind: 'sign';
 }
 
 /** Options controlling how a candidate is rotated while template matching. */
@@ -141,9 +139,9 @@ export interface SampleSpell {
 }
 
 export interface Dictionary {
-	sigils: SigilEntry[];
-	signs: SignEntry[];
-	sampleSpells?: SampleSpell[];
+	sigils: readonly SigilEntry[];
+	signs: readonly SignEntry[];
+	sampleSpells?: readonly SampleSpell[];
 }
 
 // ---------------------------------------------------------------------------

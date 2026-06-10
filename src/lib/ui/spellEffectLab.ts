@@ -6,7 +6,8 @@
  */
 import { clamp } from '../utils/geometry.js';
 import { directionFromTiltAngles } from '../compiler/spellDirection.js';
-import type { SpellIR, Manifestation, ElementId, AppConfig } from '../types.js';
+import { sigilRegistry } from '../dictionary/dictionaryLoader.js';
+import type { SpellIR, Manifestation, ElementId, AppConfig, SigilEntry } from '../types.js';
 
 /** A single slider control definition. */
 interface ControlDef {
@@ -171,20 +172,19 @@ export const DEFAULT_ELEMENT: ElementId = 'water';
 export const DEFAULT_SIGIL = 'water';
 
 /** Selectable sigils, including element-variant sigils that reuse a base element's effect. */
-export const SIGIL_OPTIONS: Array<{ id: string; element: ElementId; label: string }> = [
-	{ id: 'fire', element: 'fire', label: 'Fire' },
-	{ id: 'water', element: 'water', label: 'Water' },
-	{ id: 'wind-directs-air', element: 'wind', label: 'Wind' },
-	{ id: 'earth', element: 'earth', label: 'Earth' },
-	{ id: 'light', element: 'light', label: 'Light' },
-	{ id: 'crystal', element: 'earth', label: 'Crystal (earth)' },
-	{ id: 'aeriform', element: 'wind', label: 'Aeriform (wind)' },
-	{ id: 'wind-underfoot', element: 'wind', label: 'Wind Underfoot (wind)' }
-];
+export const SIGIL_OPTIONS: Array<{ id: string; element: ElementId; label: string }> = sigilRegistry
+	.all()
+	.filter((entry): entry is SigilEntry & { element: ElementId } => Boolean(entry.element))
+	.map((entry) => ({
+		id: entry.id,
+		element: entry.element,
+		label:
+			entry.id === entry.element ? entry.displayName : `${entry.displayName} (${entry.element})`
+	}));
 
 /** Resolves the base element a sigil id renders as. */
 export function elementForSigil(sigil: string): ElementId {
-	return SIGIL_OPTIONS.find((option) => option.id === sigil)?.element ?? DEFAULT_ELEMENT;
+	return sigilRegistry.get(sigil)?.element ?? DEFAULT_ELEMENT;
 }
 
 /** Builds the initial { key: value } map from the control definitions. */

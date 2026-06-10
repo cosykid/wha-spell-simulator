@@ -916,7 +916,7 @@ export function recognizeCandidates(
 			kind: accepted ? best.kind : 'unknown',
 			id: accepted ? best.entry.id : null,
 			displayName: accepted ? best.entry.displayName : null,
-			element: accepted ? (best.entry.element ?? null) : null,
+			element: accepted && best.entry.kind === 'sigil' ? (best.entry.element ?? null) : null,
 			semantic: accepted ? (best.entry.semantic ?? null) : null,
 			confidence: accepted ? best.confidence : 0,
 			shape: {
