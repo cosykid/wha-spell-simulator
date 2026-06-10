@@ -160,6 +160,22 @@ export async function countLabelledSamples(db: Db = getDb()): Promise<number> {
 	return Number(row.count);
 }
 
+/** Sample tallies per sign, used by Sample Maker to prefer underrepresented glyphs. */
+export interface SignSampleCount {
+	signId: string;
+	count: number;
+}
+
+export async function countSamplesBySignId(db: Db = getDb()): Promise<SignSampleCount[]> {
+	const rows = (await db
+		.selectFrom('labelled_samples')
+		.select((eb) => ['sign_id', eb.fn.countAll<string>().as('count')])
+		.groupBy('sign_id')
+		.execute()) as { sign_id: string; count: string }[];
+
+	return rows.map((row) => ({ signId: row.sign_id, count: Number(row.count) }));
+}
+
 /**
  * Records a manual QA verdict on a stored sample, or clears it (`null` → back to
  * pending). A verdict only marks the row — rejected samples are never deleted, so
