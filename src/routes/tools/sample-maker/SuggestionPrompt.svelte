@@ -1,41 +1,55 @@
 <!--
 @component
-The Sample Maker's pick-and-draw flow. By default it suggests a random sign at a random
-orientation so the dataset gets even coverage across signs and angles; "choose a sign myself"
-swaps the preview for the full label grid instead. Either way the choice is only a *preview* —
-nothing is stamped on the canvas (that would get in the way of drawing). Once the contributor
-has drawn the sign freehand, "Label" (`onpick`) drops the reference glyph onto their strokes
-for fine-tuning.
+The Sample Maker's pick-and-draw flow. By default it suggests an underrepresented sign at a
+random orientation so the dataset gets better coverage across signs and angles; "choose a sign
+myself" swaps the preview for the full label grid instead. Either way the choice is only a
+*preview* — nothing is stamped on the canvas (that would get in the way of drawing). Once the
+contributor has drawn the sign freehand, "Label" (`onpick`) drops the reference glyph onto their
+strokes for fine-tuning.
 -->
 <script lang="ts">
 	import { getSymbolSvg } from '$lib/dictionary/svgStrokes.js';
 	import ButtonWithShortcut from '$lib/ui/ButtonWithShortcut.svelte';
 	import Labels from './Labels.svelte';
 	import Phase from './Phase.svelte';
+	import {
+		chooseSuggestedSymbol,
+		createSampleCountLookup,
+		sampleCountForSymbol,
+		type SignSampleCount
+	} from './samplePrompt.js';
 	import type { SampleSymbol } from './symbols.js';
 
 	interface Props {
 		/** The signs to draw suggestions from. */
 		symbols: SampleSymbol[];
+		/** Stored sample counts by sign, used to bias suggestions toward signs we lack. */
+		sampleCounts?: SignSampleCount[];
 		/** Whether the canvas has at least one hand-drawn stroke — gates the "Label" action. */
 		hasStrokes: boolean;
 		/** Drop the previewed glyph onto the canvas at its orientation, so the contributor can fine-tune. */
 		onpick: (symbol: SampleSymbol, rotationDeg: number) => void;
 	}
 
-	let { symbols, hasStrokes, onpick }: Props = $props();
+	let { symbols, sampleCounts = [], hasStrokes, onpick }: Props = $props();
 
 	let current = $state<SampleSymbol | null>(null);
 	let rotationDeg = $state(0);
 	// Whether the label grid is shown for a manual pick instead of the random-suggestion preview.
 	let choosing = $state(false);
+	const sampleCountsBySign = $derived(createSampleCountLookup(sampleCounts));
+	const showSampleCount = $derived(sampleCounts.length > 0);
+	const currentSampleCount = $derived(
+		current ? sampleCountForSymbol(current.id, sampleCountsBySign) : null
+	);
 
 	/**
-	 * Preview a sign at a random orientation — random sign when called bare, or the given one when
-	 * picked from the grid. Only updates the preview, never the canvas.
+	 * Preview a sign at a random orientation — weighted toward underrepresented signs when called
+	 * bare, or the given sign when picked from the grid. Only updates the preview, never the canvas.
 	 */
 	export function suggest(symbol?: SampleSymbol): void {
-		current = symbol ?? symbols[Math.floor(Math.random() * symbols.length)];
+		current = symbol ?? chooseSuggestedSymbol(symbols, sampleCounts);
+		if (!current) return;
 		rotationDeg = Math.floor(Math.random() * 360);
 		choosing = false;
 	}
@@ -53,8 +67,8 @@ for fine-tuning.
 
 <Phase step={1} title="Pick a sign to draw">
 	{#snippet intro()}
-		We'll suggest a random sign at a random orientation. Re-roll until you get one you like — or
-		pick a sign yourself.
+		We'll suggest a sign we need more examples of, at a random orientation. Re-roll until you get
+		one you like — or pick a sign yourself.
 	{/snippet}
 	<div class="pick-actions">
 		<button type="button" onclick={() => suggest()}>Suggest another</button>
@@ -70,6 +84,9 @@ for fine-tuning.
 				{@html getSymbolSvg(current.id)}
 			</span>
 			<span class="preview-name">{current.displayName}</span>
+			{#if showSampleCount && currentSampleCount !== null}
+				<span class="sample-count">{currentSampleCount} saved samples</span>
+			{/if}
 		</div>
 	{/if}
 </Phase>
@@ -136,5 +153,10 @@ for fine-tuning.
 		font-size: 18px;
 		font-weight: 600;
 		color: var(--ink, #241b16);
+	}
+
+	.sample-count {
+		font-size: 13px;
+		color: var(--muted-ink);
 	}
 </style>

@@ -23,6 +23,14 @@
 	import { SYMBOL_ID } from './constants.js';
 	import { optimizePlacement } from './optimize.js';
 	import { SAMPLE_SYMBOLS, type SampleSymbol } from './symbols.js';
+	import type { PageData } from './$types';
+
+	interface Props {
+		data: PageData;
+	}
+
+	let { data }: Props = $props();
+	let submittedSampleCounts = $state<Record<string, number>>({});
 
 	// Scene and tools
 	const scene = createScene([paperEntity(), gridEntity(REFERENCE_SIZE)]);
@@ -48,6 +56,20 @@
 	const symbolEntity = $derived.by(() => {
 		const e = scene.get(SYMBOL_ID);
 		return e && isTransformable(e) ? e : null;
+	});
+	const sampleCounts = $derived.by(() => {
+		const seenSignIds: string[] = [];
+		const merged = data.sampleCounts.map((count) => {
+			seenSignIds.push(count.signId);
+			return {
+				...count,
+				count: count.count + (submittedSampleCounts[count.signId] ?? 0)
+			};
+		});
+		for (const [signId, count] of Object.entries(submittedSampleCounts)) {
+			if (!seenSignIds.includes(signId)) merged.push({ signId, count });
+		}
+		return merged;
 	});
 
 	// Switch mode by whether the symbol is in the scene, autoselecting it so its handles show up.
@@ -109,9 +131,19 @@
 		selected = null;
 	};
 
+	/** Keep prompt weighting current after this browser session adds a sample. */
+	const incrementSampleCount = (signId: string): void => {
+		submittedSampleCounts = {
+			...submittedSampleCounts,
+			[signId]: (submittedSampleCounts[signId] ?? 0) + 1
+		};
+	};
+
 	/** Start the next sample after a successful upload. */
 	const clearAndSuggestNext = (): void => {
+		const submittedSignId = selected?.id;
 		clear();
+		if (submittedSignId) incrementSampleCount(submittedSignId);
 		suggestionPrompt?.suggest();
 	};
 
@@ -183,6 +215,7 @@
 		<SuggestionPrompt
 			bind:this={suggestionPrompt}
 			symbols={SAMPLE_SYMBOLS}
+			{sampleCounts}
 			{hasStrokes}
 			onpick={pickSymbol}
 		/>
