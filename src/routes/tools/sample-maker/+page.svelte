@@ -1,7 +1,7 @@
 <script lang="ts">
 	import Canvas from '$canvas/Canvas.svelte';
 	import type { CanvasBehavior } from '$canvas/canvasBehavior.js';
-	import { addEntity, transformEntity } from '$canvas/commands.js';
+	import { addEntity, removeEntity, transformEntity } from '$canvas/commands.js';
 	import { gridEntity } from '$canvas/entities/gridEntity.js';
 	import { paperEntity } from '$canvas/entities/paperEntity';
 	import { isStrokeEntity } from '$canvas/entities/strokeEntity.js';
@@ -84,8 +84,10 @@
 	 * centered at a default scale and orientation — suggestions pass a random `rotationDeg`.
 	 */
 	const pickSymbol = (symbol: SampleSymbol, rotationDeg = 0): void => {
-		// At most one symbol entity at a time — drop the previous one before stamping.
-		scene.remove(SYMBOL_ID);
+		// At most one symbol entity at a time — drop the previous one before stamping,
+		// going through the history so undo/redo stays consistent with the stamp below.
+		const previous = scene.get(SYMBOL_ID);
+		if (previous) scene.do(removeEntity(scene, previous));
 		const placement: Placement = {
 			id: SYMBOL_ID,
 			kind: 'sign',
