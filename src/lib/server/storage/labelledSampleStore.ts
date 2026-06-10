@@ -203,3 +203,71 @@ export async function countSamplesByReviewStatus(db: Db = getDb()): Promise<Revi
 	}
 	return counts;
 }
+
+/** One contributor's drawing tally, for the Leaderboard tool. */
+export interface ContributorTally {
+	/** Self-reported Discord handle, or `null` for samples submitted without one. */
+	discordUsername: string | null;
+	/** Total samples this contributor submitted. */
+	total: number;
+	/** Of those, how many a reviewer has approved. */
+	approved: number;
+	/** Of those, how many a reviewer has rejected. */
+	rejected: number;
+}
+
+/** Filters for {@link tallyContributors}. Omitting a field matches all values. */
+export interface ContributorTallyQuery {
+	/** Restrict the tally to one sign id (for per-sign rankings). */
+	signId?: string;
+}
+
+/**
+ * Sample tallies grouped by Discord username, for the Leaderboard. Submissions left
+ * without a handle share the `null` bucket (Postgres groups NULLs together). Each row
+ * carries the contributor's total submissions and the subset that were approved.
+ * Pass `signId` to rank a single sign instead of all drawings.
+ */
+export async function tallyContributors(
+	query: ContributorTallyQuery = {},
+	db: Db = getDb()
+): Promise<ContributorTally[]> {
+	let builder = db
+		.selectFrom('labelled_samples')
+		.select((eb) => [
+			'discord_username',
+			eb.fn.countAll<string>().as('total'),
+			eb.fn.countAll<string>().filterWhere('review_status', '=', 'approved').as('approved'),
+			eb.fn.countAll<string>().filterWhere('review_status', '=', 'rejected').as('rejected')
+		])
+		.groupBy('discord_username');
+
+	if (query.signId !== undefined) {
+		builder = builder.where('sign_id', '=', query.signId);
+	}
+
+	const rows = (await builder.execute()) as {
+		discord_username: string | null;
+		total: string;
+		approved: string;
+		rejected: string;
+	}[];
+
+	return rows.map((row) => ({
+		discordUsername: row.discord_username,
+		total: Number(row.total),
+		approved: Number(row.approved),
+		rejected: Number(row.rejected)
+	}));
+}
+
+/** Distinct sign ids present in stored samples, sorted — backs the Leaderboard sign filter. */
+export async function listSampleSignIds(db: Db = getDb()): Promise<string[]> {
+	const rows = (await db
+		.selectFrom('labelled_samples')
+		.select('sign_id')
+		.distinct()
+		.orderBy('sign_id')
+		.execute()) as { sign_id: string }[];
+	return rows.map((row) => row.sign_id);
+}
