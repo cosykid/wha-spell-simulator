@@ -10,12 +10,14 @@
 		"preview": "vite preview --host 127.0.0.1 --port 4173",
 		"check": "svelte-check --tsconfig ./tsconfig.json",
 		"db:migrate": "node --import tsx scripts/migrate-neon.ts",
-		"db:seed:recognition": "node --import tsx scripts/seed-recognition-assets.ts",
 		"test": "npm run test:unit && npm run test:e2e",
 		"test:unit": "node --import tsx --test tests/*.test.ts",
 		"lint": "prettier --check . && eslint .",
 		"format": "prettier --write .",
-		"test:e2e": "playwright install && playwright test"
+		"test:e2e": "playwright install && playwright test",
+		"normalize:svg": "node scripts/normalize-svgs.mjs src/lib/dictionary/svg --stroke-width 0.4",
+		"sample:svg": "node --import tsx scripts/sample-to-svg.ts",
+		"prepare": "husky"
 	},
 	"devDependencies": {
 		"@eslint/js": "^10.0.1",
@@ -24,20 +26,26 @@
 		"@sveltejs/kit": "^2.8.0",
 		"@sveltejs/vite-plugin-svelte": "^5.0.0",
 		"@types/node": "^24.13.1",
+		"@zerodevx/svelte-toast": "^0.9.6",
 		"eslint": "^10.4.0",
 		"eslint-config-prettier": "^10.1.8",
 		"eslint-plugin-svelte": "^3.17.0",
 		"globals": "^17.4.0",
+		"husky": "^9.1.7",
 		"prettier": "^3.8.1",
 		"prettier-plugin-svelte": "^3.5.1",
 		"svelte": "^5.1.0",
 		"svelte-check": "^4.6.0",
+		"svgpath": "^2.6.0",
 		"tsx": "^4.22.4",
 		"typescript": "^5.5.0",
 		"typescript-eslint": "^8.58.1",
 		"vite": "^6.0.0"
 	},
 	"dependencies": {
-		"@neondatabase/serverless": "^1.1.0"
+		"@neondatabase/serverless": "^1.1.0",
+		"kysely": "^0.29.2",
+		"kysely-neon": "^3.0.0",
+		"zod": "^4.4.3"
 	}
 }

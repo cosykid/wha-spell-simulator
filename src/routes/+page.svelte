@@ -1,6 +1,22 @@
 <script lang="ts">
-	import { resolve } from '$app/paths';
-	import type { RecognitionExample } from '$lib/parser/shapeMatcher.js';
+	import { compileSpell } from '$lib/compiler/spellBuilder.js';
+	import ControlPanel from '$lib/components/ControlPanel.svelte';
+	import Diagnostics from '$lib/components/Diagnostics.svelte';
+	import DictionaryReference from '$lib/components/DictionaryReference.svelte';
+	import Header from '$lib/components/Header.svelte';
+	import ShapePalette from '$lib/components/ShapePalette.svelte';
+	import { CONFIG } from '$lib/config.js';
+	import { buildDiagnosticState } from '$lib/debug/diagnosticState.js';
+	import { loadDictionary } from '$lib/dictionary/dictionaryLoader.js';
+	import { DrawingCapture } from '$lib/input/drawingCapture.js';
+	import { PlacementController } from '$lib/input/placementController.js';
+	import { createPlacementStore } from '$lib/input/placementStore.js';
+	import { bakePlacementToStrokes, placementHandles } from '$lib/input/shapeBaker.js';
+	import { buildShapeLibrary, defaultTransformForShape } from '$lib/input/shapeLibrary.js';
+	import { createStrokeStore } from '$lib/input/strokeStore.js';
+	import { classifyDrawingAsync } from '$lib/parser/drawingClassifier.js';
+	import { disposeRecognitionPool } from '$lib/parser/recognitionPool.js';
+	import { CanvasRenderer } from '$lib/renderer/canvasRenderer.js';
 	import type {
 		ClassifiedDrawing,
 		Dictionary,
@@ -14,29 +30,9 @@
 		Stroke,
 		Vector
 	} from '$lib/types.js';
-	import { onMount } from 'svelte';
-
-	import { loadRecognitionAssets } from '$lib/api/recognitionAssets.js';
-	import { compileSpell } from '$lib/compiler/spellBuilder.js';
-	import { CONFIG } from '$lib/config.js';
-	import { buildDiagnosticState } from '$lib/debug/diagnosticState.js';
-	import { loadDictionary } from '$lib/dictionary/dictionaryLoader.js';
-	import { DrawingCapture } from '$lib/input/drawingCapture.js';
-	import { createStrokeStore } from '$lib/input/strokeStore.js';
-	import { classifyDrawingAsync } from '$lib/parser/drawingClassifier.js';
-	import { disposeRecognitionPool } from '$lib/parser/recognitionPool.js';
-	import { createPlacementStore } from '$lib/input/placementStore.js';
-	import { buildShapeLibrary, defaultTransformForShape } from '$lib/input/shapeLibrary.js';
-	import { bakePlacementToStrokes, placementHandles } from '$lib/input/shapeBaker.js';
-	import { PlacementController } from '$lib/input/placementController.js';
-	import { CanvasRenderer } from '$lib/renderer/canvasRenderer.js';
 	import { setupCanvasSizing } from '$lib/ui/canvasSizing.js';
 	import { computeSummary, INITIAL_SUMMARY } from '$lib/ui/spellSummary.js';
-
-	import ControlPanel from '$lib/components/ControlPanel.svelte';
-	import Diagnostics from '$lib/components/Diagnostics.svelte';
-	import DictionaryReference from '$lib/components/DictionaryReference.svelte';
-	import ShapePalette from '$lib/components/ShapePalette.svelte';
+	import { onMount } from 'svelte';
 
 	const ZOOM_MIN = 0.5;
 	const ZOOM_MAX = 3;
@@ -51,7 +47,6 @@
 
 	// Reactive UI state.
 	let dictionary = $state<Dictionary | null>(null);
-	let recognitionExamples = $state<RecognitionExample[]>([]);
 	let summary = $state<typeof INITIAL_SUMMARY>({ ...INITIAL_SUMMARY });
 	let diagnostics = $state<{ ast: unknown; ir: unknown; parser: unknown }>({
 		ast: null,
@@ -107,14 +102,13 @@
 	let selectedPlacementId: string | null = null;
 	let strokes: ReturnType<typeof store.getStrokes> = [];
 
-	// Plain (non-reactive) snapshots of the recognition inputs, posted to the
+	// Plain (non-reactive) snapshot of the dictionary, posted to the
 	// classifier/recognition workers. `$state` proxies are not structured-cloneable,
-	// so posting the reactive values directly throws DataCloneError and silently
+	// so posting the reactive value directly throws DataCloneError and silently
 	// drops every recognition onto the main thread. Snapshot once per load (not per
-	// recompute) so the references stay stable and the workers keep their cached
+	// recompute) so the reference stays stable and the workers keep their cached
 	// dictionary instead of re-initializing on every stroke.
 	let dictionarySnapshot: Dictionary | null = null;
-	let recognitionExamplesSnapshot: RecognitionExample[] = [];
 
 	function loadTogglePreferences() {
 		try {
@@ -234,12 +228,6 @@
 		};
 	}
 
-	async function refreshRecognitionAssets() {
-		const recognitionAssets = await loadRecognitionAssets();
-		recognitionExamples = recognitionAssets.recognitionExamples;
-		recognitionExamplesSnapshot = $state.snapshot(recognitionExamples) as RecognitionExample[];
-	}
-
 	let recomputeSeq = 0;
 
 	function cancelScheduledRecompute() {
@@ -296,8 +284,7 @@
 				canvasWidth: glyphCanvas.width,
 				canvasHeight: glyphCanvas.height,
 				dictionary: dictionarySnapshot,
-				config: CONFIG,
-				recognitionExamples: recognitionExamplesSnapshot
+				config: CONFIG
 			});
 		} catch (error) {
 			console.error(error);
@@ -734,21 +721,7 @@
 </svelte:head>
 
 <div class="app-shell">
-	<header class="app-header">
-		<div>
-			<p class="eyebrow">Glyph Compiler</p>
-			<h1>Witch Hat Atelier Spell Simulator</h1>
-		</div>
-		<div class="header-actions">
-			<a class="header-link" href={resolve('/tools')}>Tools</a>
-			<a
-				class="header-link"
-				href="https://github.com/cosykid/wha-spell-simulator"
-				target="_blank"
-				rel="noreferrer">GitHub</a
-			>
-		</div>
-	</header>
+	<Header title="Glyph Compiler" eyebrow="Witch Hat Atelier Spell Simulator" />
 
 	<main class="workspace">
 		<ControlPanel
