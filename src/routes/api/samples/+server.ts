@@ -21,7 +21,7 @@ function serverError(error: unknown, fallback: string): Response {
 
 /**
  * Lists stored samples (optionally `?signId=`, `?reviewStatus=pending|approved|rejected`,
- * `?limit=`) for verifying uploads and backing the Sample Reviewer.
+ * `?username=`, `?limit=`) for verifying uploads and backing the Sample Reviewer.
  */
 export async function GET({ url }) {
 	try {
@@ -33,6 +33,10 @@ export async function GET({ url }) {
 		const reviewStatus = url.searchParams.get('reviewStatus');
 		if (reviewStatus === 'pending' || reviewStatus === 'approved' || reviewStatus === 'rejected') {
 			query.reviewStatus = reviewStatus;
+		}
+		const username = url.searchParams.get('username')?.trim();
+		if (username) {
+			query.discordUsername = username;
 		}
 		const limit = Number(url.searchParams.get('limit'));
 		if (Number.isFinite(limit) && limit > 0) {

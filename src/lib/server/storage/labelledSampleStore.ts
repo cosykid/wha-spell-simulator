@@ -19,8 +19,19 @@ export interface LabelledSampleQuery {
 	signId?: string;
 	/** `'pending'` matches rows without a verdict (`review_status` is null). */
 	reviewStatus?: ReviewStatus | 'pending';
+	/**
+	 * Case-insensitive substring match on the contributor's Discord username. Rows
+	 * without a username never match. Trimmed; an empty string matches all values.
+	 */
+	discordUsername?: string;
 	/** Most recent first; capped to keep the verification endpoint cheap. */
 	limit?: number;
+}
+
+/** Escape a user string for a Postgres `LIKE`/`ILIKE` substring pattern. */
+function likePattern(term: string): string {
+	const escaped = term.replace(/[\\%_]/g, (char) => `\\${char}`);
+	return `%${escaped}%`;
 }
 
 const MAX_LIST_LIMIT = 200;
@@ -95,6 +106,8 @@ export async function insertLabelledSample(
 				data: JSON.stringify(submission.data),
 				label: JSON.stringify(submission.label),
 				meta: JSON.stringify(submission.meta),
+				// Mirror the handle out of `meta` for searching; blank → null.
+				discord_username: submission.meta.discordUsername?.trim() || null,
 				captured_at: capturedAt
 			})
 			.returning(SAMPLE_COLUMNS)
@@ -126,6 +139,10 @@ export async function listLabelledSamples(
 		builder = builder.where('review_status', 'is', null);
 	} else if (query.reviewStatus !== undefined) {
 		builder = builder.where('review_status', '=', query.reviewStatus);
+	}
+	const username = query.discordUsername?.trim();
+	if (username) {
+		builder = builder.where('discord_username', 'ilike', likePattern(username));
 	}
 	const limit = Math.min(query.limit ?? MAX_LIST_LIMIT, MAX_LIST_LIMIT);
 	builder = builder.limit(limit);

@@ -41,6 +41,16 @@
 	let limit = $state(60);
 	let showOverlay = $state(true);
 
+	// Username search. `usernameQuery` tracks the input; `appliedUsername` is the
+	// debounced value that actually drives the fetch, so typing doesn't hammer the API.
+	let usernameQuery = $state('');
+	let appliedUsername = $state('');
+	let usernameTimer: ReturnType<typeof setTimeout> | undefined;
+	function onUsernameInput(): void {
+		clearTimeout(usernameTimer);
+		usernameTimer = setTimeout(() => (appliedUsername = usernameQuery.trim()), 300);
+	}
+
 	// Query state
 	let samples = $state<LabelledSample[]>([]);
 	let reviewCounts = $state<ReviewCounts | null>(null);
@@ -60,14 +70,22 @@
 	const detailStats = $derived(detail ? sampleStats(detail) : null);
 	const detailBusy = $derived(detail !== null && savingIds.includes(detail.id));
 
-	async function loadSamples(signId: string, status: StatusFilter, max: number): Promise<void> {
+	async function loadSamples(
+		signId: string,
+		status: StatusFilter,
+		max: number,
+		username: string
+	): Promise<void> {
 		const seq = ++requestSeq;
 		loading = true;
 		error = null;
 		try {
 			const sign = signId === 'all' ? '' : `&signId=${encodeURIComponent(signId)}`;
 			const review = status === 'all' ? '' : `&reviewStatus=${status}`;
-			const response = await fetch(`${resolve('/api/samples')}?limit=${max}${sign}${review}`);
+			const user = username ? `&username=${encodeURIComponent(username)}` : '';
+			const response = await fetch(
+				`${resolve('/api/samples')}?limit=${max}${sign}${review}${user}`
+			);
 			const body = (await response.json()) as
 				| { ok: true; count: number; reviewCounts: ReviewCounts; samples: LabelledSample[] }
 				| { ok: false; error?: string };
@@ -97,10 +115,10 @@
 	// Reload whenever a filter changes. Effects only run in the browser, so this also
 	// performs the initial fetch after the prerendered page hydrates.
 	$effect(() => {
-		void loadSamples(signFilter, statusFilter, limit);
+		void loadSamples(signFilter, statusFilter, limit, appliedUsername);
 	});
 
-	const refresh = (): void => void loadSamples(signFilter, statusFilter, limit);
+	const refresh = (): void => void loadSamples(signFilter, statusFilter, limit, appliedUsername);
 
 	/**
 	 * Saves a verdict (or clears it with `null`) and patches the local list in place.
@@ -226,6 +244,19 @@
 				</select>
 			</label>
 			<label class="reviewer-filter">
+				<span class="label">Username</span>
+				<input
+					class="select-control username-search"
+					type="search"
+					bind:value={usernameQuery}
+					oninput={onUsernameInput}
+					placeholder="Search Discord username"
+					autocomplete="off"
+					autocapitalize="off"
+					spellcheck="false"
+				/>
+			</label>
+			<label class="reviewer-filter">
 				<span class="label">Limit</span>
 				<select class="select-control" bind:value={limit}>
 					{#each LIMIT_CHOICES as choice (choice)}
@@ -311,6 +342,12 @@
 				<dt>Sample ID</dt>
 				<dd class="mono">{detail.id}</dd>
 			</div>
+			{#if detail.meta.discordUsername}
+				<div class="detail-meta-wide">
+					<dt>Drawn by</dt>
+					<dd>{detail.meta.discordUsername}</dd>
+				</div>
+			{/if}
 			<div>
 				<dt>Captured</dt>
 				<dd>{formatCapturedAt(detail.meta.capturedAt)}</dd>
@@ -414,6 +451,10 @@
 		display: inline-flex;
 		align-items: center;
 		gap: 8px;
+	}
+
+	.username-search {
+		min-width: 200px;
 	}
 
 	.reviewer-status {
