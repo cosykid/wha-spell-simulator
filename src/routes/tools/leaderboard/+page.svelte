@@ -154,18 +154,20 @@
 						spellcheck="false"
 					/>
 				</label>
-				<button type="button" onclick={refresh} disabled={loading}>Refresh</button>
-				<span class="leaderboard-summary">
-					{#if loading}
-						Tallying contributions…
-					{:else if !error}
-						{#if signFilter !== 'all'}{displayName(signFilter)} ·{/if}
-						{visible.length}{usernameQuery.trim() ? ` / ${entries.length}` : ''} contributor{entries.length ===
-						1
-							? ''
-							: 's'}
-					{/if}
-				</span>
+				<div class="toolbar-actions">
+					<button type="button" onclick={refresh} disabled={loading}>Refresh</button>
+					<span class="leaderboard-summary">
+						{#if loading}
+							Tallying contributions…
+						{:else if !error}
+							{#if signFilter !== 'all'}{displayName(signFilter)} ·{/if}
+							{visible.length}{usernameQuery.trim() ? ` / ${entries.length}` : ''} contributor{entries.length ===
+							1
+								? ''
+								: 's'}
+						{/if}
+					</span>
+				</div>
 			</div>
 
 			{#if !error && !loading && visible.length > 0}
@@ -211,7 +213,7 @@
 						</thead>
 						<tbody>
 							{#each visible as row (`${row.anonymous}:${row.username.toLowerCase()}`)}
-								{@const title = titleForDrawings(row.total)}
+								{@const title = titleForDrawings(row.overallTotal)}
 								<tr class:anonymous={row.anonymous}>
 									<td class="rank-col"><span class="rank">{medal(row.rank)} {row.rank}</span></td>
 									<td class="name-col">{row.username}</td>
@@ -287,6 +289,10 @@
 
 	.leaderboard-toolbar {
 		flex-wrap: wrap;
+		align-items: center;
+		/* The card clips overflow; keep the toolbar at its natural height so its rows
+		   (filters + actions) are never squeezed and the Refresh button isn't cut off. */
+		flex-shrink: 0;
 	}
 
 	.leaderboard-filter {
@@ -299,6 +305,14 @@
 		min-width: 200px;
 	}
 
+	/* Refresh + contributor count on their own row, button left and count right. */
+	.toolbar-actions {
+		display: flex;
+		align-items: center;
+		gap: 10px;
+		flex: 1 1 100%;
+	}
+
 	.leaderboard-summary {
 		margin-left: auto;
 		color: var(--muted-ink, #6c5b4d);
@@ -309,6 +323,7 @@
 		display: flex;
 		flex-wrap: wrap;
 		gap: 0.75rem;
+		flex-shrink: 0;
 	}
 
 	.total-stat {
@@ -513,8 +528,10 @@
 			min-width: 0;
 		}
 
-		.leaderboard-summary {
-			margin-left: 0;
+		/* Keep Refresh at its natural width (the shared toolbar rule stretches buttons),
+		   so the contributor count stays aligned to the right of the actions row. */
+		.toolbar-actions button {
+			flex: 0 0 auto;
 		}
 
 		/* Keep the three tallies on one row, just smaller. */

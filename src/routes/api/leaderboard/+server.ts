@@ -1,6 +1,7 @@
 import {
 	listSampleSignIds,
 	tallyContributors,
+	type ContributorTally,
 	type ContributorTallyQuery
 } from '$lib/server/storage/labelledSampleStore.js';
 
@@ -10,12 +11,57 @@ import { UNKNOWN_CONTRIBUTOR, type LeaderboardEntry } from '../../tools/leaderbo
 export const prerender = false;
 
 /**
+ * Merge key for a contributor. Discord handles are case-insensitive, so merge by
+ * lowercase; handle-less samples pool under a dedicated key (the empty string — never a
+ * trimmed handle) so a contributor whose handle is literally 'unknown' stays distinct.
+ */
+function contributorKey(handle: string | undefined): string {
+	return handle ? handle.toLowerCase() : '';
+}
+
+/** Folds the per-username DB groups into one entry per contributor (case-insensitive). */
+function mergeTallies(tallies: ContributorTally[]): Map<string, LeaderboardEntry> {
+	const merged = new Map<string, LeaderboardEntry>();
+	// Per handle, the sample count of the casing currently shown — so when casings merge
+	// we keep the most-used one and the label stays stable across requests (the DB GROUP
+	// BY order is not).
+	const topCasingCount = new Map<string, number>();
+	for (const tally of tallies) {
+		const handle = tally.discordUsername?.trim();
+		const key = contributorKey(handle);
+		const existing = merged.get(key);
+		if (existing) {
+			existing.total += tally.total;
+			existing.approved += tally.approved;
+			existing.rejected += tally.rejected;
+			if (handle && tally.total > (topCasingCount.get(key) ?? 0)) {
+				existing.username = handle;
+				topCasingCount.set(key, tally.total);
+			}
+			continue;
+		}
+		merged.set(key, {
+			username: handle || UNKNOWN_CONTRIBUTOR,
+			anonymous: !handle,
+			total: tally.total,
+			approved: tally.approved,
+			rejected: tally.rejected,
+			overallTotal: tally.total
+		});
+		topCasingCount.set(key, tally.total);
+	}
+	return merged;
+}
+
+/**
  * Per-contributor drawing tallies for the Leaderboard tool. Handle-less submissions
  * collapse into a single `'unknown'` row. Entries come back ranked by total
  * submissions, most first; the page re-ranks client-side for the approved view.
  *
  * Optional `?signId=` restricts the tally to one sign (a per-sign ranking). The
  * `signIds` list (all signs present, regardless of the filter) backs the sign picker.
+ * `overallTotal` is always the contributor's all-signs total so titles (earned by
+ * overall output) don't change when filtering by sign.
  */
 export async function GET({ url }) {
 	try {
@@ -26,39 +72,16 @@ export async function GET({ url }) {
 		}
 
 		const [tallies, signIds] = await Promise.all([tallyContributors(query), listSampleSignIds()]);
+		const merged = mergeTallies(tallies);
 
-		// Fold the per-username DB groups into one row each. Discord handles are
-		// case-insensitive, so merge them by lowercase; handle-less samples pool under a
-		// dedicated key (the empty string — never a trimmed handle) so a contributor whose
-		// handle is literally 'unknown' stays a distinct row.
-		const ANONYMOUS_KEY = '';
-		const merged = new Map<string, LeaderboardEntry>();
-		// Per merged handle, the sample count of the casing currently shown — so when casings
-		// merge we keep the most-used one and the label stays stable across requests (the DB
-		// GROUP BY order is not).
-		const topCasingCount = new Map<string, number>();
-		for (const tally of tallies) {
-			const handle = tally.discordUsername?.trim();
-			const key = handle ? handle.toLowerCase() : ANONYMOUS_KEY;
-			const existing = merged.get(key);
-			if (existing) {
-				existing.total += tally.total;
-				existing.approved += tally.approved;
-				existing.rejected += tally.rejected;
-				if (handle && tally.total > (topCasingCount.get(key) ?? 0)) {
-					existing.username = handle;
-					topCasingCount.set(key, tally.total);
-				}
-				continue;
+		// Titles are earned by overall output, so when a sign filter narrows the counts we
+		// still need each contributor's all-signs total. Without a filter the view total IS
+		// the overall total, so skip the extra query.
+		if (signId) {
+			const overall = mergeTallies(await tallyContributors());
+			for (const [key, entry] of merged) {
+				entry.overallTotal = overall.get(key)?.total ?? entry.total;
 			}
-			merged.set(key, {
-				username: handle || UNKNOWN_CONTRIBUTOR,
-				anonymous: !handle,
-				total: tally.total,
-				approved: tally.approved,
-				rejected: tally.rejected
-			});
-			topCasingCount.set(key, tally.total);
 		}
 
 		const entries = [...merged.values()].sort(

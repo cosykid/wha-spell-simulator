@@ -10,12 +10,17 @@ export type LeaderboardEntry = {
 	 * contributor whose handle happens to be `'unknown'` is a normal row with this `false`.
 	 */
 	anonymous: boolean;
-	/** Total samples submitted. */
+	/** Total samples submitted (in the current view — per-sign when a sign filter is set). */
 	total: number;
 	/** Of those, how many a reviewer has approved. */
 	approved: number;
 	/** Of those, how many a reviewer has rejected. */
 	rejected: number;
+	/**
+	 * The contributor's total across ALL signs, regardless of any sign filter. Titles are
+	 * earned by overall output, so the badge stays the same while filtering by sign.
+	 */
+	overallTotal: number;
 };
 
 /** What the `/api/leaderboard` endpoint returns. */
