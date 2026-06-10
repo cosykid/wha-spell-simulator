@@ -111,8 +111,8 @@
 <main class="leaderboard">
 	<p class="leaderboard-intro">
 		Drawing contributions ranked by Discord handle, tallied from every submitted sample. Samples
-		sent without a handle are pooled under <strong>{UNKNOWN_CONTRIBUTOR}</strong>. Titles are earned
-		by total drawings:
+		sent without a handle are pooled under <strong>{UNKNOWN_CONTRIBUTOR}</strong>. Earn Discord
+		roles by total drawings:
 		{#each TITLES.slice().reverse() as t, i (t.name)}<!--
 		-->{i > 0 ? ', ' : ' '}<span
 				class={titleClass(t.name)}>{t.name}</span
@@ -227,17 +227,23 @@
 <style>
 	.leaderboard {
 		width: min(820px, 100%);
-		margin: 0 auto;
-		padding: 0 clamp(1rem, 3vw, 2.5rem) clamp(2rem, 5vw, 4rem);
+		margin: clamp(1rem, 3vw, 2rem) auto;
+		padding: clamp(1.5rem, 3vw, 2.25rem);
 		display: flex;
 		flex-direction: column;
 		gap: 1.25rem;
+		/* Sit the content on the theme parchment so text stays readable over the
+		   background artwork. */
+		background: rgba(242, 236, 214, 0.95);
+		border: 1px solid var(--panel-line);
+		border-radius: 16px;
+		box-shadow: 0 18px 45px var(--shadow);
 	}
 
 	.leaderboard-intro {
 		max-width: 70ch;
 		margin: 0;
-		color: var(--ink-soft, #6c5b4d);
+		color: var(--ink);
 		line-height: 1.6;
 	}
 
@@ -397,7 +403,7 @@
 
 	.leaderboard-note {
 		margin: 0;
-		color: var(--ink-soft, #6c5b4d);
+		color: var(--muted-ink);
 		font-size: 0.9rem;
 	}
 
