@@ -4,6 +4,7 @@ import type {
 	SampleSubmission
 } from '$lib/structures/labelledSample.js';
 import { randomUUID } from 'node:crypto';
+import { sql, type SqlBool } from 'kysely';
 import { getDb, type Db } from './neon.js';
 
 /** Thrown when a sample with byte-identical raw strokes already exists. */
@@ -26,8 +27,13 @@ export interface LabelledSampleQuery {
 	discordUsername?: string;
 	/** Most recent first; capped to keep the verification endpoint cheap. */
 	limit?: number;
-	/** Rows to skip before the page; pairs with {@link limit} for infinite scroll. */
-	offset?: number;
+	/**
+	 * Keyset cursor for infinite scroll: returns only rows ordered strictly after this
+	 * one (older `captured_at`, or equal `captured_at` with a lower `id`). The
+	 * `(captured_at, id)` pair is unique, so paging never skips or repeats a row even
+	 * as new samples arrive at the top.
+	 */
+	before?: { capturedAt: string; id: string };
 }
 
 /** Escape a user string for a Postgres `LIKE`/`ILIKE` substring pattern. */
@@ -148,12 +154,16 @@ export async function listLabelledSamples(
 	if (username) {
 		builder = builder.where('discord_username', 'ilike', likePattern(username));
 	}
+	if (query.before) {
+		const { capturedAt, id } = query.before;
+		// Row-value seek: every row strictly older than the cursor in the
+		// (captured_at desc, id desc) order, served by labelled_samples_captured_idx.
+		builder = builder.where(
+			() => sql<SqlBool>`(captured_at, id) < (${capturedAt}::timestamptz, ${id})`
+		);
+	}
 	const limit = Math.min(query.limit ?? MAX_LIST_LIMIT, MAX_LIST_LIMIT);
 	builder = builder.limit(limit);
-	const offset = Math.max(0, Math.trunc(query.offset ?? 0));
-	if (offset > 0) {
-		builder = builder.offset(offset);
-	}
 
 	const rows = (await builder.execute()) as LabelledSampleRow[];
 	return rows.map(rowToSample);

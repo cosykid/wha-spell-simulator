@@ -73,9 +73,12 @@
 	const detailStats = $derived(detail ? sampleStats(detail) : null);
 	const detailBusy = $derived(detail !== null && savingIds.includes(detail.id));
 
+	/** Keyset cursor pointing at the last row already loaded. */
+	type Cursor = { capturedAt: string; id: string };
+
 	type SamplesResponse = {
-		count: number;
-		reviewCounts: ReviewCounts;
+		count: number | null;
+		reviewCounts: ReviewCounts | null;
 		samples: LabelledSample[];
 	};
 
@@ -84,13 +87,16 @@
 		signId: string,
 		status: StatusFilter,
 		username: string,
-		offset: number
+		cursor: Cursor | null
 	): Promise<SamplesResponse> {
 		const sign = signId === 'all' ? '' : `&signId=${encodeURIComponent(signId)}`;
 		const review = status === 'all' ? '' : `&reviewStatus=${status}`;
 		const user = username ? `&username=${encodeURIComponent(username)}` : '';
+		const seek = cursor
+			? `&cursorCapturedAt=${encodeURIComponent(cursor.capturedAt)}&cursorId=${encodeURIComponent(cursor.id)}`
+			: '';
 		const response = await fetch(
-			`${resolve('/api/samples')}?limit=${PAGE_SIZE}&offset=${offset}${sign}${review}${user}`
+			`${resolve('/api/samples')}?limit=${PAGE_SIZE}${sign}${review}${user}${seek}`
 		);
 		const body = (await response.json()) as
 			| ({ ok: true } & SamplesResponse)
@@ -123,7 +129,7 @@
 		error = null;
 		loadMoreError = null;
 		try {
-			const body = await fetchSamples(signId, status, username, 0);
+			const body = await fetchSamples(signId, status, username, null);
 			if (seq !== requestSeq) return; // superseded by a newer request
 			samples = body.samples;
 			reviewCounts = body.reviewCounts;
@@ -143,11 +149,14 @@
 	/** Appends the next page; fired by the scroll sentinel or the retry button. */
 	async function loadMore(): Promise<void> {
 		if (loading || loadingMore || !hasMore) return;
+		const last = samples[samples.length - 1];
+		if (!last) return;
 		const seq = requestSeq; // tie to the current filter set, don't supersede it
 		loadingMore = true;
 		loadMoreError = null;
 		try {
-			const body = await fetchSamples(signFilter, statusFilter, appliedUsername, samples.length);
+			const cursor: Cursor = { capturedAt: last.meta.capturedAt, id: last.id };
+			const body = await fetchSamples(signFilter, statusFilter, appliedUsername, cursor);
 			if (seq !== requestSeq) return; // filters changed mid-flight; drop this page
 			samples = [...samples, ...body.samples];
 			hasMore = body.samples.length === PAGE_SIZE;

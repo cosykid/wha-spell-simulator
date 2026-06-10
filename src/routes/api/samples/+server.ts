@@ -21,7 +21,8 @@ function serverError(error: unknown, fallback: string): Response {
 
 /**
  * Lists stored samples (optionally `?signId=`, `?reviewStatus=pending|approved|rejected`,
- * `?username=`, `?limit=`, `?offset=`) for verifying uploads and backing the Sample Reviewer.
+ * `?username=`, `?limit=`, and a `?cursorCapturedAt=&cursorId=` keyset cursor) for
+ * verifying uploads and backing the Sample Reviewer.
  */
 export async function GET({ url }) {
 	try {
@@ -42,11 +43,18 @@ export async function GET({ url }) {
 		if (Number.isFinite(limit) && limit > 0) {
 			query.limit = limit;
 		}
-		const offset = Number(url.searchParams.get('offset'));
-		if (Number.isFinite(offset) && offset > 0) {
-			query.offset = offset;
+		const cursorCapturedAt = url.searchParams.get('cursorCapturedAt');
+		const cursorId = url.searchParams.get('cursorId');
+		if (cursorCapturedAt && cursorId) {
+			query.before = { capturedAt: cursorCapturedAt, id: cursorId };
 		}
 
+		// The tallies are global and only needed for the first page, so a keyset
+		// follow-up page (cursor present) skips them and just returns its rows.
+		if (query.before) {
+			const samples = await listLabelledSamples(query);
+			return json({ ok: true, count: null, reviewCounts: null, samples });
+		}
 		const [samples, count, reviewCounts] = await Promise.all([
 			listLabelledSamples(query),
 			countLabelledSamples(),
