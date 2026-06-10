@@ -652,12 +652,6 @@
 				historyIndex = 0;
 				inputReady = true;
 				void recompute();
-
-				void refreshRecognitionAssets().then(() => {
-					if (!cancelled) {
-						void recompute();
-					}
-				});
 			} catch (error) {
 				console.error(error);
 				summary = { ...summary, statusText: 'Dictionary load failed', statusClass: 'invalid' };
