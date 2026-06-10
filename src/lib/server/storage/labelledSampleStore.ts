@@ -1,4 +1,8 @@
-import type { LabelledSample, SampleSubmission } from '$lib/structures/labelledSample.js';
+import type {
+	LabelledSample,
+	ReviewStatus,
+	SampleSubmission
+} from '$lib/structures/labelledSample.js';
 import { randomUUID } from 'node:crypto';
 import { getDb, type Db } from './neon.js';
 
@@ -13,11 +17,25 @@ export class DuplicateSampleError extends Error {
 /** Filters for {@link listLabelledSamples}. Omitting a field matches all values. */
 export interface LabelledSampleQuery {
 	signId?: string;
+	/** `'pending'` matches rows without a verdict (`review_status` is null). */
+	reviewStatus?: ReviewStatus | 'pending';
 	/** Most recent first; capped to keep the verification endpoint cheap. */
 	limit?: number;
 }
 
 const MAX_LIST_LIMIT = 200;
+
+/** Every column needed to build a {@link LabelledSample}. */
+const SAMPLE_COLUMNS = [
+	'id',
+	'sign_id',
+	'data',
+	'label',
+	'meta',
+	'captured_at',
+	'review_status',
+	'reviewed_at'
+] as const;
 
 interface LabelledSampleRow {
 	id: string;
@@ -26,6 +44,8 @@ interface LabelledSampleRow {
 	label: LabelledSample['label'];
 	meta: Omit<LabelledSample['meta'], 'capturedAt'>;
 	captured_at: unknown;
+	review_status: ReviewStatus | null;
+	reviewed_at: unknown;
 }
 
 /** True for a Postgres unique-constraint violation surfaced by the Neon driver. */
@@ -44,7 +64,10 @@ function rowToSample(row: LabelledSampleRow): LabelledSample {
 		id: row.id,
 		data: row.data,
 		label: row.label,
-		meta: { ...row.meta, capturedAt: toIso(row.captured_at) }
+		meta: { ...row.meta, capturedAt: toIso(row.captured_at) },
+		review: row.review_status
+			? { status: row.review_status, reviewedAt: toIso(row.reviewed_at) }
+			: null
 	};
 }
 
@@ -74,7 +97,7 @@ export async function insertLabelledSample(
 				meta: JSON.stringify(submission.meta),
 				captured_at: capturedAt
 			})
-			.returning(['id', 'sign_id', 'data', 'label', 'meta', 'captured_at'])
+			.returning(SAMPLE_COLUMNS)
 			.executeTakeFirstOrThrow()) as LabelledSampleRow;
 
 		return rowToSample(row);
@@ -93,11 +116,16 @@ export async function listLabelledSamples(
 ): Promise<LabelledSample[]> {
 	let builder = db
 		.selectFrom('labelled_samples')
-		.select(['id', 'sign_id', 'data', 'label', 'meta', 'captured_at'])
+		.select(SAMPLE_COLUMNS)
 		.orderBy('captured_at', 'desc');
 
 	if (query.signId !== undefined) {
 		builder = builder.where('sign_id', '=', query.signId);
+	}
+	if (query.reviewStatus === 'pending') {
+		builder = builder.where('review_status', 'is', null);
+	} else if (query.reviewStatus !== undefined) {
+		builder = builder.where('review_status', '=', query.reviewStatus);
 	}
 	const limit = Math.min(query.limit ?? MAX_LIST_LIMIT, MAX_LIST_LIMIT);
 	builder = builder.limit(limit);
@@ -113,4 +141,48 @@ export async function countLabelledSamples(db: Db = getDb()): Promise<number> {
 		.select((eb) => eb.fn.countAll<string>().as('count'))
 		.executeTakeFirstOrThrow();
 	return Number(row.count);
+}
+
+/**
+ * Records a manual QA verdict on a stored sample, or clears it (`null` → back to
+ * pending). A verdict only marks the row — rejected samples are never deleted, so
+ * they stay inspectable and the verdict can be revised. Returns the updated sample,
+ * or `null` when the id is unknown.
+ */
+export async function setSampleReviewStatus(
+	id: string,
+	status: ReviewStatus | null,
+	db: Db = getDb()
+): Promise<LabelledSample | null> {
+	const row = (await db
+		.updateTable('labelled_samples')
+		.set({
+			review_status: status,
+			reviewed_at: status === null ? null : new Date().toISOString()
+		})
+		.where('id', '=', id)
+		.returning(SAMPLE_COLUMNS)
+		.executeTakeFirst()) as LabelledSampleRow | undefined;
+	return row ? rowToSample(row) : null;
+}
+
+/** Sample tallies per review state, for the reviewer's progress display. */
+export interface ReviewCounts {
+	pending: number;
+	approved: number;
+	rejected: number;
+}
+
+export async function countSamplesByReviewStatus(db: Db = getDb()): Promise<ReviewCounts> {
+	const rows = (await db
+		.selectFrom('labelled_samples')
+		.select((eb) => ['review_status', eb.fn.countAll<string>().as('count')])
+		.groupBy('review_status')
+		.execute()) as { review_status: ReviewStatus | null; count: string }[];
+
+	const counts: ReviewCounts = { pending: 0, approved: 0, rejected: 0 };
+	for (const row of rows) {
+		counts[row.review_status ?? 'pending'] = Number(row.count);
+	}
+	return counts;
 }

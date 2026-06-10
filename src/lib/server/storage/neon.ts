@@ -3,7 +3,12 @@ import { neon } from '@neondatabase/serverless';
 import { type ColumnType, type Generated, type GeneratedAlways, Kysely } from 'kysely';
 import { NeonDialect } from 'kysely-neon';
 
-import type { Label, SampleMeta, Stroke as SampleStroke } from '$lib/structures/labelledSample.js';
+import type {
+	Label,
+	ReviewStatus,
+	SampleMeta,
+	Stroke as SampleStroke
+} from '$lib/structures/labelledSample.js';
 
 /**
  * A `jsonb` column: the Neon driver returns it already parsed (select type `T`),
@@ -22,6 +27,9 @@ interface LabelledSamplesTable {
 	data_hash: GeneratedAlways<string>;
 	captured_at: ColumnType<string, string, string>;
 	created_at: Generated<string>;
+	/** Manual QA verdict; null = not reviewed yet. Never set on insert. */
+	review_status: ColumnType<ReviewStatus | null, never, ReviewStatus | null>;
+	reviewed_at: ColumnType<string | null, never, string | null>;
 }
 
 export interface Database {
