@@ -53,5 +53,13 @@ export const tools = [
 		title: 'Sample Maker',
 		description: 'Create a labelled sample for benchmarking sign/sigil recognition.',
 		showStatus: false
+	},
+	{
+		path: '/tools/sample-reviewer',
+		eyebrow: 'Dataset Tool',
+		title: 'Sample Reviewer',
+		description:
+			'Browse stored labelled samples and check each drawing against its reference-glyph label.',
+		showStatus: false
 	}
 ] satisfies Tool[];

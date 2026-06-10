@@ -88,6 +88,20 @@ export type SampleSubmission = {
 	meta: Omit<SampleMeta, 'capturedAt'>;
 };
 
+/** A manual quality verdict recorded by the Sample Reviewer. */
+export type ReviewStatus = 'approved' | 'rejected';
+
+/**
+ * The human QA verdict attached after submission — not part of the captured sample.
+ * Rejected samples are kept (never deleted) so bad data stays inspectable and a
+ * verdict can be revised later.
+ */
+export type SampleReview = {
+	status: ReviewStatus;
+	/** ISO 8601 timestamp of when the verdict was recorded. */
+	reviewedAt: string;
+};
+
 /** The complete unit stored in the database. */
 export type LabelledSample = {
 	/** Server-assigned identifier. */
@@ -95,4 +109,6 @@ export type LabelledSample = {
 	data: Stroke[];
 	label: Label;
 	meta: SampleMeta;
+	/** Manual QA verdict; `null` until a human reviews the sample. */
+	review: SampleReview | null;
 };
