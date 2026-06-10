@@ -8,11 +8,7 @@
 	import { drawGlowingStrokes } from '$lib/renderer/glyphOverlayRenderer.js';
 	import { drawGuides, drawPaper } from '$lib/renderer/paperRenderer.js';
 	import { SpellEffectRenderer } from '$lib/renderer/spellEffectRenderer.js';
-	import {
-		activePortalPlane,
-		convergenceFlow,
-		resetParticleState
-	} from '$lib/renderer/effects/effectUtils.js';
+	import { activePortalPlane, convergenceFlow } from '$lib/renderer/effects/effectUtils.js';
 	import { roundDeep } from '$lib/utils/json.js';
 	import {
 		DEFAULT_SIGIL,
@@ -55,12 +51,7 @@
 	}
 
 	function resetParticles() {
-		if (!effectRenderer) {
-			return;
-		}
-		effectRenderer.lastSignature = null;
-		effectRenderer.lastTime = null;
-		resetParticleState(effectRenderer.state);
+		effectRenderer?.resetEffects();
 	}
 
 	function restartSpell() {

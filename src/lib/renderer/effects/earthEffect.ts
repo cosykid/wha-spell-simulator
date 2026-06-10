@@ -1,150 +1,118 @@
 import { randomBetween } from '../../utils/geometry.js';
 import {
-	activePortalPlane,
-	boltBurst,
 	convergePoint,
 	effectOpacity,
-	effectScale,
 	elementFlow,
 	emissionDirection,
-	emissionModifier,
 	narrowedByFocusAndConvergence,
 	particleAlpha,
 	particleDepth,
-	pruneParticles,
 	randomPortalPoint,
-	scaledParticleCount,
 	steadyParticleAlpha
 } from './effectUtils.js';
+import { ElementEffect } from './elementEffect.js';
 import type { AppConfig, RingInfo } from '../../types.js';
-import type {
-	RenderSpellIR,
-	EffectState,
-	Particle,
-	Portal,
-	ElementFlow,
-	EmissionModifier
-} from './effectUtils.js';
-
-// ---------------------------------------------------------------------------
-// Earth-specific flow config
-// ---------------------------------------------------------------------------
+import type { ElementFlow, Particle, Portal, RenderSpellIR } from './effectUtils.js';
 
 interface EarthFlowConfig extends ElementFlow {
 	sourceRadiusX: number;
 	sourceRadiusY: number;
 	surfaceJitter: number;
 	speed: number;
-	mod: EmissionModifier;
 }
 
-// ---------------------------------------------------------------------------
-// Flow config
-// ---------------------------------------------------------------------------
+export class EarthEffect extends ElementEffect<Particle, EarthFlowConfig> {
+	protected createFlow(
+		spellIR: RenderSpellIR,
+		ring: RingInfo,
+		portal: Portal,
+		frame: number
+	): EarthFlowConfig {
+		const flow = elementFlow(spellIR, portal, frame);
+		const { scale, focus, convergence } = flow;
 
-function earthFlowConfig(
-	spellIR: RenderSpellIR,
-	ring: RingInfo,
-	portal: Portal,
-	frame: number
-): EarthFlowConfig {
-	const flow = elementFlow(spellIR, portal, frame);
-	const { scale, focus, convergence } = flow;
-
-	return {
-		...flow,
-		sourceRadiusX: narrowedByFocusAndConvergence(
-			Math.min(0.78, 0.34 + scale * 0.1 + spellIR.spread * 0.18),
-			focus,
-			convergence.strength,
-			0.28,
-			0.32
-		),
-		sourceRadiusY: narrowedByFocusAndConvergence(
-			Math.min(0.78, 0.4 + scale * 0.08 + spellIR.spread * 0.16),
-			focus,
-			convergence.strength,
-			0.28,
-			0.32
-		),
-		surfaceJitter: narrowedByFocusAndConvergence(
-			ring.radius * (0.025 + spellIR.spread * 0.06) * scale,
-			focus,
-			convergence.strength,
-			0.4,
-			0.34
-		),
-		speed:
-			randomBetween(0.8, 2.8) *
-			(0.6 + spellIR.force) *
-			(0.9 + scale * 0.08) *
-			(1 - convergence.strength * 0.32),
-		mod: emissionModifier(spellIR)
-	};
-}
-
-// ---------------------------------------------------------------------------
-// Spawn
-// ---------------------------------------------------------------------------
-
-function spawnEarthParticle(
-	_spellIR: RenderSpellIR,
-	portal: Portal,
-	flow: EarthFlowConfig
-): Particle {
-	const source = randomPortalPoint(portal, flow.sourceRadiusX, flow.sourceRadiusY);
-	const phase = randomBetween(0, Math.PI * 2);
-	const emitDir = emissionDirection(flow.direction, flow.mod);
-	const jitterScale = flow.scale * flow.mod.jitterMul;
-
-	return {
-		x: source.x + flow.side.x * randomBetween(-flow.surfaceJitter, flow.surfaceJitter),
-		y: source.y + flow.side.y * randomBetween(-flow.surfaceJitter, flow.surfaceJitter),
-		vx: emitDir.x * flow.speed * flow.mod.speedMul + randomBetween(-0.35, 0.35) * jitterScale,
-		vy: emitDir.y * flow.speed * flow.mod.speedMul + randomBetween(-0.35, 0.35) * jitterScale,
-		radius: randomBetween(4, 11) * (0.85 + flow.scale * 0.2),
-		phase,
-		age: 0,
-		life: flow.convergence.active ? flow.convergence.life : randomBetween(50, 92) * flow.mod.lifeMul
-	};
-}
-
-// ---------------------------------------------------------------------------
-// Entry point
-// ---------------------------------------------------------------------------
-
-export function drawEarthEffect(
-	ctx: CanvasRenderingContext2D,
-	state: EffectState,
-	spellIR: RenderSpellIR,
-	ring: RingInfo,
-	dt: number,
-	config: AppConfig
-): void {
-	const scale = effectScale(spellIR);
-	const opacity = effectOpacity(spellIR);
-	const portal = activePortalPlane(ctx.canvas, ring);
-	state.earthFrame = ((state.earthFrame as number | undefined) ?? 0) + dt;
-	const flow = earthFlowConfig(spellIR, ring, portal, state.earthFrame as number);
-	const targetCount = Math.round(
-		scaledParticleCount((68 + spellIR.force * 78) * (0.82 + scale * 0.28), spellIR, config) *
-			boltBurst(state.earthFrame as number, flow.mod.bolt)
-	);
-	while (state.particles.length < targetCount) {
-		state.particles.push(spawnEarthParticle(spellIR, portal, flow));
+		return {
+			...flow,
+			sourceRadiusX: narrowedByFocusAndConvergence(
+				Math.min(0.78, 0.34 + scale * 0.1 + spellIR.spread * 0.18),
+				focus,
+				convergence.strength,
+				0.28,
+				0.32
+			),
+			sourceRadiusY: narrowedByFocusAndConvergence(
+				Math.min(0.78, 0.4 + scale * 0.08 + spellIR.spread * 0.16),
+				focus,
+				convergence.strength,
+				0.28,
+				0.32
+			),
+			surfaceJitter: narrowedByFocusAndConvergence(
+				ring.radius * (0.025 + spellIR.spread * 0.06) * scale,
+				focus,
+				convergence.strength,
+				0.4,
+				0.34
+			),
+			speed:
+				randomBetween(0.8, 2.8) *
+				(0.6 + spellIR.force) *
+				(0.9 + scale * 0.08) *
+				(1 - convergence.strength * 0.32)
+		};
 	}
 
-	for (const particle of state.particles) {
+	protected baseParticleCount(
+		spellIR: RenderSpellIR,
+		flow: EarthFlowConfig,
+		_config: AppConfig
+	): number {
+		return (68 + spellIR.force * 78) * (0.82 + flow.scale * 0.28);
+	}
+
+	protected spawnParticle(
+		_spellIR: RenderSpellIR,
+		_ring: RingInfo,
+		portal: Portal,
+		flow: EarthFlowConfig
+	): Particle {
+		const source = randomPortalPoint(portal, flow.sourceRadiusX, flow.sourceRadiusY);
+		const phase = randomBetween(0, Math.PI * 2);
+		const emitDir = emissionDirection(flow.direction, flow.mod);
+		const jitterScale = flow.scale * flow.mod.jitterMul;
+
+		return {
+			x: source.x + flow.side.x * randomBetween(-flow.surfaceJitter, flow.surfaceJitter),
+			y: source.y + flow.side.y * randomBetween(-flow.surfaceJitter, flow.surfaceJitter),
+			vx: emitDir.x * flow.speed * flow.mod.speedMul + randomBetween(-0.35, 0.35) * jitterScale,
+			vy: emitDir.y * flow.speed * flow.mod.speedMul + randomBetween(-0.35, 0.35) * jitterScale,
+			radius: randomBetween(4, 11) * (0.85 + flow.scale * 0.2),
+			phase,
+			age: 0,
+			life: flow.convergence.active
+				? flow.convergence.life
+				: randomBetween(50, 92) * flow.mod.lifeMul
+		};
+	}
+
+	protected updateParticle(particle: Particle, flow: EarthFlowConfig, dt: number): void {
 		particle.age += dt;
 		particle.x += particle.vx * dt;
 		particle.y += particle.vy * dt;
 		particle.vx *= 0.985 - flow.convergence.progress * 0.05;
 		particle.vy *= 0.985 - flow.convergence.progress * 0.05;
+	}
 
+	protected drawParticle(
+		ctx: CanvasRenderingContext2D,
+		particle: Particle,
+		flow: EarthFlowConfig,
+		spellIR: RenderSpellIR
+	): void {
 		const depth = particleDepth(particle);
 		const alpha = flow.convergence.active
 			? steadyParticleAlpha(particle, spellIR, 10) * (0.78 + depth * 0.22)
-			: particleAlpha(particle) * (0.78 + depth * 0.22) * opacity;
+			: particleAlpha(particle) * (0.78 + depth * 0.22) * effectOpacity(spellIR);
 		const size = particle.radius * (0.9 + depth * 0.54) * (1 - flow.convergence.progress * 0.22);
 		const point = convergePoint(particle, flow.convergence, particle.phase, 1.08);
 
@@ -165,6 +133,4 @@ export function drawEarthEffect(
 			ctx.fill();
 		}
 	}
-
-	pruneParticles(state);
 }

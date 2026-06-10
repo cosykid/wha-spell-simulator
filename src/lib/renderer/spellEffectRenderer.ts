@@ -1,10 +1,10 @@
-import { drawFireEffect } from './effects/fireEffect.js';
-import { drawWaterEffect } from './effects/waterEffect.js';
-import { drawWindEffect } from './effects/windEffect.js';
-import { drawEarthEffect } from './effects/earthEffect.js';
-import { drawLightEffect } from './effects/lightEffect.js';
-import { resetParticleState } from './effects/effectUtils.js';
-import type { EffectState, RenderSpellIR } from './effects/effectUtils.js';
+import { FireEffect } from './effects/fireEffect.js';
+import { WaterEffect } from './effects/waterEffect.js';
+import { WindEffect } from './effects/windEffect.js';
+import { EarthEffect } from './effects/earthEffect.js';
+import { LightEffect } from './effects/lightEffect.js';
+import type { ElementEffect } from './effects/elementEffect.js';
+import type { RenderSpellIR } from './effects/effectUtils.js';
 import { clamp } from '../utils/geometry.js';
 import type { AppConfig, SpellIR, RingInfo, ElementId } from '../types.js';
 
@@ -28,22 +28,15 @@ const FAILED_FLICKER_DASH = [10, 14];
 const FAILED_FLICKER_RADIUS_SCALE = 0.92;
 const FAILED_FLICKER_RADIUS_PULSE_SCALE = 0.02;
 
-type EffectDrawFn = (
-	ctx: CanvasRenderingContext2D,
-	state: EffectState,
-	spellIR: RenderSpellIR,
-	ring: RingInfo,
-	dt: number,
-	config: AppConfig
-) => void;
-
-const EFFECTS: Record<ElementId, EffectDrawFn> = {
-	fire: drawFireEffect,
-	water: drawWaterEffect,
-	wind: drawWindEffect,
-	earth: drawEarthEffect,
-	light: drawLightEffect
-};
+function createElementEffects(): Record<ElementId, ElementEffect> {
+	return {
+		fire: new FireEffect(),
+		water: new WaterEffect(),
+		wind: new WindEffect(),
+		earth: new EarthEffect(),
+		light: new LightEffect()
+	};
+}
 
 function spellDurationMs(spellIR: SpellIR | null | undefined): number {
 	const durationSeconds = Number(spellIR?.duration);
@@ -82,18 +75,26 @@ export class SpellEffectRenderer {
 	private canvas: HTMLCanvasElement;
 	private ctx: CanvasRenderingContext2D;
 	private config: AppConfig;
-	// Exposed so tool components (e.g. SpellEffectLab) can reset render state.
-	state: EffectState;
-	lastSignature: string | null;
-	lastTime: number | null;
+	private effects: Record<ElementId, ElementEffect>;
+	private lastSignature: string | null;
+	private lastTime: number | null;
 
 	constructor(canvas: HTMLCanvasElement, config: AppConfig) {
 		this.canvas = canvas;
 		this.ctx = canvas.getContext('2d')!;
 		this.config = config;
-		this.state = { particles: [] };
+		this.effects = createElementEffects();
 		this.lastSignature = null;
 		this.lastTime = null;
+	}
+
+	// Used by tool components (e.g. SpellEffectLab) to restart render state.
+	resetEffects(): void {
+		this.lastSignature = null;
+		this.lastTime = null;
+		for (const effect of Object.values(this.effects)) {
+			effect.reset();
+		}
 	}
 
 	render(
@@ -122,7 +123,9 @@ export class SpellEffectRenderer {
 
 		if (this.lastSignature !== spellIR.signature) {
 			this.lastSignature = spellIR.signature;
-			resetParticleState(this.state);
+			for (const effect of Object.values(this.effects)) {
+				effect.reset();
+			}
 		}
 
 		if (!spellIR.active && options.showGuides) {
@@ -143,20 +146,20 @@ export class SpellEffectRenderer {
 			return;
 		}
 
-		const drawEffect = spellIR.element ? EFFECTS[spellIR.element] : null;
-		if (!drawEffect) {
+		const effect = spellIR.element ? this.effects[spellIR.element] : null;
+		if (!effect) {
 			return;
 		}
 
 		const emission = spellEmission(spellIR, timestamp, this.config.renderer.portalTiltMs);
-		if (emission <= 0 && !this.state.particles.length) {
+		if (emission <= 0 && !effect.hasParticles) {
 			return;
 		}
 
 		const renderSpellIR: RenderSpellIR = { ...spellIR, emission };
 		ctx.save();
 		ctx.globalCompositeOperation = 'lighter';
-		drawEffect(ctx, this.state, renderSpellIR, ring, dt, this.config);
+		effect.draw(ctx, renderSpellIR, ring, dt, this.config);
 		ctx.restore();
 	}
 

@@ -46,6 +46,7 @@ export interface ElementFlow {
 	scale: number;
 	focus: number;
 	convergence: ConvergenceFlow;
+	mod: EmissionModifier;
 }
 
 /** Minimal particle shape shared by all effects. */
@@ -58,24 +59,6 @@ export interface Particle {
 	life: number;
 	radius: number;
 	phase: number;
-	[key: string]: unknown;
-}
-
-/** Per-effect mutable render state stored on the SpellEffectRenderer. */
-export interface EffectState {
-	particles: Particle[];
-	[key: string]: unknown;
-}
-
-// ---------------------------------------------------------------------------
-// State helpers
-// ---------------------------------------------------------------------------
-
-export function resetParticleState(state: EffectState): void {
-	for (const key of Object.keys(state)) {
-		delete state[key];
-	}
-	state.particles = [];
 }
 
 // ---------------------------------------------------------------------------
@@ -136,7 +119,8 @@ export function elementFlow(spellIR: RenderSpellIR, portal: Portal, frame: numbe
 		side: perpendicularVector(direction),
 		scale: effectScale(spellIR),
 		focus: effectFocus(spellIR),
-		convergence: convergenceFlow(spellIR, portal, frame)
+		convergence: convergenceFlow(spellIR, portal, frame),
+		mod: emissionModifier(spellIR)
 	};
 }
 
@@ -416,8 +400,4 @@ export function portalOutDirection(spellIR: RenderSpellIR): Vector {
 
 export function particleDepth(particle: Particle): number {
 	return clamp(particle.age / Math.max(1, particle.life));
-}
-
-export function pruneParticles(state: EffectState): void {
-	state.particles = state.particles.filter((particle) => particle.age < particle.life);
 }
