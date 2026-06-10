@@ -20,7 +20,7 @@ export interface ResizeCanvasParams {
  * let shell: HTMLElement;
  * </script>
  *
- * <div bind:this={shell} class="canvas-shell">
+ * <div bind:this={shell} class="canvas-surface">
  *   <canvas {@attach resizeCanvas({ shell, onResized: handleResize })} />
  * </div>
  * ```
