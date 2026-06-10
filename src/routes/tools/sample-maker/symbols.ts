@@ -13,7 +13,7 @@ export const SAMPLE_SYMBOLS: SampleSymbol[] = [
 	{ id: 'fire', displayName: 'Fire' },
 	{ id: 'water', displayName: 'Water' },
 	{ id: 'light', displayName: 'Light' },
-	{ id: 'billow', displayName: 'Billow' },
+	{ id: 'billowing', displayName: 'Billowing' },
 	{ id: 'collection', displayName: 'Collection' },
 	{ id: 'column', displayName: 'Column' },
 	{ id: 'convergence', displayName: 'Convergence' },
