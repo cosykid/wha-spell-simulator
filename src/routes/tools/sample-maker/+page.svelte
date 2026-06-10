@@ -103,10 +103,15 @@
 		scene.do(transformEntity(symbolEntity, before, after));
 	};
 
-	/** Reset the state completely, then offer a fresh suggestion (a no-op while choosing manually). */
+	/** Clear only the canvas state, keeping the current drawing prompt intact. */
 	const clear = (): void => {
 		scene.clear();
 		selected = null;
+	};
+
+	/** Start the next sample after a successful upload. */
+	const clearAndSuggestNext = (): void => {
+		clear();
 		suggestionPrompt?.suggest();
 	};
 
@@ -188,7 +193,7 @@
 			{strokes}
 			{selected}
 			{ctx}
-			onSuccess={clear}
+			onSuccess={clearAndSuggestNext}
 		/>
 	</aside>
 </main>
