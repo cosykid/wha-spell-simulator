@@ -61,5 +61,13 @@ export const tools = [
 		description:
 			'Browse stored labelled samples and check each drawing against its reference-glyph label.',
 		showStatus: false
+	},
+	{
+		path: '/tools/leaderboard',
+		eyebrow: 'Dataset Tool',
+		title: 'Leaderboard',
+		description:
+			'Rank drawing contributions by Discord handle, by total and approved sample counts.',
+		showStatus: false
 	}
 ] satisfies Tool[];
