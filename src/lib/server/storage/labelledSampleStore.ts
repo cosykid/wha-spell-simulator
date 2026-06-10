@@ -261,6 +261,65 @@ export async function tallyContributors(
 	}));
 }
 
+/** One sign's drawing tally, for the Signs leaderboard. */
+export interface SignTally {
+	signId: string;
+	/** Total samples drawn for this sign. */
+	total: number;
+	/** Of those, how many a reviewer has approved. */
+	approved: number;
+	/** Of those, how many a reviewer has rejected. */
+	rejected: number;
+}
+
+/** Filters for {@link tallySigns}. Omitting a field matches all values. */
+export interface SignTallyQuery {
+	/**
+	 * Case-insensitive substring match on the contributor's Discord username; when set,
+	 * counts only that contributor's samples (their personal per-sign breakdown).
+	 */
+	discordUsername?: string;
+}
+
+/**
+ * Sample tallies grouped by sign id, for the Signs leaderboard — how much each sign has
+ * been drawn. Pass `discordUsername` to scope the counts to one contributor instead of
+ * everyone.
+ */
+export async function tallySigns(
+	query: SignTallyQuery = {},
+	db: Db = getDb()
+): Promise<SignTally[]> {
+	let builder = db
+		.selectFrom('labelled_samples')
+		.select((eb) => [
+			'sign_id',
+			eb.fn.countAll<string>().as('total'),
+			eb.fn.countAll<string>().filterWhere('review_status', '=', 'approved').as('approved'),
+			eb.fn.countAll<string>().filterWhere('review_status', '=', 'rejected').as('rejected')
+		])
+		.groupBy('sign_id');
+
+	const username = query.discordUsername?.trim();
+	if (username) {
+		builder = builder.where('discord_username', 'ilike', likePattern(username));
+	}
+
+	const rows = (await builder.execute()) as {
+		sign_id: string;
+		total: string;
+		approved: string;
+		rejected: string;
+	}[];
+
+	return rows.map((row) => ({
+		signId: row.sign_id,
+		total: Number(row.total),
+		approved: Number(row.approved),
+		rejected: Number(row.rejected)
+	}));
+}
+
 /** Distinct sign ids present in stored samples, sorted — backs the Leaderboard sign filter. */
 export async function listSampleSignIds(db: Db = getDb()): Promise<string[]> {
 	const rows = (await db

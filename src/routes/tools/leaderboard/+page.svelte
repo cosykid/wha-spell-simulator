@@ -5,8 +5,13 @@
 		TITLES,
 		UNKNOWN_CONTRIBUTOR,
 		titleForDrawings,
-		type LeaderboardEntry
+		type LeaderboardEntry,
+		type SignEntry
 	} from './leaderboard.js';
+
+	/** The two leaderboards this page switches between. */
+	type View = 'contributors' | 'signs';
+	let view = $state<View>('contributors');
 
 	/** Which tally drives the ranking. */
 	type RankBy = 'total' | 'approved';
@@ -68,9 +73,10 @@
 	}
 
 	// Effects only run in the browser, so this also performs the initial fetch after the
-	// prerendered page hydrates (mirrors how the Sample Reviewer loads its data).
+	// prerendered page hydrates (mirrors how the Sample Reviewer loads its data). Each view
+	// loads only when it's active, so switching tabs fetches lazily.
 	$effect(() => {
-		void loadLeaderboard(signFilter);
+		if (view === 'contributors') void loadLeaderboard(signFilter);
 	});
 
 	const refresh = (): void => void loadLeaderboard(signFilter);
@@ -96,6 +102,73 @@
 	const shownDrawings = $derived(visible.reduce((sum, e) => sum + e.total, 0));
 	const shownApproved = $derived(visible.reduce((sum, e) => sum + e.approved, 0));
 	const shownRejected = $derived(visible.reduce((sum, e) => sum + e.rejected, 0));
+
+	// --- Signs leaderboard -------------------------------------------------------------
+	let signRankBy = $state<RankBy>('total');
+	// Optional contributor scope. `signUser` tracks the input; `signAppliedUser` is the
+	// debounced value that drives the fetch (the count is computed server-side per user).
+	let signUser = $state('');
+	let signAppliedUser = $state('');
+	let signUserTimer: ReturnType<typeof setTimeout> | undefined;
+	function onSignUserInput(): void {
+		clearTimeout(signUserTimer);
+		signUserTimer = setTimeout(() => (signAppliedUser = signUser.trim()), 300);
+	}
+
+	let signs = $state<SignEntry[]>([]);
+	let signLoading = $state(true);
+	let signError = $state<string | null>(null);
+	let signSeq = 0;
+
+	async function loadSigns(username: string): Promise<void> {
+		const seq = ++signSeq;
+		signLoading = true;
+		signError = null;
+		try {
+			const userParam = username ? `?username=${encodeURIComponent(username)}` : '';
+			const response = await fetch(`${resolve('/api/leaderboard/signs')}${userParam}`);
+			const body = (await response.json()) as
+				| { ok: true; signs: SignEntry[] }
+				| { ok: false; error?: string };
+			if (seq !== signSeq) return; // superseded by a newer request
+			if (!response.ok || !body.ok) {
+				throw new Error(
+					(!body.ok && body.error) || `The signs endpoint replied ${response.status}.`
+				);
+			}
+			signs = body.signs;
+		} catch (caught) {
+			if (seq !== signSeq) return;
+			signError = caught instanceof Error ? caught.message : 'Failed to load the sign tallies.';
+			signs = [];
+		} finally {
+			if (seq === signSeq) signLoading = false;
+		}
+	}
+
+	$effect(() => {
+		if (view === 'signs') void loadSigns(signAppliedUser);
+	});
+
+	const refreshSigns = (): void => void loadSigns(signAppliedUser);
+
+	/** Signs ranked by the active metric, with the rank fixed per row. */
+	const rankedSigns = $derived.by(() => {
+		const by = signRankBy;
+		const other: RankBy = by === 'total' ? 'approved' : 'total';
+		return [...signs]
+			.sort(
+				(a, b) =>
+					b[by] - a[by] ||
+					b[other] - a[other] ||
+					displayName(a.signId).localeCompare(displayName(b.signId))
+			)
+			.map((sign, index) => ({ ...sign, rank: index + 1 }));
+	});
+
+	const signsDrawings = $derived(signs.reduce((sum, s) => sum + s.total, 0));
+	const signsApproved = $derived(signs.reduce((sum, s) => sum + s.approved, 0));
+	const signsRejected = $derived(signs.reduce((sum, s) => sum + s.rejected, 0));
 
 	const medal = (place: number): string =>
 		place === 1 ? '🥇' : place === 2 ? '🥈' : place === 3 ? '🥉' : '';
@@ -124,112 +197,228 @@
 		</section>
 
 		<section class="panel dashboard-card">
-			<div class="toolbar leaderboard-toolbar">
-				<label class="leaderboard-filter">
-					<span class="label">Rank by</span>
-					<select class="select-control" bind:value={rankBy}>
-						{#each RANK_CHOICES as choice (choice.value)}
-							<option value={choice.value}>{choice.label}</option>
-						{/each}
-					</select>
-				</label>
-				<label class="leaderboard-filter">
-					<span class="label">Sign</span>
-					<select class="select-control" bind:value={signFilter}>
-						<option value="all">All signs</option>
-						{#each signOptions as id (id)}
-							<option value={id}>{displayName(id)}</option>
-						{/each}
-					</select>
-				</label>
-				<label class="leaderboard-filter">
-					<span class="label">Username</span>
-					<input
-						class="select-control username-search"
-						type="search"
-						bind:value={usernameQuery}
-						placeholder="Search Discord username"
-						autocomplete="off"
-						autocapitalize="off"
-						spellcheck="false"
-					/>
-				</label>
-				<div class="toolbar-actions">
-					<button type="button" onclick={refresh} disabled={loading}>Refresh</button>
-					<span class="leaderboard-summary">
-						{#if loading}
-							Tallying contributions…
-						{:else if !error}
-							{#if signFilter !== 'all'}{displayName(signFilter)} ·{/if}
-							{visible.length}{usernameQuery.trim() ? ` / ${entries.length}` : ''} contributor{entries.length ===
-							1
-								? ''
-								: 's'}
-						{/if}
-					</span>
-				</div>
+			<div class="leaderboard-tabs" role="tablist">
+				<button
+					type="button"
+					role="tab"
+					class="tab"
+					class:active={view === 'contributors'}
+					aria-selected={view === 'contributors'}
+					onclick={() => (view = 'contributors')}>Contributors</button
+				>
+				<button
+					type="button"
+					role="tab"
+					class="tab"
+					class:active={view === 'signs'}
+					aria-selected={view === 'signs'}
+					onclick={() => (view = 'signs')}>Signs</button
+				>
 			</div>
 
-			{#if !error && !loading && visible.length > 0}
-				<div class="leaderboard-totals">
-					<div class="total-stat">
-						<span class="total-value">{shownDrawings}</span>
-						<span class="total-label">Drawings</span>
-					</div>
-					<div class="total-stat approved">
-						<span class="total-value">{shownApproved}</span>
-						<span class="total-label">Approved</span>
-					</div>
-					<div class="total-stat rejected">
-						<span class="total-value">{shownRejected}</span>
-						<span class="total-label">Rejected</span>
-					</div>
-				</div>
-			{/if}
-
-			{#if error}
-				<p class="leaderboard-note leaderboard-error">Could not load the leaderboard: {error}</p>
-			{:else if !loading && entries.length === 0}
-				<p class="leaderboard-note">
-					No samples on record yet — submissions from the Sample Maker appear here.
-				</p>
-			{:else if !loading && visible.length === 0}
-				<p class="leaderboard-note">No contributor matches “{usernameQuery.trim()}”.</p>
-			{:else if entries.length > 0}
-				<div class="table-scroll">
-					<table class="leaderboard-table">
-						<thead>
-							<tr>
-								<th class="rank-col">#</th>
-								<th>Discord</th>
-								<th>Title</th>
-								<th class="num-col" aria-sort={rankBy === 'approved' ? 'descending' : 'none'}>
-									Approved
-								</th>
-								<th class="num-col">Rejected</th>
-								<th class="num-col" aria-sort={rankBy === 'total' ? 'descending' : 'none'}>Total</th
-								>
-							</tr>
-						</thead>
-						<tbody>
-							{#each visible as row (`${row.anonymous}:${row.username.toLowerCase()}`)}
-								{@const title = titleForDrawings(row.overallTotal)}
-								<tr class:anonymous={row.anonymous}>
-									<td class="rank-col"><span class="rank">{medal(row.rank)} {row.rank}</span></td>
-									<td class="name-col">{row.username}</td>
-									<td class="title-col">
-										{#if title}<span class={titleClass(title)}>{title}</span>{:else}<span
-												class="no-title">—</span
-											>{/if}
-									</td>
-									<td class="num-col" class:active={rankBy === 'approved'}>{row.approved}</td>
-									<td class="num-col rejected-cell">{row.rejected}</td>
-									<td class="num-col" class:active={rankBy === 'total'}>{row.total}</td>
-								</tr>
+			{#if view === 'contributors'}
+				<div class="toolbar leaderboard-toolbar">
+					<label class="leaderboard-filter">
+						<span class="label">Rank by</span>
+						<select class="select-control" bind:value={rankBy}>
+							{#each RANK_CHOICES as choice (choice.value)}
+								<option value={choice.value}>{choice.label}</option>
 							{/each}
-						</tbody>
-					</table>
+						</select>
+					</label>
+					<label class="leaderboard-filter">
+						<span class="label">Sign</span>
+						<select class="select-control" bind:value={signFilter}>
+							<option value="all">All signs</option>
+							{#each signOptions as id (id)}
+								<option value={id}>{displayName(id)}</option>
+							{/each}
+						</select>
+					</label>
+					<label class="leaderboard-filter">
+						<span class="label">Username</span>
+						<input
+							class="select-control username-search"
+							type="search"
+							bind:value={usernameQuery}
+							placeholder="Search Discord username"
+							autocomplete="off"
+							autocapitalize="off"
+							spellcheck="false"
+						/>
+					</label>
+					<div class="toolbar-actions">
+						<button type="button" onclick={refresh} disabled={loading}>Refresh</button>
+						<span class="leaderboard-summary">
+							{#if loading}
+								Tallying contributions…
+							{:else if !error}
+								{#if signFilter !== 'all'}{displayName(signFilter)} ·{/if}
+								{visible.length}{usernameQuery.trim() ? ` / ${entries.length}` : ''} contributor{entries.length ===
+								1
+									? ''
+									: 's'}
+							{/if}
+						</span>
+					</div>
 				</div>
+
+				{#if !error && !loading && visible.length > 0}
+					<div class="leaderboard-totals">
+						<div class="total-stat">
+							<span class="total-value">{shownDrawings}</span>
+							<span class="total-label">Drawings</span>
+						</div>
+						<div class="total-stat approved">
+							<span class="total-value">{shownApproved}</span>
+							<span class="total-label">Approved</span>
+						</div>
+						<div class="total-stat rejected">
+							<span class="total-value">{shownRejected}</span>
+							<span class="total-label">Rejected</span>
+						</div>
+					</div>
+				{/if}
+
+				{#if error}
+					<p class="leaderboard-note leaderboard-error">Could not load the leaderboard: {error}</p>
+				{:else if !loading && entries.length === 0}
+					<p class="leaderboard-note">
+						No samples on record yet — submissions from the Sample Maker appear here.
+					</p>
+				{:else if !loading && visible.length === 0}
+					<p class="leaderboard-note">No contributor matches “{usernameQuery.trim()}”.</p>
+				{:else if entries.length > 0}
+					<div class="table-scroll">
+						<table class="leaderboard-table">
+							<thead>
+								<tr>
+									<th class="rank-col">#</th>
+									<th>Discord</th>
+									<th>Title</th>
+									<th class="num-col" aria-sort={rankBy === 'approved' ? 'descending' : 'none'}>
+										Approved
+									</th>
+									<th class="num-col">Rejected</th>
+									<th class="num-col" aria-sort={rankBy === 'total' ? 'descending' : 'none'}
+										>Total</th
+									>
+								</tr>
+							</thead>
+							<tbody>
+								{#each visible as row (`${row.anonymous}:${row.username.toLowerCase()}`)}
+									{@const title = titleForDrawings(row.overallTotal)}
+									<tr class:anonymous={row.anonymous}>
+										<td class="rank-col"><span class="rank">{medal(row.rank)} {row.rank}</span></td>
+										<td class="name-col">{row.username}</td>
+										<td class="title-col">
+											{#if title}<span class={titleClass(title)}>{title}</span>{:else}<span
+													class="no-title">—</span
+												>{/if}
+										</td>
+										<td class="num-col" class:active={rankBy === 'approved'}>{row.approved}</td>
+										<td class="num-col rejected-cell">{row.rejected}</td>
+										<td class="num-col" class:active={rankBy === 'total'}>{row.total}</td>
+									</tr>
+								{/each}
+							</tbody>
+						</table>
+					</div>
+				{/if}
+			{:else}
+				<div class="toolbar leaderboard-toolbar">
+					<label class="leaderboard-filter">
+						<span class="label">Rank by</span>
+						<select class="select-control" bind:value={signRankBy}>
+							{#each RANK_CHOICES as choice (choice.value)}
+								<option value={choice.value}>{choice.label}</option>
+							{/each}
+						</select>
+					</label>
+					<label class="leaderboard-filter">
+						<span class="label">Username</span>
+						<input
+							class="select-control username-search"
+							type="search"
+							bind:value={signUser}
+							oninput={onSignUserInput}
+							placeholder="A contributor's per-sign counts"
+							autocomplete="off"
+							autocapitalize="off"
+							spellcheck="false"
+						/>
+					</label>
+					<div class="toolbar-actions">
+						<button type="button" onclick={refreshSigns} disabled={signLoading}>Refresh</button>
+						<span class="leaderboard-summary">
+							{#if signLoading}
+								Tallying signs…
+							{:else if !signError}
+								{#if signAppliedUser}{signAppliedUser} ·{/if}
+								{signs.length} sign{signs.length === 1 ? '' : 's'}
+							{/if}
+						</span>
+					</div>
+				</div>
+
+				{#if !signError && !signLoading && signs.length > 0}
+					<div class="leaderboard-totals">
+						<div class="total-stat">
+							<span class="total-value">{signsDrawings}</span>
+							<span class="total-label">Drawings</span>
+						</div>
+						<div class="total-stat approved">
+							<span class="total-value">{signsApproved}</span>
+							<span class="total-label">Approved</span>
+						</div>
+						<div class="total-stat rejected">
+							<span class="total-value">{signsRejected}</span>
+							<span class="total-label">Rejected</span>
+						</div>
+					</div>
+				{/if}
+
+				{#if signError}
+					<p class="leaderboard-note leaderboard-error">Could not load the signs: {signError}</p>
+				{:else if !signLoading && signs.length === 0}
+					<p class="leaderboard-note">
+						{signAppliedUser
+							? `No drawings found for “${signAppliedUser}”.`
+							: 'No samples on record yet — submissions from the Sample Maker appear here.'}
+					</p>
+				{:else if signs.length > 0}
+					<div class="table-scroll">
+						<table class="leaderboard-table">
+							<thead>
+								<tr>
+									<th class="rank-col">#</th>
+									<th>Sign</th>
+									<th class="num-col" aria-sort={signRankBy === 'approved' ? 'descending' : 'none'}>
+										Approved
+									</th>
+									<th class="num-col">Rejected</th>
+									<th class="num-col" aria-sort={signRankBy === 'total' ? 'descending' : 'none'}>
+										Total
+									</th>
+								</tr>
+							</thead>
+							<tbody>
+								{#each rankedSigns as sign (sign.signId)}
+									<tr>
+										<td class="rank-col"
+											><span class="rank">{medal(sign.rank)} {sign.rank}</span></td
+										>
+										<td class="name-col">{displayName(sign.signId)}</td>
+										<td class="num-col" class:active={signRankBy === 'approved'}>{sign.approved}</td
+										>
+										<td class="num-col rejected-cell">{sign.rejected}</td>
+										<td class="num-col" class:active={signRankBy === 'total'}>{sign.total}</td>
+									</tr>
+								{/each}
+							</tbody>
+						</table>
+					</div>
+				{/if}
 			{/if}
 		</section>
 	</div>
@@ -278,6 +467,41 @@
 		flex: 1 1 auto;
 		min-height: 0;
 		overflow: hidden;
+	}
+
+	/* Tab switcher between the Contributors and Signs leaderboards. */
+	.leaderboard-tabs {
+		display: flex;
+		gap: 6px;
+		flex-shrink: 0;
+		border-bottom: 1px solid rgba(36, 27, 22, 0.16);
+		padding-bottom: 10px;
+	}
+
+	.tab {
+		flex: 1 1 auto;
+		font-family: 'Cinzel', serif;
+		font-size: 0.95rem;
+		padding: 8px 14px;
+		border: 1px solid var(--panel-line);
+		border-radius: 10px;
+		background: rgba(255, 255, 255, 0.28);
+		color: var(--ink);
+		cursor: pointer;
+		transition:
+			background 0.15s ease,
+			color 0.15s ease;
+	}
+
+	.tab:hover:not(.active) {
+		background: rgba(255, 255, 255, 0.5);
+	}
+
+	.tab.active {
+		background: var(--panel-line);
+		border-color: var(--panel-line);
+		color: #fff7db;
+		font-weight: 700;
 	}
 
 	.leaderboard-intro {

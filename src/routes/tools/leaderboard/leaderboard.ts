@@ -30,6 +30,18 @@ export type LeaderboardResponse = {
 	signIds: string[];
 };
 
+/** One row of the Signs leaderboard — how much a single sign has been drawn. */
+export type SignEntry = {
+	/** Dictionary sign id; the page maps it to a display name. */
+	signId: string;
+	/** Total samples drawn for this sign (optionally scoped to one contributor). */
+	total: number;
+	/** Of those, how many a reviewer has approved. */
+	approved: number;
+	/** Of those, how many a reviewer has rejected. */
+	rejected: number;
+};
+
 /**
  * Honorary titles earned by total drawings submitted, highest threshold first so the
  * first match wins. Below the lowest threshold a contributor has no title.
