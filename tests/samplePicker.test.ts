@@ -2,10 +2,10 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import {
-	chooseSuggestedSymbol,
 	createSampleCountLookup,
-	samplePromptWeight
-} from '../src/routes/tools/sample-maker/samplePrompt.js';
+	samplePromptWeight,
+	weightedSample
+} from '../src/routes/tools/sample-maker/sample-picker.svelte.js';
 import type { SampleSymbol } from '../src/routes/tools/sample-maker/symbols.js';
 
 const symbols: SampleSymbol[] = [
@@ -33,7 +33,28 @@ test('chooses from weighted sample prompt ranges', () => {
 		{ signId: 'low', count: 5 }
 	];
 
-	assert.equal(chooseSuggestedSymbol(symbols, counts, () => 0)?.id, 'full');
-	assert.equal(chooseSuggestedSymbol(symbols, counts, () => 0.5)?.id, 'missing');
-	assert.equal(chooseSuggestedSymbol(symbols, counts, () => 0.99)?.id, 'low');
+	assert.equal(
+		weightedSample(
+			symbols,
+			() => counts,
+			() => 0
+		)()?.id,
+		'full'
+	);
+	assert.equal(
+		weightedSample(
+			symbols,
+			() => counts,
+			() => 0.5
+		)()?.id,
+		'missing'
+	);
+	assert.equal(
+		weightedSample(
+			symbols,
+			() => counts,
+			() => 0.99
+		)()?.id,
+		'low'
+	);
 });

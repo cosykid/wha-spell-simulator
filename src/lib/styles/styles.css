@@ -691,17 +691,6 @@ body:not(.sigil-maker-page) .app-shell {
 	}
 }
 
-.maker-workspace {
-	grid-template-columns: minmax(420px, 1fr) minmax(360px, 0.56fr);
-}
-
-.maker-canvas-panel {
-	align-items: stretch;
-	justify-content: flex-start;
-	flex-direction: column;
-	aspect-ratio: auto;
-}
-
 .detector-lab-workspace {
 	grid-template-columns: minmax(520px, 1fr) minmax(360px, 0.48fr);
 }

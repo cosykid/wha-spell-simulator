@@ -120,6 +120,26 @@ type DragOp =
 	| { type: 'elongate-y-top'; baseX: number; baseY: number }
 	| { type: 'rotate' };
 
+/**
+ * Two-finger pinch gesture: scale + rotate + translate the selected entity.
+ * All positions are in canvas coordinate space (via canvasPointFromEvent).
+ */
+type PinchOp = {
+	p1Id: number;
+	p2Id: number;
+	p1: Vector;
+	p2: Vector;
+	startMidX: number;
+	startMidY: number;
+	startDist: number;
+	startAngleDeg: number;
+	startScaleX: number;
+	startScaleY: number;
+	startRotDeg: number;
+	startCx: number;
+	startCy: number;
+};
+
 export interface SelectTool extends CanvasBehavior {
 	getSelectedId(): string | null;
 	/** Programmatically select an entity by id (pass null to deselect). */
@@ -131,6 +151,9 @@ export interface SelectTool extends CanvasBehavior {
  * move/scale/elongate/rotate handles the legacy `PlacementController` uses — reusing
  * `shapeBaker`'s hit-testing and handle geometry. A whole drag gesture is committed to
  * the scene as a single `transformEntity` command, so one undo reverses the gesture.
+ *
+ * On touch devices, two simultaneous fingers apply a pinch (scale) + rotation +
+ * translation gesture directly to the selected entity, bypassing the small handles.
  */
 export function createSelectTool(scene: Scene): SelectTool {
 	let selectedId = $state<string | null>(null);
@@ -149,6 +172,12 @@ export function createSelectTool(scene: Scene): SelectTool {
 		let before: PlacementTransform | null = null;
 		let pointerId: number | null = null;
 		let moved = false;
+		// Last canvas-space position of the primary finger (for pinch initiation).
+		let lastPrimaryPoint: Vector | null = null;
+
+		// Two-finger pinch state for touch-based symbol transform.
+		let pinchOp: PinchOp | null = null;
+		let pinchBefore: PlacementTransform | null = null;
 
 		function beginDrag(event: PointerEvent, entity: TransformableEntity, op: DragOp): void {
 			target = entity;
@@ -156,6 +185,7 @@ export function createSelectTool(scene: Scene): SelectTool {
 			dragOp = op;
 			moved = false;
 			pointerId = event.pointerId;
+			lastPrimaryPoint = op.type === 'move' ? op.last : null;
 			canvas.setPointerCapture?.(event.pointerId);
 		}
 
@@ -268,12 +298,73 @@ export function createSelectTool(scene: Scene): SelectTool {
 			}
 		}
 
+		function commitPinch(): void {
+			const entity = selectedEntity();
+			if (pinchOp && pinchBefore && entity) {
+				const after = { ...entity.placement.transform };
+				scene.do(transformEntity(entity, pinchBefore, after));
+			}
+			pinchOp = null;
+			pinchBefore = null;
+		}
+
 		function handlePointerDown(event: PointerEvent): void {
 			if (event.button !== undefined && event.button !== 0) {
 				return;
 			}
 			event.preventDefault();
 			const point = canvasPointFromEvent(event, canvas);
+
+			// Second finger while we already have a selection → start pinch gesture.
+			if (pinchOp) {
+				return; // Third+ finger: ignore.
+			}
+			if (pointerId !== null && dragOp?.type === 'move' && selectedEntity()) {
+				// Commit the current single-finger move before switching to pinch.
+				if (moved && before && target) {
+					const after = { ...target.placement.transform };
+					scene.do(transformEntity(target, before, after));
+				}
+				const firstPointerId = pointerId;
+				const firstPoint = lastPrimaryPoint ?? point; // fallback: second finger position
+				dragOp = null;
+				moved = false;
+				try {
+					canvas.releasePointerCapture(firstPointerId);
+				} catch {
+					// ignore
+				}
+				pointerId = null;
+				target = null;
+				before = null;
+				lastPrimaryPoint = null;
+
+				// Initialise pinch using both fingers' current canvas positions.
+				const entity = selectedEntity()!;
+				const t = entity.placement.transform;
+				pinchBefore = { ...t };
+				const midX = (firstPoint.x + point.x) / 2;
+				const midY = (firstPoint.y + point.y) / 2;
+				const dist = Math.hypot(point.x - firstPoint.x, point.y - firstPoint.y) || 1;
+				pinchOp = {
+					p1Id: firstPointerId,
+					p2Id: event.pointerId,
+					p1: firstPoint,
+					p2: point,
+					startMidX: midX,
+					startMidY: midY,
+					startDist: dist,
+					startAngleDeg:
+						Math.atan2(point.y - firstPoint.y, point.x - firstPoint.x) * (180 / Math.PI),
+					startScaleX: t.scaleX,
+					startScaleY: t.scaleY,
+					startRotDeg: t.rotationDeg ?? 0,
+					startCx: t.cx,
+					startCy: t.cy
+				};
+				canvas.setPointerCapture?.(event.pointerId);
+				return;
+			}
 
 			const selected = selectedEntity();
 			if (selected) {
@@ -300,6 +391,40 @@ export function createSelectTool(scene: Scene): SelectTool {
 		}
 
 		function handlePointerMove(event: PointerEvent): void {
+			// Pinch gesture: update the moving finger's position and recompute transform.
+			if (pinchOp) {
+				if (event.pointerId !== pinchOp.p1Id && event.pointerId !== pinchOp.p2Id) {
+					return;
+				}
+				const pt = canvasPointFromEvent(event, canvas);
+				if (event.pointerId === pinchOp.p1Id) {
+					pinchOp.p1 = pt;
+				} else {
+					pinchOp.p2 = pt;
+				}
+
+				const entity = selectedEntity();
+				if (!entity) return;
+
+				const { p1, p2 } = pinchOp;
+				const newMidX = (p1.x + p2.x) / 2;
+				const newMidY = (p1.y + p2.y) / 2;
+				const newDist = Math.hypot(p2.x - p1.x, p2.y - p1.y) || 1;
+				const newAngleDeg = Math.atan2(p2.y - p1.y, p2.x - p1.x) * (180 / Math.PI);
+
+				const scaleFactor = newDist / pinchOp.startDist;
+				const rotChange = newAngleDeg - pinchOp.startAngleDeg;
+				const midDx = newMidX - pinchOp.startMidX;
+				const midDy = newMidY - pinchOp.startMidY;
+
+				entity.placement.transform.scaleX = clampShapeSize(pinchOp.startScaleX * scaleFactor);
+				entity.placement.transform.scaleY = clampShapeSize(pinchOp.startScaleY * scaleFactor);
+				entity.placement.transform.rotationDeg = pinchOp.startRotDeg + rotChange;
+				entity.placement.transform.cx = pinchOp.startCx + midDx;
+				entity.placement.transform.cy = pinchOp.startCy + midDy;
+				return;
+			}
+
 			if (!dragOp || !target || pointerId !== event.pointerId) {
 				return;
 			}
@@ -397,10 +522,19 @@ export function createSelectTool(scene: Scene): SelectTool {
 				transform.rotationDeg = rotationDegToPoint(transform, point);
 			}
 
+			lastPrimaryPoint = point;
 			moved = true;
 		}
 
 		function handlePointerUp(event: PointerEvent): void {
+			if (pinchOp) {
+				if (event.pointerId === pinchOp.p1Id || event.pointerId === pinchOp.p2Id) {
+					commitPinch();
+					canvas.releasePointerCapture?.(event.pointerId);
+				}
+				return;
+			}
+
 			if (!dragOp || !target || pointerId !== event.pointerId) {
 				return;
 			}
@@ -418,6 +552,7 @@ export function createSelectTool(scene: Scene): SelectTool {
 			before = null;
 			pointerId = null;
 			moved = false;
+			lastPrimaryPoint = null;
 		}
 
 		canvas.addEventListener('pointerdown', handlePointerDown);

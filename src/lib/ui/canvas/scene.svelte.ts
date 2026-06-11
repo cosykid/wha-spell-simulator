@@ -1,6 +1,7 @@
 import type { Command } from './commands.js';
-import { paperEntity } from './entities/paperEntity.js';
 import type { Entity } from './entity.js';
+import { createContext } from 'svelte';
+import { paperEntity } from './entities/paperEntity.js';
 
 /**
  * A Scene is a list of Entities drawn on the canvas.
@@ -89,3 +90,5 @@ export function createScene(initialEntities: Entity[] = [paperEntity()]): Scene 
 		}
 	};
 }
+
+export const [getScene, setScene] = createContext<Scene>();
