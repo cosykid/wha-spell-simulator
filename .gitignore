@@ -30,3 +30,15 @@ docs/.trash/
 
 # Playwright
 test-results
+
+# Python stuff
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+.ruff_cache/
+
+# Dataset files
+.csv
+# JSON Lines <https://jsonlines.org/>
+.jsonl
