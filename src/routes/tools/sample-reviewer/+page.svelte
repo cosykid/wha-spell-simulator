@@ -60,6 +60,8 @@
 	let loadMoreError = $state<string | null>(null);
 	let requestSeq = 0;
 	let sentinel = $state<HTMLElement>();
+	// Count of dots shown after "Loading more"; cycles 0 → 3 while more pages remain.
+	let loadingDots = $state(0);
 
 	// Verdict state: ids with an in-flight save, plus the latest failure (if any).
 	let savingIds = $state<string[]>([]);
@@ -188,6 +190,19 @@
 		);
 		observer.observe(el);
 		return () => observer.disconnect();
+	});
+
+	// Animate the "Loading more" dots while another page is still on its way. The timer
+	// only runs while the sentinel is shown (more pages remain) and stops at the bottom.
+	$effect(() => {
+		if (!hasMore || loadMoreError) {
+			loadingDots = 0;
+			return;
+		}
+		const timer = setInterval(() => {
+			loadingDots = (loadingDots + 1) % 4;
+		}, 350);
+		return () => clearInterval(timer);
 	});
 
 	const refresh = (): void => void loadFirstPage(signFilter, statusFilter, appliedUsername);
@@ -381,7 +396,11 @@
 							<span class="reviewer-error">{loadMoreError}</span>
 							<button type="button" onclick={() => void loadMore()}>Load more</button>
 						{:else}
-							<span class="reviewer-note">Loading more…</span>
+							<span class="reviewer-note"
+								>Loading more<span class="loading-dots" aria-hidden="true"
+									>{'.'.repeat(loadingDots)}</span
+								></span
+							>
 						{/if}
 					</div>
 				{/if}
@@ -564,6 +583,13 @@
 		justify-content: center;
 		gap: 12px;
 		padding: 18px 2px 6px;
+	}
+
+	/* Reserve room for all three dots so the label stays put as they cycle. */
+	.loading-dots {
+		display: inline-block;
+		width: 1.5ch;
+		text-align: left;
 	}
 
 	.reviewer-note {
