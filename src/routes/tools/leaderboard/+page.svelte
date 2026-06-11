@@ -183,7 +183,8 @@
 
 <main class="leaderboard">
 	<div class="leaderboard-inner">
-		<section class="panel intro-card">
+		<details class="panel intro-card">
+			<summary class="intro-summary">How the leaderboard works &amp; Discord roles</summary>
 			<p class="leaderboard-intro">
 				Drawing contributions ranked by Discord handle, tallied from every submitted sample. Samples
 				sent without a handle are pooled under <strong>{UNKNOWN_CONTRIBUTOR}</strong>. Earn Discord
@@ -194,7 +195,7 @@
 					>
 					({t.minDrawings}+){/each}.
 			</p>
-		</section>
+		</details>
 
 		<section class="panel dashboard-card">
 			<div class="leaderboard-tabs" role="tablist">
@@ -443,7 +444,7 @@
 		margin: 0 auto;
 		display: flex;
 		flex-direction: column;
-		gap: 1.25rem;
+		gap: 0.85rem;
 		/* Fill the scroll area so the dashboard card can bound its inner table scroll. */
 		flex: 1 1 auto;
 		min-height: 0;
@@ -451,17 +452,58 @@
 
 	/* Parchment card surface, kept readable over the background artwork. */
 	.panel {
-		padding: clamp(1.5rem, 3vw, 2.25rem);
+		padding: clamp(1.25rem, 2.5vw, 1.75rem);
 		background: rgba(242, 236, 214, 0.95);
 		border: 1px solid var(--panel-line);
 		border-radius: 16px;
 		box-shadow: 0 18px 45px var(--shadow);
 	}
 
+	/* The description is supporting context, not the main event. It collapses by default
+	   so the table below gets the vertical room; open it for the role thresholds. */
+	.intro-card {
+		padding: clamp(0.7rem, 1.8vw, 1rem) clamp(1.25rem, 3vw, 1.75rem);
+		flex-shrink: 0;
+	}
+
+	.intro-summary {
+		font-family: 'Cinzel', serif;
+		font-size: 0.95rem;
+		color: var(--ink);
+		cursor: pointer;
+		list-style: none;
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+	}
+
+	.intro-summary::-webkit-details-marker {
+		display: none;
+	}
+
+	/* Custom disclosure triangle that rotates when the panel opens. */
+	.intro-summary::before {
+		content: '';
+		width: 0;
+		height: 0;
+		border-left: 5px solid currentColor;
+		border-top: 4px solid transparent;
+		border-bottom: 4px solid transparent;
+		transition: transform 0.15s ease;
+	}
+
+	.intro-card[open] .intro-summary::before {
+		transform: rotate(90deg);
+	}
+
+	.intro-card[open] .intro-summary {
+		margin-bottom: 0.6rem;
+	}
+
 	.dashboard-card {
 		display: flex;
 		flex-direction: column;
-		gap: 1.25rem;
+		gap: 0.85rem;
 		/* Fill remaining height and clip, so the inner table owns the scroll and the
 		   scrollbar stays inside this card's rounded border. */
 		flex: 1 1 auto;
@@ -475,14 +517,14 @@
 		gap: 6px;
 		flex-shrink: 0;
 		border-bottom: 1px solid rgba(36, 27, 22, 0.16);
-		padding-bottom: 10px;
+		padding-bottom: 8px;
 	}
 
 	.tab {
 		flex: 1 1 auto;
 		font-family: 'Cinzel', serif;
 		font-size: 0.95rem;
-		padding: 8px 14px;
+		padding: 6px 14px;
 		border: 1px solid var(--panel-line);
 		border-radius: 10px;
 		background: rgba(255, 255, 255, 0.28);
@@ -508,14 +550,19 @@
 		max-width: 70ch;
 		margin: 0;
 		color: var(--ink);
-		line-height: 1.6;
+		font-size: 0.9rem;
+		line-height: 1.5;
 	}
 
 	.leaderboard-toolbar {
 		flex-wrap: wrap;
 		align-items: center;
-		/* The card clips overflow; keep the toolbar at its natural height so its rows
-		   (filters + actions) are never squeezed and the Refresh button isn't cut off. */
+		gap: 8px 14px;
+		/* Slim band that blends into the card — the heavy panel background/min-height the
+		   shared .toolbar adds would waste vertical room above the table. */
+		min-height: 0;
+		padding: 0 0 10px;
+		background: none;
 		flex-shrink: 0;
 	}
 
@@ -526,15 +573,18 @@
 	}
 
 	.username-search {
-		min-width: 200px;
+		min-width: 160px;
+		flex: 1 1 160px;
 	}
 
-	/* Refresh + contributor count on their own row, button left and count right. */
+	/* Refresh + contributor count sit at the end of the filter row, wrapping below only
+	   when the row runs out of width. */
 	.toolbar-actions {
 		display: flex;
 		align-items: center;
 		gap: 10px;
-		flex: 1 1 100%;
+		margin-left: auto;
+		flex: 0 1 auto;
 	}
 
 	.leaderboard-summary {
@@ -554,12 +604,13 @@
 		flex: 1 1 0;
 		min-width: 7rem;
 		display: flex;
-		flex-direction: column;
-		align-items: center;
-		gap: 2px;
-		padding: 0.75rem 1rem;
+		flex-direction: row;
+		align-items: baseline;
+		justify-content: center;
+		gap: 0.4rem;
+		padding: 0.35rem 1rem;
 		border: 1px solid rgba(36, 27, 22, 0.16);
-		border-radius: 12px;
+		border-radius: 10px;
 		background: rgba(255, 250, 240, 0.7);
 	}
 
@@ -575,7 +626,7 @@
 
 	.total-value {
 		font-family: 'Cinzel', serif;
-		font-size: 1.5rem;
+		font-size: 1.3rem;
 		font-weight: 700;
 		font-variant-numeric: tabular-nums;
 	}
