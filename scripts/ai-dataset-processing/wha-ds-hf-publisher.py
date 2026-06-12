@@ -18,8 +18,7 @@ import tempfile
 from collections import Counter
 from pathlib import Path
 
-# Placeholder — confirm with project maintainers before publishing a public release.
-LICENSE = "cc-by-4.0"
+LICENSE = "cc0-1.0"
 
 PROJECT_URL = "https://github.com/cosykid/wha-spell-simulator"
 

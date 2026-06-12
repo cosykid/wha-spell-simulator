@@ -103,4 +103,4 @@ uv run wha-ds-hf-publisher.py \
 - `--tag` creates a git tag on the Hub repo, so consumers can pin a release with `load_dataset(..., revision="v1")`.
 - Add `--dry-run` to process everything locally (counts + a dataset card preview) without uploading.
 - CI runs this automatically on every scheduled DB backup when the `HF_TOKEN` repo secret is set — see `scripts/db-backup.sh`.
-- The dataset card declares a placeholder `cc-by-4.0` license — confirm the license before publishing a public release.
+- The dataset card declares a [`cc0-1.0`](https://creativecommons.org/publicdomain/zero/1.0/) (public domain) license.
