@@ -9,10 +9,12 @@
 	import { buildDiagnosticState } from '$lib/debug/diagnosticState.js';
 	import { loadDictionary } from '$lib/dictionary/dictionaryLoader.js';
 	import { DrawingCapture } from '$lib/input/drawingCapture.js';
+	import { EraserController } from '$lib/input/eraserController.js';
 	import { PlacementController } from '$lib/input/placementController.js';
 	import { createPlacementStore } from '$lib/input/placementStore.js';
 	import { bakePlacementToStrokes, placementHandles } from '$lib/input/shapeBaker.js';
 	import { buildShapeLibrary, defaultTransformForShape } from '$lib/input/shapeLibrary.js';
+	import { eraseSegment } from '$lib/utils/strokeErase.js';
 	import { createStrokeStore } from '$lib/input/strokeStore.js';
 	import { classifyDrawingAsync } from '$lib/parser/drawingClassifier.js';
 	import { disposeRecognitionPool } from '$lib/parser/recognitionPool.js';
@@ -62,7 +64,8 @@
 	let inputReady = $state(false);
 	let rootTab = $state('dictionary');
 	let zoomLevel = $state(1);
-	let arrangeShapes = $state(false);
+	type CanvasTool = 'draw' | 'arrange' | 'erase';
+	let activeTool = $state<CanvasTool>('draw');
 	let canvasHintDismissed = $state(false);
 	let shapeLibrary = $state<ShapeLibrary | null>(null);
 	let armedShapeId = $state<string | null>(null);
@@ -92,6 +95,7 @@
 	let renderer: CanvasRenderer | null = null;
 	let capture: DrawingCapture | null = null;
 	let controller: PlacementController | null = null;
+	let eraser: EraserController | null = null;
 	let pipeline: ClassifiedDrawing | null = null;
 	let spellIR: SpellIR | null = null;
 	let previousRing: RingInfo | null = null;
@@ -124,8 +128,8 @@
 			if (typeof preferences.showDiagnostics === 'boolean') {
 				showDiagnostics = preferences.showDiagnostics;
 			}
-			if (typeof preferences.arrangeShapes === 'boolean') {
-				arrangeShapes = preferences.arrangeShapes;
+			if (preferences.arrangeShapes === true) {
+				activeTool = 'arrange';
 			}
 		} catch {
 			// Ignore invalid or unavailable local storage and keep the defaults.
@@ -136,7 +140,7 @@
 		try {
 			localStorage.setItem(
 				TOGGLE_PREFERENCES_STORAGE_KEY,
-				JSON.stringify({ showGuides, showDiagnostics, arrangeShapes })
+				JSON.stringify({ showGuides, showDiagnostics, arrangeShapes: activeTool === 'arrange' })
 			);
 		} catch {
 			// Preference persistence is best-effort.
@@ -302,7 +306,8 @@
 			pipeline,
 			spellIR,
 			showGuides,
-			arrangeMode: arrangeShapes,
+			arrangeMode: activeTool === 'arrange',
+			eraseMode: activeTool === 'erase',
 			placementCount: placements.count(),
 			hintDismissed: canvasHintDismissed,
 			canUndo: historyIndex > 0,
@@ -314,7 +319,7 @@
 
 	function animationFrame(timestamp: number) {
 		const activePlacement =
-			arrangeShapes && selectedPlacementId ? placements.get(selectedPlacementId) : null;
+			activeTool === 'arrange' && selectedPlacementId ? placements.get(selectedPlacementId) : null;
 		renderer!.renderGlyph({
 			strokes,
 			currentStroke: capture!.getCurrentStrokeView(),
@@ -449,11 +454,41 @@
 		recompute();
 	}
 
-	function setArrangeMode(on: boolean) {
-		arrangeShapes = on;
-		controller?.setActive(on);
-		glyphCanvas.style.cursor = on ? 'default' : 'crosshair';
-		if (!on) {
+	function eraserCursorCss(): string {
+		// The brush radius is in canvas pixels (1000x1000 backing store); scale it
+		// to CSS pixels using the canvas's on-screen box so the cursor ring matches
+		// the actual erase footprint at any layout size or zoom level.
+		const rect = glyphCanvas.getBoundingClientRect();
+		const scale = rect.width > 0 ? rect.width / glyphCanvas.width : 1;
+		const radius = Math.max(4, CONFIG.eraser.radius * scale);
+		const size = Math.ceil(radius * 2 + 2);
+		const center = size / 2;
+		const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}"><circle cx="${center}" cy="${center}" r="${radius}" fill="none" stroke="#241b16" stroke-width="1.5" opacity="0.8"/></svg>`;
+		return `url("data:image/svg+xml,${encodeURIComponent(svg)}") ${center} ${center}, crosshair`;
+	}
+
+	function updateCanvasCursor() {
+		if (!glyphCanvas) {
+			return;
+		}
+		glyphCanvas.style.cursor =
+			activeTool === 'arrange'
+				? 'default'
+				: activeTool === 'erase'
+					? eraserCursorCss()
+					: 'crosshair';
+	}
+
+	function setTool(tool: CanvasTool) {
+		activeTool = tool;
+		controller?.setActive(tool === 'arrange');
+		eraser?.setActive(tool === 'erase');
+		// Lock capture immediately rather than waiting for recompute's summary to
+		// land; otherwise a fast first gesture in arrange/erase mode would also be
+		// captured as a freehand stroke.
+		capture?.setLocked(tool !== 'draw' || summary.canvasLocked);
+		updateCanvasCursor();
+		if (tool !== 'arrange') {
 			armedShape = null;
 			armedShapeId = null;
 			setSelected(null);
@@ -486,8 +521,8 @@
 		armedShapeId = item.id;
 		shapeDragPointerId = event.pointerId;
 		dragPreview = { item, x: event.clientX, y: event.clientY };
-		if (!arrangeShapes) {
-			setArrangeMode(true);
+		if (activeTool !== 'arrange') {
+			setTool('arrange');
 		}
 		window.addEventListener('pointermove', handleShapeDragMove);
 		window.addEventListener('pointerup', handleShapeDragEnd);
@@ -550,7 +585,8 @@
 				pipeline,
 				spellIR,
 				showGuides,
-				arrangeMode: arrangeShapes,
+				arrangeMode: activeTool === 'arrange',
+				eraseMode: activeTool === 'erase',
 				placementCount: placements.count(),
 				hintDismissed: canvasHintDismissed,
 				canUndo: historyIndex > 0,
@@ -571,7 +607,11 @@
 	}
 
 	function handleToggleArrange() {
-		setArrangeMode(!arrangeShapes);
+		setTool(activeTool === 'arrange' ? 'draw' : 'arrange');
+	}
+
+	function handleToggleEraser() {
+		setTool(activeTool === 'erase' ? 'draw' : 'erase');
 	}
 
 	// Mirror the original `body.diagnostics-visible` toggle the debug CSS keys off.
@@ -581,6 +621,13 @@
 			saveTogglePreferences();
 		}
 		return () => document.body.classList.remove('diagnostics-visible');
+	});
+
+	// Keep the canvas cursor in sync with the active tool and re-derive the
+	// eraser ring's size after zoom changes resize the canvas's on-screen box.
+	$effect(() => {
+		void zoomLevel;
+		updateCanvasCursor();
 	});
 
 	onMount(() => {
@@ -618,8 +665,33 @@
 			}
 		});
 		controller.enable();
-		controller.setActive(arrangeShapes);
-		glyphCanvas.style.cursor = arrangeShapes ? 'default' : 'crosshair';
+		controller.setActive(activeTool === 'arrange');
+		eraser = new EraserController(glyphCanvas, {
+			onBegin: () => {
+				cancelActiveRecognition();
+				dismissCanvasHint();
+			},
+			applyErase: (from, to) => {
+				const result = eraseSegment(store.getStrokes(), from, to, CONFIG.eraser);
+				if (!result.changed) {
+					return false;
+				}
+				store.load(result.strokes);
+				// Refresh the rendered ink live; recognition waits for onCommit.
+				strokes = mergedStrokes();
+				return true;
+			},
+			onCommit: (changed) => {
+				if (changed) {
+					pushHistory();
+				}
+				// Recompute even for a no-op gesture: onBegin invalidated any
+				// in-flight classification, so re-run it against current ink.
+				void recompute();
+			}
+		});
+		eraser.enable();
+		eraser.setActive(activeTool === 'erase');
 		resizeObserver = setupCanvasSizing({
 			elements: { canvasShell, glyphCanvas, effectCanvas },
 			store,
@@ -632,6 +704,7 @@
 					history = history.map((snap) => scaleSnapshot(snap, scale, scale));
 				}
 				previousRing = null;
+				updateCanvasCursor();
 				scheduleRecompute(60);
 			}
 		});
@@ -661,7 +734,7 @@
 		function handleKeydown(event: KeyboardEvent) {
 			const target = event.target as HTMLElement | null;
 			const typing = target?.tagName === 'INPUT' || target?.tagName === 'TEXTAREA';
-			if (arrangeShapes && selectedPlacementId && !typing) {
+			if (activeTool === 'arrange' && selectedPlacementId && !typing) {
 				if (event.key === 'Enter') {
 					event.preventDefault();
 					handleCommitSelected();
@@ -701,6 +774,7 @@
 			cancelScheduledRecompute();
 			capture?.disable();
 			controller?.disable();
+			eraser?.disable();
 			inputReady = false;
 			endShapeDrag();
 			resizeObserver?.disconnect();
@@ -826,8 +900,8 @@
 						id="arrangeToggle"
 						data-testid="arrange-toggle"
 						class="tool-btn"
-						class:active={arrangeShapes}
-						aria-pressed={arrangeShapes}
+						class:active={activeTool === 'arrange'}
+						aria-pressed={activeTool === 'arrange'}
 						aria-label="Arrange shapes"
 						title="Arrange shapes"
 						data-tooltip="Arrange shapes"
@@ -840,6 +914,26 @@
 							<path
 								d="M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-6-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15"
 							/>
+						</svg>
+					</button>
+					<button
+						type="button"
+						id="eraserToggle"
+						data-testid="eraser-toggle"
+						class="tool-btn"
+						class:active={activeTool === 'erase'}
+						aria-pressed={activeTool === 'erase'}
+						aria-label="Eraser"
+						title="Eraser"
+						data-tooltip="Eraser"
+						onclick={handleToggleEraser}
+					>
+						<svg aria-hidden="true" viewBox="0 0 24 24">
+							<path
+								d="m7 21-4.3-4.3c-1-1-1-2.5 0-3.4l9.6-9.6c1-1 2.5-1 3.4 0l5.6 5.6c1 1 1 2.5 0 3.4L13 21"
+							/>
+							<path d="M22 21H7" />
+							<path d="m5 11 9 9" />
 						</svg>
 					</button>
 					<button
