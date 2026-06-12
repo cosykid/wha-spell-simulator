@@ -4,6 +4,7 @@ import { makeStrokeEntity, renderStrokeInk } from '../entities/strokeEntity.js';
 
 import type { Attachment } from 'svelte/attachments';
 import { CONFIG } from '../../../config.js';
+import { gachaStore } from '../../../gachaStore.svelte.js';
 import { pathLength } from '../../../utils/geometry.js';
 import type { CanvasBehavior } from '../canvasBehavior.js';
 import { addEntity } from '../commands.js';
@@ -106,7 +107,8 @@ export function createDrawTool(scene: Scene): DrawTool {
 		render(ctx) {
 			const preview = getCurrentStroke();
 			if (preview) {
-				renderStrokeInk(ctx, preview, PREVIEW_ALPHA);
+				const color = gachaStore.activeInkColor ?? CONFIG.renderer.inkColor;
+				renderStrokeInk(ctx, preview, PREVIEW_ALPHA, color);
 			}
 		}
 	};

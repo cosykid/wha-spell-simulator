@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { resolve } from '$app/paths';
+	import { base } from '$app/paths';
 	import { page } from '$app/state';
 	import type { RouteId } from '$app/types';
 	import { header } from '$lib/state.svelte';
@@ -29,7 +29,7 @@
 	</div>
 	<div class="header-actions">
 		{#each filteredNav as link (link.route)}
-			<a class="header-link" href={resolve(link.route)}>{link.title}</a>
+			<a class="header-link" href="{base}{link.route}">{link.title}</a>
 		{/each}
 
 		<a

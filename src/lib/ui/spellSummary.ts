@@ -17,7 +17,7 @@ function spellStatusClass(
 		return 'prepared';
 	}
 	if (closedWithoutSpell && spellIR?.warnings?.includes(GLYPH_WARNINGS.missingPrimarySigil)) {
-		return 'closed';
+		return 'invalid';
 	}
 	return spellIR?.valid ? '' : 'invalid';
 }

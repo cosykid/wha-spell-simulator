@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { resolve } from '$app/paths';
+	import { base } from '$app/paths';
 	import { tools } from './tools';
 </script>
 
@@ -14,7 +14,7 @@
 	</p>
 	<div class="tools-index-grid">
 		{#each tools as tool (tool.path)}
-			<a class="tools-index-card" href={resolve(tool.path)}>
+			<a class="tools-index-card" href="{base}{tool.path}">
 				<p class="eyebrow">{tool.eyebrow}</p>
 				<h2>{tool.title}</h2>
 				<p class="tools-index-card-description">{tool.description}</p>

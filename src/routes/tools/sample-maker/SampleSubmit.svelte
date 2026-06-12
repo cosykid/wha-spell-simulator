@@ -13,6 +13,7 @@ outcome (uploading / success / error) through global toast notifications.
 	import { buildSampleSubmission } from './buildSample.js';
 	import { submitSample } from './samples.remote.js';
 	import type { SampleSymbol } from './symbols.js';
+	import { gachaStore } from '$lib/gachaStore.svelte.js';
 
 	interface Props {
 		/** The reference glyph entity, or `null` when none is stamped on the canvas. */
@@ -32,6 +33,9 @@ outcome (uploading / success / error) through global toast notifications.
 	// Guards the button + prevents a double submit; user-facing messages go to the toast host.
 	let submitting = $state(false);
 	let formEl: HTMLFormElement;
+	// Track which result we've already handled so the $effect only fires once per submission.
+	let handledResult: typeof submitSample.result = $state(undefined);
+	let loadingToastId: number | undefined;
 
 	// Optional contributor attribution. Remembered across draws and visits so a
 	// contributor types their handle once, not on every sample.
@@ -61,7 +65,7 @@ outcome (uploading / success / error) through global toast notifications.
 		'--toastBarBackground': '#7a2e24'
 	};
 
-	const error = (msg: string): void => {
+	const showError = (msg: string): void => {
 		toast.push(msg, { theme: ERROR_THEME });
 	};
 
@@ -81,44 +85,47 @@ outcome (uploading / success / error) through global toast notifications.
 
 	const payload = $derived(submission ? JSON.stringify(submission, null, 2) : '');
 
-	// Use enhance so only one submission path exists — spreading {...submitSample} on the form
-	// already adds its own submit listener, so a separate onsubmit handler would cause two fetches.
-	submitSample.enhance(async (instance) => {
-		if (submitting) return;
+	// React to the result that the remote form writes after each submission.
+	// `submitSample.result` is updated by SvelteKit once the server handler completes.
+	$effect(() => {
+		const result = submitSample.result;
+		// Only act on a fresh result we haven't seen yet.
+		if (!result || result === handledResult || !submitting) return;
+		handledResult = result;
 
-		if (!selected) return error('Pick a sign label first.');
-		if (!symbolEntity) return error('The reference glyph is missing — label the sign again.');
-		if (strokes.length === 0) return error('Draw the sign before submitting.');
-
-		submitting = true;
-		// Persistent "uploading" toast (initial: 0 disables the countdown); popped once we resolve.
-		const loadingId = toast.push('Uploading your sample…', { initial: 0, dismissable: false });
-		try {
-			await instance.submit();
-			const result = submitSample.result;
-			if (result?.ok) {
-				onSuccess?.();
-				toast.push('Thanks! Your sample was added to the dataset — draw another?', {
-					theme: SUCCESS_THEME
-				});
-			} else if (result?.reason === 'duplicate') {
-				error('Looks like this drawing is already on record. Try drawing it again.');
-			} else if (result?.reason === 'server-error') {
-				error("Server error — your sample wasn't saved. Please try again.");
-			} else {
-				console.error('Upload failed (field issues):', submitSample.fields.allIssues());
-				error('Upload failed. Please try again.');
-			}
-		} catch (err) {
-			console.error('Upload failed:', err);
-			error('Upload failed. Please try again.');
-		} finally {
-			toast.pop(loadingId);
-			submitting = false;
+		if (loadingToastId !== undefined) {
+			toast.pop(loadingToastId);
+			loadingToastId = undefined;
 		}
+
+		if (result.ok) {
+			let reward = 10;
+			if (selected?.difficulty === 'medium') reward = 20;
+			else if (selected?.difficulty === 'hard') reward = 35;
+			else if (selected?.difficulty === 'very-hard') reward = 50;
+			gachaStore.addCurrency(reward);
+			onSuccess?.();
+			toast.push(`Thanks! Your sample was added. You earned ${reward} Star Ink! ✨`, {
+				theme: SUCCESS_THEME
+			});
+		} else if (result.reason === 'duplicate') {
+			showError('Looks like this drawing is already on record. Try drawing it again.');
+		} else {
+			showError("Server error — your sample wasn't saved. Please try again.");
+		}
+
+		submitting = false;
 	});
 
-	export const submit = () => formEl.requestSubmit();
+	export const submit = (): void => {
+		if (submitting) return;
+		if (!selected) return showError('Pick a sign label first.');
+		if (!symbolEntity) return showError('The reference glyph is missing — label the sign again.');
+		if (strokes.length === 0) return showError('Draw the sign before submitting.');
+		submitting = true;
+		loadingToastId = toast.push('Uploading your sample…', { initial: 0, dismissable: false });
+		formEl.requestSubmit();
+	};
 </script>
 
 <Phase step={3} title="Submit your sample">
@@ -144,7 +151,7 @@ outcome (uploading / success / error) through global toast notifications.
 		<span class="username-hint">So we can credit who drew it. Remembered for next time.</span>
 	</label>
 
-	<form class="submit-form" {...submitSample} bind:this={formEl}>
+	<form class="submit-form" {...submitSample.enhance()} bind:this={formEl}>
 		<input {...submitSample.fields.payload.as('hidden', payload)} />
 		<ButtonWithShortcut
 			type="submit"

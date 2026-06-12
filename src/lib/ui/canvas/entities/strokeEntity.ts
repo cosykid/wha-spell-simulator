@@ -1,4 +1,5 @@
 import { CONFIG } from '$config';
+import { gachaStore } from '../../../gachaStore.svelte.js';
 import type { Stroke } from '../../../types.js';
 import type { Entity } from '../entity.js';
 
@@ -52,7 +53,10 @@ export function makeStrokeEntity(stroke: Stroke, z = 0): StrokeEntity {
 		z,
 		stroke,
 		render(ctx) {
-			renderStrokeInk(ctx, stroke);
+			// Read the active ink color reactively each frame so equipping/unequipping
+			// a cosmetic ink immediately recolors all committed strokes on the canvas.
+			const color = gachaStore.activeInkColor ?? CONFIG.renderer.inkColor;
+			renderStrokeInk(ctx, stroke, undefined, color);
 		},
 		scale(scaleX, scaleY) {
 			for (const point of stroke.points) {

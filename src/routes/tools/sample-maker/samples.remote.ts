@@ -70,12 +70,12 @@ export const submitSample = form(
 		try {
 			decoded = JSON.parse(payload);
 		} catch {
-			invalid(issue.payload('The sample payload was not valid JSON.'));
+			throw invalid(issue.payload('The sample payload was not valid JSON.'));
 		}
 
 		const parsed = SampleSubmissionSchema.safeParse(decoded);
 		if (!parsed.success) {
-			invalid(issue.payload(formatIssues(parsed.error)));
+			throw invalid(issue.payload(formatIssues(parsed.error)));
 		}
 
 		try {

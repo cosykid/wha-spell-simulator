@@ -1298,6 +1298,32 @@ body:not(.sigil-maker-page) .app-shell {
 	text-transform: capitalize;
 }
 
+.shape-card.disabled {
+	opacity: 0.48;
+	cursor: not-allowed;
+	border-color: rgba(36, 27, 22, 0.08);
+	background: rgba(36, 27, 22, 0.02);
+}
+.shape-card.disabled .reference-preview {
+	cursor: not-allowed;
+}
+
+.stock-badge {
+	font-size: 10px;
+	color: #2e7d32;
+	background: rgba(46, 125, 50, 0.08);
+	padding: 1px 5px;
+	border-radius: 4px;
+	font-weight: 700;
+	margin-top: 2px;
+	display: inline-block;
+	width: max-content;
+}
+.stock-badge.out-of-stock {
+	color: #c62828;
+	background: rgba(198, 40, 40, 0.08);
+}
+
 .shape-inspector {
 	flex: 0 0 auto;
 	margin-top: 12px;

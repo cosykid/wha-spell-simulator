@@ -1,5 +1,6 @@
 <script lang="ts">
 	import type { Point, PlacementTransform, ShapeItem, ShapeLibrary } from '$lib/types.js';
+	import { gachaStore } from '$lib/gachaStore.svelte.js';
 
 	interface SelectedShape {
 		kind: string;
@@ -11,6 +12,7 @@
 		library?: ShapeLibrary | null;
 		armedShapeId?: string | null;
 		selected?: SelectedShape | null;
+		activePlacements?: { sourceId: string }[];
 		onDragStart: (item: ShapeItem, event: PointerEvent) => void;
 		onChange: (patch: Partial<PlacementTransform>) => void;
 		onCommitTransform: () => void;
@@ -22,6 +24,7 @@
 		library = null,
 		armedShapeId = null,
 		selected = null,
+		activePlacements = [],
 		onDragStart,
 		onChange,
 		onCommitTransform,
@@ -79,12 +82,22 @@
 				<div class="shape-card-grid">
 					{#each group.items as item (item.id)}
 						{@const polylines = toPolylines(item.baseStrokes)}
-						<button type="button" class="shape-card" class:armed={armedShapeId === item.id}>
+						{@const owned = item.id === 'ring' ? Infinity : gachaStore.getOwnedCount(item.sourceId)}
+						{@const placed = activePlacements.filter((p) => p.sourceId === item.sourceId).length}
+						{@const available = item.id === 'ring' ? Infinity : Math.max(0, owned - placed)}
+						{@const isDisabled = item.id !== 'ring' && available <= 0}
+						<button
+							type="button"
+							class="shape-card"
+							class:armed={armedShapeId === item.id}
+							class:disabled={isDisabled}
+							disabled={isDisabled}
+						>
 							{#if polylines.length}
 								<span
 									class="reference-preview"
 									aria-hidden="true"
-									onpointerdown={(event) => onDragStart(item, event)}
+									onpointerdown={(event) => !isDisabled && onDragStart(item, event)}
 								>
 									<svg viewBox="0 0 100 100" role="img" focusable="false">
 										{#each polylines as points (points)}
@@ -95,6 +108,15 @@
 							{/if}
 							<span class="shape-card-label">
 								<strong>{item.label}</strong>
+								{#if item.id !== 'ring'}
+									<span class="stock-badge" class:out-of-stock={available === 0}>
+										{#if owned === 0}
+											Locked
+										{:else}
+											{available} / {owned} left
+										{/if}
+									</span>
+								{/if}
 								{#if item.element}<span>{item.element}</span>{/if}
 							</span>
 						</button>

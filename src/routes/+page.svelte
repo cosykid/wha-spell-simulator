@@ -32,6 +32,7 @@
 	} from '$lib/types.js';
 	import { setupCanvasSizing } from '$lib/ui/canvasSizing.js';
 	import { computeSummary, INITIAL_SUMMARY } from '$lib/ui/spellSummary.js';
+	import { gachaStore } from '$lib/gachaStore.svelte.js';
 	import { onMount } from 'svelte';
 
 	const ZOOM_MIN = 0.5;
@@ -72,6 +73,7 @@
 	let draggedShape: ShapeItem | null = null;
 	let dragPreview = $state<{ item: ShapeItem; x: number; y: number } | null>(null);
 	let shapeDragPointerId: number | null = null;
+	let activePlacementsList = $state<Placement[]>([]);
 
 	function handleZoomIn() {
 		zoomLevel = Math.min(ZOOM_MAX, zoomLevel + ZOOM_STEP);
@@ -230,6 +232,13 @@
 
 	let recomputeSeq = 0;
 
+	// Star Ink reward for successfully casting a spell in the simulator. A spell is
+	// "successfully cast" when spellIR.active && spellIR.valid; rewarded once per
+	// unique signature so re-rendering the same activated spell (e.g. across frames
+	// or after a resize-triggered recompute) doesn't grant Ink repeatedly.
+	const SPELL_CAST_REWARD = 15;
+	let lastRewardedSignature: string | null = null;
+
 	function cancelScheduledRecompute() {
 		if (recomputeTimer) {
 			clearTimeout(recomputeTimer);
@@ -271,6 +280,7 @@
 		// Freehand strokes and any baked placements are classified together, so the
 		// editable shapes contribute to ring/sigil detection just like hand-drawn ink.
 		strokes = mergedStrokes();
+		activePlacementsList = placements.getPlacements();
 
 		// Recognition is fanned out across a worker pool, so this is async. Guard with
 		// a sequence token: rapid strokes can overlap, and only the newest result
@@ -297,6 +307,19 @@
 		pipeline = result;
 		previousRing = pipeline.ring;
 		spellIR = compileSpell({ glyphAST: pipeline.glyphAST, config: CONFIG });
+
+		// Reward Star Ink for a successful spell cast (active + valid), once per
+		// unique spell signature.
+		if (
+			spellIR.active &&
+			spellIR.valid &&
+			spellIR.signature &&
+			spellIR.signature !== lastRewardedSignature
+		) {
+			lastRewardedSignature = spellIR.signature;
+			gachaStore.addCurrency(SPELL_CAST_REWARD);
+		}
+
 		summary = computeSummary({
 			store,
 			pipeline,
@@ -905,6 +928,7 @@
 					library={shapeLibrary}
 					{armedShapeId}
 					{selected}
+					activePlacements={activePlacementsList}
 					onDragStart={beginShapeDrag}
 					onChange={updateSelectedTransform}
 					onCommitTransform={pushHistory}

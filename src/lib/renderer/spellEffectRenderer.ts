@@ -5,6 +5,13 @@ import { drawEarthEffect } from './effects/earthEffect.js';
 import { drawLightEffect } from './effects/lightEffect.js';
 import { resetParticleState } from './effects/effectUtils.js';
 import type { EffectState, RenderSpellIR } from './effects/effectUtils.js';
+import {
+	createCosmeticEffectState,
+	drawCosmeticEffect,
+	resetCosmeticEffectState,
+	type CosmeticEffectState
+} from './effects/cosmeticEffects.js';
+import { gachaStore } from '../gachaStore.svelte.js';
 import { clamp } from '../utils/geometry.js';
 import type { AppConfig, SpellIR, RingInfo, ElementId } from '../types.js';
 
@@ -84,6 +91,7 @@ export class SpellEffectRenderer {
 	private config: AppConfig;
 	// Exposed so tool components (e.g. SpellEffectLab) can reset render state.
 	state: EffectState;
+	cosmeticState: CosmeticEffectState;
 	lastSignature: string | null;
 	lastTime: number | null;
 
@@ -92,6 +100,7 @@ export class SpellEffectRenderer {
 		this.ctx = canvas.getContext('2d')!;
 		this.config = config;
 		this.state = { particles: [] };
+		this.cosmeticState = createCosmeticEffectState();
 		this.lastSignature = null;
 		this.lastTime = null;
 	}
@@ -123,6 +132,7 @@ export class SpellEffectRenderer {
 		if (this.lastSignature !== spellIR.signature) {
 			this.lastSignature = spellIR.signature;
 			resetParticleState(this.state);
+			resetCosmeticEffectState(this.cosmeticState);
 		}
 
 		if (!spellIR.active && options.showGuides) {
@@ -143,12 +153,32 @@ export class SpellEffectRenderer {
 			return;
 		}
 
+		const emission = spellEmission(spellIR, timestamp, this.config.renderer.portalTiltMs);
+
+		// Cosmetic drawing-effect flourish (equipped via the gacha wardrobe). Drawn
+		// independently of the element effect below, so it works for any element
+		// (or even if the element effect is missing).
+		const cosmeticEffect = gachaStore.activeEffect;
+		if (cosmeticEffect && (emission > 0 || this.cosmeticState.particles.length > 0)) {
+			const renderSpellIRForCosmetic: RenderSpellIR = { ...spellIR, emission };
+			ctx.save();
+			ctx.globalCompositeOperation = 'lighter';
+			drawCosmeticEffect(
+				ctx,
+				this.cosmeticState,
+				cosmeticEffect.id,
+				renderSpellIRForCosmetic,
+				ring,
+				dt
+			);
+			ctx.restore();
+		}
+
 		const drawEffect = spellIR.element ? EFFECTS[spellIR.element] : null;
 		if (!drawEffect) {
 			return;
 		}
 
-		const emission = spellEmission(spellIR, timestamp, this.config.renderer.portalTiltMs);
 		if (emission <= 0 && !this.state.particles.length) {
 			return;
 		}

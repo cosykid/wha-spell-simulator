@@ -5,34 +5,35 @@
 export interface SampleSymbol {
 	id: string;
 	displayName: string;
+	difficulty?: 'easy' | 'medium' | 'hard' | 'very-hard';
 }
 
 /** The signs offered by the Sample Maker, in display order. */
 export const SAMPLE_SYMBOLS: SampleSymbol[] = [
-	{ id: 'earth', displayName: 'Earth' },
-	{ id: 'fire', displayName: 'Fire' },
-	{ id: 'water', displayName: 'Water' },
-	{ id: 'light', displayName: 'Light' },
-	{ id: 'crystal', displayName: 'Crystal' },
-	{ id: 'wind-directs-air', displayName: 'Wind Directs Air' },
-	{ id: 'wind-underfoot', displayName: 'Wind Underfoot' },
-	{ id: 'aeriforms', displayName: 'Aeriforms' },
-	{ id: 'billowing', displayName: 'Billowing' },
-	{ id: 'collection', displayName: 'Collection' },
-	{ id: 'column', displayName: 'Column' },
-	{ id: 'convergence', displayName: 'Convergence' },
-	{ id: 'cool', displayName: 'Cool' },
-	{ id: 'crush', displayName: 'Crush' },
-	{ id: 'dispersion', displayName: 'Dispersion' },
-	{ id: 'empower', displayName: 'Empower' },
-	{ id: 'entwine', displayName: 'Entwine' },
-	{ id: 'float', displayName: 'Float' },
-	{ id: 'focus', displayName: 'Focus' },
-	{ id: 'gather', displayName: 'Gather' },
-	{ id: 'levitation', displayName: 'Levitation' },
-	{ id: 'orb', displayName: 'Orb' },
-	{ id: 'pull', displayName: 'Pull' },
-	{ id: 'region', displayName: 'Region' },
-	{ id: 'repetition', displayName: 'Repetition' },
-	{ id: 'weave', displayName: 'Weave' }
+	{ id: 'earth', displayName: 'Earth', difficulty: 'easy' },
+	{ id: 'fire', displayName: 'Fire', difficulty: 'easy' },
+	{ id: 'water', displayName: 'Water', difficulty: 'easy' },
+	{ id: 'light', displayName: 'Light', difficulty: 'medium' },
+	{ id: 'crystal', displayName: 'Crystal', difficulty: 'easy' },
+	{ id: 'wind-directs-air', displayName: 'Wind Directs Air', difficulty: 'hard' },
+	{ id: 'wind-underfoot', displayName: 'Wind Underfoot', difficulty: 'very-hard' },
+	{ id: 'aeriforms', displayName: 'Aeriforms', difficulty: 'very-hard' },
+	{ id: 'billowing', displayName: 'Billowing', difficulty: 'hard' },
+	{ id: 'collection', displayName: 'Collection', difficulty: 'easy' },
+	{ id: 'column', displayName: 'Column', difficulty: 'easy' },
+	{ id: 'convergence', displayName: 'Convergence', difficulty: 'medium' },
+	{ id: 'cool', displayName: 'Cool', difficulty: 'hard' },
+	{ id: 'crush', displayName: 'Crush', difficulty: 'easy' },
+	{ id: 'dispersion', displayName: 'Dispersion', difficulty: 'easy' },
+	{ id: 'empower', displayName: 'Empower', difficulty: 'easy' },
+	{ id: 'entwine', displayName: 'Entwine', difficulty: 'medium' },
+	{ id: 'float', displayName: 'Float', difficulty: 'medium' },
+	{ id: 'focus', displayName: 'Focus', difficulty: 'easy' },
+	{ id: 'gather', displayName: 'Gather', difficulty: 'easy' },
+	{ id: 'levitation', displayName: 'Levitation', difficulty: 'medium' },
+	{ id: 'orb', displayName: 'Orb', difficulty: 'easy' },
+	{ id: 'pull', displayName: 'Pull', difficulty: 'easy' },
+	{ id: 'region', displayName: 'Region', difficulty: 'easy' },
+	{ id: 'repetition', displayName: 'Repetition', difficulty: 'very-hard' },
+	{ id: 'weave', displayName: 'Weave', difficulty: 'medium' }
 ];

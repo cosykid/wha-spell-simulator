@@ -69,5 +69,13 @@ export const tools = [
 		description:
 			'Rank drawing contributions by Discord handle, by total and approved sample counts.',
 		showStatus: false
+	},
+	{
+		path: '/tools/gacha',
+		eyebrow: 'Minigame',
+		title: 'Star Portal Gacha',
+		description:
+			'Spend your earned Star Ink to summon characters, apprentice hats, and legendary drawing quills.',
+		showStatus: false
 	}
 ] satisfies Tool[];

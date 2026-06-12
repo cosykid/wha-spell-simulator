@@ -1,5 +1,6 @@
 <script lang="ts">
 	import '$lib/styles/styles.css';
+	import { gachaStore } from '$lib/gachaStore.svelte.js';
 	import { isApplePlatform, setPlatformContext } from '$lib/ui/keybindings.js';
 	import { SvelteToast } from '@zerodevx/svelte-toast';
 	import { onMount, type Snippet } from 'svelte';
@@ -16,6 +17,10 @@
 	let isMac = $state(false);
 	onMount(() => {
 		isMac = isApplePlatform();
+		// Load gacha profile (currency, cosmetics, active ink/effect) once for the
+		// whole app so the simulator's ink rewards and equipped cosmetics are
+		// available without visiting the gacha page first.
+		void gachaStore.load();
 	});
 	setPlatformContext({
 		get isMac() {

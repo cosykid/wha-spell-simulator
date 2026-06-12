@@ -37,8 +37,21 @@ interface LabelledSamplesTable {
 	discord_username: ColumnType<string | null, string | null, string | null>;
 }
 
+interface GachaProfilesTable {
+	discord_username: string;
+	currency: ColumnType<number, number, number>;
+	inventory: JsonColumn<Record<string, number>>;
+	cosmetic_inventory: JsonColumn<Record<string, number>>;
+	free_pull_date: ColumnType<string | null, string | null, string | null>;
+	cosmetic_free_pull_date: ColumnType<string | null, string | null, string | null>;
+	active_ink_color_id: ColumnType<string | null, string | null, string | null>;
+	active_effect_id: ColumnType<string | null, string | null, string | null>;
+	updated_at: Generated<string>;
+}
+
 export interface Database {
 	labelled_samples: LabelledSamplesTable;
+	gacha_profiles: GachaProfilesTable;
 }
 
 export type Db = Kysely<Database>;

@@ -84,6 +84,26 @@ strokes for fine-tuning.
 				{@html getSymbolSvg(current.id)}
 			</span>
 			<span class="preview-name">{current.displayName}</span>
+			{#if current.difficulty}
+				<div class="difficulty-badge {current.difficulty}">
+					{current.difficulty === 'very-hard'
+						? '★ Very Hard'
+						: current.difficulty === 'hard'
+							? '★ Hard'
+							: current.difficulty === 'medium'
+								? '★ Medium'
+								: '★ Easy'}
+					<span class="reward-amount"
+						>+{current.difficulty === 'easy'
+							? '10'
+							: current.difficulty === 'medium'
+								? '20'
+								: current.difficulty === 'hard'
+									? '35'
+									: '50'} Ink</span
+					>
+				</div>
+			{/if}
 			{#if showSampleCount && currentSampleCount !== null}
 				<span class="sample-count">{currentSampleCount} saved samples</span>
 			{/if}
@@ -158,5 +178,60 @@ strokes for fine-tuning.
 	.sample-count {
 		font-size: 13px;
 		color: var(--muted-ink);
+	}
+
+	.difficulty-badge {
+		padding: 4px 10px;
+		border-radius: 12px;
+		font-size: 11px;
+		font-weight: 700;
+		text-transform: uppercase;
+		letter-spacing: 0.5px;
+		display: inline-flex;
+		align-items: center;
+		gap: 6px;
+		border: 1px solid currentColor;
+		line-height: 1;
+	}
+
+	.difficulty-badge.easy {
+		color: #2e7d32;
+		background-color: rgba(46, 125, 50, 0.08);
+	}
+
+	.difficulty-badge.medium {
+		color: #1565c0;
+		background-color: rgba(21, 101, 192, 0.08);
+	}
+
+	.difficulty-badge.hard {
+		color: #7b1fa2;
+		background-color: rgba(123, 31, 162, 0.08);
+	}
+
+	.difficulty-badge.very-hard {
+		color: #e65100;
+		background-color: rgba(230, 81, 0, 0.08);
+		box-shadow: 0 0 8px rgba(230, 81, 0, 0.2);
+		animation: pulse-glow 2s infinite ease-in-out;
+	}
+
+	.reward-amount {
+		font-weight: 800;
+		background: currentColor;
+		color: #fff;
+		padding: 2px 5px;
+		border-radius: 4px;
+		font-size: 10px;
+	}
+
+	@keyframes pulse-glow {
+		0%,
+		100% {
+			box-shadow: 0 0 4px rgba(230, 81, 0, 0.2);
+		}
+		50% {
+			box-shadow: 0 0 12px rgba(230, 81, 0, 0.55);
+		}
 	}
 </style>
