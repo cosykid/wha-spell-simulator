@@ -43,8 +43,9 @@
 {/if}
 
 <style>
+	/* Hidden on mobile — keyboard chords are meaningless on touch screens. */
 	kbd {
-		display: inline-block;
+		display: none;
 		padding: 1px 5px;
 		font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
 		font-size: 10px;
@@ -69,6 +70,10 @@
 	}
 
 	@media (min-width: 900px) {
+		kbd {
+			display: inline-block;
+		}
+
 		.full-label {
 			display: inline;
 		}

@@ -56,6 +56,11 @@ action. The primary button is styled as a filled teal call-to-action with a trai
 		flex: 1 1 auto;
 	}
 
+	/* Keep the primary action pinned right even when the bar wraps onto multiple rows. */
+	.primary {
+		margin-left: auto;
+	}
+
 	/* Primary call-to-action: fill the underlying button (Label / Submit) and append a chevron. */
 	.primary :global(button) {
 		gap: 6px;
