@@ -12,6 +12,14 @@ export const CONFIG = {
 		// Higher softens hand jitter but can distort sharp symbols.
 		smoothingPasses: 1
 	},
+	eraser: {
+		// Canvas pixels; eraser brush radius.
+		radius: 16,
+
+		// Canvas pixels; surviving stroke fragments shorter than this are dropped
+		// (matches input.minStrokeLength so remnants stay recognizable ink).
+		minRemnantLength: 7
+	},
 	ring: {
 		// Canvas pixels; smallest ring radius accepted as spell paper boundary.
 		minRadius: 70
