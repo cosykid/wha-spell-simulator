@@ -2,18 +2,16 @@
 @component
 Owns the sample submission: the form, the `submitSample` enhance flow, and the success/error
 toasts. Reads the payload and ready-state from the shared session, and on success hands back to
-`session.clearAndSuggestNext()` to start the next sample. The Ctrl+S shortcut is registered
-directly (rather than via ShortcutButton) so the chord triggers the native form submit once.
+`session.clearAndSuggestNext()` to start the next sample. Both the button click and the Ctrl+S
+chord funnel through `requestSubmit()` so the enhance path runs exactly once.
 -->
 <script lang="ts">
-	import ButtonWithShortcut from '$lib/ui/ButtonWithShortcut.svelte';
-	import { getShortcutRegistry } from '$lib/ui/shortcutRegistry.svelte.js';
+	import ShortcutButton from '$lib/ui/ShortcutButton.svelte';
 	import { toast } from '@zerodevx/svelte-toast';
 	import { getMakerSession } from '../maker-session.svelte.js';
 	import { submitSample } from '../samples.remote.js';
 
 	const session = getMakerSession();
-	const registry = getShortcutRegistry();
 
 	let formEl: HTMLFormElement;
 
@@ -71,24 +69,17 @@ directly (rather than via ShortcutButton) so the chord triggers the native form 
 		}
 	});
 
-	// Mirror the visible submit button on Ctrl+S; requestSubmit() runs the same enhance path.
-	$effect(() =>
-		registry.register({
-			shortcut: 'Ctrl+S',
-			description: 'Submit sample',
-			disabled: () => !session.canSubmit,
-			action: () => formEl.requestSubmit()
-		})
-	);
+
 </script>
 
 <form class="submit-form" {...submitSample} bind:this={formEl}>
 	<input {...submitSample.fields.payload.as('hidden', session.payload)} />
-	<ButtonWithShortcut
-		type="submit"
+	<!-- type="button" so the click doesn't also trigger a native submit on top of the action. -->
+	<ShortcutButton
 		description="Submit"
 		shortcut="Ctrl+S"
 		disabled={!session.canSubmit}
+		action={() => formEl.requestSubmit()}
 	/>
 </form>
 

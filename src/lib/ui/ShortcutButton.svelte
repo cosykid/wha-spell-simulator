@@ -5,10 +5,10 @@ so the action fires both on click and on the keyboard shortcut — without the p
 central shortcut list. Registration is torn down automatically when the button unmounts.
 -->
 <script lang="ts">
+	import type { ComponentType } from 'svelte';
 	import ButtonWithShortcut from './ButtonWithShortcut.svelte';
 	import type { Shortcut } from './keybindings.js';
 	import { getShortcutRegistry } from './shortcutRegistry.svelte.js';
-	import type { ComponentType } from 'svelte';
 
 	interface Props {
 		description: string;

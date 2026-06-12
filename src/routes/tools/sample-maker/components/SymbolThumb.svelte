@@ -18,8 +18,12 @@ previewed.
 		aria-label="View {session.picker.current.displayName} full screen"
 		onclick={() => (session.symbolOverlayOpen = true)}
 	>
-		<!-- Rotated to the suggested angle; positive degrees turn clockwise, matching the canvas. -->
-		<span class="thumb" style="transform: rotate({session.rotationDeg}deg)">
+		<!-- Rotated to the suggested angle (positive degrees turn clockwise, matching the canvas)
+		     and shrunk so the rotated bounding box stays inside the square frame. -->
+		<span
+			class="thumb"
+			style="transform: rotate({session.rotationDeg}deg) scale({session.previewScale})"
+		>
 			<!-- eslint-disable-next-line svelte/no-at-html-tags -->
 			{@html getSymbolSvg(session.picker.current.id)}
 		</span>

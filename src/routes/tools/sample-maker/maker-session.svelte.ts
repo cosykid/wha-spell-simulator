@@ -145,6 +145,16 @@ export class MakerSession {
 	 */
 	readonly phase = $derived<'draw' | 'label'>(this.symbolEntity ? 'label' : 'draw');
 
+	/**
+	 * Scale that keeps the rotated square glyph inside its square preview container: a unit square
+	 * rotated by θ has a bounding box of |cos θ| + |sin θ| (1 at right angles, √2 at 45°), so the
+	 * previews pair `rotate(…) scale(…)` with this to avoid overflowing their frame.
+	 */
+	readonly previewScale = $derived.by(() => {
+		const rad = (this.rotationDeg * Math.PI) / 180;
+		return 1 / (Math.abs(Math.cos(rad)) + Math.abs(Math.sin(rad)));
+	});
+
 	/** How many examples the previewed sign already has — shown beside its name in the header. */
 	readonly currentCount = $derived.by(() => {
 		const id = this.picker.current?.id;

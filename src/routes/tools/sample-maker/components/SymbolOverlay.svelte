@@ -29,7 +29,10 @@ native <dialog> (Escape dismissal + dimmed backdrop for free); the `open` prop d
 <!-- {#if open} -->
 <dialog bind:this={dialog} class="symbol-overlay" {onclose}>
 	{#if session.picker.current}
-		<span class="big-thumb" style="transform: rotate({session.rotationDeg}deg)">
+		<span
+			class="big-thumb"
+			style="transform: rotate({session.rotationDeg}deg) scale({session.previewScale})"
+		>
 			<!-- eslint-disable-next-line svelte/no-at-html-tags -->
 			{@html getSymbolSvg(session.picker.current.id)}
 		</span>

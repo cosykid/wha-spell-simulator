@@ -2,9 +2,10 @@
 @component
 The Sample Maker page: a thin shell that wires up the shared contexts (the MakerSession, the
 scene, and the keyboard-shortcut registry) and lays out a single full-canvas, phase-driven UI —
-a header, the canvas, a phase-relevant instruction line, and a bottom action bar — plus the
-slide-up picker and full-page symbol overlays. All behaviour lives in the small self-contained
-components under ./components, which reach this shared state through context rather than props.
+a header (mobile) or expanded sidebar (desktop), the canvas, a phase-relevant instruction line,
+and a bottom action bar — plus the slide-up picker and full-page symbol overlays. All behaviour
+lives in the small self-contained components under ./components, which reach this shared state
+through context rather than props.
 -->
 <script lang="ts">
 	import Canvas from '$canvas/Canvas.svelte';
@@ -12,6 +13,7 @@ components under ./components, which reach this shared state through context rat
 	import type { PageData } from './$types';
 	import Instructions from './components/Instructions.svelte';
 	import MakerHeader from './components/MakerHeader.svelte';
+	import MakerSidebar from './components/MakerSidebar.svelte';
 	import PhaseBar from './components/PhaseBar.svelte';
 	import SymbolOverlay from './components/SymbolOverlay.svelte';
 	import SymbolPickerSheet from './components/SymbolPickerSheet.svelte';
@@ -41,12 +43,15 @@ components under ./components, which reach this shared state through context rat
 </svelte:head>
 
 <main class="maker-shell">
-	<MakerHeader />
-	<div class="maker-canvas">
-		<Canvas scene={session.scene} controller={session.tool} bind:ctx={session.ctx} />
+	<MakerSidebar />
+	<div class="maker-main">
+		<MakerHeader />
+		<div class="maker-canvas">
+			<Canvas scene={session.scene} controller={session.tool} bind:ctx={session.ctx} />
+		</div>
+		<Instructions />
+		<PhaseBar />
 	</div>
-	<Instructions />
-	<PhaseBar />
 </main>
 
 <SymbolPickerSheet />
@@ -69,6 +74,14 @@ components under ./components, which reach this shared state through context rat
 		overflow: hidden;
 	}
 
+	.maker-main {
+		display: flex;
+		flex-direction: column;
+		flex: 1 1 auto;
+		min-width: 0;
+		min-height: 0;
+	}
+
 	.maker-canvas {
 		flex: 1 1 auto;
 		min-height: 0;
@@ -79,10 +92,13 @@ components under ./components, which reach this shared state through context rat
 		overflow: hidden;
 	}
 
-	/* On wider screens, keep the workspace from stretching the canvas edge-to-edge. */
-	@media (min-width: 900px) {
+	/* On wider screens, lay the sidebar beside the workspace and cap the overall width. The
+	   breakpoint sits just above styles.css's 1050px one, below which the app shell stops being
+	   height-locked — the sidebar needs that lock so its label grid scrolls instead of growing. */
+	@media (min-width: 1051px) {
 		.maker-shell {
-			width: min(820px, 100%);
+			flex-direction: row;
+			width: min(1140px, 100%);
 			margin: 0 auto;
 		}
 	}

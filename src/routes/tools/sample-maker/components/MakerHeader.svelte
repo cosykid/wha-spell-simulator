@@ -1,7 +1,8 @@
 <!--
 @component
-The Sample Maker's top bar: the reference-glyph thumbnail, the sign's name and how many examples it
-already has, and the action icons (reroll / pick / clear). Replaces the old side-panel header.
+The Sample Maker's compact top bar: the reference-glyph thumbnail, the sign's name and how many
+examples it already has, and the action icons (reroll / pick / clear). Above 1050px the expanded
+{@link MakerSidebar} replaces this row — the breakpoints must match (see the sidebar for why).
 -->
 <script lang="ts">
 	import { getMakerSession } from '../maker-session.svelte.js';
@@ -56,5 +57,11 @@ already has, and the action icons (reroll / pick / clear). Replaces the old side
 
 	.spacer {
 		flex: 1 1 auto;
+	}
+
+	@media (min-width: 1051px) {
+		.maker-header {
+			display: none;
+		}
 	}
 </style>

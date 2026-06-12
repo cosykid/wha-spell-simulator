@@ -10,8 +10,9 @@
 		onclick?: () => void;
 		type?: 'button' | 'submit';
 		/**
-		 * Optional lucide (or any) icon component. When set the button renders icon-only — the
-		 * `description` becomes the accessible label and the shortcut moves into the `title` tooltip.
+		 * Optional lucide (or any) icon component. When set the button renders icon-only on
+		 * mobile (the `description` becomes the accessible label and the shortcut moves into the
+		 * `title` tooltip) and expands to the full text + shortcut button on desktop.
 		 */
 		icon?: ComponentType;
 	}
@@ -33,6 +34,7 @@
 		title="{description} ({label})"
 	>
 		<Icon size={20} />
+		<span class="full-label">{description} <kbd>{label}</kbd></span>
 	</button>
 {:else}
 	<button {type} {disabled} {onclick}>
@@ -56,7 +58,19 @@
 		display: inline-flex;
 		align-items: center;
 		justify-content: center;
+		gap: 6px;
 		padding: 8px;
 		line-height: 0;
+	}
+
+	.full-label {
+		display: none;
+		line-height: normal;
+	}
+
+	@media (min-width: 900px) {
+		.full-label {
+			display: inline;
+		}
 	}
 </style>
