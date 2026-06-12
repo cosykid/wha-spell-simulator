@@ -170,6 +170,9 @@ export class MakerSession {
 		if (symbol) this.picker.pick(symbol);
 		else this.picker.suggest();
 		if (!this.picker.current) return;
+		// Switching to a different sign mid-labeling restarts the sample: the strokes and the
+		// stamped glyph belong to the previous sign, so they'd be submitted under the wrong label.
+		if (this.phase === 'label' && this.picker.current.id !== this.selected?.id) this.clear();
 		this.rotationDeg = Math.floor(Math.random() * 360);
 	}
 
