@@ -68,8 +68,6 @@ chord funnel through `requestSubmit()` so the enhance path runs exactly once.
 			session.submitting = false;
 		}
 	});
-
-
 </script>
 
 <form class="submit-form" {...submitSample} bind:this={formEl}>

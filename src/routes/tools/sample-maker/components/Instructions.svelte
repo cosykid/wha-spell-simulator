@@ -22,8 +22,8 @@ A single phase-relevant instruction line, shown between the canvas and the actio
 	.instructions {
 		margin: 0;
 		padding: 8px 12px;
-		font-size: 13px;
-		line-height: 1.4;
+		font-size: 16px;
+		line-height: 1.5;
 		text-align: center;
 		color: var(--muted-ink);
 	}

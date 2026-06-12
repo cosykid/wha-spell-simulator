@@ -2,8 +2,10 @@ import type { Attachment } from 'svelte/attachments';
 import { canvasPointFromEvent } from '../../../input/pointerNormalizer.js';
 import {
 	clampShapeSize,
+	HANDLE_HIT_RADIUS,
 	hitTestHandles,
 	placementHandles,
+	ROTATE_HANDLE_OFFSET,
 	rotationDegToPoint,
 	toLocalPoint
 } from '../../../input/shapeBaker.js';
@@ -20,27 +22,37 @@ import type { Scene } from '../scene.svelte.js';
 
 const HANDLE_SIZE = 9;
 const ROTATE_HANDLE_RADIUS = 5.5;
+// Coarse-pointer (touch) devices get larger handles, pushed-out rotate handle, and much
+// more forgiving hit areas — a fingertip covers ~7mm of screen, a mouse cursor ~1px.
+const TOUCH_HANDLE_SCALE = 1.6;
+const TOUCH_HIT_SCALE = 2;
 
 /**
- * Draw a square handle centered on `point`. Used for both corner and edge handles.
+ * Draw a square handle of side `size` centered on `point`. Used for corner and edge handles.
  */
-function drawHandleSquare(ctx: CanvasRenderingContext2D, point: Vector): void {
+function drawHandleSquare(ctx: CanvasRenderingContext2D, point: Vector, size: number): void {
 	ctx.beginPath();
-	ctx.rect(point.x - HANDLE_SIZE / 2, point.y - HANDLE_SIZE / 2, HANDLE_SIZE, HANDLE_SIZE);
+	ctx.rect(point.x - size / 2, point.y - size / 2, size, size);
 	ctx.fill();
 	ctx.stroke();
 }
 
 /**
- * Draw the selection box, transform handles, and rotate handle.
+ * Draw the selection box, transform handles, and rotate handle. `scale` converts the
+ * design-time sizes (tuned for 1 canvas unit = 1 CSS px) into canvas units, so handles
+ * keep a constant on-screen size however small the canvas is displayed.
  */
-function drawSelection(ctx: CanvasRenderingContext2D, handles: PlacementHandles): void {
+function drawSelection(
+	ctx: CanvasRenderingContext2D,
+	handles: PlacementHandles,
+	scale: number
+): void {
 	ctx.save();
 	ctx.strokeStyle = 'rgba(31, 111, 115, 0.85)';
 	ctx.fillStyle = 'rgba(255, 251, 233, 0.96)';
-	ctx.lineWidth = 1.5;
+	ctx.lineWidth = 1.5 * scale;
 
-	ctx.setLineDash([6, 4]);
+	ctx.setLineDash([6 * scale, 4 * scale]);
 	ctx.beginPath();
 	handles.corners.forEach((corner, index) => {
 		if (index === 0) {
@@ -58,16 +70,17 @@ function drawSelection(ctx: CanvasRenderingContext2D, handles: PlacementHandles)
 	ctx.lineTo(handles.rotate.x, handles.rotate.y);
 	ctx.stroke();
 
+	const handleSize = HANDLE_SIZE * scale;
 	for (const corner of handles.corners) {
-		drawHandleSquare(ctx, corner);
+		drawHandleSquare(ctx, corner, handleSize);
 	}
 	for (const edge of handles.edgeHandles) {
-		drawHandleSquare(ctx, edge);
+		drawHandleSquare(ctx, edge, handleSize);
 	}
-	drawHandleSquare(ctx, handles.topMid);
+	drawHandleSquare(ctx, handles.topMid, handleSize);
 
 	ctx.beginPath();
-	ctx.arc(handles.rotate.x, handles.rotate.y, ROTATE_HANDLE_RADIUS, 0, Math.PI * 2);
+	ctx.arc(handles.rotate.x, handles.rotate.y, ROTATE_HANDLE_RADIUS * scale, 0, Math.PI * 2);
 	ctx.fill();
 	ctx.stroke();
 	ctx.restore();
@@ -157,6 +170,15 @@ export interface SelectTool extends CanvasBehavior {
  */
 export function createSelectTool(scene: Scene): SelectTool {
 	let selectedId = $state<string | null>(null);
+	// Canvas-buffer units per CSS pixel — >1 when the canvas is displayed smaller than its
+	// backing store (typical on phones, where an 800px buffer shows at ~360 CSS px).
+	let cssToCanvas = 1;
+	let coarsePointer = false;
+
+	const handleScale = () => cssToCanvas * (coarsePointer ? TOUCH_HANDLE_SCALE : 1);
+	// The rotate handle grows away from the symbol with the handles, so its enlarged touch
+	// hit area stays clear of the top-edge handle.
+	const rotateHandleOffset = () => ROTATE_HANDLE_OFFSET * handleScale();
 
 	function selectedEntity(): TransformableEntity | null {
 		if (!selectedId) {
@@ -167,6 +189,15 @@ export function createSelectTool(scene: Scene): SelectTool {
 	}
 
 	const attach: Attachment<HTMLCanvasElement> = (canvas) => {
+		coarsePointer = window.matchMedia?.('(pointer: coarse)').matches ?? false;
+		const updateDisplayScale = () => {
+			const rect = canvas.getBoundingClientRect();
+			cssToCanvas = rect.width > 0 ? Math.max(1, canvas.width / rect.width) : 1;
+		};
+		updateDisplayScale();
+		const resizeObserver = new ResizeObserver(updateDisplayScale);
+		resizeObserver.observe(canvas);
+
 		let dragOp: DragOp | null = null;
 		let target: TransformableEntity | null = null;
 		let before: PlacementTransform | null = null;
@@ -368,7 +399,9 @@ export function createSelectTool(scene: Scene): SelectTool {
 
 			const selected = selectedEntity();
 			if (selected) {
-				const handle = hitTestHandles(selected.placement, point);
+				const hitRadius =
+					HANDLE_HIT_RADIUS * cssToCanvas * (event.pointerType === 'touch' ? TOUCH_HIT_SCALE : 1);
+				const handle = hitTestHandles(selected.placement, point, hitRadius, rotateHandleOffset());
 				if (handle) {
 					beginHandleDrag(event, selected, handle, point);
 					return;
@@ -561,6 +594,7 @@ export function createSelectTool(scene: Scene): SelectTool {
 		canvas.addEventListener('pointercancel', handlePointerUp);
 
 		return () => {
+			resizeObserver.disconnect();
 			canvas.removeEventListener('pointerdown', handlePointerDown);
 			canvas.removeEventListener('pointermove', handlePointerMove);
 			canvas.removeEventListener('pointerup', handlePointerUp);
@@ -577,7 +611,11 @@ export function createSelectTool(scene: Scene): SelectTool {
 		render(ctx) {
 			const selected = selectedEntity();
 			if (selected) {
-				drawSelection(ctx, placementHandles(selected.placement));
+				drawSelection(
+					ctx,
+					placementHandles(selected.placement, rotateHandleOffset()),
+					handleScale()
+				);
 			}
 		}
 	};
