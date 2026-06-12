@@ -4,7 +4,9 @@
 # Expiry is handled by R2 lifecycle rules on those prefixes, not by this
 # script. Also builds the ML dataset (scripts/ai-dataset-processing pipeline)
 # from the CSV export and uploads it as latest.ml-dataset.zip — latest only,
-# since it is fully reproducible from the retained CSVs.
+# since it is fully reproducible from the retained CSVs. When HF_TOKEN is set,
+# the dataset is also published to the Hugging Face Hub, tagged with the
+# backup date.
 # Runs identically locally and in CI (.github/workflows/db-backup.yml).
 #
 # Required tools: psql/pg_dump (matching server major), aws, zip, uv.
@@ -21,6 +23,10 @@
 #   MAX_BUCKET_MB         Abort before uploading if the bucket already holds
 #                         more than this (default: 5000)
 #   BACKUP_DIR            Where to write the dump (default: a temp dir)
+#   HF_TOKEN              Hugging Face write token; when set, the ML dataset is
+#                         also published to the HF Hub (skipped otherwise)
+#   HF_DATASET_REPO       Hub dataset repo to publish to
+#                         (default: wha-spell-simulator/labelled-samples)
 
 set -euo pipefail
 
@@ -194,3 +200,20 @@ aws s3 cp --no-progress "$csv_zip" "s3://$bucket/latest.csv.zip" --endpoint-url 
 aws s3 cp --no-progress "$dataset_zip" "s3://$bucket/latest.ml-dataset.zip" --endpoint-url "$R2_ENDPOINT"
 
 echo "Uploaded to: ${prefixes[*]} + latest.dump + latest.csv.zip + latest.ml-dataset.zip"
+
+###############################################################################
+# Hugging Face Hub publish (skipped unless HF_TOKEN is set)
+###############################################################################
+# Last on purpose: a Hub outage must never block the backup uploads above.
+
+if [[ -n "${HF_TOKEN:-}" ]]; then
+	hf_repo="${HF_DATASET_REPO:-wha-spell-simulator/labelled-samples}"
+	echo "Publishing dataset to Hugging Face ($hf_repo, tag v$stamp) ..."
+	uv run --project "$ds_project" "$ds_project/wha-ds-hf-publisher.py" \
+		--repo-id "$hf_repo" \
+		--vector-train "$ds_root/dataset.jsonl" \
+		--images "$ds_root/images-split" \
+		--tag "v$stamp"
+else
+	echo "HF_TOKEN not set; skipping Hugging Face publish."
+fi
