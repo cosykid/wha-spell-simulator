@@ -2,7 +2,12 @@
 # Dump the Postgres DB and upload it to Cloudflare R2 with
 # grandfather-father-son retention prefixes (daily/, weekly/, monthly/).
 # Expiry is handled by R2 lifecycle rules on those prefixes, not by this
-# script. Runs identically locally and in CI (.github/workflows/db-backup.yml).
+# script. Also builds the ML dataset (scripts/ai-dataset-processing pipeline)
+# from the CSV export and uploads it as latest.ml-dataset.zip — latest only,
+# since it is fully reproducible from the retained CSVs.
+# Runs identically locally and in CI (.github/workflows/db-backup.yml).
+#
+# Required tools: psql/pg_dump (matching server major), aws, zip, uv.
 #
 # Required env:
 #   DATABASE_URL          Postgres connection string. A Neon '-pooler' host is
@@ -25,6 +30,13 @@ if [[ "${1:-}" == "--no-upload" ]]; then
 fi
 
 : "${DATABASE_URL:?DATABASE_URL is required}"
+
+for tool in zip uv; do
+	command -v "$tool" > /dev/null || {
+		echo "❌ '$tool' is required but not installed." >&2
+		exit 1
+	}
+done
 
 # pg_dump should use Neon's direct host, not the pgbouncer pooler.
 direct_url="${DATABASE_URL/-pooler./.}"
@@ -75,6 +87,7 @@ echo "Using: $($PG_DUMP --version)"
 ###############################################################################
 
 backup_dir="${BACKUP_DIR:-$(mktemp -d)}"
+mkdir -p "$backup_dir"
 stamp="$(date -u +%Y-%m-%d)"
 dump_path="$backup_dir/wha-$stamp.dump"
 csv_path="$backup_dir/labelled_samples-$stamp.csv"
@@ -95,16 +108,40 @@ echo "Dump OK ($(du -h "$dump_path" | cut -f1))"
 ###############################################################################
 
 echo "Exporting labelled_samples to $csv_path ..."
+# COPY of a bare table name skips generated columns (data_hash), which the
+# dataset converter needs — go through SELECT * to include them.
 "$PSQL" "$direct_url" --no-psqlrc --quiet \
-	-c "\\copy labelled_samples to '$csv_path' with (format csv, header)"
+	-c "\\copy (select * from labelled_samples) to '$csv_path' with (format csv, header)"
 
 [[ -s "$csv_path" ]] || { echo "CSV export came out empty" >&2; exit 1; }
 
 rows=$(($(wc -l < "$csv_path") - 1))
-gzip -9 "$csv_path"
-csv_path="$csv_path.gz"
+csv_zip="$csv_path.zip"
+zip -9 -jq "$csv_zip" "$csv_path"
 
-echo "CSV OK ($(du -h "$csv_path" | cut -f1) gzipped, ${rows}+ rows)"
+echo "CSV OK ($(du -h "$csv_zip" | cut -f1) zipped, ${rows}+ rows)"
+
+###############################################################################
+# ML dataset build (scripts/ai-dataset-processing pipeline)
+###############################################################################
+
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ds_project="$script_dir/ai-dataset-processing"
+ds_root="$backup_dir/ml-dataset-$stamp"
+mkdir -p "$ds_root"
+
+echo "Building ML dataset (JSONL + images) ..."
+uv run --project "$ds_project" "$ds_project/wha-ds-converter.py" \
+	"$csv_path" -o "$ds_root/dataset.jsonl"
+uv run --project "$ds_project" "$ds_project/wha-ds-imageifier.py" \
+	"$ds_root/dataset.jsonl" -o "$ds_root/images"
+# Convenience copy with a stratified 80/20 train/validation split
+uv run --project "$ds_project" "$ds_project/wha-ds-imageifier.py" \
+	"$ds_root/dataset.jsonl" -o "$ds_root/images-split" --validation-split 0.2
+
+dataset_zip="$backup_dir/ml-dataset-$stamp.zip"
+(cd "$backup_dir" && zip -9 -rq "$dataset_zip" "ml-dataset-$stamp")
+echo "ML dataset OK ($(du -h "$dataset_zip" | cut -f1))"
 
 ###############################################################################
 # Optional upload
@@ -148,11 +185,12 @@ prefixes=(daily)
 [[ "$(date -u +%d)" == 01 ]] && prefixes+=(monthly)
 
 for prefix in "${prefixes[@]}"; do
-	aws s3 cp "$dump_path" "s3://$bucket/$prefix/" --endpoint-url "$R2_ENDPOINT"
-	aws s3 cp "$csv_path" "s3://$bucket/$prefix/" --endpoint-url "$R2_ENDPOINT"
+	aws s3 cp --no-progress "$dump_path" "s3://$bucket/$prefix/" --endpoint-url "$R2_ENDPOINT"
+	aws s3 cp --no-progress "$csv_zip" "s3://$bucket/$prefix/" --endpoint-url "$R2_ENDPOINT"
 done
 
-aws s3 cp "$dump_path" "s3://$bucket/latest.dump" --endpoint-url "$R2_ENDPOINT"
-aws s3 cp "$csv_path" "s3://$bucket/latest.csv.gz" --endpoint-url "$R2_ENDPOINT"
+aws s3 cp --no-progress "$dump_path" "s3://$bucket/latest.dump" --endpoint-url "$R2_ENDPOINT"
+aws s3 cp --no-progress "$csv_zip" "s3://$bucket/latest.csv.zip" --endpoint-url "$R2_ENDPOINT"
+aws s3 cp --no-progress "$dataset_zip" "s3://$bucket/latest.ml-dataset.zip" --endpoint-url "$R2_ENDPOINT"
 
-echo "Uploaded to: ${prefixes[*]} + latest.dump + latest.csv.gz"
+echo "Uploaded to: ${prefixes[*]} + latest.dump + latest.csv.zip + latest.ml-dataset.zip"
