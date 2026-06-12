@@ -7,6 +7,13 @@
 	import ShapePalette from '$lib/components/ShapePalette.svelte';
 	import { CONFIG } from '$lib/config.js';
 	import { buildDiagnosticState } from '$lib/debug/diagnosticState.js';
+	import {
+		emitMlDebug,
+		ML_DEBUG_BUILD_ID,
+		mlDebugEnabled as isMlDebugEnabled,
+		mlDebugEventsSnapshot,
+		type MlDebugEvent
+	} from '$lib/debug/mlDebug.js';
 	import { loadDictionary } from '$lib/dictionary/dictionaryLoader.js';
 	import { DrawingCapture } from '$lib/input/drawingCapture.js';
 	import { PlacementController } from '$lib/input/placementController.js';
@@ -14,8 +21,12 @@
 	import { bakePlacementToStrokes, placementHandles } from '$lib/input/shapeBaker.js';
 	import { buildShapeLibrary, defaultTransformForShape } from '$lib/input/shapeLibrary.js';
 	import { createStrokeStore } from '$lib/input/strokeStore.js';
-	import { classifyDrawingAsync } from '$lib/parser/drawingClassifier.js';
-	import { disposeRecognitionPool } from '$lib/parser/recognitionPool.js';
+	import {
+		classifyDrawingOffThread,
+		disposeDrawingClassifierClient,
+		isDrawingClassifierSuperseded,
+		warmDrawingClassifierWorker
+	} from '$lib/parser/drawingClassifierClient.js';
 	import { CanvasRenderer } from '$lib/renderer/canvasRenderer.js';
 	import type {
 		ClassifiedDrawing,
@@ -23,6 +34,7 @@
 		Placement,
 		PlacementTransform,
 		Point,
+		Recognition,
 		RingInfo,
 		ShapeItem,
 		ShapeLibrary,
@@ -48,11 +60,13 @@
 	// Reactive UI state.
 	let dictionary = $state<Dictionary | null>(null);
 	let summary = $state<typeof INITIAL_SUMMARY>({ ...INITIAL_SUMMARY });
-	let diagnostics = $state<{ ast: unknown; ir: unknown; parser: unknown }>({
+	let diagnostics = $state<{ ast: unknown; ir: unknown; parser: unknown; ml: unknown }>({
 		ast: null,
 		ir: null,
-		parser: null
+		parser: null,
+		ml: null
 	});
+	let mlDebugEvents = $state<MlDebugEvent[]>([]);
 	let showGuides = $state(true);
 	let showDiagnostics = $state(false);
 	let togglePreferencesLoaded = $state(false);
@@ -215,9 +229,59 @@
 			pipeline,
 			spellIR
 		});
+		const pipelineRecognitions = (
+			state.recognitions instanceof Array ? state.recognitions : []
+		) as Recognition[];
+		const mlRecognitions = pipelineRecognitions.map((recognition) => ({
+			candidateId: recognition.candidateId,
+			template: {
+				recognized: recognition.recognized,
+				status: recognition.recognitionStatus,
+				kind: recognition.kind,
+				id: recognition.id,
+				confidence: recognition.confidence,
+				topMatches: recognition.diagnostics?.topMatches ?? []
+			},
+			ml: recognition.diagnostics?.ml ?? null
+		}));
+		const attachedMlDiagnostics = mlRecognitions.flatMap((recognition) =>
+			recognition.ml ? [recognition.ml] : []
+		);
 		return {
 			ast: state.glyphAST,
 			ir: state.spellIR,
+			ml: {
+				status:
+					attachedMlDiagnostics.length > 0
+						? 'hybrid diagnostics attached'
+						: pipeline
+							? 'pipeline has no ML diagnostics yet'
+							: 'waiting for recognition pipeline',
+				debugEnabled: mlDebugEnabled(),
+				enabled: CONFIG.recognition.ml.enabled,
+				buildId: ML_DEBUG_BUILD_ID,
+				modelUrl: CONFIG.recognition.ml.modelUrl,
+				classMapUrl: CONFIG.recognition.ml.classMapUrl,
+				source:
+					'classifyDrawingOffThread -> drawingClassifierWorker -> recognizeCandidatesHybridMl',
+				strokeCount: strokes.length,
+				pipelineReady: Boolean(pipeline),
+				ringFound: pipeline?.ring?.found ?? false,
+				candidateCount: state.candidates instanceof Array ? state.candidates.length : 0,
+				recognitionCount: state.recognitions instanceof Array ? state.recognitions.length : 0,
+				mlDiagnosticsAttached: attachedMlDiagnostics.length,
+				mlAvailableCount: attachedMlDiagnostics.filter((ml) => ml.available).length,
+				mlAcceptedCount: attachedMlDiagnostics.filter((ml) => ml.accepted).length,
+				mlUnavailableReasons: [
+					...new Set(
+						attachedMlDiagnostics
+							.filter((ml) => !ml.available)
+							.map((ml) => ml.reason ?? 'unavailable')
+					)
+				],
+				events: mlDebugEvents,
+				recognitions: mlRecognitions
+			},
 			parser: {
 				rawStrokes: state.rawStrokes,
 				ring: state.ring,
@@ -229,6 +293,7 @@
 	}
 
 	let recomputeSeq = 0;
+	const STROKE_RECOGNITION_DEBOUNCE_MS = 120;
 
 	function cancelScheduledRecompute() {
 		if (recomputeTimer) {
@@ -263,33 +328,15 @@
 		}, delay);
 	}
 
-	async function recompute() {
-		if (!dictionary || !dictionarySnapshot) {
-			return;
-		}
+	function mlDebugEnabled() {
+		return isMlDebugEnabled(CONFIG.recognition.ml.debug);
+	}
 
-		// Freehand strokes and any baked placements are classified together, so the
-		// editable shapes contribute to ring/sigil detection just like hand-drawn ink.
-		strokes = mergedStrokes();
+	function mlDebugLog(message: string, detail?: unknown) {
+		emitMlDebug('page', message, detail, CONFIG.recognition.ml.debug);
+	}
 
-		// Recognition is fanned out across a worker pool, so this is async. Guard with
-		// a sequence token: rapid strokes can overlap, and only the newest result
-		// should win. previousRing is read synchronously here, before the await.
-		const seq = ++recomputeSeq;
-		let result: ClassifiedDrawing;
-		try {
-			result = await classifyDrawingAsync({
-				strokes,
-				previousRing,
-				canvasWidth: glyphCanvas.width,
-				canvasHeight: glyphCanvas.height,
-				dictionary: dictionarySnapshot,
-				config: CONFIG
-			});
-		} catch (error) {
-			console.error(error);
-			return;
-		}
+	function applyClassifiedDrawing(result: ClassifiedDrawing, seq: number) {
 		if (seq !== recomputeSeq) {
 			return;
 		}
@@ -310,6 +357,48 @@
 		});
 		capture?.setLocked(summary.inputLocked);
 		diagnostics = buildDiagnostics();
+	}
+
+	async function recompute() {
+		if (!dictionary || !dictionarySnapshot) {
+			return;
+		}
+
+		// Freehand strokes and any baked placements are classified together, so the
+		// editable shapes contribute to ring/sigil detection just like hand-drawn ink.
+		strokes = mergedStrokes();
+
+		// Classification runs off-thread, so this is async. Guard with a sequence
+		// token: rapid strokes can overlap, and only the newest result should win.
+		// previousRing is read synchronously here, before the await.
+		const seq = ++recomputeSeq;
+		let result: ClassifiedDrawing;
+		mlDebugLog('recompute starting', {
+			strokes: strokes.length,
+			previousRingFound: previousRing?.found ?? false,
+			canvasWidth: glyphCanvas.width,
+			canvasHeight: glyphCanvas.height
+		});
+		try {
+			result = await classifyDrawingOffThread(
+				{
+					strokes,
+					previousRing,
+					canvasWidth: glyphCanvas.width,
+					canvasHeight: glyphCanvas.height,
+					dictionary: dictionarySnapshot,
+					config: CONFIG
+				},
+				(mlResult) => applyClassifiedDrawing(mlResult, seq)
+			);
+		} catch (error) {
+			if (isDrawingClassifierSuperseded(error)) {
+				return;
+			}
+			console.error(error);
+			return;
+		}
+		applyClassifiedDrawing(result, seq);
 	}
 
 	function animationFrame(timestamp: number) {
@@ -586,6 +675,23 @@
 	onMount(() => {
 		loadTogglePreferences();
 		togglePreferencesLoaded = true;
+		mlDebugEvents = mlDebugEventsSnapshot();
+		const handleMlDebug = () => {
+			mlDebugEvents = mlDebugEventsSnapshot();
+			diagnostics = buildDiagnostics();
+		};
+		window.addEventListener('wha:ml-debug', handleMlDebug);
+		emitMlDebug(
+			'page',
+			'mounted',
+			{
+				buildId: ML_DEBUG_BUILD_ID,
+				href: window.location.href,
+				userAgent: navigator.userAgent,
+				configDebug: CONFIG.recognition.ml.debug
+			},
+			CONFIG.recognition.ml.debug
+		);
 
 		renderer = new CanvasRenderer({ glyphCanvas, effectCanvas, config: CONFIG });
 		capture = new DrawingCapture(glyphCanvas, store, CONFIG, {
@@ -595,7 +701,8 @@
 			},
 			onCommit: () => {
 				pushHistory();
-				void recompute();
+				strokes = mergedStrokes();
+				scheduleRecompute(STROKE_RECOGNITION_DEBOUNCE_MS);
 			}
 		});
 		controller = new PlacementController(glyphCanvas, placements, {
@@ -646,6 +753,7 @@
 					return;
 				}
 				dictionarySnapshot = $state.snapshot(dictionary) as Dictionary;
+				warmDrawingClassifierWorker(dictionarySnapshot, CONFIG);
 				shapeLibrary = buildShapeLibrary(dictionary);
 				capture.enable();
 				history = [snapshot()];
@@ -705,7 +813,8 @@
 			endShapeDrag();
 			resizeObserver?.disconnect();
 			window.removeEventListener('keydown', handleKeydown);
-			disposeRecognitionPool();
+			window.removeEventListener('wha:ml-debug', handleMlDebug);
+			disposeDrawingClassifierClient();
 		};
 	});
 </script>

@@ -1,4 +1,6 @@
 import { recognizeCandidates } from './symbolRecognizer.js';
+import { recognizeCandidatesHybridMl } from './mlRecognizer.js';
+import { emitMlDebug } from '../debug/mlDebug.js';
 import type { AppConfig, Dictionary, RecognizedSymbol, SymbolCandidate } from '../types.js';
 import type { RecognitionExample } from './shapeMatcher.js';
 
@@ -36,6 +38,10 @@ let sessionExamples: RecognitionExample[] | null = null;
 let nextTaskId = 1;
 const inFlight = new Map<number, InFlightTask>();
 const queue: QueuedTask[] = [];
+
+function mlDebugLog(config: AppConfig, message: string, detail?: unknown): void {
+	emitMlDebug('recognitionPool', message, detail, config.recognition.ml.debug);
+}
 
 function workersSupported(): boolean {
 	return typeof Worker !== 'undefined' && typeof URL !== 'undefined';
@@ -169,20 +175,28 @@ export async function recognizeCandidatesAsync(
 ): Promise<RecognizedSymbol[]> {
 	const examples = recognitionExamples.length ? recognitionExamples : EMPTY_EXAMPLES;
 	const hasLearnedAssets = examples.length > 0;
+	const useWorkerPool =
+		workersSupported() && (hasLearnedAssets || candidates.length >= MIN_CANDIDATES_FOR_PARALLEL);
+	mlDebugLog(config, 'recognition pool entry', {
+		candidates: candidates.length,
+		hasLearnedAssets,
+		workersSupported: workersSupported(),
+		useWorkerPool
+	});
 
-	if (
-		!workersSupported() ||
-		(!hasLearnedAssets && candidates.length < MIN_CANDIDATES_FOR_PARALLEL)
-	) {
-		return recognizeCandidates(candidates, dictionary, config, examples);
+	if (!useWorkerPool) {
+		const templateResults = recognizeCandidates(candidates, dictionary, config, examples);
+		return recognizeCandidatesHybridMl(candidates, templateResults, dictionary, config);
 	}
 
 	try {
 		ensurePool(dictionary, config, examples);
-		return await Promise.all(candidates.map((candidate) => dispatch(candidate)));
+		const templateResults = await Promise.all(candidates.map((candidate) => dispatch(candidate)));
+		return recognizeCandidatesHybridMl(candidates, templateResults, dictionary, config);
 	} catch {
 		teardownPool();
-		return recognizeCandidates(candidates, dictionary, config, examples);
+		const templateResults = recognizeCandidates(candidates, dictionary, config, examples);
+		return recognizeCandidatesHybridMl(candidates, templateResults, dictionary, config);
 	}
 }
 

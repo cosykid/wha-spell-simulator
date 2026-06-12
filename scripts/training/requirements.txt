@@ -1,0 +1,6 @@
+torch
+torchvision
+pillow
+onnx
+onnxscript
+certifi

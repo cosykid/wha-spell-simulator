@@ -1,84 +1,140 @@
 # WHA Dataset Processing
 
-> Set of Python tools for processing data from the [Sample Maker](https://wha-spell-simulator.vercel.app/tools/sample-maker) into something usable for A training.
+Python tools for exporting Sample Maker data from the `labelled_samples` database
+table into ML-ready training artifacts.
+
+The pipeline keeps the user's hand-drawn strokes as the model input and uses the
+submitted reference overlay as extra target data:
+
+- `sign`: the class label.
+- `pose.center_x`, `pose.center_y`: where the overlay center lands after stroke
+  normalization.
+- `pose.scale_x`, `pose.scale_y`: overlay size after stroke normalization.
+- `pose.angle`, `pose.angle_sin`, `pose.angle_cos`: overlay rotation. The sine
+  and cosine fields are included because they are friendlier neural-network
+  targets than raw radians.
+
+The reference overlay is **not** baked into the training image. It is metadata the
+model can learn to predict.
 
 ## System Requirements
 
-- Python 3.14+ (might work with earlier but untested)
-- [`uv`](https://docs.astral.sh/uv/) (package management; `uv` > `pip`)
-- Some command-line knowledge
+- Python 3.14+ (might work with earlier versions, but untested)
+- [`uv`](https://docs.astral.sh/uv/) for package management
+- `DATABASE_URL` or `NEON_DATABASE_URL` pointing at the app database
 
-## Getting started
-
-First, install dependencies:
+Install dependencies:
 
 ```bash
 uv sync
 ```
 
-The pipeline has 2 stages:
+## One-Command Export + Training
 
-1. **`wha-ds-converter.py`:** Convert a raw (uncompressed) `csv` containing _vector_ data into a `.jsonl` [JSON Lines](https://jsonlines.org/) file
-   - Normalises data to be invariant to mouse/touchscreen/etc polling rate
-   - Normalises data to be between 0..1, _preserving aspect ratio_
-2. **`wha-ds-imagifier.py`:** Converts the output of the above into `.jpg` images, in a format [`tf.keras.processing.image_dataset_from_directory`](https://www.tensorflow.org/api_docs/python/tf/keras/preprocessing/image_dataset_from_directory) takes
-   - Adds 20% margin by default to ensure random rotations don't cut things off
-
-### Using `wha-ds-converter.py`
-
-In it's basic form, do this:
+From the repo root:
 
 ```bash
-uv run wha-ds-converter.py input_file.csv -o output_file.jsonl
+npm run train:glyphs
 ```
 
-To see full help (including doing a training/validation split), do this:
+That orchestrates this exporter, the PNG/manifest renderer, and the PyTorch
+training script. Artifacts are written to `.artifacts/glyph-training/`.
+
+## Pipeline
+
+### 1. Export Pose-Aware Vector JSONL
+
+`wha-ds-converter.py` reads approved rows directly from Postgres/Neon, simplifies
+the raw strokes, normalizes them into a `0..1` coordinate frame, and transforms
+the submitted overlay label into the same normalized frame.
+
+```bash
+uv run wha-ds-converter.py -o labelled_samples_vector-all.jsonl
+```
+
+With a stratified train/validation split:
+
+```bash
+uv run wha-ds-converter.py \
+  -o labelled_samples_vector-train.jsonl \
+  --out-validation labelled_samples_vector-validation.jsonl \
+  --validation-split 0.2
+```
+
+Useful options:
 
 ```bash
 uv run wha-ds-converter.py --help
 ```
 
-### Using `wha-ds-imageifier.py`
+The output records look like:
 
-In it's basic form, do this:
+```json
+{
+	"id": "<data_hash>",
+	"sample_id": "sample:fire:...",
+	"sign": "fire",
+	"data": [[{ "t": 0, "x": 0.1, "y": 0.2 }]],
+	"pose": {
+		"center_x": 0.5,
+		"center_y": 0.5,
+		"scale_x": 0.8,
+		"scale_y": 0.8,
+		"angle": 0,
+		"angle_sin": 0,
+		"angle_cos": 1
+	}
+}
+```
+
+### 2. Render Raster Dataset + Manifest
+
+`wha-ds-imageifier.py` renders the normalized hand-drawn strokes to lossless PNG
+by default and writes manifests for PyTorch-style training.
 
 ```bash
-uv run wha-ds-imageifier.py input_file.jsonl -o output_directory/
+uv run wha-ds-imageifier.py labelled_samples_vector-all.jsonl \
+  -o labelled_samples_raster \
+  --validation-split 0.2
 ```
 
-To see full help, (including doing a training/validation split), do this:
+Output:
 
-```bash
-uv run wha-ds-converter.py --help
-```
-
-Example directory structure outputs:
-
-**Without training/validation split:**
-
-```
-output_directory/
-  class_a/
-    <hash>.jpg
-  class_b/
-    <hash>.jpg
-  ...
-```
-
-**With training/validation split:**
-
-```
-output_directory/
+```text
+labelled_samples_raster/
+  class_to_idx.json
+  manifest.csv
+  manifest.jsonl
   train/
-    class_a/
-      <hash>.jpg
-    class_b/
-      <hash>.jpg
-    ...
+    fire/
+      <hash>.png
   validation/
-    class_a/
-      <hash>.jpg
-    class_b/
-      <hash>.jpg
-    ...
+    fire/
+      <hash>.png
 ```
+
+The manifest carries both the class target and the rendered-image pose targets:
+
+```json
+{
+	"image_path": "train/fire/<hash>.png",
+	"sign": "fire",
+	"class_index": 3,
+	"center_x": 0.5,
+	"center_y": 0.5,
+	"scale_x": 0.64,
+	"scale_y": 0.64,
+	"angle_sin": 0,
+	"angle_cos": 1
+}
+```
+
+The rendered pose values include the image margin, so they line up with the PNGs
+the model actually sees.
+
+## Why PNG Instead Of JPG?
+
+These samples are sparse black-and-white line drawings. PNG keeps the strokes
+lossless, avoids JPEG artifacts around thin lines, and is usually still small for
+this kind of image. `wha-ds-imageifier.py --format jpg` remains available if you
+need JPEGs for a specific experiment.

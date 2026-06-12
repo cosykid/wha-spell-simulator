@@ -220,7 +220,9 @@ export interface TopMatch {
 	kind: RecognitionKind;
 	id: string;
 	confidence: number;
+	source?: 'template' | 'ml';
 	templateConfidence?: number;
+	mlConfidence?: number;
 	$pDistance?: number;
 	chamferDistance?: number;
 	inkScore?: number;
@@ -245,6 +247,24 @@ export interface RecognitionDiagnostics {
 	bestGuess?: RecognitionBestGuess | null;
 	recognitionRotationDeg: number;
 	template: Record<string, number>;
+	ml?: {
+		available: boolean;
+		accepted: boolean;
+		confidence: number;
+		margin: number;
+		id: string | null;
+		kind: RecognitionKind;
+		angleDeg: number;
+		scaleX: number;
+		scaleY: number;
+		centerX: number;
+		centerY: number;
+		superConfident?: boolean;
+		verifierPassed?: boolean;
+		reason?: string;
+		error?: string;
+		topMatches: TopMatch[];
+	};
 	matcher?: {
 		$pDistance: number;
 		chamferDistance: number;

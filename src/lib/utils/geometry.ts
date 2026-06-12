@@ -198,6 +198,40 @@ export function dominantAxisOrientationDeg(points: Vector[]): number {
 	return normalizeAngleDeg(angleFromCanvasVector(Math.cos(angle), Math.sin(angle)));
 }
 
+export function lineSpreadRatio(points: Vector[]): number {
+	if (points.length < 3) {
+		return 0;
+	}
+
+	const center = centroid(points);
+	let xx = 0;
+	let xy = 0;
+	let yy = 0;
+
+	for (const point of points) {
+		const dx = point.x - center.x;
+		const dy = point.y - center.y;
+		xx += dx * dx;
+		xy += dx * dy;
+		yy += dy * dy;
+	}
+
+	xx /= points.length;
+	xy /= points.length;
+	yy /= points.length;
+
+	const trace = xx + yy;
+	const root = Math.sqrt(Math.max(0, (xx - yy) ** 2 + 4 * xy * xy));
+	const major = (trace + root) / 2;
+	const minor = (trace - root) / 2;
+
+	if (major <= 0.000001) {
+		return 0;
+	}
+
+	return clamp(Math.sqrt(Math.max(0, minor) / major));
+}
+
 export function directedStrokeAngle(strokes: Stroke[]): number {
 	const firstStroke = strokes.find((stroke) => stroke.points.length > 1);
 	const lastStroke = [...strokes].reverse().find((stroke) => stroke.points.length > 1);

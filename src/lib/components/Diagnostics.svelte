@@ -1,10 +1,11 @@
 <script lang="ts">
 	import { writeJson } from '$lib/debug/debugOverlay.js';
 
-	type DiagnosticKey = 'parser' | 'ast' | 'ir';
+	type DiagnosticKey = 'parser' | 'ml' | 'ast' | 'ir';
 
 	interface Diagnostics {
 		parser: unknown;
+		ml: unknown;
 		ast: unknown;
 		ir: unknown;
 	}
@@ -18,11 +19,13 @@
 	let activeTab = $state<DiagnosticKey>('parser');
 	let copyLabels = $state<Record<DiagnosticKey, string>>({
 		parser: 'Copy',
+		ml: 'Copy',
 		ast: 'Copy',
 		ir: 'Copy'
 	});
 
 	let parserPre = $state<HTMLPreElement | null>(null);
+	let mlPre = $state<HTMLPreElement | null>(null);
 	let astPre = $state<HTMLPreElement | null>(null);
 	let irPre = $state<HTMLPreElement | null>(null);
 
@@ -32,6 +35,9 @@
 	$effect(() => {
 		if (parserPre) {
 			writeJson(parserPre, diagnostics.parser);
+		}
+		if (mlPre) {
+			writeJson(mlPre, diagnostics.ml);
 		}
 		if (astPre) {
 			writeJson(astPre, diagnostics.ast);
@@ -76,6 +82,12 @@
 		<button
 			type="button"
 			class="diagnostic-tab-button"
+			class:active={activeTab === 'ml'}
+			onclick={() => (activeTab = 'ml')}>ML</button
+		>
+		<button
+			type="button"
+			class="diagnostic-tab-button"
 			class:active={activeTab === 'ast'}
 			onclick={() => (activeTab = 'ast')}>AST</button
 		>
@@ -102,6 +114,24 @@
 				{copyLabels.parser}
 			</button>
 			<pre bind:this={parserPre} class="diagnostic-output"></pre>
+		</div>
+	</div>
+
+	<div class="diagnostic-panel-shell" hidden={activeTab !== 'ml'}>
+		<p class="panel-description">
+			ML shows the hybrid recognizer state: whether the ONNX model loaded, what template recognition
+			chose, and whether the ML result was accepted.
+		</p>
+		<div class="diagnostic-viewer-shell">
+			<button
+				type="button"
+				class="diagnostic-copy-button"
+				aria-label="Copy ML JSON"
+				onclick={() => copy('ml', mlPre)}
+			>
+				{copyLabels.ml}
+			</button>
+			<pre bind:this={mlPre} class="diagnostic-output"></pre>
 		</div>
 	</div>
 
