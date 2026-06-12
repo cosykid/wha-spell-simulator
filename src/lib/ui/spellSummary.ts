@@ -83,6 +83,7 @@ export function computeSummary({
 	spellIR,
 	showGuides,
 	arrangeMode = false,
+	eraseMode = false,
 	placementCount = 0,
 	hintDismissed = false,
 	canUndo,
@@ -93,6 +94,7 @@ export function computeSummary({
 	spellIR: SpellIR | null | undefined;
 	showGuides: boolean;
 	arrangeMode?: boolean;
+	eraseMode?: boolean;
 	placementCount?: number;
 	hintDismissed?: boolean;
 	canUndo?: boolean;
@@ -117,7 +119,9 @@ export function computeSummary({
 	// The canvas shows its sealed/locked styling only for finished spells, while arrange
 	// mode locks freehand capture without that styling so shapes can still be edited.
 	const canvasLocked = ringClosed || hasUnsupportedStructure;
-	const inputLocked = canvasLocked || arrangeMode;
+	// Erase mode locks freehand capture the same way arrange mode does; the
+	// eraser itself stays usable even when the canvas is sealed.
+	const inputLocked = canvasLocked || arrangeMode || eraseMode;
 
 	return {
 		statusText,
