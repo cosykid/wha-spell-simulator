@@ -25,7 +25,7 @@ The pipeline has 3 stages:
    - Adds 20% margin by default to ensure random rotations don't cut things off
 3. **`wha-ds-hf-publisher.py`:** Publishes the outputs of either/both stages above to the [Hugging Face Hub](https://huggingface.co/datasets) as a versioned dataset
    - Generates a dataset card with per-sign counts and `load_dataset` snippets
-   - Exposes 2 configs: `vector` (JSON Lines) and `image` (imagefolder)
+   - Exposes 2 configs: `vector` (strokes) and `image` (rasters), both converted to Parquet — the Hub serves one builder per dataset repo, so the raw formats can't be uploaded as-is
 
 ### Using `wha-ds-converter.py`
 
@@ -101,5 +101,6 @@ uv run wha-ds-hf-publisher.py \
 
 - At least one of `--vector-train` / `--images` is required; each becomes a named config on the Hub (`vector` / `image`).
 - `--tag` creates a git tag on the Hub repo, so consumers can pin a release with `load_dataset(..., revision="v1")`.
-- Add `--dry-run` to build everything locally (including the dataset card) without uploading.
+- Add `--dry-run` to process everything locally (counts + a dataset card preview) without uploading.
+- CI runs this automatically on every scheduled DB backup when the `HF_TOKEN` repo secret is set — see `scripts/db-backup.sh`.
 - The dataset card declares a placeholder `cc-by-4.0` license — confirm the license before publishing a public release.

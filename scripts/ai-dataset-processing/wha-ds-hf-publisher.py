@@ -4,12 +4,15 @@ wha-ds-converter.py (vector JSONL) and/or wha-ds-imageifier.py (class-foldered
 images) to the Hugging Face Hub as a versioned dataset with a generated
 dataset card.
 
+Both configs are converted to Parquet via the `datasets` library: the Hub
+serves one builder per dataset repo, so mixed raw formats (JSONL + image
+folders) cannot coexist as loadable configs.
+
 Auth follows standard huggingface_hub resolution: the HF_TOKEN environment
 variable, or cached credentials from `hf auth login`.
 """
 import argparse
 import json
-import shutil
 import sys
 import tempfile
 from collections import Counter
@@ -20,45 +23,52 @@ LICENSE = "cc-by-4.0"
 
 PROJECT_URL = "https://github.com/cosykid/wha-spell-simulator"
 
-IMAGE_EXTS = {".jpg", ".jpeg", ".png"}
+PRETTY_NAME = "WHA Spell Simulator Glyphs"
 
 
 def scan_vector_file(path):
-	"""Tally samples per sign in a converter JSONL file."""
-	counts = Counter()
+	"""Validate a converter JSONL file before handing it to `datasets`."""
+	count = 0
 	with open(path) as f:
 		for line_no, line in enumerate(f, 1):
 			line = line.strip()
 			if not line:
 				continue
 			try:
-				counts[json.loads(line)["sign"]] += 1
+				json.loads(line)["sign"]
 			except (json.JSONDecodeError, KeyError, TypeError):
 				sys.exit(f"error: {path}:{line_no} is not a valid sample record")
-	if not counts:
+			count += 1
+	if not count:
 		sys.exit(f"error: {path} contains no samples")
-	return counts
 
 
-def scan_image_dir(root):
-	"""Detect the imageifier layout (train/+validation/ subdirs, or bare class
-	dirs) and tally images per class. Returns {split: (split_root, Counter)}."""
-	if (root / "train").is_dir():
-		split_roots = {"train": root / "train"}
-		if (root / "validation").is_dir():
-			split_roots["validation"] = root / "validation"
-	else:
-		split_roots = {"train": root}
+def load_configs(args):
+	"""Load the inputs into `DatasetDict`s keyed by config name."""
+	from datasets import load_dataset
+
+	configs = {}
+	if args.vector_train:
+		scan_vector_file(Path(args.vector_train))
+		data_files = {"train": args.vector_train}
+		if args.vector_validation:
+			scan_vector_file(Path(args.vector_validation))
+			data_files["validation"] = args.vector_validation
+		configs["vector"] = load_dataset("json", data_files=data_files)
+	if args.images:
+		configs["image"] = load_dataset("imagefolder", data_dir=args.images)
+	return configs
+
+
+def config_counts(name, dataset_dict):
+	"""{split: Counter(sign -> count)} for one config."""
 	result = {}
-	for split, split_root in split_roots.items():
-		counts = Counter()
-		for cls_dir in sorted(p for p in split_root.iterdir() if p.is_dir()):
-			total = sum(1 for f in cls_dir.iterdir() if f.suffix.lower() in IMAGE_EXTS)
-			if total:
-				counts[cls_dir.name] = total
-		if not counts:
-			sys.exit(f"error: no class directories with images found in {split_root}")
-		result[split] = (split_root, counts)
+	for split, ds in dataset_dict.items():
+		if name == "image":
+			labels = ds.features["label"].names
+			result[split] = Counter(labels[i] for i in ds["label"])
+		else:
+			result[split] = Counter(ds["sign"])
 	return result
 
 
@@ -83,7 +93,7 @@ def counts_table(counts_by_split):
 	splits = list(counts_by_split)
 	classes = sorted({cls for counts in counts_by_split.values() for cls in counts})
 	lines = ["| sign | " + " | ".join(splits) + " |",
-			 "|---" * (len(splits) + 1) + "|"]
+	         "|---" * (len(splits) + 1) + "|"]
 	for cls in classes:
 		cells = " | ".join(str(counts_by_split[s].get(cls, 0)) for s in splits)
 		lines.append(f"| {cls} | {cells} |")
@@ -92,32 +102,9 @@ def counts_table(counts_by_split):
 	return "\n".join(lines)
 
 
-def render_card(repo_id, vector_counts, image_counts):
-	front = [
-		"---",
-		"pretty_name: WHA Spell Simulator Glyphs",
-		f"license: {LICENSE}",
-		"task_categories:",
-		"- image-classification",
-	]
-	total = max(
-		sum(sum(c.values()) for c in vector_counts.values()),
-		sum(sum(c.values()) for c in image_counts.values()),
-	)
-	front += ["size_categories:", f"- {size_category(total)}", "configs:"]
-	if vector_counts:
-		front += ["- config_name: vector", "  data_files:"]
-		for split in vector_counts:
-			front += [f"  - split: {split}", f"    path: vector/{split}.jsonl"]
-	if image_counts:
-		front += ["- config_name: image", "  data_files:"]
-		for split in image_counts:
-			front += [f"  - split: {split}", f"    path: image/{split}/**"]
-	front.append("---")
-
+def render_card_body(repo_id, counts):
 	body = [
-		"",
-		"# WHA Spell Simulator Glyphs",
+		f"# {PRETTY_NAME}",
 		"",
 		"Crowdsourced handwriting samples of signs and sigils from the fan-made",
 		f"[Witch Hat Atelier spell simulator]({PROJECT_URL}). Contributors drew each",
@@ -127,11 +114,11 @@ def render_card(repo_id, vector_counts, image_counts):
 		"preserving aspect ratio.",
 		"",
 	]
-	if vector_counts:
+	if "vector" in counts:
 		body += [
 			"## `vector` config",
 			"",
-			"One JSON record per line:",
+			"One record per sample:",
 			"",
 			"- `id` — content hash of the raw sample",
 			"- `sign` — glyph class label",
@@ -143,21 +130,21 @@ def render_card(repo_id, vector_counts, image_counts):
 			f'vector = load_dataset("{repo_id}", "vector")',
 			"```",
 			"",
-			counts_table(vector_counts),
+			counts_table(counts["vector"]),
 			"",
 		]
-	if image_counts:
+	if "image" in counts:
 		body += [
 			"## `image` config",
 			"",
-			"Rasterised strokes as JPGs, foldered by class (`imagefolder` layout).",
+			"Rasterised strokes as images with a class `label`, embedded in Parquet.",
 			"",
 			"```python",
 			"from datasets import load_dataset",
 			f'images = load_dataset("{repo_id}", "image")',
 			"```",
 			"",
-			counts_table(image_counts),
+			counts_table(counts["image"]),
 			"",
 		]
 	body += [
@@ -168,44 +155,31 @@ def render_card(repo_id, vector_counts, image_counts):
 		"label, and stroke geometry survive the export pipeline.",
 		"",
 	]
-	return "\n".join(front + body)
+	return "\n".join(body)
 
 
-def build_staging(staging, args):
-	"""Copy inputs into the Hub layout. Returns (vector_counts, image_counts),
-	each {split: Counter(sign -> count)}."""
-	vector_counts = {}
-	if args.vector_train:
-		vector_dir = staging / "vector"
-		vector_dir.mkdir(parents=True)
-		vector_counts["train"] = scan_vector_file(Path(args.vector_train))
-		shutil.copyfile(args.vector_train, vector_dir / "train.jsonl")
-		if args.vector_validation:
-			vector_counts["validation"] = scan_vector_file(Path(args.vector_validation))
-			shutil.copyfile(args.vector_validation, vector_dir / "validation.jsonl")
-
-	image_counts = {}
-	if args.images:
-		image_layout = scan_image_dir(Path(args.images))
-		for split, (split_root, _) in image_layout.items():
-			shutil.copytree(split_root, staging / "image" / split)
-		image_counts = {split: counts for split, (_, counts) in image_layout.items()}
-
-	return vector_counts, image_counts
-
-
-def publish(staging, repo_id, tag):
-	"""Create the dataset repo if needed, upload the staging dir as one
-	commit, and (re)create the version tag."""
-	from huggingface_hub import HfApi
+def publish(repo_id, configs, body, total, tag):
+	"""Push each config as Parquet, refresh the dataset card body and
+	descriptive metadata, then (re)create the version tag."""
+	from huggingface_hub import DatasetCard, HfApi
 	from huggingface_hub.errors import HfHubHTTPError
 
 	api = HfApi()
 	try:
-		api.create_repo(repo_id, repo_type="dataset", exist_ok=True)
-		message = f"Publish dataset {tag}" if tag else "Publish dataset"
-		api.upload_folder(repo_id=repo_id, repo_type="dataset",
-		                  folder_path=staging, commit_message=message)
+		for name, dataset_dict in configs.items():
+			message = f"Publish {name} config {tag}" if tag else f"Publish {name} config"
+			dataset_dict.push_to_hub(repo_id, config_name=name, commit_message=message)
+
+		# push_to_hub maintains the YAML `configs`/`dataset_info`; keep those
+		# and overwrite only the prose plus descriptive metadata.
+		card = DatasetCard.load(repo_id)
+		card.text = body
+		card.data.pretty_name = PRETTY_NAME
+		card.data.license = LICENSE
+		card.data.task_categories = ["image-classification"]
+		card.data.size_categories = [size_category(total)]
+		card.push_to_hub(repo_id, commit_message="Update dataset card")
+
 		if tag:
 			try:
 				api.create_tag(repo_id, tag=tag, repo_type="dataset")
@@ -228,17 +202,17 @@ def parse_args():
 		description="Publish WHA dataset pipeline outputs to the Hugging Face Hub."
 	)
 	parser.add_argument("--repo-id", required=True,
-						help="Hub dataset repo to publish to, e.g. someuser/wha-glyphs")
+	                    help="Hub dataset repo to publish to, e.g. someuser/wha-glyphs")
 	parser.add_argument("--vector-train",
-						help="Converter JSONL output (training split)")
+	                    help="Converter JSONL output (training split)")
 	parser.add_argument("--vector-validation",
-						help="Converter JSONL output (validation split)")
+	                    help="Converter JSONL output (validation split)")
 	parser.add_argument("--images",
-						help="Imageifier output root directory")
+	                    help="Imageifier output root directory")
 	parser.add_argument("--tag",
-						help="Version tag to create on the Hub repo after upload, e.g. v1")
+	                    help="Version tag to create on the Hub repo after upload, e.g. v1")
 	parser.add_argument("--dry-run", action="store_true",
-						help="Assemble the staging directory locally, print it, and skip all Hub calls")
+	                    help="Process inputs locally, print counts and a card preview, and skip all Hub calls")
 	args = parser.parse_args()
 
 	if not args.vector_train and not args.images:
@@ -256,30 +230,31 @@ def parse_args():
 
 def main():
 	args = parse_args()
-	staging = Path(tempfile.mkdtemp(prefix="wha-ds-hf-"))
-	try:
-		vector_counts, image_counts = build_staging(staging, args)
-		card = render_card(args.repo_id, vector_counts, image_counts)
-		(staging / "README.md").write_text(card)
+	configs = load_configs(args)
+	counts = {name: config_counts(name, dataset_dict) for name, dataset_dict in configs.items()}
+	for name, counts_by_split in counts.items():
+		print_counts(name, counts_by_split)
 
-		print_counts("vector", vector_counts)
-		print_counts("image", image_counts)
+	total = max(
+		sum(sum(c.values()) for c in counts_by_split.values())
+		for counts_by_split in counts.values()
+	)
+	body = render_card_body(args.repo_id, counts)
 
-		if args.dry_run:
-			print(f"dry run: staged dataset left at {staging}", file=sys.stderr)
-			return
+	if args.dry_run:
+		preview = Path(tempfile.mkdtemp(prefix="wha-ds-hf-")) / "README-body.md"
+		preview.write_text(body)
+		print(f"dry run: card body preview at {preview}; skipping all Hub calls", file=sys.stderr)
+		return
 
-		publish(staging, args.repo_id, args.tag)
-		print(f"Dataset published: https://huggingface.co/datasets/{args.repo_id}")
-		print("Load with:")
-		print("  from datasets import load_dataset")
-		if vector_counts:
-			print(f'  vector = load_dataset("{args.repo_id}", "vector")')
-		if image_counts:
-			print(f'  images = load_dataset("{args.repo_id}", "image")')
-	finally:
-		if not args.dry_run:
-			shutil.rmtree(staging, ignore_errors=True)
+	publish(args.repo_id, configs, body, total, tag=args.tag)
+	print(f"Dataset published: https://huggingface.co/datasets/{args.repo_id}")
+	print("Load with:")
+	print("  from datasets import load_dataset")
+	if "vector" in configs:
+		print(f'  vector = load_dataset("{args.repo_id}", "vector")')
+	if "image" in configs:
+		print(f'  images = load_dataset("{args.repo_id}", "image")')
 
 
 if __name__ == "__main__":
