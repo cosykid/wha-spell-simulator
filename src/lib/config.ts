@@ -14,7 +14,7 @@ export const CONFIG = {
 	},
 	eraser: {
 		// Canvas pixels; eraser brush radius.
-		radius: 16,
+		radius: 10,
 
 		// Canvas pixels; surviving stroke fragments shorter than this are dropped
 		// (matches input.minStrokeLength so remnants stay recognizable ink).
