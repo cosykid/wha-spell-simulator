@@ -14,7 +14,6 @@
 	import { createPlacementStore } from '$lib/input/placementStore.js';
 	import { bakePlacementToStrokes, placementHandles } from '$lib/input/shapeBaker.js';
 	import { buildShapeLibrary, defaultTransformForShape } from '$lib/input/shapeLibrary.js';
-	import { eraseSegment } from '$lib/utils/strokeErase.js';
 	import { createStrokeStore } from '$lib/input/strokeStore.js';
 	import { classifyDrawingAsync } from '$lib/parser/drawingClassifier.js';
 	import { disposeRecognitionPool } from '$lib/parser/recognitionPool.js';
@@ -34,6 +33,7 @@
 	} from '$lib/types.js';
 	import { setupCanvasSizing } from '$lib/ui/canvasSizing.js';
 	import { computeSummary, INITIAL_SUMMARY } from '$lib/ui/spellSummary.js';
+	import { eraseSegment } from '$lib/utils/strokeErase.js';
 	import { onMount } from 'svelte';
 
 	const ZOOM_MIN = 0.5;
@@ -627,6 +627,7 @@
 	// eraser ring's size after zoom changes resize the canvas's on-screen box.
 	$effect(() => {
 		void zoomLevel;
+		void activeTool;
 		updateCanvasCursor();
 	});
 
@@ -672,7 +673,9 @@
 				dismissCanvasHint();
 			},
 			applyErase: (from, to) => {
-				const result = eraseSegment(store.getStrokes(), from, to, CONFIG.eraser);
+				// peekStrokes avoids a per-pointermove deep clone; eraseSegment never
+				// mutates its input and store.load deep-copies what it is given.
+				const result = eraseSegment(store.peekStrokes(), from, to, CONFIG.eraser);
 				if (!result.changed) {
 					return false;
 				}
