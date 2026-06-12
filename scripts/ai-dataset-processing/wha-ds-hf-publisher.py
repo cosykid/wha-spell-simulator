@@ -194,6 +194,35 @@ def build_staging(staging, args):
 	return vector_counts, image_counts
 
 
+def publish(staging, repo_id, tag):
+	"""Create the dataset repo if needed, upload the staging dir as one
+	commit, and (re)create the version tag."""
+	from huggingface_hub import HfApi
+	from huggingface_hub.errors import HfHubHTTPError
+
+	api = HfApi()
+	try:
+		api.create_repo(repo_id, repo_type="dataset", exist_ok=True)
+		message = f"Publish dataset {tag}" if tag else "Publish dataset"
+		api.upload_folder(repo_id=repo_id, repo_type="dataset",
+		                  folder_path=staging, commit_message=message)
+		if tag:
+			try:
+				api.create_tag(repo_id, tag=tag, repo_type="dataset")
+			except HfHubHTTPError as error:
+				if error.response is not None and error.response.status_code == 409:
+					print(f"warning: tag {tag} already exists - moving it", file=sys.stderr)
+					api.delete_tag(repo_id, tag=tag, repo_type="dataset")
+					api.create_tag(repo_id, tag=tag, repo_type="dataset")
+				else:
+					raise
+	except HfHubHTTPError as error:
+		status = error.response.status_code if error.response is not None else None
+		if status == 401:
+			sys.exit("error: authentication failed - set HF_TOKEN or run `hf auth login`")
+		raise
+
+
 def parse_args():
 	parser = argparse.ArgumentParser(
 		description="Publish WHA dataset pipeline outputs to the Hugging Face Hub."
@@ -239,6 +268,15 @@ def main():
 		if args.dry_run:
 			print(f"dry run: staged dataset left at {staging}", file=sys.stderr)
 			return
+
+		publish(staging, args.repo_id, args.tag)
+		print(f"Dataset published: https://huggingface.co/datasets/{args.repo_id}")
+		print("Load with:")
+		print("  from datasets import load_dataset")
+		if vector_counts:
+			print(f'  vector = load_dataset("{args.repo_id}", "vector")')
+		if image_counts:
+			print(f'  images = load_dataset("{args.repo_id}", "image")')
 	finally:
 		if not args.dry_run:
 			shutil.rmtree(staging, ignore_errors=True)
