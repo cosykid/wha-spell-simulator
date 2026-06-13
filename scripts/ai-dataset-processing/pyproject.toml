@@ -5,6 +5,8 @@ description = "WHA Sample Maker dataset processor for later AI training"
 readme = "README.md"
 requires-python = ">=3.14"
 dependencies = [
+    "datasets>=3.0",
+    "huggingface-hub>=0.30",
     "pandas>=3.0.3",
     "pillow>=12.2.0",
     "seaborn>=0.13.2",
