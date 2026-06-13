@@ -1,0 +1,27 @@
+# Spin up a local Postgres instance using Docker Compose, so you can develop and test db changes.
+#
+# Usage (from the project root):
+#   cp .env.example .env   # sets DATABASE_URL_VPS to the connection below
+#   docker compose -f docker-compose.dev.yml up -d
+#   npm run db:migrate
+#   npm run dev
+services:
+  postgres:
+    image: postgres:18-alpine
+    environment:
+      POSTGRES_USER: wha
+      POSTGRES_PASSWORD: wha
+      POSTGRES_DB: wha
+    ports:
+      - '5432:5432'
+    volumes:
+      # Postgres 18 stores data in a version-specific subdir; mount the parent.
+      - wha-pgdata:/var/lib/postgresql
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U wha -d wha']
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  wha-pgdata:

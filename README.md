@@ -133,18 +133,35 @@ templates — no database required. Neon Postgres is used only to persist the
 by-eye **labelled handwriting samples** collected by the Sample Maker tool (see
 the Labelled Samples API below).
 
-Set one of these private environment variables before using the storage helpers. For local work, put real values in `.env`; the migration script loads it automatically. Keep `.env.example` as placeholders only.
+There are a few features (e.g. data gathering) that require a database connection. If you want to test those, see the instructions below for setting up a local Postgres instance with Docker.
 
-```sh
-DATABASE_URL=postgres://...
-NEON_DATABASE_URL=postgres://...
-```
+### Local Postgres with Docker
 
-Then run the migration to create the `labelled_samples` table:
+For this, you'll need to install [Docker](https://docs.docker.com/desktop/), then follow these steps from the project root:
 
-```sh
-npm run db:migrate
-```
+1. Initialize your local env file from the template:
+
+   ```sh
+   cp .env.example .env
+   ```
+
+   The default `DATABASE_URL_VPS` already points at the container below.
+
+2. Start the database:
+
+   ```sh
+   docker compose -f docker-compose.dev.yml up -d
+   ```
+
+3. Create the schema, then run the app:
+
+   ```sh
+   npm run db:migrate
+   npm start
+   ```
+
+Tear it down with `docker compose -f docker-compose.dev.yml down` (add `-v` to
+also wipe the stored data).
 
 ### Labelled Samples API
 
