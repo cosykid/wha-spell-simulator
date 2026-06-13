@@ -102,6 +102,7 @@
 	let glyphCanvas: HTMLCanvasElement;
 	let effectCanvas: HTMLCanvasElement;
 	let canvasShell: HTMLDivElement;
+	let workspace: HTMLElement;
 
 	// Imperative pipeline state (read by the render loop, not the template).
 	const store = createStrokeStore();
@@ -114,6 +115,7 @@
 	let spellIR: SpellIR | null = null;
 	let previousRing: RingInfo | null = null;
 	let resizeObserver: ResizeObserver | null = null;
+	let workspaceResizeObserver: ResizeObserver | null = null;
 	let rafId: number | null = null;
 	let recomputeTimer: ReturnType<typeof setTimeout> | null = null;
 	let armedShape: ShapeItem | null = null;
@@ -127,6 +129,10 @@
 	// recompute) so the reference stays stable and the workers keep their cached
 	// dictionary instead of re-initializing on every stroke.
 	let dictionarySnapshot: Dictionary | null = null;
+
+	const DESKTOP_LAYOUT_MIN_WIDTH = 1051;
+	const CANVAS_LAYOUT_MIN_SIDE_COLUMNS = 230 + 280;
+	let canvasHeightMatched = $state(false);
 
 	function loadTogglePreferences() {
 		try {
@@ -695,6 +701,17 @@
 		}
 	}
 
+	function updateCanvasLayoutMode() {
+		if (!workspace) {
+			return;
+		}
+		const rect = workspace.getBoundingClientRect();
+		const styles = getComputedStyle(workspace);
+		const columnGap = Number.parseFloat(styles.columnGap) || 0;
+		const requiredWidth = rect.height + CANVAS_LAYOUT_MIN_SIDE_COLUMNS + columnGap * 2;
+		canvasHeightMatched = window.innerWidth >= DESKTOP_LAYOUT_MIN_WIDTH && rect.width >= requiredWidth;
+	}
+
 	function handleToggleArrange() {
 		setTool(activeTool === 'arrange' ? 'draw' : 'arrange');
 	}
@@ -818,6 +835,10 @@
 				scheduleRecompute(60);
 			}
 		});
+		workspaceResizeObserver = new ResizeObserver(updateCanvasLayoutMode);
+		workspaceResizeObserver.observe(workspace);
+		window.addEventListener('resize', updateCanvasLayoutMode);
+		updateCanvasLayoutMode();
 
 		rafId = requestAnimationFrame(animationFrame);
 
@@ -889,6 +910,8 @@
 			inputReady = false;
 			endShapeDrag();
 			resizeObserver?.disconnect();
+			workspaceResizeObserver?.disconnect();
+			window.removeEventListener('resize', updateCanvasLayoutMode);
 			window.removeEventListener('keydown', handleKeydown);
 			window.removeEventListener('wha:ml-debug', handleMlDebug);
 			disposeDrawingClassifierClient();
@@ -900,10 +923,10 @@
 	<title>Witch Hat Atelier Spell Simulator</title>
 </svelte:head>
 
-<div class="app-shell">
+<div class="app-shell simulator-shell">
 	<Header title="Glyph Compiler" eyebrow="Witch Hat Atelier Spell Simulator" />
 
-	<main class="workspace">
+	<main class="workspace" class:canvas-height-matched={canvasHeightMatched} bind:this={workspace}>
 		<ControlPanel
 			{summary}
 			bind:showGuides
