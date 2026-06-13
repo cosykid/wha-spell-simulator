@@ -36,7 +36,16 @@ __pycache__/
 *.py[cod]
 *$py.class
 .venv/
+.venv-uv/
 .ruff_cache/
+
+# Training artifacts
+.artifacts/
+
+# ONNX Runtime web assets, synced from node_modules on postinstall
+# (scripts/sync-onnxruntime-assets.mjs). The trained model in static/models/ is
+# committed: the deployed site serves it from /models/.
+static/onnxruntime/
 
 # Dataset files
 .csv

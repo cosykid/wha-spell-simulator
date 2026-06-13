@@ -13,10 +13,13 @@ jobs:
           sudo apt-get install -y postgresql-common
           sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y
           sudo apt-get install -y postgresql-client-18
+      - name: Install uv # builds the ML dataset (scripts/ai-dataset-processing)
+        uses: astral-sh/setup-uv@v8
       - name: Dump and upload to R2
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
           R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
           R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          HF_TOKEN: ${{ secrets.HF_TOKEN }} # optional: publishes the ML dataset to the HF Hub
         run: ./scripts/db-backup.sh

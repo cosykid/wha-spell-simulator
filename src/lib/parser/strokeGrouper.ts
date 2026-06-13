@@ -423,6 +423,13 @@ function selectTreeCut(
 	const childValue = childSelections.reduce((sum, selection) => sum + selection.value, 0);
 	const childGroups = childSelections.flatMap((selection) => selection.groups);
 
+	if (wholeValue <= 0 && childValue <= 0) {
+		return {
+			value: childValue,
+			groups: childGroups
+		};
+	}
+
 	if (canScoreWhole && wholeValue + TREE_WHOLE_EPSILON >= childValue) {
 		return {
 			value: wholeValue,

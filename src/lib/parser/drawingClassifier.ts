@@ -4,7 +4,9 @@ import { classifyStrokesAgainstRing } from './coordinateNormalizer.js';
 import { buildSymbolCandidates } from './strokeGrouper.js';
 import { recognizeCandidates } from './symbolRecognizer.js';
 import { recognizeCandidatesAsync } from './recognitionPool.js';
+import { recognizeCandidatesHybridMl } from './mlRecognizer.js';
 import { GLYPH_WARNINGS } from './glyphWarnings.js';
+import { emitMlDebug } from '../debug/mlDebug.js';
 import {
 	allPoints,
 	angleDegFromCenter,
@@ -28,6 +30,7 @@ import type {
 	GlobalMetrics,
 	GlyphAST,
 	Recognition,
+	RecognizedSymbol,
 	RingInfo,
 	Stroke,
 	SymbolCandidate,
@@ -244,6 +247,20 @@ function buildNoRingPreviewCandidate(strokes: Stroke[]): SymbolCandidate | null 
 	};
 }
 
+// Reuse one sigil-only dictionary per source dictionary: recognition caches are
+// keyed by dictionary identity (WeakMap), so allocating a fresh object per call
+// would silently rebuild dictionary examples on every no-ring recompute.
+const sigilOnlyDictionaries = new WeakMap<Dictionary, Dictionary>();
+
+function sigilOnlyDictionaryFor(dictionary: Dictionary): Dictionary {
+	let sigilOnly = sigilOnlyDictionaries.get(dictionary);
+	if (!sigilOnly) {
+		sigilOnly = { sigils: dictionary.sigils, signs: [] };
+		sigilOnlyDictionaries.set(dictionary, sigilOnly);
+	}
+	return sigilOnly;
+}
+
 function noRingPreview(
 	cleanedStrokes: CleanedStroke[],
 	dictionary: Dictionary,
@@ -253,7 +270,14 @@ function noRingPreview(
 ): NoRingPreview {
 	if (guideRing) {
 		const classifications = classifyStrokesAgainstRing(cleanedStrokes, guideRing, config);
-		const candidates = buildSymbolCandidates(cleanedStrokes, classifications, guideRing, config);
+		const candidates = buildSymbolCandidates(
+			cleanedStrokes,
+			classifications,
+			guideRing,
+			config,
+			dictionary,
+			recognitionExamples
+		);
 		return {
 			classifications,
 			candidates,
@@ -262,7 +286,7 @@ function noRingPreview(
 		};
 	}
 
-	const sigilOnlyDictionary = { sigils: dictionary.sigils, signs: [] };
+	const sigilOnlyDictionary = sigilOnlyDictionaryFor(dictionary);
 	const sigilExamples = recognitionExamples.filter((example) => example.kind === 'sigil');
 	const candidate = buildNoRingPreviewCandidate(cleanedStrokes);
 	if (!candidate) {
@@ -309,6 +333,15 @@ interface NoRingPreview {
 interface NoRingRecognitionPrep extends RecognitionPrep {
 	recognitionDictionary: Dictionary;
 	recognitionExamples: RecognitionExample[];
+}
+
+// Brief pause between posting the template result and starting ML so a rapid
+// follow-up stroke can supersede the pass before it renders tensors. Cached
+// predictions make a superseded pass cheap, so this stays short.
+const ML_START_DEBOUNCE_MS = 100;
+
+function delay(ms: number): Promise<void> {
+	return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 // Runs everything up to (but not including) final candidate recognition. Returns
@@ -454,25 +487,109 @@ function assembleNoRingDrawing(
 	};
 }
 
-export function classifyDrawing(input: ClassifyDrawingInput): ClassifiedDrawing {
-	const prepared = prepareRecognition(input);
+type PreparedRecognition = { noRing: NoRingRecognitionPrep } | { prep: RecognitionPrep };
+
+function templateRecognitionsFor(
+	prepared: PreparedRecognition,
+	input: ClassifyDrawingInput
+): RecognizedSymbol[] {
 	if ('noRing' in prepared) {
-		const recognitions = recognizeCandidates(
+		return recognizeCandidates(
 			prepared.noRing.candidates,
 			prepared.noRing.recognitionDictionary,
 			input.config,
 			prepared.noRing.recognitionExamples
 		);
-		return assembleNoRingDrawing(prepared.noRing, recognitions, input.config);
 	}
 
-	const recognitions = recognizeCandidates(
+	return recognizeCandidates(
 		prepared.prep.candidates,
 		input.dictionary,
 		input.config,
 		input.recognitionExamples ?? []
 	);
-	return assembleDrawing(prepared.prep, recognitions, input.config);
+}
+
+async function hybridMlRecognitionsFor(
+	prepared: PreparedRecognition,
+	templateResults: RecognizedSymbol[],
+	input: ClassifyDrawingInput,
+	shouldContinue?: () => boolean,
+	onProgress?: (recognitions: RecognizedSymbol[]) => void
+): Promise<RecognizedSymbol[]> {
+	if ('noRing' in prepared) {
+		return recognizeCandidatesHybridMl(
+			prepared.noRing.candidates,
+			templateResults,
+			prepared.noRing.recognitionDictionary,
+			input.config,
+			shouldContinue,
+			onProgress
+		);
+	}
+
+	return recognizeCandidatesHybridMl(
+		prepared.prep.candidates,
+		templateResults,
+		input.dictionary,
+		input.config,
+		shouldContinue,
+		onProgress
+	);
+}
+
+function assemblePreparedDrawing(
+	prepared: PreparedRecognition,
+	recognitions: Recognition[],
+	config: AppConfig
+): ClassifiedDrawing {
+	if ('noRing' in prepared) {
+		return assembleNoRingDrawing(prepared.noRing, recognitions, config);
+	}
+	return assembleDrawing(prepared.prep, recognitions, config);
+}
+
+export function classifyDrawing(input: ClassifyDrawingInput): ClassifiedDrawing {
+	const prepared = prepareRecognition(input);
+	const recognitions = templateRecognitionsFor(prepared, input);
+	return assemblePreparedDrawing(prepared, recognitions, input.config);
+}
+
+export async function classifyDrawingPhasedLocal(
+	input: ClassifyDrawingInput,
+	onTemplateResult?: (result: ClassifiedDrawing) => void,
+	shouldContinue?: () => boolean,
+	onMlProgress?: (result: ClassifiedDrawing) => void
+): Promise<ClassifiedDrawing | null> {
+	const prepared = prepareRecognition(input);
+	const templateResults = templateRecognitionsFor(prepared, input);
+	const templateDrawing = assemblePreparedDrawing(prepared, templateResults, input.config);
+	onTemplateResult?.(templateDrawing);
+
+	if (shouldContinue && !shouldContinue()) {
+		return null;
+	}
+
+	await delay(ML_START_DEBOUNCE_MS);
+	if (shouldContinue && !shouldContinue()) {
+		return null;
+	}
+
+	const hybridResults = await hybridMlRecognitionsFor(
+		prepared,
+		templateResults,
+		input,
+		shouldContinue,
+		(progressResults) => {
+			if (!shouldContinue || shouldContinue()) {
+				onMlProgress?.(assemblePreparedDrawing(prepared, progressResults, input.config));
+			}
+		}
+	);
+	if (shouldContinue && !shouldContinue()) {
+		return null;
+	}
+	return assemblePreparedDrawing(prepared, hybridResults, input.config);
 }
 
 // Same result as classifyDrawing, but the heavy per-candidate recognition pass
@@ -487,6 +604,12 @@ export async function classifyDrawingAsync(
 ): Promise<ClassifiedDrawing> {
 	const prepared = prepareRecognition(input);
 	if ('noRing' in prepared) {
+		emitMlDebug(
+			'drawingClassifier',
+			'classifier no-ring candidates',
+			{ candidates: prepared.noRing.candidates.length },
+			input.config.recognition.ml.debug
+		);
 		const recognitions = await recognizeCandidatesAsync(
 			prepared.noRing.candidates,
 			prepared.noRing.recognitionDictionary,
@@ -496,6 +619,12 @@ export async function classifyDrawingAsync(
 		return assembleNoRingDrawing(prepared.noRing, recognitions, input.config);
 	}
 
+	emitMlDebug(
+		'drawingClassifier',
+		'classifier ring candidates',
+		{ candidates: prepared.prep.candidates.length },
+		input.config.recognition.ml.debug
+	);
 	const recognitions = await recognizeCandidatesAsync(
 		prepared.prep.candidates,
 		input.dictionary,

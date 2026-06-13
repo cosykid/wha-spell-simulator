@@ -55,7 +55,27 @@ export const CONFIG = {
 		// a ring sign). The lightweight cut scorer and the groupPenalty above keep
 		// complex multi-stroke sigils and signs whole. Set false to fall back to plain
 		// whole-stroke proximity-connected-component grouping.
-		recognitionGuidedDecomposition: true
+		recognitionGuidedDecomposition: true,
+
+		ml: {
+			// Hybrid recognizer: the template recognizer still runs first. When a browser
+			// ONNX model is available, ML can reinforce/override template results. Unknown
+			// template results need a loose glyph-like verifier signal unless the ML
+			// prediction clears the super-confident thresholds below.
+			enabled: true,
+			modelUrl: '/models/glyph-recognizer.onnx',
+			classMapUrl: '/models/glyph-class-to-idx.json',
+			inputSize: 224,
+			margin: 0.2,
+			strokeWidth: 2,
+			acceptConfidence: 0.74,
+			acceptMargin: 0.16,
+			overrideConfidence: 0.84,
+			overrideMargin: 0.18,
+			superConfidence: 0.94,
+			superMargin: 0.28,
+			debug: false
+		}
 	},
 	compiler: {
 		// 0..1 confidence; minimum primary sigil confidence before a spell is valid.

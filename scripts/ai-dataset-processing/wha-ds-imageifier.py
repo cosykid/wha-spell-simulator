@@ -1,19 +1,24 @@
 #!/usr/bin/env python
 import argparse
+import csv
 import json
+import math
 import os
 import random
 import sys
 from collections import defaultdict
+from pathlib import Path
 
 from PIL import Image, ImageDraw
 from tqdm import tqdm
 
+RESAMPLE_LANCZOS = getattr(Image, "Resampling", Image).LANCZOS
+
 
 def sanitise_id(sample_id):
-    safe = sample_id.replace("/", "_").replace("\\", "_")
+    safe = sample_id.replace("/", "_").replace("\\", "_").replace(":", "_")
     if safe != sample_id:
-        print(f"warning: sanitised sample_id '{sample_id}' → '{safe}'", file=sys.stderr)
+        print(f"warning: sanitised sample_id '{sample_id}' -> '{safe}'", file=sys.stderr)
     return safe
 
 
@@ -23,34 +28,58 @@ def dirname_for_sign(sign):
 
 def check_collisions(samples):
     seen = {}
-    for sign, _, _ in samples:
-        mapped = dirname_for_sign(sign)
-        if mapped in seen and seen[mapped] != sign:
+    for sample in samples:
+        mapped = dirname_for_sign(sample["sign"])
+        if mapped in seen and seen[mapped] != sample["sign"]:
             print(
-                f"error: signs '{seen[mapped]}' and '{sign}' both map to '{mapped}'",
+                f"error: signs '{seen[mapped]}' and '{sample['sign']}' both map to '{mapped}'",
                 file=sys.stderr,
             )
             sys.exit(1)
-        seen[mapped] = sign
+        seen[mapped] = sample["sign"]
 
 
 def parse_args():
     parser = argparse.ArgumentParser(
         description=(
-            "Render WHA stroke JSONL into labelled image directories compatible with "
-            "tf.keras.utils.image_dataset_from_directory."
+            "Render WHA pose-aware stroke JSONL into a PyTorch-friendly raster dataset "
+            "with manifest files."
         )
     )
     parser.add_argument("input", nargs="?", default="-", help="JSONL file (default: stdin)")
     parser.add_argument("-o", "--output", required=True, help="Output root directory")
-    parser.add_argument("--size", type=int, default=224, help="Image size in pixels (default: 224)")
-    parser.add_argument("--stroke-width", type=int, default=2, help="Stroke line width (default: 2)")
-    parser.add_argument("--validation-split", type=float, default=0,
-                        help="Fraction per class for validation set (default: 0 = no split)")
-    parser.add_argument("--coord-range", type=float, default=1.0,
-                        help="Coordinate range of input data (default: 1.0 for [0,1] normalized data)")
-    parser.add_argument("--margin", type=float, default=0.2,
-                        help="Blank margin fraction around strokes (default: 0.2)")
+    parser.add_argument("--size", type=int, default=224, help="Image size in pixels")
+    parser.add_argument("--stroke-width", type=int, default=2, help="Stroke line width")
+    parser.add_argument(
+        "--validation-split",
+        type=float,
+        default=0,
+        help="Fraction per class for validation set. Use 0 when input is already split.",
+    )
+    parser.add_argument("--seed", type=int, default=42, help="Random seed for splitting")
+    parser.add_argument(
+        "--split-name",
+        default="train",
+        help="Split name to use when --validation-split is 0. Defaults to train.",
+    )
+    parser.add_argument(
+        "--coord-range",
+        type=float,
+        default=1.0,
+        help="Coordinate range of input data. Defaults to 1.0 for normalized data.",
+    )
+    parser.add_argument(
+        "--margin",
+        type=float,
+        default=0.2,
+        help="Blank margin fraction around strokes. Default 0.2 means 10%% per side.",
+    )
+    parser.add_argument(
+        "--format",
+        choices=["png", "jpg"],
+        default="png",
+        help="Raster format. PNG is the default because these are sparse line drawings.",
+    )
     return parser.parse_args()
 
 
@@ -61,32 +90,33 @@ def load_samples(infile):
         if not line:
             continue
         d = json.loads(line)
-        samples.append((d["sign"], d["id"], d["data"]))
+        samples.append(d)
     return samples
 
 
-def stratified_split(samples, val_frac):
+def stratified_split(samples, val_frac, seed):
     by_class = defaultdict(list)
-    for s in samples:
-        by_class[s[0]].append(s)
+    for sample in samples:
+        by_class[sample["sign"]].append(sample)
 
+    rng = random.Random(seed)
     train = []
     val = []
-    for cls, cls_samples in by_class.items():
-        random.shuffle(cls_samples)
+    for _, cls_samples in sorted(by_class.items()):
+        cls_samples = list(cls_samples)
+        rng.shuffle(cls_samples)
         n = len(cls_samples)
         if n == 1:
             train.extend(cls_samples)
             continue
-        split = int(n * (1 - val_frac))
-        if split == 0 or split == n:
-            split = n - 1
-        train.extend(cls_samples[:split])
-        val.extend(cls_samples[split:])
+        val_count = max(1, round(n * val_frac))
+        val_count = min(val_count, n - 1)
+        val.extend(cls_samples[:val_count])
+        train.extend(cls_samples[val_count:])
 
-    random.shuffle(train)
-    random.shuffle(val)
-    return train, val
+    rng.shuffle(train)
+    rng.shuffle(val)
+    return {"train": train, "validation": val}
 
 
 def render_strokes(strokes, size, stroke_width, coord_range, margin):
@@ -122,26 +152,122 @@ def render_strokes(strokes, size, stroke_width, coord_range, margin):
 
         draw.line(coords, fill=255, width=stroke_width * scale)
 
-    return img.resize((size, size), Image.LANCZOS)
+    return img.resize((size, size), RESAMPLE_LANCZOS)
 
 
-def save_samples(samples, root_dir, size, stroke_width, coord_range, margin, desc):
-    created = set()
+def image_pose(vector_pose, margin):
+    if vector_pose is None:
+        return None
+
+    edge = margin / 2
+    usable = 1 - margin
+    angle = vector_pose["angle"]
+    return {
+        "center_x": edge + vector_pose["center_x"] * usable,
+        "center_y": edge + vector_pose["center_y"] * usable,
+        "scale_x": vector_pose["scale_x"] * usable,
+        "scale_y": vector_pose["scale_y"] * usable,
+        "angle": angle,
+        "angle_sin": vector_pose.get("angle_sin", math.sin(angle)),
+        "angle_cos": vector_pose.get("angle_cos", math.cos(angle)),
+    }
+
+
+def save_image(img, path, fmt):
+    if fmt == "png":
+        img.save(path, optimize=True)
+    else:
+        img.save(path, optimize=True, quality=90)
+
+
+def manifest_row(sample, split, class_index, rel_path, pose):
+    row = {
+        "id": sample["id"],
+        "sample_id": sample.get("sample_id"),
+        "split": split,
+        "sign": sample["sign"],
+        "class_index": class_index,
+        "image_path": rel_path,
+    }
+    if pose is not None:
+        row.update(
+            {
+                "center_x": pose["center_x"],
+                "center_y": pose["center_y"],
+                "scale_x": pose["scale_x"],
+                "scale_y": pose["scale_y"],
+                "angle": pose["angle"],
+                "angle_sin": pose["angle_sin"],
+                "angle_cos": pose["angle_cos"],
+            }
+        )
+    return row
+
+
+def save_splits(splits, root_dir, size, stroke_width, coord_range, margin, fmt):
+    root = Path(root_dir)
+    root.mkdir(parents=True, exist_ok=True)
+
+    classes = sorted({sample["sign"] for samples in splits.values() for sample in samples})
+    class_to_idx = {sign: i for i, sign in enumerate(classes)}
+    (root / "class_to_idx.json").write_text(json.dumps(class_to_idx, indent=2) + "\n")
+
+    rows = []
     seen_ids = defaultdict(set)
-    for sign, sample_id, strokes in tqdm(samples, desc=desc):
-        safe_id = sanitise_id(sample_id)
-        cls_dir = os.path.join(root_dir, dirname_for_sign(sign))
-        if cls_dir not in created:
-            os.makedirs(cls_dir, exist_ok=True)
-            created.add(cls_dir)
+    suffix = f".{fmt}"
 
-        if safe_id in seen_ids[sign]:
-            print(f"warning: duplicate {sign}/{safe_id}, skipping", file=sys.stderr)
-            continue
-        seen_ids[sign].add(safe_id)
+    for split, samples in splits.items():
+        for sample in tqdm(samples, desc=split):
+            sign = sample["sign"]
+            safe_id = sanitise_id(sample["id"])
+            if safe_id in seen_ids[split]:
+                print(f"warning: duplicate {split}/{safe_id}, skipping", file=sys.stderr)
+                continue
+            seen_ids[split].add(safe_id)
 
-        img = render_strokes(strokes, size, stroke_width, coord_range, margin)
-        img.save(os.path.join(cls_dir, f"{safe_id}.jpg"), optimize=True, quality=80)
+            rel_path = Path(split) / dirname_for_sign(sign) / f"{safe_id}{suffix}"
+            out_path = root / rel_path
+            out_path.parent.mkdir(parents=True, exist_ok=True)
+
+            img = render_strokes(sample["data"], size, stroke_width, coord_range, margin)
+            save_image(img, out_path, fmt)
+
+            pose = image_pose(sample.get("pose"), margin)
+            rows.append(
+                manifest_row(sample, split, class_to_idx[sign], rel_path.as_posix(), pose)
+            )
+
+    write_manifests(root, rows)
+    return rows
+
+
+def write_manifests(root, rows):
+    jsonl_path = root / "manifest.jsonl"
+    with jsonl_path.open("w") as handle:
+        for row in rows:
+            handle.write(json.dumps(row, ensure_ascii=False) + "\n")
+
+    csv_path = root / "manifest.csv"
+    fieldnames = [
+        "id",
+        "sample_id",
+        "split",
+        "sign",
+        "class_index",
+        "image_path",
+        "center_x",
+        "center_y",
+        "scale_x",
+        "scale_y",
+        "angle",
+        "angle_sin",
+        "angle_cos",
+    ]
+    with csv_path.open("w", newline="") as handle:
+        writer = csv.DictWriter(handle, fieldnames=fieldnames)
+        writer.writeheader()
+        for row in rows:
+            writer.writerow(row)
 
 
 def main():
@@ -174,18 +300,25 @@ def main():
     check_collisions(samples)
 
     if args.validation_split > 0:
-        train, val = stratified_split(samples, args.validation_split)
-        root_train = os.path.join(args.output, "train")
-        root_val = os.path.join(args.output, "validation")
-        os.makedirs(root_train, exist_ok=True)
-        os.makedirs(root_val, exist_ok=True)
-        save_samples(train, root_train, args.size, args.stroke_width, args.coord_range, args.margin, "train")
-        save_samples(val, root_val, args.size, args.stroke_width, args.coord_range, args.margin, "validation")
-        print(f"saved {len(train)} train + {len(val)} validation images to {args.output}/", file=sys.stderr)
+        splits = stratified_split(samples, args.validation_split, args.seed)
     else:
-        os.makedirs(args.output, exist_ok=True)
-        save_samples(samples, args.output, args.size, args.stroke_width, args.coord_range, args.margin, "images")
-        print(f"saved {len(samples)} images to {args.output}/", file=sys.stderr)
+        splits = {args.split_name: samples}
+
+    rows = save_splits(
+        splits,
+        args.output,
+        args.size,
+        args.stroke_width,
+        args.coord_range,
+        args.margin,
+        args.format,
+    )
+
+    split_counts = " + ".join(f"{len(samples)} {name}" for name, samples in splits.items())
+    print(
+        f"saved {split_counts} images and {len(rows)} manifest rows to {args.output}/",
+        file=sys.stderr,
+    )
 
 
 if __name__ == "__main__":

@@ -316,6 +316,67 @@ function drawHandleSquare(ctx: CanvasRenderingContext2D, point: Vector, size = 9
 	ctx.stroke();
 }
 
+function confidencePercent(confidence: number | null | undefined): number {
+	return Math.round((confidence ?? 0) * 100);
+}
+
+function candidateDebugLabels(
+	candidate: SymbolCandidate,
+	recognition: Recognition | undefined
+): string[] {
+	if (!recognition) {
+		return [candidate.candidateId];
+	}
+
+	const ml = recognition.diagnostics?.ml;
+	const topTemplateMatch =
+		recognition.diagnostics?.topMatches?.find((match) => match.source !== 'ml') ??
+		recognition.diagnostics?.topMatches?.[0] ??
+		recognition.diagnostics?.bestGuess;
+
+	if (recognition.recognized) {
+		const source =
+			ml?.accepted || recognition.diagnostics?.topMatches?.[0]?.source === 'ml' ? 'ML' : 'T';
+		const id = recognition.id ?? 'unknown';
+		const labels = [`${source} ${id} ${confidencePercent(recognition.confidence)}`];
+		if (ml && !ml.accepted) {
+			if (ml.available) {
+				const mlId = ml.id ?? ml.topMatches[0]?.id ?? 'unknown';
+				labels.push(`ML? ${mlId} ${confidencePercent(ml.confidence)}`);
+			} else {
+				labels.push(`ML off ${ml.reason ?? 'unavailable'}`);
+			}
+		}
+		return labels;
+	}
+
+	const labels: string[] = [];
+	if (topTemplateMatch?.id) {
+		labels.push(`T? ${topTemplateMatch.id} ${confidencePercent(topTemplateMatch.confidence)}`);
+	}
+	if (ml) {
+		if (ml.available) {
+			const mlId = ml.id ?? ml.topMatches[0]?.id ?? 'unknown';
+			labels.push(`${ml.accepted ? 'ML' : 'ML?'} ${mlId} ${confidencePercent(ml.confidence)}`);
+		} else {
+			labels.push(`ML off ${ml.reason ?? 'unavailable'}`);
+		}
+	}
+
+	return labels.length ? labels : [candidate.candidateId];
+}
+
+function drawCandidateDebugLabel(
+	ctx: CanvasRenderingContext2D,
+	labels: string[],
+	x: number,
+	y: number
+): void {
+	labels.forEach((label, index) => {
+		ctx.fillText(label, x, y + index * 12);
+	});
+}
+
 /**
  * @deprecated Selection-handle rendering now lives in the select tool. See `drawSelection` in
  * {@link createSelectTool} (`src/lib/ui/canvas/tools/selectTool.svelte.ts`).
@@ -398,12 +459,13 @@ export function drawCandidateDebug(
 			candidate.bounds.width,
 			candidate.bounds.height
 		);
-		const label = accepted
-			? `${recognition!.id} ${Math.round(recognition!.confidence * 100)}`
-			: hasTentativeName
-				? `${tentativeMatch!.id}? ${Math.round((tentativeMatch!.confidence ?? 0) * 100)}`
-				: `${candidate.candidateId}`;
-		ctx.fillText(label, candidate.bounds.minX, Math.max(12, candidate.bounds.minY - 5));
+		const labels = candidateDebugLabels(candidate, recognition);
+		drawCandidateDebugLabel(
+			ctx,
+			labels,
+			candidate.bounds.minX,
+			Math.max(12, candidate.bounds.minY - 5)
+		);
 	}
 	ctx.restore();
 }

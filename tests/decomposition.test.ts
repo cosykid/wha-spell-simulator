@@ -229,6 +229,16 @@ function roughTouchingSignStrokes(): Stroke[] {
 	];
 }
 
+function noRingPreviewStroke(id: string, points: Array<[number, number]>): Stroke {
+	return resampledStroke(
+		id,
+		points.map(([x, y]) => ({
+			x: x * ringCenter.x * 2,
+			y: y * ringCenter.y * 2
+		}))
+	);
+}
+
 test('decomposition keeps one sigil and one sign as two candidates', () => {
 	const result = classify([
 		...strokesFromTemplate(sparkTemplate, 'spark', ringCenter.x, ringCenter.y, 70),
@@ -414,6 +424,64 @@ test('no-ring guide preview separates rough center and sign clusters', () => {
 				ids.size === 3
 		)
 	);
+});
+
+test('no-ring guide preview keeps nearby side marks separate from center strokes', () => {
+	const result = classifyDrawing({
+		strokes: [
+			noRingPreviewStroke('center-s', [
+				[0.5, 0.36],
+				[0.46, 0.39],
+				[0.45, 0.45],
+				[0.48, 0.5],
+				[0.54, 0.55],
+				[0.58, 0.61],
+				[0.54, 0.66],
+				[0.47, 0.66],
+				[0.45, 0.72],
+				[0.49, 0.77],
+				[0.57, 0.75],
+				[0.58, 0.7]
+			]),
+			noRingPreviewStroke('left-upper', [
+				[0.39, 0.5],
+				[0.37, 0.48]
+			]),
+			noRingPreviewStroke('left-bar', [
+				[0.38, 0.56],
+				[0.33, 0.56]
+			]),
+			noRingPreviewStroke('left-lower', [
+				[0.37, 0.61],
+				[0.34, 0.64]
+			]),
+			noRingPreviewStroke('right-upper', [
+				[0.64, 0.47],
+				[0.68, 0.47],
+				[0.69, 0.43]
+			]),
+			noRingPreviewStroke('right-bar', [
+				[0.64, 0.56],
+				[0.7, 0.56]
+			]),
+			noRingPreviewStroke('right-lower', [
+				[0.63, 0.61],
+				[0.66, 0.65]
+			])
+		],
+		previousRing: null,
+		canvasWidth: ringCenter.x * 2,
+		canvasHeight: ringCenter.y * 2,
+		dictionary: realDictionary,
+		config: CONFIG
+	});
+	const centerCandidate = result.candidates.find((candidate) =>
+		candidate.strokeIds.includes('center-s')
+	);
+
+	assert.equal(result.ring.found, false);
+	assert.equal(result.candidates.length, 7);
+	assert.deepEqual(centerCandidate?.strokeIds, ['center-s']);
 });
 
 test('decomposition separates a center sigil from an adjacent sign', () => {

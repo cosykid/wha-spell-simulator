@@ -17,6 +17,8 @@
 		"test:e2e": "playwright install && playwright test",
 		"normalize:svg": "node scripts/normalize-svgs.mjs src/lib/dictionary/svg --stroke-width 0.4",
 		"sample:svg": "node --import tsx scripts/sample-to-svg.ts",
+		"train:glyphs": "bash scripts/training/run_glyph_training.sh",
+		"postinstall": "node scripts/sync-onnxruntime-assets.mjs",
 		"prepare": "husky"
 	},
 	"devDependencies": {
@@ -47,6 +49,7 @@
 		"kysely": "^0.29.2",
 		"kysely-neon": "^3.0.0",
 		"lucide-svelte": "^1.0.1",
+		"onnxruntime-web": "^1.26.0",
 		"zod": "^4.4.3"
 	}
 }
