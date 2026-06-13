@@ -60,6 +60,10 @@ export class MakerSession {
 	/** Whether the Discord-username editor modal is open. */
 	usernameModalOpen = $state(false);
 
+	/** While locked, advancing after a submit keeps the current sign instead of picking a new one.
+	 *  Intentionally session-only (not persisted) — it resets on reload. */
+	locked = $state(false);
+
 	/** Sample counts added during this browser session, layered on top of the server snapshot. */
 	#submittedSampleCounts = $state<Record<string, number>>({});
 
@@ -229,6 +233,11 @@ export class MakerSession {
 		this.scene.do(transformEntity(symbolEntity, before, after));
 	}
 
+	/** Toggle whether the current sign stays put when advancing to the next sample. */
+	toggleLock(): void {
+		this.locked = !this.locked;
+	}
+
 	/** Clear only the canvas state, keeping the current drawing prompt intact. */
 	clear(): void {
 		this.scene.clear();
@@ -246,9 +255,11 @@ export class MakerSession {
 	/** Start the next sample after a successful upload. */
 	clearAndSuggestNext(): void {
 		const submittedSignId = this.selected?.id;
+		const locked = this.locked ? this.picker.current : null;
 		this.clear();
 		if (submittedSignId) this.incrementSampleCount(submittedSignId);
-		this.suggest();
+		if (locked) this.suggest(locked);
+		else this.suggest();
 	}
 }
 

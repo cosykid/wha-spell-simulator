@@ -13,12 +13,23 @@ chord stays registered.
 		icon: ComponentType;
 		onclick: () => void;
 		disabled?: boolean;
+		/** When true, renders the button with a teal accent to indicate an engaged/on state. */
+		active?: boolean;
 	}
 
-	let { label, icon: Icon, onclick, disabled = false }: Props = $props();
+	let { label, icon: Icon, onclick, disabled = false, active = false }: Props = $props();
 </script>
 
-<button type="button" class="icon-button" {disabled} aria-label={label} title={label} {onclick}>
+<button
+	type="button"
+	class="icon-button"
+	class:active
+	{disabled}
+	aria-label={label}
+	aria-pressed={active}
+	title={label}
+	{onclick}
+>
 	<Icon size={20} />
 </button>
 
@@ -29,5 +40,11 @@ chord stays registered.
 		justify-content: center;
 		padding: 8px;
 		line-height: 0;
+	}
+
+	.icon-button.active {
+		background: rgba(31, 111, 115, 0.14);
+		color: rgba(31, 111, 115, 0.9);
+		border-radius: 6px;
 	}
 </style>
