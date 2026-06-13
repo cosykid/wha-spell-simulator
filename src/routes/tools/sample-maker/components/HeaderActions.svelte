@@ -8,6 +8,7 @@ Clear keeps its Ctrl+L chord (via ShortcutButton); Reroll and Open-picker are pl
 	import { getMakerSession } from '../maker-session.svelte.js';
 	import ClearButton from './ClearButton.svelte';
 	import IconButton from './IconButton.svelte';
+	import LockButton from './LockButton.svelte';
 
 	const session = getMakerSession();
 </script>
@@ -19,6 +20,7 @@ Clear keeps its Ctrl+L chord (via ShortcutButton); Reroll and Open-picker are pl
 		icon={LayoutGrid}
 		onclick={() => (session.pickerOpen = !session.pickerOpen)}
 	/>
+	<LockButton />
 	<ClearButton />
 </div>
 

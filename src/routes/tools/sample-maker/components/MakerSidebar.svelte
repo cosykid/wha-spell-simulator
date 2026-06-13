@@ -13,6 +13,7 @@ a bounded height the label grid would stretch the page instead of scrolling.
 	import { getMakerSession } from '../maker-session.svelte.js';
 	import { SAMPLE_SYMBOLS } from '../symbols.js';
 	import ClearButton from './ClearButton.svelte';
+	import LockButton from './LockButton.svelte';
 
 	const session = getMakerSession();
 </script>
@@ -41,6 +42,7 @@ a bounded height the label grid would stretch the page instead of scrolling.
 			<RotateCw size={18} />
 			Random sign
 		</button>
+		<LockButton />
 		<ClearButton />
 	</div>
 
