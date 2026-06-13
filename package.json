@@ -9,7 +9,7 @@
 		"build": "vite build",
 		"preview": "vite preview --host 127.0.0.1 --port 4173",
 		"check": "svelte-check --tsconfig ./tsconfig.json",
-		"db:migrate": "node --import tsx scripts/migrate-neon.ts",
+		"db:migrate": "node --import tsx scripts/migrate.ts",
 		"test": "npm run test:unit && npm run test:e2e",
 		"test:unit": "node --import tsx --test tests/*.test.ts",
 		"lint": "prettier --check . && eslint .",
@@ -24,6 +24,7 @@
 	"devDependencies": {
 		"@eslint/js": "^10.0.1",
 		"@playwright/test": "^1.60.0",
+		"@types/pg": "^8.11.10",
 		"@sveltejs/adapter-vercel": "^6.3.3",
 		"@sveltejs/kit": "^2.8.0",
 		"@sveltejs/vite-plugin-svelte": "^5.0.0",
@@ -45,11 +46,10 @@
 		"vite": "^6.0.0"
 	},
 	"dependencies": {
-		"@neondatabase/serverless": "^1.1.0",
 		"kysely": "^0.29.2",
-		"kysely-neon": "^3.0.0",
 		"lucide-svelte": "^1.0.1",
 		"onnxruntime-web": "^1.26.0",
+		"pg": "^8.13.0",
 		"zod": "^4.4.3"
 	}
 }

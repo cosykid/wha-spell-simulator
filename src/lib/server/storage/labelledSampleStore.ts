@@ -5,7 +5,7 @@ import type {
 } from '$lib/structures/labelledSample.js';
 import { randomUUID } from 'node:crypto';
 import { sql, type SqlBool } from 'kysely';
-import { getDb, type Db } from './neon.js';
+import { getDb, type Db } from './db.js';
 
 /** Thrown when a sample with byte-identical raw strokes already exists. */
 export class DuplicateSampleError extends Error {
@@ -67,7 +67,7 @@ interface LabelledSampleRow {
 	reviewed_at: unknown;
 }
 
-/** True for a Postgres unique-constraint violation surfaced by the Neon driver. */
+/** True for a Postgres unique-constraint violation surfaced by node-postgres. */
 function isUniqueViolation(error: unknown): boolean {
 	return (
 		typeof error === 'object' && error !== null && (error as { code?: string }).code === '23505'
