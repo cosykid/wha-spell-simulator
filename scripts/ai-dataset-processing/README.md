@@ -132,9 +132,32 @@ The manifest carries both the class target and the rendered-image pose targets:
 The rendered pose values include the image margin, so they line up with the PNGs
 the model actually sees.
 
-## Why PNG Instead Of JPG?
+#### Why PNG Instead Of JPG?
 
 These samples are sparse black-and-white line drawings. PNG keeps the strokes
 lossless, avoids JPEG artifacts around thin lines, and is usually still small for
 this kind of image. `wha-ds-imageifier.py --format jpg` remains available if you
 need JPEGs for a specific experiment.
+
+### 3. Publish To Hugging Face
+
+`wha-ds-hf-publisher.py` publishes the vector JSONL and/or raster image dataset
+to the [Hugging Face Hub](https://huggingface.co/datasets) as a versioned
+dataset.
+
+Requires a Hugging Face account: set the `HF_TOKEN` environment variable, or log in once with `hf auth login`.
+
+```bash
+uv run wha-ds-hf-publisher.py \
+  --repo-id your-user/your-dataset \
+  --vector-train train.jsonl \
+  --vector-validation validation.jsonl \
+  --images output_directory/ \
+  --tag v1
+```
+
+- At least one of `--vector-train` / `--images` is required; each becomes a named config on the Hub (`vector` / `image`).
+- `--tag` creates a git tag on the Hub repo, so consumers can pin a release with `load_dataset(..., revision="v1")`.
+- Add `--dry-run` to process everything locally (counts + a dataset card preview) without uploading.
+- CI runs this automatically on every scheduled DB backup when the `HF_TOKEN` repo secret is set — see `scripts/db-backup.sh`.
+- The dataset card declares a [`cc0-1.0`](https://creativecommons.org/publicdomain/zero/1.0/) (public domain) license.

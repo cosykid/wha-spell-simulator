@@ -228,7 +228,7 @@ async function loadRuntime(config: MlConfig): Promise<MlRuntime | null> {
 				},
 				'warn'
 			);
-			if (runtimePromise === loadingPromise && runtimeKey === loadingKey) {
+			if (runtimeKey === loadingKey) {
 				runtimePromise = null;
 				runtimeKey = '';
 			}
