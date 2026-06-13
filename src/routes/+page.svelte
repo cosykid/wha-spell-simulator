@@ -709,7 +709,8 @@
 		const styles = getComputedStyle(workspace);
 		const columnGap = Number.parseFloat(styles.columnGap) || 0;
 		const requiredWidth = rect.height + CANVAS_LAYOUT_MIN_SIDE_COLUMNS + columnGap * 2;
-		canvasHeightMatched = window.innerWidth >= DESKTOP_LAYOUT_MIN_WIDTH && rect.width >= requiredWidth;
+		canvasHeightMatched =
+			window.innerWidth >= DESKTOP_LAYOUT_MIN_WIDTH && rect.width >= requiredWidth;
 	}
 
 	function handleToggleArrange() {
