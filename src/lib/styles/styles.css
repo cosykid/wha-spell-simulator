@@ -121,6 +121,10 @@ button:active {
 	flex-direction: column;
 }
 
+.simulator-shell {
+	width: min(100%, max(1480px, calc(100vh + 540px)));
+}
+
 body:not(.sigil-maker-page) .app-shell {
 	height: 100vh;
 	overflow: hidden;
@@ -660,34 +664,42 @@ body:not(.sigil-maker-page) .app-shell {
 }
 
 /*
- * Desktop: keep the drawing surface locked to a fixed 1:1 (square) aspect ratio
- * so the canvas never changes shape as the window resizes (which would skew
- * strokes). The panel becomes a size container and the shell is fitted to the
- * largest square that fits within it: width = min(panel width, panel height).
- * Below 1050px the single-column rules at the bottom of this file already keep
- * the square.
+ * Desktop: keep the drawing surface locked to a fixed 1:1 (square) aspect ratio.
+ * By default it is width-bound so narrow/tall windows cannot overlap the side
+ * panels. When the page script detects enough horizontal room, it switches the
+ * grid to a height-matched square that fills the same row as the side panels.
  */
 @media (min-width: 1051px) {
-	/*
-	 * The canvas column shrinks to exactly the square drawing surface (its width
-	 * follows the available row height via aspect-ratio), so no panel background
-	 * shows beside it. The freed horizontal space is absorbed by the side panels'
-	 * fr tracks, which expand to fill it.
-	 */
 	.workspace {
-		grid-template-columns: minmax(230px, 0.85fr) auto minmax(280px, 1.05fr);
+		grid-template-columns: minmax(230px, 0.85fr) minmax(0, 2.2fr) minmax(280px, 1.05fr);
 	}
 
 	.canvas-panel {
 		aspect-ratio: 1 / 1;
-		height: 100%;
+		width: 100%;
+		height: auto;
+		align-self: start;
 	}
 
 	.canvas-shell {
+		width: 100%;
+		height: auto;
+		aspect-ratio: 1 / 1;
+	}
+
+	.workspace.canvas-height-matched {
+		grid-template-columns: minmax(230px, 0.85fr) auto minmax(280px, 1.05fr);
+	}
+
+	.workspace.canvas-height-matched .canvas-panel {
 		width: auto;
 		height: 100%;
-		aspect-ratio: 1 / 1;
-		margin: 0 auto;
+		align-self: stretch;
+	}
+
+	.workspace.canvas-height-matched .canvas-shell {
+		width: auto;
+		height: 100%;
 	}
 }
 
