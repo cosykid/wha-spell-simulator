@@ -91,3 +91,15 @@ test('keeps the canvas hint hidden after drawing has started even if the canvas 
 
 	assert.equal(summary.hintHidden, true);
 });
+
+test('erase mode locks freehand input without sealing the canvas', () => {
+	const summary = computeSummary({
+		store: storeWithCount(0),
+		pipeline: { ring: { complete: false } } as ClassifiedDrawing,
+		spellIR: null,
+		showGuides: true,
+		eraseMode: true
+	});
+	assert.equal(summary.inputLocked, true);
+	assert.equal(summary.canvasLocked, false);
+});

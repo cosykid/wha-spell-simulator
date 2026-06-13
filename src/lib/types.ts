@@ -409,6 +409,17 @@ export interface DrawingCaptureCallbacks {
 	onCommit?: () => void;
 }
 
+export interface EraserControllerApi {
+	// Fired on pointerdown, before the first erase is applied (the caller
+	// cancels in-flight recognition here).
+	onBegin(): void;
+	// Apply erasure along the pointer's movement; returns true when ink changed.
+	applyErase(from: Vector, to: Vector): boolean;
+	// Fired once when the gesture ends; `changed` reports whether any ink was
+	// erased so the caller can record a single undo step for the whole gesture.
+	onCommit(changed: boolean): void;
+}
+
 export interface StrokeStore {
 	addStroke(points: Point[]): Stroke;
 	undo(): Stroke | null;
