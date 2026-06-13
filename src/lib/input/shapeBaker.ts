@@ -10,7 +10,7 @@ import { degreesToRadians, distance, radiansToDegrees } from '../utils/geometry.
 
 export const HANDLE_HIT_RADIUS = 12;
 const MIN_SHAPE_SIZE = 24;
-const ROTATE_HANDLE_OFFSET = 28;
+export const ROTATE_HANDLE_OFFSET = 28;
 
 export function clampShapeSize(value: number): number {
 	return Math.max(MIN_SHAPE_SIZE, value);
@@ -66,7 +66,10 @@ export function bakePlacementToStrokes(placement: Placement): Stroke[] {
 	}));
 }
 
-export function placementHandles(placement: Placement): PlacementHandles {
+export function placementHandles(
+	placement: Placement,
+	rotateHandleOffset = ROTATE_HANDLE_OFFSET
+): PlacementHandles {
 	const { transform } = placement;
 	const basis = transformBasis(transform);
 	const hx = transform.scaleX / 2;
@@ -81,7 +84,7 @@ export function placementHandles(placement: Placement): PlacementHandles {
 			{ type: 'elongate-y', ...corner(0, hy) }
 		],
 		topMid: corner(0, -hy),
-		rotate: corner(0, -hy - ROTATE_HANDLE_OFFSET)
+		rotate: corner(0, -hy - rotateHandleOffset)
 	};
 }
 
@@ -96,9 +99,10 @@ export function hitTestPlacement(placement: Placement, point: Vector, pad = 6): 
 export function hitTestHandles(
 	placement: Placement,
 	point: Vector,
-	radius = HANDLE_HIT_RADIUS
+	radius = HANDLE_HIT_RADIUS,
+	rotateHandleOffset = ROTATE_HANDLE_OFFSET
 ): PlacementHandle | null {
-	const handles = placementHandles(placement);
+	const handles = placementHandles(placement, rotateHandleOffset);
 	const candidates: PlacementHandle[] = [
 		{ type: 'rotate', x: handles.rotate.x, y: handles.rotate.y },
 		{ type: 'elongate-y-top', x: handles.topMid.x, y: handles.topMid.y },
@@ -107,7 +111,18 @@ export function hitTestHandles(
 		),
 		...handles.edgeHandles
 	];
-	return candidates.find((handle) => distance(point, handle) <= radius) ?? null;
+	// Pick the nearest candidate (not the first within range): large touch hit radii can
+	// overlap on a small placement, and the finger should win the handle it is closest to.
+	let best: PlacementHandle | null = null;
+	let bestDistance = Infinity;
+	for (const handle of candidates) {
+		const handleDistance = distance(point, handle);
+		if (handleDistance <= radius && handleDistance < bestDistance) {
+			best = handle;
+			bestDistance = handleDistance;
+		}
+	}
+	return best;
 }
 
 export function rotationDegToPoint(transform: PlacementTransform, point: Vector): number {

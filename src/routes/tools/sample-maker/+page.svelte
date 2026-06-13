@@ -1,252 +1,105 @@
+<!--
+@component
+The Sample Maker page: a thin shell that wires up the shared contexts (the MakerSession, the
+scene, and the keyboard-shortcut registry) and lays out a single full-canvas, phase-driven UI —
+a header (mobile) or expanded sidebar (desktop), the canvas, a phase-relevant instruction line,
+and a bottom action bar — plus the slide-up picker and full-page symbol overlays. All behaviour
+lives in the small self-contained components under ./components, which reach this shared state
+through context rather than props.
+-->
 <script lang="ts">
 	import Canvas from '$canvas/Canvas.svelte';
-	import type { CanvasBehavior } from '$canvas/canvasBehavior.js';
-	import { addEntity, removeEntity, transformEntity } from '$canvas/commands.js';
-	import { gridEntity } from '$canvas/entities/gridEntity.js';
-	import { paperEntity } from '$canvas/entities/paperEntity';
-	import { isStrokeEntity } from '$canvas/entities/strokeEntity.js';
-	import { isSymbolEntity, makeSymbolEntity } from '$canvas/entities/symbolEntity.js';
-	import { isTransformable } from '$canvas/entity.js';
-	import { createScene } from '$canvas/scene.svelte.js';
-	import { createDrawTool } from '$canvas/tools/drawTool.svelte.js';
-	import { createSelectTool } from '$canvas/tools/selectTool.svelte.js';
-	import { loadSymbolRenderPath } from '$lib/dictionary/svgStrokes.js';
-	import type { Placement } from '$lib/types.js';
-	import ButtonWithShortcut from '$lib/ui/ButtonWithShortcut.svelte';
-	import {
-		createKeyDownHandler,
-		type ButtonWithShortcut as ButtonWithShortcutDef
-	} from '$lib/ui/keybindings.js';
-	import SampleSubmit from './SampleSubmit.svelte';
-	import SuggestionPrompt from './SuggestionPrompt.svelte';
-	import { REFERENCE_SIZE } from './buildSample.js';
-	import { SYMBOL_ID } from './constants.js';
-	import { optimizePlacement } from './optimize.js';
-	import { SAMPLE_SYMBOLS, type SampleSymbol } from './symbols.js';
+	import { createShortcutRegistry, setShortcutRegistry } from '$lib/ui/shortcutRegistry.svelte.js';
 	import type { PageData } from './$types';
+	import Instructions from './components/Instructions.svelte';
+	import MakerHeader from './components/MakerHeader.svelte';
+	import MakerSidebar from './components/MakerSidebar.svelte';
+	import PhaseBar from './components/PhaseBar.svelte';
+	import SymbolOverlay from './components/SymbolOverlay.svelte';
+	import SymbolPickerSheet from './components/SymbolPickerSheet.svelte';
+	import { MakerSession, setMakerSession } from './maker-session.svelte.js';
 
 	interface Props {
 		data: PageData;
 	}
 
 	let { data }: Props = $props();
-	let submittedSampleCounts = $state<Record<string, number>>({});
 
-	// Scene and tools
-	const scene = createScene([paperEntity(), gridEntity(REFERENCE_SIZE)]);
-	const draw = createDrawTool(scene);
-	const select = createSelectTool(scene);
+	const session = new MakerSession(() => data);
+	setMakerSession(session);
+	const registry = createShortcutRegistry();
+	setShortcutRegistry(registry);
 
-	// State
-	let selected = $state<SampleSymbol | null>(null);
-	let ctx = $state<CanvasRenderingContext2D | null>(null);
-	let sampleSubmit = $state<ReturnType<typeof SampleSubmit>>();
-	let suggestionPrompt = $state<ReturnType<typeof SuggestionPrompt>>();
-	let mode = $state<'draw' | 'select'>('draw');
-
-	// Computed state
-	const tool = $derived<CanvasBehavior>(mode === 'draw' ? draw : select);
-	const hasStrokes = $derived(scene.getEntities().some(isStrokeEntity));
-	const strokes = $derived(
-		scene
-			.getEntities()
-			.filter(isStrokeEntity)
-			.map((e) => e.stroke)
-	);
-	const symbolEntity = $derived.by(() => {
-		const e = scene.get(SYMBOL_ID);
-		return e && isTransformable(e) ? e : null;
-	});
-	const sampleCounts = $derived.by(() => {
-		const seenSignIds: string[] = [];
-		const merged = data.sampleCounts.map((count) => {
-			seenSignIds.push(count.signId);
-			return {
-				...count,
-				count: count.count + (submittedSampleCounts[count.signId] ?? 0)
-			};
-		});
-		for (const [signId, count] of Object.entries(submittedSampleCounts)) {
-			if (!seenSignIds.includes(signId)) merged.push({ signId, count });
-		}
-		return merged;
-	});
-
-	// Switch mode by whether the symbol is in the scene, autoselecting it so its handles show up.
-	const symbolInScene = $derived(scene.getEntities().some((e) => e.id === SYMBOL_ID));
+	// Seed the first suggestion once the page is on screen.
 	$effect(() => {
-		mode = symbolInScene ? 'select' : 'draw';
-		select.setSelectedId(symbolInScene ? SYMBOL_ID : null);
+		if (!session.picker.current) session.suggest();
 	});
-
-	/**
-	 * Stamp the picked symbol onto the canvas as the reference glyph (replacing any previous one),
-	 * centered at a default scale and orientation — suggestions pass a random `rotationDeg`.
-	 */
-	const pickSymbol = (symbol: SampleSymbol, rotationDeg = 0): void => {
-		// At most one symbol entity at a time — drop the previous one before stamping,
-		// going through the history so undo/redo stays consistent with the stamp below.
-		const previous = scene.get(SYMBOL_ID);
-		if (previous) scene.do(removeEntity(scene, previous));
-		const placement: Placement = {
-			id: SYMBOL_ID,
-			kind: 'sign',
-			sourceId: symbol.id,
-			baseStrokes: [], // sampled lazily by getBaseStrokes() only if the user runs "fit"
-			transform: {
-				cx: 400,
-				cy: 400,
-				scaleX: REFERENCE_SIZE,
-				scaleY: REFERENCE_SIZE,
-				rotationDeg
-			}
-		};
-		scene.do(addEntity(scene, makeSymbolEntity(placement, loadSymbolRenderPath(symbol.id), 10, 7)));
-		selected = symbol; // mode and selection are managed by the symbolInScene effect
-	};
-
-	/**
-	 * Fit the reference glyph to the drawn strokes, making it easier to align submitted samples.
-	 */
-	const fitLabel = (): void => {
-		const symbolEntity = scene.get(SYMBOL_ID);
-		if (!symbolEntity || !isSymbolEntity(symbolEntity)) return;
-		const strokes = scene
-			.getEntities()
-			.filter(isStrokeEntity)
-			.map((e) => e.stroke);
-		if (!strokes.length) return;
-		const before = symbolEntity.placement.transform;
-		const after = optimizePlacement({
-			strokes,
-			baseStrokes: symbolEntity.getBaseStrokes(),
-			initial: before,
-			canvasWidth: ctx!.canvas.width,
-			canvasHeight: ctx!.canvas.height
-		});
-		scene.do(transformEntity(symbolEntity, before, after));
-	};
-
-	/** Clear only the canvas state, keeping the current drawing prompt intact. */
-	const clear = (): void => {
-		scene.clear();
-		selected = null;
-	};
-
-	/** Keep prompt weighting current after this browser session adds a sample. */
-	const incrementSampleCount = (signId: string): void => {
-		submittedSampleCounts = {
-			...submittedSampleCounts,
-			[signId]: (submittedSampleCounts[signId] ?? 0) + 1
-		};
-	};
-
-	/** Start the next sample after a successful upload. */
-	const clearAndSuggestNext = (): void => {
-		const submittedSignId = selected?.id;
-		clear();
-		if (submittedSignId) incrementSampleCount(submittedSignId);
-		suggestionPrompt?.suggest();
-	};
-
-	const toolbar: ButtonWithShortcutDef[] = [
-		{
-			shortcut: 'Ctrl+Z',
-			description: 'Undo',
-			disabled: () => !scene.canUndo(),
-			action: () => scene.undo()
-		},
-		{
-			shortcut: 'Ctrl+Y',
-			description: 'Redo',
-			disabled: () => !scene.canRedo(),
-			action: () => scene.redo()
-		},
-		{
-			shortcut: 'Ctrl+Enter',
-			description: 'Fit label',
-			disabled: () => !selected || !hasStrokes,
-			action: fitLabel
-		},
-		{ shortcut: 'Ctrl+L', description: 'Clear', action: clear }
-	];
-
-	// Shortcuts for actions that live in the side-panel components rather than the canvas toolbar.
-	const labelShortcut: ButtonWithShortcutDef = {
-		shortcut: 'Ctrl+D',
-		description: 'Label',
-		disabled: () => !hasStrokes,
-		action: () => suggestionPrompt?.label()
-	};
-	const submitShortcut: ButtonWithShortcutDef = {
-		shortcut: 'Ctrl+S',
-		description: 'Submit sample',
-		disabled: () => !selected || !hasStrokes,
-		action: () => sampleSubmit?.submit()
-	};
-
-	const onKeyDown = createKeyDownHandler([...toolbar, labelShortcut, submitShortcut]);
 </script>
 
-<svelte:window onkeydown={onKeyDown} />
+<svelte:window onkeydown={registry.handleKeyDown} />
 
 <svelte:head>
 	<title>Sample Maker</title>
 </svelte:head>
 
-<main class="workspace maker-workspace">
-	<section class="canvas-panel maker-canvas-panel">
-		<div class="toolbar">
-			{#each toolbar as item (item.shortcut)}
-				<ButtonWithShortcut
-					description={item.description}
-					shortcut={item.shortcut}
-					disabled={item.disabled?.() ?? false}
-					onclick={item.action}
-				/>
-			{/each}
+<main class="maker-shell">
+	<MakerSidebar />
+	<div class="maker-main">
+		<MakerHeader />
+		<div class="maker-canvas">
+			<Canvas scene={session.scene} controller={session.tool} bind:ctx={session.ctx} />
 		</div>
-		<Canvas {scene} controller={tool} bind:ctx />
-	</section>
-	<aside class="side-panel maker-side-panel">
-		<header>
-			<h2 class="panel-section-title">Dataset Builder</h2>
-			<p class="builder-cta">Help us build a dataset to recognize hand-drawn spells!</p>
-		</header>
-
-		<SuggestionPrompt
-			bind:this={suggestionPrompt}
-			symbols={SAMPLE_SYMBOLS}
-			{sampleCounts}
-			{hasStrokes}
-			onpick={pickSymbol}
-		/>
-
-		<SampleSubmit
-			bind:this={sampleSubmit}
-			{symbolEntity}
-			{strokes}
-			{selected}
-			{ctx}
-			onSuccess={clearAndSuggestNext}
-		/>
-	</aside>
+		<Instructions />
+		<PhaseBar />
+	</div>
 </main>
 
+<SymbolPickerSheet />
+
+<SymbolOverlay
+	open={session.symbolOverlayOpen}
+	onclose={() => (session.symbolOverlayOpen = false)}
+/>
+
 <style>
-	.maker-side-panel {
+	.maker-shell {
 		display: flex;
 		flex-direction: column;
-		gap: 12px;
-		padding: 14px;
-		min-width: 0;
-		overflow: auto;
+		flex: 1 1 auto;
+		min-height: 0;
+		border: 1px solid rgba(245, 240, 219, 0.26);
+		border-radius: var(--radius);
+		background: rgba(242, 236, 214, 0.9);
+		box-shadow: 0 18px 45px var(--shadow);
+		overflow: hidden;
 	}
 
-	.builder-cta {
-		margin: 0 0 4px;
-		font-size: 13px;
-		line-height: 1.4;
-		color: var(--muted-ink);
+	.maker-main {
+		display: flex;
+		flex-direction: column;
+		flex: 1 1 auto;
+		min-width: 0;
+		min-height: 0;
+	}
+
+	.maker-canvas {
+		flex: 1 1 auto;
+		min-height: 0;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		padding: 0 12px;
+		overflow: hidden;
+	}
+
+	/* On wider screens, lay the sidebar beside the workspace and cap the overall width. The
+	   breakpoint sits just above styles.css's 1050px one, below which the app shell stops being
+	   height-locked — the sidebar needs that lock so its label grid scrolls instead of growing. */
+	@media (min-width: 1051px) {
+		.maker-shell {
+			flex-direction: row;
+			width: min(1140px, 100%);
+			margin: 0 auto;
+		}
 	}
 </style>

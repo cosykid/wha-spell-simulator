@@ -4,7 +4,7 @@
 	"private": true,
 	"type": "module",
 	"scripts": {
-		"dev": "vite dev --host 127.0.0.1 --port 5173",
+		"dev": "vite dev --host --port 5173",
 		"start": "npm run dev",
 		"build": "vite build",
 		"preview": "vite preview --host 127.0.0.1 --port 4173",
@@ -48,6 +48,7 @@
 		"@neondatabase/serverless": "^1.1.0",
 		"kysely": "^0.29.2",
 		"kysely-neon": "^3.0.0",
+		"lucide-svelte": "^1.0.1",
 		"onnxruntime-web": "^1.26.0",
 		"zod": "^4.4.3"
 	}
