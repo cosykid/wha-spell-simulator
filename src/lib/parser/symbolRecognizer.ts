@@ -4,11 +4,13 @@ import {
 	clamp,
 	distance,
 	dominantAxisOrientationDeg,
+	lineSpreadRatio,
 	normalizeAngleDeg,
 	pathLength,
 	strokeLength
 } from '../utils/geometry.js';
 import { recognitionPlanForSymbol } from './signRotation.js';
+import { candidateContentKey, scopedLruCache } from './recognitionMemo.js';
 import {
 	buildExamplesFromDictionary,
 	recognitionKey,
@@ -36,6 +38,10 @@ const SIMPLE_SIGN_STRUCTURAL_FLOOR_SCORE = 0.86;
 const SIMPLE_SIGN_STRUCTURAL_FLOOR_CONFIDENCE = 0.54;
 const DECOMPOSITION_DOMINANT_SIGIL_SCORE = 0.85;
 const SIMPLE_SIGN_MIN_TEMPLATE_COVERAGE = 0.78;
+const REGION_SIGN_ID = 'region';
+const REGION_MIN_LINE_SPREAD = 0.14;
+const REGION_FULL_LINE_SPREAD = 0.26;
+const REGION_FLAT_CONFIDENCE_CAP = 0.34;
 const templateFeatureCache = new WeakMap<StrokeTemplate, TemplateFeatures>();
 const dictionaryExampleCache = new WeakMap<Dictionary, RecognitionExample[]>();
 
@@ -64,6 +70,7 @@ interface CandidateFeatures {
 	axisDominance: number;
 	strokeProfile: number[];
 	shapeSignature: ShapeSignature;
+	lineSpread: number;
 }
 
 interface StructuralMatch {
@@ -73,6 +80,7 @@ interface StructuralMatch {
 	strokeProfileScore: number;
 	shapeScore: number;
 	axisScore: number;
+	lineSpreadScore: number;
 	candidateAspectRatio: number;
 	templateAspectRatio: number;
 	candidateStrokeCount: number;
@@ -303,6 +311,20 @@ function shapeCompatibility(candidate: ShapeSignature, template: ShapeSignature)
 	return clamp(straightnessScore * 0.7 + loopScore * 0.3);
 }
 
+function regionLineSpreadScore(
+	kind: RecognitionKind,
+	entry: DictionaryEntry,
+	lineSpread: number
+): number {
+	if (kind !== 'sign' || entry.id !== REGION_SIGN_ID) {
+		return 1;
+	}
+	return clamp(
+		(lineSpread - REGION_MIN_LINE_SPREAD) /
+			Math.max(0.001, REGION_FULL_LINE_SPREAD - REGION_MIN_LINE_SPREAD)
+	);
+}
+
 function profileCompatibility(candidateProfile: number[], templateProfile: number[]): number {
 	const count = Math.max(candidateProfile.length, templateProfile.length);
 	if (!count) {
@@ -377,7 +399,8 @@ function candidateFeatures(candidate: SymbolCandidate): CandidateFeatures {
 		strokeLengthImbalance,
 		axisDominance,
 		strokeProfile: strokeLengthProfile(candidate.strokes, (stroke: Stroke) => stroke.points ?? []),
-		shapeSignature: shapeSignature(candidate.strokes.map((stroke) => stroke.points ?? []))
+		shapeSignature: shapeSignature(candidate.strokes.map((stroke) => stroke.points ?? [])),
+		lineSpread: lineSpreadRatio(candidate.strokes.flatMap((stroke) => stroke.points ?? []))
 	};
 }
 
@@ -415,6 +438,7 @@ function structuralCompatibility(
 		1 - undirectedAngularDifference(rotatedCandidateAxis, template.orientationDeg) / 90
 	);
 	const shapeScore = shapeCompatibility(features.shapeSignature, template.shapeSignature);
+	const lineSpreadScore = regionLineSpreadScore(kind, entry, features.lineSpread);
 	const smallSign = kind === 'sign' && template.strokeCount <= SIMPLE_SIGN_STROKE_LIMIT;
 	const strokeStructureScore = smallSign
 		? countScore * 0.58 + profileScore * 0.42
@@ -425,14 +449,19 @@ function structuralCompatibility(
 		kind === 'sign'
 			? strokeStructureScore * 0.68 + aspectScore * 0.2 + axisScore * 0.12
 			: shapeScore * 0.5 + aspectScore * 0.2 + profileScore * 0.18 + countScore * 0.12;
+	const cappedScore =
+		kind === 'sign' && entry.id === REGION_SIGN_ID
+			? Math.min(score, REGION_FLAT_CONFIDENCE_CAP + lineSpreadScore * 0.66)
+			: score;
 
 	return {
-		score: clamp(score),
+		score: clamp(cappedScore),
 		aspectScore,
 		strokeCountScore: countScore,
 		strokeProfileScore: profileScore,
 		shapeScore,
 		axisScore,
+		lineSpreadScore,
 		candidateAspectRatio: features.aspectRatio,
 		templateAspectRatio: template.aspectRatio,
 		candidateStrokeCount: features.strokeCount,
@@ -610,6 +639,7 @@ function scoreByStrokeTemplate(
 			: 1;
 	const simpleSignStructuralFloor =
 		kind === 'sign' &&
+		entry.id !== REGION_SIGN_ID &&
 		candidate.layer !== 'center' &&
 		structuralMatch.templateStrokeCount <= SIMPLE_SIGN_STRUCTURAL_FLOOR_STROKE_LIMIT &&
 		structuralMatch.candidateStrokeCount === structuralMatch.templateStrokeCount &&
@@ -620,6 +650,10 @@ function scoreByStrokeTemplate(
 			: 0;
 	const grossStructureMismatchCap =
 		structuralMatch.score < 0.18 && templateMatch.templateCoveredRatio < 0.5 ? 0.44 : 1;
+	const regionGeometryCap =
+		kind === 'sign' && entry.id === REGION_SIGN_ID
+			? REGION_FLAT_CONFIDENCE_CAP + structuralMatch.lineSpreadScore * 0.66
+			: 1;
 	const contextualScore =
 		templateMatch.confidence * 0.66 +
 		structuralMatch.score * 0.16 +
@@ -632,7 +666,8 @@ function scoreByStrokeTemplate(
 			Math.min(
 				clamp(Math.min(contextualScore, contextLiftCap) * simpleSignStructureMultiplier),
 				simpleSignIncompleteCap,
-				grossStructureMismatchCap
+				grossStructureMismatchCap,
+				regionGeometryCap
 			),
 			simpleSignStructuralFloor
 		),
@@ -728,6 +763,10 @@ export function createDecompositionScorer(
 	});
 
 	const bestEntryScore = (group: EntryGroup, candidate: SymbolCandidate): number => {
+		const layerScore = allowedLayerScore(group.entry, candidate);
+		if (layerScore < 0.5) {
+			return 0;
+		}
 		const plan = recognitionPlanForSymbol(group.kind, group.entry, candidate);
 		let best = 0;
 		for (const example of group.examples) {
@@ -736,10 +775,24 @@ export function createDecompositionScorer(
 				best = matcher.confidence;
 			}
 		}
-		return best * allowedLayerScore(group.entry, candidate);
+		return best * layerScore;
 	};
 
+	// Tree-cut scoring dominates recompute cost and is a pure function of the
+	// candidate content, so node scores are reused across recomputes; while
+	// drawing, only nodes touching the newest stroke are scored cold.
+	const nodeScoreCache = scopedLruCache<number>(
+		dictionary,
+		`decomposition:${allExamples.map((example) => example.id).join(',')}`,
+		2048
+	);
+
 	return (candidate: SymbolCandidate): number => {
+		const cacheKey = candidateContentKey(candidate);
+		const cached = nodeScoreCache.get(cacheKey);
+		if (cached !== undefined) {
+			return cached;
+		}
 		let best = 0;
 		for (const group of sigilEntries) {
 			const score = bestEntryScore(group, candidate);
@@ -747,15 +800,15 @@ export function createDecompositionScorer(
 				best = score;
 			}
 		}
-		if (best >= DECOMPOSITION_DOMINANT_SIGIL_SCORE) {
-			return best;
-		}
-		for (const group of signEntries) {
-			const score = bestEntryScore(group, candidate);
-			if (score > best) {
-				best = score;
+		if (best < DECOMPOSITION_DOMINANT_SIGIL_SCORE) {
+			for (const group of signEntries) {
+				const score = bestEntryScore(group, candidate);
+				if (score > best) {
+					best = score;
+				}
 			}
 		}
+		nodeScoreCache.set(cacheKey, best);
 		return best;
 	};
 }
@@ -801,8 +854,22 @@ export function recognizeCandidates(
 		})
 	];
 
+	const thresholds = recognitionThresholds(config);
+	// Final scoring is also pure per candidate; reusing results means a stroke
+	// commit only re-scores the candidate the new stroke landed in. candidateId
+	// is index-based and can shift between recomputes, so it is patched on hits.
+	const resultCache = scopedLruCache<RecognizedSymbol>(
+		dictionary,
+		`recognize:${allExamples.map((example) => example.id).join(',')}:${JSON.stringify(thresholds)}`,
+		256
+	);
+
 	return candidates.map((candidate) => {
-		const thresholds = recognitionThresholds(config);
+		const cacheKey = candidateContentKey(candidate);
+		const cached = resultCache.get(cacheKey);
+		if (cached) {
+			return { ...cached, candidateId: candidate.candidateId, strokeIds: candidate.strokeIds };
+		}
 		const features = candidateFeatures(candidate);
 		const scoreCache = new Map<string, PrecomputedExampleScore>();
 		const scoreExample = (
@@ -909,7 +976,7 @@ export function recognizeCandidates(
 				}
 			: null;
 
-		return {
+		const result: RecognizedSymbol = {
 			...publicCandidate(candidate),
 			recognized: accepted,
 			recognitionStatus: status,
@@ -925,7 +992,8 @@ export function recognizeCandidates(
 				elongation: features.elongation,
 				elongationNorm: features.elongationNorm,
 				strokeLengthImbalance: features.strokeLengthImbalance,
-				axisDominance: features.axisDominance
+				axisDominance: features.axisDominance,
+				lineSpread: features.lineSpread
 			},
 			diagnostics: {
 				bestGuess: accepted ? null : bestGuess,
@@ -959,6 +1027,7 @@ export function recognizeCandidates(
 					strokeProfileScore: bestStructuralMatch?.strokeProfileScore ?? 0,
 					shapeScore: bestStructuralMatch?.shapeScore ?? 0,
 					axisScore: bestStructuralMatch?.axisScore ?? 0,
+					lineSpreadScore: bestStructuralMatch?.lineSpreadScore ?? 1,
 					candidateAspectRatio: bestStructuralMatch?.candidateAspectRatio ?? features.aspectRatio,
 					templateAspectRatio: bestStructuralMatch?.templateAspectRatio ?? 1,
 					candidateStrokeCount: bestStructuralMatch?.candidateStrokeCount ?? features.strokeCount,
@@ -967,5 +1036,7 @@ export function recognizeCandidates(
 				topMatches
 			}
 		};
+		resultCache.set(cacheKey, result);
+		return result;
 	});
 }

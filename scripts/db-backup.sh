@@ -3,10 +3,10 @@
 # grandfather-father-son retention prefixes (daily/, weekly/, monthly/).
 # Expiry is handled by R2 lifecycle rules on those prefixes, not by this
 # script. Also builds the ML dataset (scripts/ai-dataset-processing pipeline)
-# from the CSV export and uploads it as latest.ml-dataset.zip — latest only,
-# since it is fully reproducible from the retained CSVs. When HF_TOKEN is set,
-# the dataset is also published to the Hugging Face Hub, tagged with the
-# backup date.
+# from approved database samples and uploads it as latest.ml-dataset.zip —
+# latest only, since it is fully reproducible from the retained backups. When
+# HF_TOKEN is set, the dataset is also published to the Hugging Face Hub, tagged
+# with the backup date.
 # Runs identically locally and in CI (.github/workflows/db-backup.yml).
 #
 # Required tools: psql/pg_dump (matching server major), aws, zip, uv.
@@ -138,7 +138,8 @@ mkdir -p "$ds_root"
 
 echo "Building ML dataset (JSONL + images) ..."
 uv run --project "$ds_project" "$ds_project/wha-ds-converter.py" \
-	"$csv_path" -o "$ds_root/dataset.jsonl"
+	--database-url "$direct_url" \
+	-o "$ds_root/dataset.jsonl"
 uv run --project "$ds_project" "$ds_project/wha-ds-imageifier.py" \
 	"$ds_root/dataset.jsonl" -o "$ds_root/images"
 # Convenience copy with a stratified 80/20 train/validation split

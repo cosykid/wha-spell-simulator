@@ -120,9 +120,11 @@ def render_card_body(repo_id, counts):
 			"One record per sample:",
 			"",
 			"- `id` — content hash of the raw sample",
+			"- `sample_id` — database sample id",
 			"- `sign` — glyph class label",
 			"- `data` — list of strokes; each stroke is a list of `{t, x, y}` points",
 			"  (`t` in ms from first pen-down, `x`/`y` normalised to 0..1)",
+			"- `pose` — normalized reference overlay center, scale, and rotation targets",
 			"",
 			"```python",
 			"from datasets import load_dataset",
@@ -150,8 +152,9 @@ def render_card_body(repo_id, counts):
 		"## Provenance & licensing",
 		"",
 		f"Collected via the [WHA spell simulator]({PROJECT_URL}) Sample Maker.",
-		"Samples contain no personal information: only the content hash, class",
-		"label, and stroke geometry survive the export pipeline.",
+		"Samples contain no personal information: only ids, class labels, stroke",
+		"geometry, normalized pose targets, and non-identifying capture metadata",
+		"survive the export pipeline.",
 		"",
 	]
 	return "\n".join(body)
