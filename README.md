@@ -83,7 +83,7 @@ This app is deployed at
 [https://wha-spell-simulator.vercel.app/](https://wha-spell-simulator.vercel.app/)
 and targets Vercel through `@sveltejs/adapter-vercel`. The prerendered canvas
 shell is served as static output, while SvelteKit API routes are deployed as
-Vercel serverless functions. That keeps Neon credentials server-side and lets the
+Vercel serverless functions. That keeps the database credentials server-side and lets the
 browser submit labelled samples through `/api/samples`.
 
 Once the GitHub repo is connected to Vercel, pull requests get preview
@@ -92,10 +92,7 @@ deployments and merges to `main` deploy to production.
 Set these Vercel project environment variables as needed:
 
 ```sh
-# Optional: enables Neon-backed training data storage.
-# DATABASE_URL is preferred; NEON_DATABASE_URL is accepted as a fallback alias.
-DATABASE_URL=postgres://...
-NEON_DATABASE_URL=postgres://...
+DATABASE_URL_VPS=postgres://...
 ```
 
 Vercel can use the default build command:
