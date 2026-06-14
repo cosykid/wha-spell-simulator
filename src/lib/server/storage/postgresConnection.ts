@@ -31,12 +31,15 @@ export function normalizePostgresConnectionString(connectionString: string): str
  * - `verify-ca`/`verify-full` -> encrypt and enforce the certificate chain.
  */
 export function sslFor(connectionString: string): PoolConfig['ssl'] {
-	let sslmode: string | null = null;
-	try {
-		sslmode = new URL(connectionString).searchParams.get('sslmode');
-	} catch {
-		sslmode = connectionString.match(/[?&]sslmode=([^&]+)/)?.[1] ?? null;
-	}
+	const sslmode = (() => {
+		let parsed: URL;
+		try {
+			parsed = new URL(connectionString);
+		} catch {
+			return connectionString.match(/[?&]sslmode=([^&]+)/)?.[1] ?? null;
+		}
+		return parsed.searchParams.get('sslmode');
+	})();
 
 	if (!sslmode || sslmode === 'disable') {
 		return false;
