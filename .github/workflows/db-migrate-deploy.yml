@@ -1,0 +1,22 @@
+name: Deploy Migrations
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'migrations/**'
+
+jobs:
+  migrate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: lts/*
+      - name: Install dependencies
+        run: npm ci
+      - name: Apply migrations to VPS
+        env:
+          DATABASE_URL_VPS: ${{ secrets.DATABASE_URL_VPS }}
+        run: npm run db:migrate
