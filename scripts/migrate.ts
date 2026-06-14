@@ -4,6 +4,10 @@ import { Client } from 'pg';
 import { fileURLToPath } from 'node:url';
 import { join } from 'node:path';
 import { loadDotEnv } from './load-env.js';
+import {
+	normalizePostgresConnectionString,
+	sslFor
+} from '../src/lib/server/storage/postgresConnection.js';
 
 loadDotEnv();
 
@@ -13,18 +17,12 @@ if (!connectionString) {
 	throw new Error('Set DATABASE_URL_VPS before running migrations.');
 }
 
-/** Resolve TLS from the URL's `sslmode`; mirrors src/lib/server/storage/db.ts. */
-function sslFor(url: string) {
-	const sslmode = url.match(/[?&]sslmode=([^&]+)/)?.[1];
-	if (!sslmode || sslmode === 'disable') {
-		return undefined;
-	}
-	return sslmode === 'verify-ca' || sslmode === 'verify-full'
-		? { rejectUnauthorized: true }
-		: { rejectUnauthorized: false };
-}
+const normalizedConnectionString = normalizePostgresConnectionString(connectionString);
 
-const client = new Client({ connectionString, ssl: sslFor(connectionString) });
+const client = new Client({
+	connectionString: normalizedConnectionString,
+	ssl: sslFor(normalizedConnectionString)
+});
 await client.connect();
 
 try {

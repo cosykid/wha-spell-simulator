@@ -6,7 +6,7 @@ import {
 	Kysely,
 	PostgresDialect
 } from 'kysely';
-import { Pool, type PoolConfig } from 'pg';
+import { Pool } from 'pg';
 
 import type {
 	Label,
@@ -14,6 +14,7 @@ import type {
 	SampleMeta,
 	Stroke as SampleStroke
 } from '$lib/structures/labelledSample.js';
+import { normalizePostgresConnectionString, sslFor } from './postgresConnection.js';
 
 /**
  * A `jsonb` column: node-postgres returns it already parsed (select type `T`),
@@ -57,35 +58,17 @@ export function databaseUrl(): string {
 	if (!connectionString) {
 		throw new Error('Set DATABASE_URL_VPS to use Postgres storage.');
 	}
-	return connectionString;
-}
-
-/**
- * Maps libpq's `sslmode` query param to a node-postgres TLS config. We resolve it
- * ourselves (instead of leaning on the driver's URL parsing, which has shifted
- * between versions) so the behaviour is explicit:
- * - `disable`/absent → no TLS (local Postgres on a trusted network).
- * - `require`/`prefer` → encrypt, but don't verify the chain (pgbouncer with a
- *   self-signed cert is the common case).
- * - `verify-ca`/`verify-full` → encrypt and enforce the certificate chain.
- */
-function sslFor(connectionString: string): PoolConfig['ssl'] {
-	const sslmode = connectionString.match(/[?&]sslmode=([^&]+)/)?.[1];
-	if (!sslmode || sslmode === 'disable') {
-		return false;
-	}
-	return sslmode === 'verify-ca' || sslmode === 'verify-full'
-		? { rejectUnauthorized: true }
-		: { rejectUnauthorized: false };
+	return normalizePostgresConnectionString(connectionString);
 }
 
 export function getDb(connectionString = databaseUrl()): Db {
-	if (!cachedDb || cachedConnectionString !== connectionString) {
-		cachedConnectionString = connectionString;
+	const normalizedConnectionString = normalizePostgresConnectionString(connectionString);
+	if (!cachedDb || cachedConnectionString !== normalizedConnectionString) {
+		cachedConnectionString = normalizedConnectionString;
 		void cachedPool?.end();
 		cachedPool = new Pool({
-			connectionString,
-			ssl: sslFor(connectionString),
+			connectionString: normalizedConnectionString,
+			ssl: sslFor(normalizedConnectionString),
 			// pgbouncer (transaction mode) multiplexes the real Postgres connections,
 			// so keep each serverless instance's pool small to avoid piling up clients
 			// on the pooler. Override with PG_POOL_MAX if needed.
