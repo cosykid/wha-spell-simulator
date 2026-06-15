@@ -29,6 +29,13 @@
 	let astPre = $state<HTMLPreElement | null>(null);
 	let irPre = $state<HTMLPreElement | null>(null);
 
+	function flashCopyLabel(key: DiagnosticKey, label: string) {
+		copyLabels[key] = label;
+		setTimeout(() => {
+			copyLabels[key] = 'Copy';
+		}, 900);
+	}
+
 	// Reuse the existing collapsible JSON-tree renderer, driving it imperatively
 	// whenever the diagnostic state changes. writeJson also stashes the raw JSON
 	// on the element's dataset for the copy button.
@@ -55,18 +62,9 @@
 
 		try {
 			await navigator.clipboard.writeText(text);
-			copyLabels[key] = 'Copied';
-			setTimeout(() => {
-				copyLabels[key] = 'Copy';
-			}, 900);
+			flashCopyLabel(key, 'Copied');
 		} catch {
-			const selection = window.getSelection();
-			const range = document.createRange();
-			range.selectNodeContents(panel);
-			selection?.removeAllRanges();
-			selection?.addRange(range);
-			document.execCommand('copy');
-			selection?.removeAllRanges();
+			flashCopyLabel(key, 'Copy failed');
 		}
 	}
 </script>

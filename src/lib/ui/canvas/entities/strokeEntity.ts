@@ -10,9 +10,8 @@ const INK_LINE_WIDTH = 4.4;
 const COMMITTED_ALPHA = 0.94;
 
 /**
- * Trace and stroke a single ink path. This is the canvas drawing that used to live in
- * `drawStrokes`/`drawSingleStroke`; it now belongs to the stroke entity and is shared by
- * the symbol entity and the draw-tool preview so there is one source of truth for ink.
+ * Trace and stroke a single ink path. This is shared by the main renderer, the stroke
+ * entity, and the draw-tool preview so there is one source of truth for ink.
  */
 export function renderStrokeInk(
 	ctx: CanvasRenderingContext2D,

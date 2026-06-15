@@ -1,13 +1,4 @@
-import type {
-	AppConfig,
-	Stroke,
-	RingInfo,
-	SymbolCandidate,
-	Recognition,
-	Point,
-	PlacementHandles,
-	Vector
-} from '../types.js';
+import type { Stroke, RingInfo, SymbolCandidate, Recognition, Point } from '../types.js';
 
 // ---------------------------------------------------------------------------
 // Glow layer descriptors
@@ -59,32 +50,6 @@ function traceStrokePath(ctx: CanvasRenderingContext2D, stroke: Stroke): void {
 		const point = stroke.points[index];
 		ctx.lineTo(point.x, point.y);
 	}
-}
-
-interface StrokeDrawOptions {
-	color?: string;
-	lineWidth?: number;
-	alpha?: number;
-}
-
-function drawSingleStroke(
-	ctx: CanvasRenderingContext2D,
-	stroke: Stroke,
-	options: StrokeDrawOptions = {}
-): void {
-	if (!hasStrokePoints(stroke)) {
-		return;
-	}
-
-	ctx.save();
-	ctx.strokeStyle = options.color ?? '#241b16';
-	ctx.lineWidth = options.lineWidth ?? 4.2;
-	ctx.lineCap = 'round';
-	ctx.lineJoin = 'round';
-	ctx.globalAlpha = options.alpha ?? 1;
-	traceStrokePath(ctx, stroke);
-	ctx.stroke();
-	ctx.restore();
 }
 
 function strokeLabelAnchor(stroke: Stroke): Point | null {
@@ -177,33 +142,6 @@ function drawSingleGlowingStroke(
 // ---------------------------------------------------------------------------
 // Public exports
 // ---------------------------------------------------------------------------
-
-/**
- * @deprecated Ink rendering now lives in the canvas entities. See {@link renderStrokeInk} /
- * {@link makeStrokeEntity} in `src/lib/ui/canvas/entities/strokeEntity.ts`.
- */
-export function drawStrokes(
-	ctx: CanvasRenderingContext2D,
-	strokes: Stroke[],
-	currentStroke: Stroke | null | undefined,
-	config: AppConfig
-): void {
-	for (const stroke of strokes) {
-		drawSingleStroke(ctx, stroke, {
-			color: config.renderer.inkColor,
-			lineWidth: 4.4,
-			alpha: 0.94
-		});
-	}
-
-	if (currentStroke) {
-		drawSingleStroke(ctx, currentStroke, {
-			color: config.renderer.inkColor,
-			lineWidth: 4.4,
-			alpha: 0.72
-		});
-	}
-}
 
 function activeGlowStrokes(activatedStrokeIds: Set<string>, strokes: Stroke[]): Stroke[] {
 	const glowingStrokes: Stroke[] = [];
@@ -309,13 +247,6 @@ export function drawStrokeIdDebug(
 	ctx.restore();
 }
 
-function drawHandleSquare(ctx: CanvasRenderingContext2D, point: Vector, size = 9): void {
-	ctx.beginPath();
-	ctx.rect(point.x - size / 2, point.y - size / 2, size, size);
-	ctx.fill();
-	ctx.stroke();
-}
-
 function confidencePercent(confidence: number | null | undefined): number {
 	return Math.round((confidence ?? 0) * 100);
 }
@@ -375,55 +306,6 @@ function drawCandidateDebugLabel(
 	labels.forEach((label, index) => {
 		ctx.fillText(label, x, y + index * 12);
 	});
-}
-
-/**
- * @deprecated Selection-handle rendering now lives in the select tool. See `drawSelection` in
- * {@link createSelectTool} (`src/lib/ui/canvas/tools/selectTool.svelte.ts`).
- */
-export function drawPlacementSelection(
-	ctx: CanvasRenderingContext2D,
-	handles: PlacementHandles | null | undefined
-): void {
-	if (!handles) {
-		return;
-	}
-
-	ctx.save();
-	ctx.strokeStyle = 'rgba(31, 111, 115, 0.85)';
-	ctx.fillStyle = 'rgba(255, 251, 233, 0.96)';
-	ctx.lineWidth = 1.5;
-
-	ctx.setLineDash([6, 4]);
-	ctx.beginPath();
-	handles.corners.forEach((corner, index) => {
-		if (index === 0) {
-			ctx.moveTo(corner.x, corner.y);
-		} else {
-			ctx.lineTo(corner.x, corner.y);
-		}
-	});
-	ctx.closePath();
-	ctx.stroke();
-	ctx.setLineDash([]);
-
-	ctx.beginPath();
-	ctx.moveTo(handles.topMid.x, handles.topMid.y);
-	ctx.lineTo(handles.rotate.x, handles.rotate.y);
-	ctx.stroke();
-
-	for (const corner of handles.corners) {
-		drawHandleSquare(ctx, corner);
-	}
-	for (const edge of handles.edgeHandles) {
-		drawHandleSquare(ctx, edge);
-	}
-
-	ctx.beginPath();
-	ctx.arc(handles.rotate.x, handles.rotate.y, 5.5, 0, Math.PI * 2);
-	ctx.fill();
-	ctx.stroke();
-	ctx.restore();
 }
 
 export function drawCandidateDebug(
