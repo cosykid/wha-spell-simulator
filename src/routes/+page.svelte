@@ -1022,14 +1022,15 @@
 						width="1000"
 						height="1000"
 					></canvas>
-					<canvas
-						id="effectCanvas"
-						data-testid="effect-canvas"
-						bind:this={effectCanvas}
-						width="1000"
-						height="1000"
-					></canvas>
 				</div>
+				<canvas
+					id="effectCanvas"
+					data-testid="effect-canvas"
+					bind:this={effectCanvas}
+					width="1000"
+					height="1000"
+					style="transform: scale({zoomLevel});"
+				></canvas>
 				<div class="zoom-controls" aria-label="Canvas zoom controls">
 					<button
 						type="button"

@@ -367,7 +367,7 @@ export function scaledParticleCount(
 export function activePortalPlane(canvas: HTMLCanvasElement, ring: RingInfo): Portal {
 	const scaleY = 0.44;
 	const originY = canvas.height * 0.64;
-	const liftY = canvas.height * 0.16;
+	const liftY = canvas.height * 0.1;
 	return {
 		center: {
 			x: ring.center.x,
