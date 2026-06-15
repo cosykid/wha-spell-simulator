@@ -304,6 +304,7 @@ body:not(.sigil-maker-page) .app-shell {
 .canvas-container {
 	position: absolute;
 	inset: 0;
+	z-index: 1;
 	width: 100%;
 	height: 100%;
 	transform-origin: center center;
@@ -632,7 +633,7 @@ body:not(.sigil-maker-page) .app-shell {
 
 .canvas-shell.portal-active #glyphCanvas,
 .canvas-shell.portal-active #labGlyphCanvas {
-	transform: translateY(16%) rotateX(62deg) scale(0.98);
+	transform: translateY(10%) rotateX(62deg) scale(0.98);
 	/* tilt the canvas angle */
 	box-shadow:
 		0 1px 0 rgba(255, 251, 233, 0.52) inset,
@@ -883,6 +884,12 @@ body:not(.sigil-maker-page) .app-shell {
 	z-index: 2;
 	pointer-events: none;
 	mix-blend-mode: normal;
+}
+
+#effectCanvas {
+	transform-origin: center center;
+	transition: transform 0.22s cubic-bezier(0.25, 1, 0.5, 1);
+	will-change: transform;
 }
 
 .side-panel {
