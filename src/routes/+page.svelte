@@ -597,26 +597,36 @@
 	}
 
 	function updateCanvasCursor() {
-		if (!glyphCanvas) {
+		if (!glyphCanvas) return;
+
+		if (panEnabled) {
+			glyphCanvas.style.cursor = summary.canvasLocked ? 'not-allowed' : 'grab';
 			return;
 		}
-		glyphCanvas.style.cursor =
-			activeTool === 'arrange'
-				? 'default'
-				: activeTool === 'erase'
-					? eraserCursorCss()
-					: 'crosshair';
+
+		if (activeTool === 'arrange') {
+			glyphCanvas.style.cursor = 'default';
+		} else if (activeTool === 'erase') {
+			glyphCanvas.style.cursor = eraserCursorCss();
+		} else {
+			glyphCanvas.style.cursor = 'crosshair';
+		}
 	}
 
 	function setTool(tool: CanvasTool) {
 		activeTool = tool;
 		controller?.setActive(tool === 'arrange');
 		eraser?.setActive(tool === 'erase');
-		// Lock capture immediately rather than waiting for recompute's summary to
-		// land; otherwise a fast first gesture in arrange/erase mode would also be
-		// captured as a freehand stroke.
-		capture?.setLocked(tool !== 'draw' || summary.canvasLocked);
+
+		// Make arrange and pan mutually exclusive: entering arrange should disable pan.
+		if (tool === 'arrange') {
+			panEnabled = false;
+		}
+
+		// Lock capture when we're not drawing, when the summary requests it, or while panning.
+		capture?.setLocked(tool !== 'draw' || summary.canvasLocked || panEnabled);
 		updateCanvasCursor();
+
 		if (tool !== 'arrange') {
 			armedShape = null;
 			armedShapeId = null;
@@ -767,10 +777,27 @@
 	// Keep the canvas cursor in sync with the active tool and re-derive the
 	// eraser ring's size after zoom changes resize the canvas's on-screen box.
 	$effect(() => {
+		// Re-run when zoom, the active tool, pan state, or summary lock change.
 		void zoomLevel;
 		void activeTool;
+		void panEnabled;
+		void summary.canvasLocked;
+
+		// Ensure capture is locked whenever we're not in draw mode, when the summary
+		// explicitly requests it, or while pan mode is active.
+		capture?.setLocked(activeTool !== 'draw' || summary.canvasLocked || panEnabled);
 		updateCanvasCursor();
 	});
+
+	function handleTogglePan() {
+		panEnabled = !panEnabled;
+		// If enabling pan, make sure arrange mode is turned off so they remain exclusive.
+		if (panEnabled && activeTool === 'arrange') {
+			setTool('draw');
+		}
+		// The $effect above will refresh capture lock; update cursor now for snappiness.
+		updateCanvasCursor();
+	}
 
 	onMount(() => {
 		loadTogglePreferences();
@@ -1130,7 +1157,7 @@
 						aria-label="Pan"
 						title="Pan"
 						data-tooltip="Pan"
-						onclick={() => (panEnabled = !panEnabled)}
+						onclick={handleTogglePan}
 					>
 						<svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
 							<path d="M5 9l-3 3 3 3" />
