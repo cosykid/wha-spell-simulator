@@ -82,7 +82,7 @@ export class SpellEffectRenderer {
 	private canvas: HTMLCanvasElement;
 	private ctx: CanvasRenderingContext2D;
 	private config: AppConfig;
-	// Exposed so tool components (e.g. SpellEffectLab) can reset render state.
+	// Exposed so tool pages (e.g. Spell Effect Lab) can reset render state.
 	state: EffectState;
 	lastSignature: string | null;
 	lastTime: number | null;

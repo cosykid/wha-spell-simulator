@@ -9,82 +9,17 @@ import {
 	rotationDegToPoint,
 	toLocalPoint
 } from '../../../input/shapeBaker.js';
-import type {
-	PlacementHandle,
-	PlacementHandles,
-	PlacementTransform,
-	Vector
-} from '../../../types.js';
+import type { PlacementHandle, PlacementTransform, Vector } from '../../../types.js';
 import type { CanvasBehavior } from '../canvasBehavior.js';
 import { transformEntity } from '../commands.js';
 import { isTransformable, type TransformableEntity } from '../entity.js';
+import { drawSelection } from '../selectionRenderer.js';
 import type { Scene } from '../scene.svelte.js';
 
-const HANDLE_SIZE = 9;
-const ROTATE_HANDLE_RADIUS = 5.5;
 // Coarse-pointer (touch) devices get larger handles, pushed-out rotate handle, and much
 // more forgiving hit areas — a fingertip covers ~7mm of screen, a mouse cursor ~1px.
 const TOUCH_HANDLE_SCALE = 1.6;
 const TOUCH_HIT_SCALE = 2;
-
-/**
- * Draw a square handle of side `size` centered on `point`. Used for corner and edge handles.
- */
-function drawHandleSquare(ctx: CanvasRenderingContext2D, point: Vector, size: number): void {
-	ctx.beginPath();
-	ctx.rect(point.x - size / 2, point.y - size / 2, size, size);
-	ctx.fill();
-	ctx.stroke();
-}
-
-/**
- * Draw the selection box, transform handles, and rotate handle. `scale` converts the
- * design-time sizes (tuned for 1 canvas unit = 1 CSS px) into canvas units, so handles
- * keep a constant on-screen size however small the canvas is displayed.
- */
-function drawSelection(
-	ctx: CanvasRenderingContext2D,
-	handles: PlacementHandles,
-	scale: number
-): void {
-	ctx.save();
-	ctx.strokeStyle = 'rgba(31, 111, 115, 0.85)';
-	ctx.fillStyle = 'rgba(255, 251, 233, 0.96)';
-	ctx.lineWidth = 1.5 * scale;
-
-	ctx.setLineDash([6 * scale, 4 * scale]);
-	ctx.beginPath();
-	handles.corners.forEach((corner, index) => {
-		if (index === 0) {
-			ctx.moveTo(corner.x, corner.y);
-		} else {
-			ctx.lineTo(corner.x, corner.y);
-		}
-	});
-	ctx.closePath();
-	ctx.stroke();
-	ctx.setLineDash([]);
-
-	ctx.beginPath();
-	ctx.moveTo(handles.topMid.x, handles.topMid.y);
-	ctx.lineTo(handles.rotate.x, handles.rotate.y);
-	ctx.stroke();
-
-	const handleSize = HANDLE_SIZE * scale;
-	for (const corner of handles.corners) {
-		drawHandleSquare(ctx, corner, handleSize);
-	}
-	for (const edge of handles.edgeHandles) {
-		drawHandleSquare(ctx, edge, handleSize);
-	}
-	drawHandleSquare(ctx, handles.topMid, handleSize);
-
-	ctx.beginPath();
-	ctx.arc(handles.rotate.x, handles.rotate.y, ROTATE_HANDLE_RADIUS * scale, 0, Math.PI * 2);
-	ctx.fill();
-	ctx.stroke();
-	ctx.restore();
-}
 
 type DragOp =
 	| { type: 'move'; last: Vector }

@@ -1,13 +1,14 @@
 import {
 	drawCandidateDebug,
-	drawPlacementSelection,
 	drawRingDebug,
 	drawStrokeIdDebug,
-	drawStrokes,
 	drawGlowingStrokes
 } from './glyphOverlayRenderer.js';
-import { drawGuides, drawPaper } from './paperRenderer.js';
 import { SpellEffectRenderer } from './spellEffectRenderer.js';
+import { drawGuides } from '$canvas/guideRenderer.js';
+import { renderPaper } from '$canvas/entities/paperEntity.js';
+import { renderStrokeInk } from '$canvas/entities/strokeEntity.js';
+import { drawSelection } from '$canvas/selectionRenderer.js';
 import type {
 	AppConfig,
 	Stroke,
@@ -83,13 +84,19 @@ export class CanvasRenderer {
 	}: GlyphRenderParams): void {
 		const width = this.glyphCanvas.width;
 		const height = this.glyphCanvas.height;
-		drawPaper(this.glyphCtx, width, height);
+		renderPaper(this.glyphCtx, width, height);
 
 		if (showGuides) {
 			drawGuides(this.glyphCtx, pipeline?.ring, width, height, this.config);
 		}
 
-		drawStrokes(this.glyphCtx, strokes, currentStroke, this.config);
+		for (const stroke of strokes) {
+			renderStrokeInk(this.glyphCtx, stroke, 0.94, this.config.renderer.inkColor, 4.4);
+		}
+
+		if (currentStroke) {
+			renderStrokeInk(this.glyphCtx, currentStroke, 0.72, this.config.renderer.inkColor, 4.4);
+		}
 
 		if (showGuides && pipeline?.ring?.found) {
 			drawRingDebug(this.glyphCtx, pipeline.ring);
@@ -101,7 +108,7 @@ export class CanvasRenderer {
 		}
 
 		if (selection) {
-			drawPlacementSelection(this.glyphCtx, selection);
+			drawSelection(this.glyphCtx, selection);
 		}
 	}
 

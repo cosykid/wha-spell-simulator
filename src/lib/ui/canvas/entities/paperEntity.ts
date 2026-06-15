@@ -1,5 +1,26 @@
 import type { Entity } from '../entity.js';
 
+const PAPER_STOPS = [
+	[0, '#ece0bd'],
+	[0.45, '#e7dab4'],
+	[1, '#f0e5c6']
+] as const;
+
+export function renderPaper(
+	ctx: CanvasRenderingContext2D,
+	width = ctx.canvas.width,
+	height = ctx.canvas.height
+): void {
+	ctx.clearRect(0, 0, width, height);
+
+	const gradient = ctx.createLinearGradient(0, 0, width, 0);
+	for (const [offset, color] of PAPER_STOPS) {
+		gradient.addColorStop(offset, color);
+	}
+	ctx.fillStyle = gradient;
+	ctx.fillRect(0, 0, width, height);
+}
+
 /**
  * Simple background paper fill.
  */
@@ -8,14 +29,7 @@ export function paperEntity(): Entity {
 		id: 'paper',
 		z: -100,
 		render(ctx) {
-			const { width, height } = ctx.canvas;
-			ctx.clearRect(0, 0, width, height);
-			const gradient = ctx.createLinearGradient(0, 0, width, 0);
-			gradient.addColorStop(0, '#f7dfac');
-			gradient.addColorStop(0.45, '#f4df9f');
-			gradient.addColorStop(1, '#fae8a5');
-			ctx.fillStyle = gradient;
-			ctx.fillRect(0, 0, width, height);
+			renderPaper(ctx);
 		}
 	};
 }

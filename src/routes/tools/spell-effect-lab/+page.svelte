@@ -7,25 +7,28 @@
 		resetParticleState
 	} from '$lib/renderer/effects/effectUtils.js';
 	import { drawGlowingStrokes } from '$lib/renderer/glyphOverlayRenderer.js';
-	import { drawGuides, drawPaper } from '$lib/renderer/paperRenderer.js';
 	import { SpellEffectRenderer } from '$lib/renderer/spellEffectRenderer.js';
 	import { setStatus } from '$lib/state.svelte';
 	import type { RingInfo } from '$lib/types.js';
+	import { drawGuides } from '$canvas/guideRenderer.js';
+	import { renderPaper } from '$canvas/entities/paperEntity.js';
 	import {
-		DEFAULT_ELEMENT,
+		DEFAULT_SIGIL,
 		EFFECT_CONTROLS,
+		SIGIL_OPTIONS,
 		buildSpellIR,
 		defaultControlValues,
+		elementForSigil,
 		formatControlValue,
 		valuesFromSpellIR
 	} from '$lib/ui/spellEffectLab.js';
 	import { roundDeep } from '$lib/utils/json.js';
 	import { onMount } from 'svelte';
 
-	const ELEMENTS = ['fire', 'water', 'wind', 'earth', 'light'];
 	const controlEntries = Object.entries(EFFECT_CONTROLS);
 
-	let element = $state(DEFAULT_ELEMENT);
+	let sigil = $state(DEFAULT_SIGIL);
+	const element = $derived(elementForSigil(sigil));
 	let values = $state<Record<string, number>>(defaultControlValues());
 	let irInput = $state('');
 	let activatedAt = $state(0);
@@ -37,7 +40,7 @@
 	let effectRenderer: SpellEffectRenderer | null = null;
 
 	const irJson = $derived(
-		roundDeep(buildSpellIR({ values, element, activatedAt, config: CONFIG }))
+		roundDeep(buildSpellIR({ values, element, sigil, activatedAt, config: CONFIG }))
 	);
 
 	$effect(() => {
@@ -69,8 +72,10 @@
 		try {
 			const patch = valuesFromSpellIR(JSON.parse(irInput), values);
 			values = patch.values;
-			if (patch.element) {
-				element = patch.element;
+			if (patch.sigil) {
+				sigil = patch.sigil;
+			} else if (patch.element) {
+				sigil = patch.element;
 			}
 			restartSpell();
 			setStatus('IR applied', 'active');
@@ -81,7 +86,7 @@
 
 	async function copyIR() {
 		const json = JSON.stringify(
-			roundDeep(buildSpellIR({ values, element, activatedAt, config: CONFIG })),
+			roundDeep(buildSpellIR({ values, element, sigil, activatedAt, config: CONFIG })),
 			null,
 			2
 		);
@@ -145,7 +150,7 @@
 			const ringStroke = buildRingStroke(ring);
 			const sigilStroke = buildSigilStroke(ring);
 
-			drawPaper(glyphCtx, width, height);
+			renderPaper(glyphCtx, width, height);
 			drawGuides(glyphCtx, ring, width, height, CONFIG);
 
 			glyphCtx.save();
@@ -234,7 +239,7 @@
 		function animationFrame(timestamp: number) {
 			resizeCanvases();
 			const ring = buildRing();
-			const spellIR = buildSpellIR({ values, element, activatedAt, config: CONFIG });
+			const spellIR = buildSpellIR({ values, element, sigil, activatedAt, config: CONFIG });
 			drawSyntheticGlyph(ring, timestamp);
 			effectRenderer!.render(spellIR, ring, timestamp, { showGuides: false });
 			drawConvergencePathGuide(spellIR, ring);
@@ -258,9 +263,9 @@
 <main class="workspace maker-workspace effect-lab-workspace">
 	<section class="canvas-panel maker-canvas-panel">
 		<div class="toolbar effect-lab-toolbar">
-			<select class="select-control" bind:value={element} onchange={restartSpell}>
-				{#each ELEMENTS as option (option)}
-					<option value={option}>{option[0].toUpperCase() + option.slice(1)}</option>
+			<select class="select-control" bind:value={sigil} onchange={restartSpell}>
+				{#each SIGIL_OPTIONS as option (option.id)}
+					<option value={option.id}>{option.label}</option>
 				{/each}
 			</select>
 			<button
