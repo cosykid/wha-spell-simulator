@@ -83,6 +83,13 @@
 	let canvasHintDismissed = $state(false);
 	let shapeLibrary = $state<ShapeLibrary | null>(null);
 	let armedShapeId = $state<string | null>(null);
+	let panEnabled = $state(false);
+	let panX = $state(0);
+	let panY = $state(0);
+	let panStartClientX = 0;
+	let panStartClientY = 0;
+	let panStartPanX = 0;
+	let panStartPanY = 0;
 	let selected = $state<{ kind: string; sourceId: string; transform: PlacementTransform } | null>(
 		null
 	);
@@ -92,6 +99,33 @@
 
 	function handleZoomIn() {
 		zoomLevel = Math.min(ZOOM_MAX, zoomLevel + ZOOM_STEP);
+	}
+
+	function startPan(event: PointerEvent) {
+		if (!panEnabled) return;
+		if (event.button !== undefined && event.button !== 0) return;
+		event.preventDefault();
+		panStartClientX = event.clientX;
+		panStartClientY = event.clientY;
+		panStartPanX = panX;
+		panStartPanY = panY;
+		window.addEventListener('pointermove', handlePanMove);
+		window.addEventListener('pointerup', endPan);
+		window.addEventListener('pointercancel', endPan);
+	}
+
+	function handlePanMove(event: PointerEvent) {
+		if (!panEnabled) return;
+		const dx = event.clientX - panStartClientX;
+		const dy = event.clientY - panStartClientY;
+		panX = panStartPanX + dx;
+		panY = panStartPanY + dy;
+	}
+
+	function endPan(_event: PointerEvent) {
+		window.removeEventListener('pointermove', handlePanMove);
+		window.removeEventListener('pointerup', endPan);
+		window.removeEventListener('pointercancel', endPan);
 	}
 
 	function handleZoomOut() {
@@ -1011,7 +1045,11 @@
 				<div
 					class="canvas-container"
 					data-testid="canvas-container"
-					style="transform: scale({zoomLevel});"
+					onpointerdown={startPan}
+					tabindex="0"
+					aria-label="Canvas container for panning"
+					role="button"
+					style="transform: translate({panX}px, {panY}px) scale({zoomLevel});"
 				>
 					<canvas
 						id="glyphCanvas"
@@ -1082,6 +1120,26 @@
 						data-tooltip="Zoom out"
 					>
 						-
+					</button>
+					<button
+						id="panToggle"
+						type="button"
+						class="zoom-btn"
+						class:active={panEnabled}
+						aria-pressed={panEnabled}
+						aria-label="Pan"
+						title="Pan"
+						data-tooltip="Pan"
+						onclick={() => (panEnabled = !panEnabled)}
+					>
+						<svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+							<path d="M5 9l-3 3 3 3" />
+							<path d="M9 5l3-3 3 3" />
+							<path d="M15 19l-3 3-3-3" />
+							<path d="M19 9l3 3-3 3" />
+							<path d="M2 12h20" />
+							<path d="M12 2v20" />
+						</svg>
 					</button>
 					<button
 						type="button"
