@@ -85,7 +85,7 @@ Candidates are useful for diagnostics and recognition debugging. Their boxes in 
 
 `primarySigil`, entries in `unsupportedMultipleSigils`, and each entry in `signs` are recognition objects. They carry the matched dictionary id plus parsed placement and quality data.
 
-These objects are the public parser contract for gameplay and compiler use. Low-level matcher details such as point-cloud distance, chamfer distance, kNN votes, ink overlap, structural sub-scores, alternate matches, and recognition rotation live in the separate `recognitions[].diagnostics` output returned by the classifier, not in `GlyphAST.primarySigil` or `GlyphAST.signs`.
+These objects are the public parser contract for gameplay and compiler use. Low-level recognizer details such as ML confidence, predicted pose, point-cloud distance, chamfer distance, kNN votes, ink overlap, structural sub-scores, alternate matches, and recognition rotation live in the separate `recognitions[].diagnostics` output returned by the classifier, not in `GlyphAST.primarySigil` or `GlyphAST.signs`.
 
 Common fields include:
 
@@ -117,18 +117,19 @@ Only `valid` and `valid_messy` recognitions become public sigils or signs in `Gl
 
 `classifyDrawing(...)` also returns a `recognitions` array beside `GlyphAST`. Each entry keeps matcher diagnostics for the corresponding candidate:
 
-| Field                                         | Meaning                                                                                       |
-| --------------------------------------------- | --------------------------------------------------------------------------------------------- |
-| `diagnostics.bestGuess`                       | Best tentative dictionary match when the candidate was not accepted.                          |
-| `diagnostics.topMatches`                      | Top scored matches, used by the overlay for tentative labels.                                 |
-| `diagnostics.template.$pDistance`             | Point-cloud distance to the best template example.                                            |
-| `diagnostics.template.chamferScore`           | Chamfer and ink-map score for the best template example.                                      |
-| `diagnostics.matcher.knnVotes`                | kNN vote totals from nearest recognition examples.                                            |
-| `diagnostics.matcher.nearestExamples`         | Nearest example ids and distances used by the vote.                                           |
-| `diagnostics.matcher.candidateExplainedRatio` | How much drawn ink is explained by the template.                                              |
-| `diagnostics.matcher.templateCoveredRatio`    | How much required template ink is present in the candidate.                                   |
-| `diagnostics.matcher.unexplainedInkRatio`     | Extra candidate ink that does not map well to the template.                                   |
-| `diagnostics.structure`                       | Aspect, stroke-count, stroke-profile, shape (curve character), and axis compatibility scores. |
+| Field                                         | Meaning                                                                                                  |
+| --------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
+| `diagnostics.bestGuess`                       | Best tentative dictionary match when the candidate was not accepted.                                     |
+| `diagnostics.topMatches`                      | Top scored matches, used by the overlay for tentative labels.                                            |
+| `diagnostics.template.$pDistance`             | Point-cloud distance to the best template example.                                                       |
+| `diagnostics.template.chamferScore`           | Chamfer and ink-map score for the best template example.                                                 |
+| `diagnostics.matcher.knnVotes`                | kNN vote totals from nearest recognition examples.                                                       |
+| `diagnostics.matcher.nearestExamples`         | Nearest example ids and distances used by the vote.                                                      |
+| `diagnostics.matcher.candidateExplainedRatio` | How much drawn ink is explained by the template.                                                         |
+| `diagnostics.matcher.templateCoveredRatio`    | How much required template ink is present in the candidate.                                              |
+| `diagnostics.matcher.unexplainedInkRatio`     | Extra candidate ink that does not map well to the template.                                              |
+| `diagnostics.structure`                       | Aspect, stroke-count, stroke-profile, shape (curve character), and axis compatibility scores.            |
+| `diagnostics.ml`                              | ONNX recognizer availability, accepted id, confidence, margin, predicted pose, and accept/reject reason. |
 
 These diagnostics are intentionally excluded from public `GlyphAST` sigil and sign objects so compiler semantics stay stable.
 

@@ -1,6 +1,6 @@
 # Witch Hat Atelier Spell Simulator
 
-A fan-made browser-based spell drawing simulator inspired by _[Witch Hat Atelier](https://en.wikipedia.org/wiki/Witch_Hat_Atelier)_.
+A fan-made interactive glyph recognition and visual effects app inspired by _[Witch Hat Atelier](https://en.wikipedia.org/wiki/Witch_Hat_Atelier)_.
 
 <div align="center">
   <img src="./assets/demo.gif" width="720"/>
@@ -15,12 +15,13 @@ _Witch Hat Atelier_ and related names, artwork, symbols, and trademarks belong t
 
 ## What It Does
 
-The app turns a freehand spell diagram into parser output, compiled spell behavior, and animated canvas effects.
+The app lets users draw or arrange spell circles on a canvas, then converts those diagrams into structured parser output, compiled effect parameters, and animated canvas effects.
 
 - Lets you draw spell diagrams on a paper-like canvas.
 - Lets you place ring, sigil, and sign shapes from a palette, then move, scale, elongate, and rotate them instead of drawing each one by hand.
 - Detects one enclosing ring and distinguishes prepared versus active spells.
-- Recognizes dictionary-backed primary sigils for fire, water, wind, earth, and light with a hybrid point-cloud (`$P`), chamfer, and kNN matcher.
+- Recognizes glyphs with a hybrid browser pipeline: a template matcher provides geometric verification, while an ONNX-exported multi-head ResNet18 model classifies symbols and estimates angle, scale, and position.
+- Trains the ResNet18 recognizer from more than 8,000 hand-drawn labelled samples collected with the Sample Maker tool and stored in Postgres (accurate as of June 16, 2026).
 - Recognizes signs that modify direction, levitation, convergence, force, spread, focus, range, duration, and stability.
 - Produces parser diagnostics, `GlyphAST`, and `SpellIR` output for inspection, including tentative glyph labels while symbols are still being drawn.
 - Renders animated element effects from the compiled spell behavior.
@@ -42,7 +43,7 @@ The placed ring is stamped open with a small gap, so the spell stays prepared ra
 
 - The app supports one enclosing spell ring at a time. Multiple rings are detected as unsupported.
 - The current compiler expects one primary sigil. Multiple primary sigils are detected as unsupported.
-- Recognition is seeded from local stroke templates and can accept additional stored examples, so it still works best with clean, deliberate drawings.
+- Recognition combines local stroke templates with a trained browser ML model, but it still works best with clean, deliberate drawings.
 - The recognizer is not perfect. Some valid-looking drawings may fail to match, and some rough drawings may need to be redrawn more clearly.
 - Candidate grouping works on whole strokes. Live and prepared drawings use fast layer-aware proximity grouping for responsiveness; complete rings can use recognition-guided tree cuts to separate symbols drawn close together. It does not split a single stroke into fragments when two symbols are drawn without lifting the pointer.
 - The dictionaries only cover a small fan-made subset of sigils, signs, and observed spell ideas.
@@ -125,10 +126,15 @@ npm test
 
 ## Optional Storage
 
-The browser app recognizes spells entirely from the in-repo dictionary
-templates — no database required. Neon Postgres is used only to persist the
-by-eye **labelled handwriting samples** collected by the Sample Maker tool (see
-the Labelled Samples API below).
+Runtime recognition does not need a live database. The browser loads static
+model files from `static/models/` when available and falls back to in-repo
+dictionary templates if the ONNX model cannot run. Neon Postgres is used to
+persist the by-eye **labelled handwriting samples** collected by the Sample
+Maker tool (see the Labelled Samples API below). Those samples feed the
+PyTorch training pipeline that exports the browser recognizer.
+
+As of June 16, 2026, the labelled dataset contains more than 8,000 hand-drawn
+glyph samples.
 
 There are a few features (e.g. data gathering) that require a database connection. If you want to test those, see the instructions below for setting up a local Postgres instance with Docker.
 

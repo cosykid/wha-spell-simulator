@@ -14,6 +14,9 @@ scripts/ai-dataset-processing/wha-ds-imageifier.py
   and center.
 - `glyph_multitask_loss`: combined classification + pose loss.
 
+As of June 16, 2026, the labelled handwriting dataset contains more than 8,000
+hand-drawn glyph samples collected with the Sample Maker tool.
+
 ## One Command
 
 From the repo root:

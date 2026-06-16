@@ -165,12 +165,12 @@ Important conventions:
 - Preserve stroke order when possible.
 - Draw cleanly, but do not over-optimize. The user drawing will be imperfect.
 - The tool for stroke template maker exports only the `strokeTemplate` object. Paste that object into the dictionary entry.
-- The recognizer is tolerant of stroke order during point-cloud matching, but stroke count and stroke-length profile still influence structural confidence.
+- The template matcher is tolerant of stroke order during point-cloud matching, but stroke count and stroke-length profile still influence structural confidence and the template verifier used by the hybrid recognizer.
 - Keep a multi-stroke symbol as separate strokes when those strokes are natural lifts in the intended drawing. Candidate grouping works on whole strokes: live and prepared drawings use proximity-connected components, and complete rings can refine close components with recognition-guided cuts. It does not split a single stroke into fragments.
 
 ## Recognition Examples
 
-At runtime, dictionary templates are converted into internal `RecognitionExample` objects with `buildExamplesFromDictionary(...)`. The matcher compares candidates against those examples with point-cloud distance, chamfer distance, and nearest-neighbor voting.
+At runtime, dictionary templates are converted into internal `RecognitionExample` objects with `buildExamplesFromDictionary(...)`. The template matcher compares candidates against those examples with point-cloud distance, chamfer distance, and nearest-neighbor voting. When the static ONNX model is available, the browser also runs the trained ResNet18 recognizer and uses the template result as geometric verification.
 
 Shape:
 
@@ -186,7 +186,7 @@ Shape:
 }
 ```
 
-The recognition corpus is derived from dictionary `strokeTemplate`s at runtime via `buildExamplesFromDictionary(...)`. Additional examples can still be passed to the recognizer API without changing dictionary entry shape, but the app supplies none — recognition runs from the dictionary alone, with no database involved.
+The template recognition corpus is derived from dictionary `strokeTemplate`s at runtime via `buildExamplesFromDictionary(...)`. Additional examples can still be passed to the recognizer API without changing dictionary entry shape. The ML recognizer is trained separately from labelled handwriting samples captured through the Sample Maker; as of June 16, 2026, that dataset contains more than 8,000 hand-drawn samples. Runtime recognition does not query the database.
 
 ## Sigil-Only Properties
 
