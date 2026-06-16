@@ -56,6 +56,12 @@ def parse_args():
         default=0,
         help="Fraction per class for validation set. Use 0 when input is already split.",
     )
+    parser.add_argument(
+        "--test-split",
+        type=float,
+        default=0.15,
+        help="Fraction per class for test set. Requires --validation-split > 0.",
+    )
     parser.add_argument("--seed", type=int, default=42, help="Random seed for splitting")
     parser.add_argument(
         "--split-name",
@@ -94,7 +100,7 @@ def load_samples(infile):
     return samples
 
 
-def stratified_split(samples, val_frac, seed):
+def stratified_split(samples, val_frac, test_frac, seed):
     by_class = defaultdict(list)
     for sample in samples:
         by_class[sample["sign"]].append(sample)
@@ -102,6 +108,7 @@ def stratified_split(samples, val_frac, seed):
     rng = random.Random(seed)
     train = []
     val = []
+    test = []
     for _, cls_samples in sorted(by_class.items()):
         cls_samples = list(cls_samples)
         rng.shuffle(cls_samples)
@@ -109,14 +116,27 @@ def stratified_split(samples, val_frac, seed):
         if n == 1:
             train.extend(cls_samples)
             continue
+
+        if test_frac > 0:
+            test_count = max(1, round(n * test_frac))
+            test_count = min(test_count, n - 2)
+        else:
+            test_count = 0
+
         val_count = max(1, round(n * val_frac))
-        val_count = min(val_count, n - 1)
-        val.extend(cls_samples[:val_count])
-        train.extend(cls_samples[val_count:])
+        val_count = min(val_count, n - test_count - 1)
+
+        test.extend(cls_samples[:test_count])
+        val.extend(cls_samples[test_count:test_count + val_count])
+        train.extend(cls_samples[test_count + val_count:])
 
     rng.shuffle(train)
     rng.shuffle(val)
-    return {"train": train, "validation": val}
+    rng.shuffle(test)
+    result = {"train": train, "validation": val}
+    if test_frac > 0:
+        result["test"] = test
+    return result
 
 
 def render_strokes(strokes, size, stroke_width, coord_range, margin):
@@ -276,6 +296,15 @@ def main():
     if not 0 <= args.validation_split < 1:
         print("error: --validation-split must be in [0, 1)", file=sys.stderr)
         sys.exit(1)
+    if not 0 <= args.test_split < 1:
+        print("error: --test-split must be in [0, 1)", file=sys.stderr)
+        sys.exit(1)
+    if args.test_split > 0 and args.validation_split == 0:
+        print("error: --test-split requires --validation-split > 0", file=sys.stderr)
+        sys.exit(1)
+    if args.test_split + args.validation_split >= 1:
+        print("error: --test-split + --validation-split must be < 1", file=sys.stderr)
+        sys.exit(1)
 
     if args.coord_range <= 0:
         print("error: --coord-range must be positive", file=sys.stderr)
@@ -300,7 +329,7 @@ def main():
     check_collisions(samples)
 
     if args.validation_split > 0:
-        splits = stratified_split(samples, args.validation_split, args.seed)
+        splits = stratified_split(samples, args.validation_split, args.test_split, args.seed)
     else:
         splits = {args.split_name: samples}
 

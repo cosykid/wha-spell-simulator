@@ -155,10 +155,21 @@ def parse_args():
         help="Validation JSONL file. Enables a stratified train/validation split.",
     )
     parser.add_argument(
+        "--out-test",
+        default=None,
+        help="Test JSONL file. Requires --out-validation. Enables a stratified train/validation/test split.",
+    )
+    parser.add_argument(
         "--validation-split",
         type=float,
         default=0.2,
         help="Fraction per sign to reserve for validation when --out-validation is set.",
+    )
+    parser.add_argument(
+        "--test-split",
+        type=float,
+        default=0.15,
+        help="Fraction per sign to reserve for test when --out-test is set.",
     )
     parser.add_argument("--seed", type=int, default=42, help="Random seed for stratified splitting.")
     parser.add_argument(
@@ -266,7 +277,7 @@ def convert_row(row, min_area):
     )
 
 
-def stratified_split(records, val_frac, seed):
+def stratified_split(records, val_frac, test_frac, seed):
     by_class = defaultdict(list)
     for record in records:
         by_class[record["sign"]].append(record)
@@ -274,6 +285,7 @@ def stratified_split(records, val_frac, seed):
     rng = random.Random(seed)
     train = []
     val = []
+    test = []
     for _, cls_records in sorted(by_class.items()):
         cls_records = list(cls_records)
         rng.shuffle(cls_records)
@@ -281,14 +293,24 @@ def stratified_split(records, val_frac, seed):
         if n == 1:
             train.extend(cls_records)
             continue
+
+        if test_frac > 0:
+            test_count = max(1, round(n * test_frac))
+            test_count = min(test_count, n - 2)
+        else:
+            test_count = 0
+
         val_count = max(1, round(n * val_frac))
-        val_count = min(val_count, n - 1)
-        val.extend(cls_records[:val_count])
-        train.extend(cls_records[val_count:])
+        val_count = min(val_count, n - test_count - 1)
+
+        test.extend(cls_records[:test_count])
+        val.extend(cls_records[test_count:test_count + val_count])
+        train.extend(cls_records[test_count + val_count:])
 
     rng.shuffle(train)
     rng.shuffle(val)
-    return train, val
+    rng.shuffle(test)
+    return train, val, test
 
 
 def write_jsonl(path, records):
@@ -302,6 +324,10 @@ def main():
 
     if args.out_validation and not 0 < args.validation_split < 1:
         raise SystemExit("--validation-split must be between 0 and 1 when --out-validation is set.")
+    if args.out_test and not args.out_validation:
+        raise SystemExit("--out-test requires --out-validation.")
+    if args.out_test and args.validation_split + args.test_split >= 1:
+        raise SystemExit("--validation-split + --test-split must be < 1 when --out-test is set.")
 
     rows = fetch_rows(args)
     records = []
@@ -318,14 +344,20 @@ def main():
             continue
         records.append(record)
 
-    if args.out_validation:
-        train, val = stratified_split(records, args.validation_split, args.seed)
+    if args.out_test:
+        train, val, test = stratified_split(records, args.validation_split, args.test_split, args.seed)
+        write_jsonl(args.output, train)
+        write_jsonl(args.out_validation, val)
+        write_jsonl(args.out_test, test)
+    elif args.out_validation:
+        train, val, _ = stratified_split(records, args.validation_split, 0, args.seed)
         write_jsonl(args.output, train)
         write_jsonl(args.out_validation, val)
     else:
         write_jsonl(args.output, records)
         train = records
         val = []
+        test = []
 
     diffs = [b - a for b, a in zip(points_before, points_after)]
     pcts = [(b - a) / b * 100 for b, a in zip(points_before, points_after) if b]
@@ -340,7 +372,9 @@ def main():
         f"handled {len(rows)} rows, exported {len(records)}, skipped {skipped_empty} empty",
         file=sys.stderr,
     )
-    if args.out_validation:
+    if args.out_test:
+        print(f"split {len(train)} train + {len(val)} validation + {len(test)} test", file=sys.stderr)
+    elif args.out_validation:
         print(f"split {len(train)} train + {len(val)} validation", file=sys.stderr)
     print(
         f"avg points per sample: {stat(points_before):.1f}pts ±{sd(points_before):.1f}pts "
