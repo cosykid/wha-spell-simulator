@@ -1159,7 +1159,17 @@
 						data-tooltip="Pan"
 						onclick={handleTogglePan}
 					>
-						<svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+						<svg
+							aria-hidden="true"
+							viewBox="0 0 24 24"
+							width="16"
+							height="16"
+							fill="none"
+							stroke="currentColor"
+							stroke-width="2"
+							stroke-linecap="round"
+							stroke-linejoin="round"
+						>
 							<path d="M5 9l-3 3 3 3" />
 							<path d="M9 5l3-3 3 3" />
 							<path d="M15 19l-3 3-3-3" />
