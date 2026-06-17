@@ -76,9 +76,21 @@ export interface Semantic {
 	lifetimeBias?: number;
 }
 
+/**
+ * The glyph's "regular" footprint as a fraction of the ring diameter, i.e. the
+ * ring-relative `sizeNorm` a normally-drawn instance occupies. Dividing the drawn
+ * `sizeNorm` by this gives a glyph-relative `sizeRatio` (1 = regular), which the
+ * compiler turns into effect scale and strength and the diagnostics overlay shows
+ * as `×ratio weak/regular/strong`. Omitted entries fall back to
+ * `renderer.effectSize.defaultReferenceSizeNorm`. Applies to both sigils and signs.
+ */
+type ReferenceSizeNorm = number;
+
 export interface SigilEntry {
 	id: string;
 	displayName: string;
+	/** Free-form note documenting this JSON entry (e.g. what `referenceSizeNorm` means). Ignored at runtime. */
+	$comment?: string;
 	element?: ElementId;
 	allowedLayers?: string[];
 	sourceNotes?: string;
@@ -86,11 +98,14 @@ export interface SigilEntry {
 	recognitionRotationInvariant?: boolean;
 	allowedRotationsDeg?: number[];
 	semantic?: Semantic;
+	referenceSizeNorm?: ReferenceSizeNorm;
 }
 
 export interface SignEntry {
 	id: string;
 	displayName: string;
+	/** Free-form note documenting this JSON entry (e.g. what `referenceSizeNorm` means). Ignored at runtime. */
+	$comment?: string;
 	/** Signs carry no element; declared so the dictionary-entry union stays uniform. */
 	element?: undefined;
 	allowedLayers?: string[];
@@ -99,6 +114,7 @@ export interface SignEntry {
 	strokeTemplate?: StrokeTemplate;
 	recognitionRotationInvariant?: boolean;
 	allowedRotationsDeg?: number[];
+	referenceSizeNorm?: ReferenceSizeNorm;
 }
 
 /** Options controlling how a candidate is rotated while template matching. */
@@ -298,6 +314,8 @@ export interface Recognition {
 	displayName: string | null;
 	element: ElementId | null;
 	semantic: Semantic | null;
+	/** Copied from the recognized sigil entry; the glyph's regular ring-relative footprint. */
+	referenceSizeNorm?: number | null;
 	confidence: number;
 	shape?: Record<string, number>;
 	diagnostics?: RecognitionDiagnostics | null;
@@ -381,6 +399,10 @@ export interface SpellIR {
 	sigil: string | null;
 	elementConfidence: number;
 	primarySizeNorm: number;
+	/** Primary sigil footprint divided by its regular size; 1 = regular, <1 weaker, >1 stronger. */
+	sizeRatio: number;
+	/** 0..1 spell strength derived from `sizeRatio`. */
+	strength: number;
 	effectScale: number;
 	primaryManifestation: string;
 	manifestations: Record<string, Manifestation>;

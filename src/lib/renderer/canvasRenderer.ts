@@ -103,7 +103,12 @@ export class CanvasRenderer {
 		}
 
 		if (showDebug) {
-			drawCandidateDebug(this.glyphCtx, pipeline?.candidates, pipeline?.recognitions);
+			drawCandidateDebug(
+				this.glyphCtx,
+				pipeline?.candidates,
+				pipeline?.recognitions,
+				this.config.renderer.effectSize
+			);
 			drawStrokeIdDebug(this.glyphCtx, strokes);
 		}
 

@@ -112,11 +112,21 @@ export const CONFIG = {
 		particleCap: 360,
 
 		effectSize: {
-			// 0..1+ multiplier; baseline effect size even for compact sigils.
-			baseScale: 1.28,
+			// Ring-fraction footprint treated as a sigil's "regular" size when its
+			// dictionary entry does not declare a `referenceSizeNorm`. The compiler
+			// computes sizeRatio = primary.sizeNorm / referenceSizeNorm (1 = regular).
+			defaultReferenceSizeNorm: 0.3,
 
-			// Multiplier added from primary sigil sizeNorm; larger sigils produce larger effects.
-			sigilSizeInfluence: 2.1,
+			// 0..1+ multiplier; effect scale rendered for a regular-size sigil (sizeRatio === 1).
+			neutralScale: 1.91,
+
+			// Effect-scale change per unit of sizeRatio away from regular size; larger
+			// sigils produce larger effects, smaller ones produce smaller effects.
+			sizeRatioInfluence: 0.63,
+
+			// sizeRatio that reads as full strength (1.0). A regular-size sigil
+			// (ratio 1) therefore reads as 1 / strengthFullSizeRatio.
+			strengthFullSizeRatio: 2,
 
 			// 0..1+ multiplier; lower visual effect scale clamp.
 			minScale: 1,

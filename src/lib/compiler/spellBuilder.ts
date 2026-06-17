@@ -73,6 +73,8 @@ function invalidSpell(status: string, glyphAST: GlyphASTLike, warnings: string[]
 		sigil: null,
 		elementConfidence: 0,
 		primarySizeNorm: 0,
+		sizeRatio: 0,
+		strength: 0,
 		effectScale: 1,
 		primaryManifestation: 'none',
 		manifestations: {},
@@ -199,11 +201,17 @@ export function compileSpell({
 	const active = Boolean(glyphAST.ring.complete);
 	const prepared = !active;
 	const primarySemantic: Semantic = primary.semantic ?? {};
+	const effectSize = config.renderer.effectSize;
+	const referenceSizeNorm = primary.referenceSizeNorm ?? effectSize.defaultReferenceSizeNorm;
+	// How big the sigil was drawn relative to its own regular size: 1 = regular,
+	// <1 weaker, >1 stronger. This is the size signal the recognizer normalizes
+	// away, recovered from the candidate's ring-relative footprint.
+	const sizeRatio = primary.sizeNorm / Math.max(referenceSizeNorm, 1e-6);
+	const strength = clamp(sizeRatio / effectSize.strengthFullSizeRatio);
 	const effectScale = clamp(
-		config.renderer.effectSize.baseScale +
-			primary.sizeNorm * config.renderer.effectSize.sigilSizeInfluence,
-		config.renderer.effectSize.minScale,
-		config.renderer.effectSize.maxScale
+		effectSize.neutralScale + (sizeRatio - 1) * effectSize.sizeRatioInfluence,
+		effectSize.minScale,
+		effectSize.maxScale
 	);
 
 	const focus = clamp(
@@ -247,6 +255,8 @@ export function compileSpell({
 		sigil: primary.id,
 		elementConfidence: primary.confidence,
 		primarySizeNorm: primary.sizeNorm,
+		sizeRatio,
+		strength,
 		effectScale,
 		primaryManifestation,
 		manifestations,
@@ -262,7 +272,7 @@ export function compileSpell({
 		quality,
 		neatness,
 		warnings: glyphAST.warnings ?? [],
-		signature: `${primary.id}:${primary.element}:${manifestationSignature(manifestations)}:${active}:${Math.round(effectScale * 100)}:${Math.round(
+		signature: `${primary.id}:${primary.element}:${manifestationSignature(manifestations)}:${active}:${Math.round(effectScale * 100)}:${Math.round(strength * 100)}:${Math.round(
 			force * 100
 		)}:${Math.round(spread * 100)}:${Math.round(duration * 100)}:${Math.round(direction.xTiltDeg)}:${Math.round(
 			direction.yTiltDeg

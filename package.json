@@ -10,6 +10,7 @@
 		"preview": "vite preview --host 127.0.0.1 --port 4173",
 		"check": "svelte-check --tsconfig ./tsconfig.json",
 		"db:migrate": "node --import tsx scripts/migrate.ts",
+		"glyphs:reference-sizes": "node --import tsx scripts/glyph-reference-sizes.ts",
 		"test": "npm run test:unit && npm run test:e2e",
 		"test:unit": "node --import tsx --test tests/*.test.ts",
 		"lint": "prettier --check . && eslint .",

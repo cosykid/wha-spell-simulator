@@ -41,7 +41,9 @@ function glyphAST({
 	unsupportedMultipleRings = [] as RingSummary[],
 	ringNeatness = 0.78,
 	primaryNeatness = 0.82,
-	globalNeatness = 0.8
+	globalNeatness = 0.8,
+	primarySizeNorm = 0.2,
+	primaryReferenceSizeNorm = undefined as number | undefined
 }: {
 	ringComplete?: boolean;
 	primarySigil?: boolean;
@@ -52,6 +54,8 @@ function glyphAST({
 	ringNeatness?: number;
 	primaryNeatness?: number;
 	globalNeatness?: number;
+	primarySizeNorm?: number;
+	primaryReferenceSizeNorm?: number;
 } = {}) {
 	const elementFields = omitElement
 		? {}
@@ -74,7 +78,8 @@ function glyphAST({
 					id: 'fire',
 					...elementFields,
 					confidence: 0.91,
-					sizeNorm: 0.2,
+					sizeNorm: primarySizeNorm,
+					referenceSizeNorm: primaryReferenceSizeNorm,
 					neatness: primaryNeatness,
 					semantic: {
 						force: 0.12,
@@ -118,6 +123,48 @@ test('compiles prepared and active spell states without ringActivated', () => {
 	assert.equal(typeof active.activatedAt, 'number');
 	assert.equal(Object.hasOwn(active, 'ringActivated'), false);
 	assert.equal(Object.hasOwn(active, 'manifestation'), false);
+});
+
+test('derives sizeRatio and strength from sigil size relative to its regular size', () => {
+	const { defaultReferenceSizeNorm, strengthFullSizeRatio, neutralScale } =
+		CONFIG.renderer.effectSize;
+
+	// A sigil drawn at exactly its regular size reads as ratio 1 and neutral effect scale.
+	const regular = compileSpell({
+		glyphAST: glyphAST({ primarySizeNorm: defaultReferenceSizeNorm }),
+		config: CONFIG
+	});
+	assert.ok(Math.abs(regular.sizeRatio - 1) < 1e-9);
+	assert.ok(Math.abs(regular.strength - 1 / strengthFullSizeRatio) < 1e-9);
+	assert.ok(Math.abs(regular.effectScale - neutralScale) < 1e-9);
+
+	// Drawing the same sigil bigger raises ratio, strength, and effect scale.
+	const big = compileSpell({
+		glyphAST: glyphAST({ primarySizeNorm: defaultReferenceSizeNorm * 1.6 }),
+		config: CONFIG
+	});
+	assert.ok(big.sizeRatio > regular.sizeRatio);
+	assert.ok(big.strength > regular.strength);
+	assert.ok(big.effectScale > regular.effectScale);
+
+	// A per-glyph referenceSizeNorm rebaselines what "regular" means: the same drawn
+	// footprint reads weaker when the glyph's regular size is larger.
+	const drawn = defaultReferenceSizeNorm;
+	const baseline = compileSpell({ glyphAST: glyphAST({ primarySizeNorm: drawn }), config: CONFIG });
+	const largerRegular = compileSpell({
+		glyphAST: glyphAST({ primarySizeNorm: drawn, primaryReferenceSizeNorm: drawn * 2 }),
+		config: CONFIG
+	});
+	assert.ok(Math.abs(largerRegular.sizeRatio - 0.5) < 1e-9);
+	assert.ok(largerRegular.sizeRatio < baseline.sizeRatio);
+	assert.ok(largerRegular.strength < baseline.strength);
+
+	// strength stays clamped to 0..1 even for an oversized sigil.
+	const huge = compileSpell({
+		glyphAST: glyphAST({ primarySizeNorm: defaultReferenceSizeNorm * 5 }),
+		config: CONFIG
+	});
+	assert.equal(huge.strength, 1);
 });
 
 test('derives spell duration as a longer lifetime for cleaner drawings', () => {

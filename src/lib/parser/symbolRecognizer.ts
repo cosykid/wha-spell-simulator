@@ -985,6 +985,7 @@ export function recognizeCandidates(
 			displayName: accepted ? best.entry.displayName : null,
 			element: accepted ? (best.entry.element ?? null) : null,
 			semantic: accepted ? (best.entry.semantic ?? null) : null,
+			referenceSizeNorm: accepted ? (best.entry.referenceSizeNorm ?? null) : null,
 			confidence: accepted ? best.confidence : 0,
 			shape: {
 				strokeCount: features.strokeCount,

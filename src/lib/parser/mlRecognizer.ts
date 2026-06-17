@@ -819,6 +819,7 @@ function applyMlResult(
 			displayName: ml.entry.displayName,
 			element: ml.entry.element ?? null,
 			semantic: ml.entry.semantic ?? null,
+			referenceSizeNorm: ml.entry.referenceSizeNorm ?? null,
 			confidence: ml.confidence,
 			diagnostics: {
 				...template.diagnostics,
