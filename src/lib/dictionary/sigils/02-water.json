@@ -2,6 +2,8 @@
 	"id": "water",
 	"displayName": "Water",
 	"element": "water",
+	"$comment": "referenceSizeNorm: this glyph's regular footprint as a fraction of the ring diameter. The recognizer divides the drawn size (sizeNorm) by it to get sizeRatio (1 = regular), which drives spell strength and effect scale. Seeded from labelled-sample medians via scripts/glyph-reference-sizes.ts.",
+	"referenceSizeNorm": 0.262,
 	"allowedLayers": ["center", "middle", "outer"],
 	"sourceNotes": "The water sigil is one of the four primary tetrad sigils. It can manipulate, collect, and create water, though long-running water spells often collect existing water rather than generating it from nothing.",
 	"strokeTemplate": {

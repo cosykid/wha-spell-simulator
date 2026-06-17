@@ -182,6 +182,8 @@ Neon Postgres is still used to persist the by-eye labelled handwriting samples p
 
 Glyph diagnostics now show tentative names from recognition diagnostics, not just final accepted labels. If a candidate is not accepted yet, the overlay can display the top match with a question mark and confidence value. This makes in-progress sigil recognition visible before the ring is completed.
 
+For an accepted sigil or sign, the overlay also shows its size relative to its regular size as `×<ratio> <tag>` (for example `×1.32 strong`), where `ratio = sizeNorm / referenceSizeNorm` and the tag is `weak`, `regular`, or `strong`. Both sigils and signs carry a `referenceSizeNorm` in the dictionary, so the readout works for either. This surfaces the same size signal the compiler turns into spell strength, read from the raw candidate footprint rather than the size-invariant recognizer.
+
 The overlay still draws candidate bounds. It does not visualize proximity graph edges, merge tree nodes, or the chamfer ink map.
 
 ## Tests

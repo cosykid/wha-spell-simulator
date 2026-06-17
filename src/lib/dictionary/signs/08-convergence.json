@@ -1,6 +1,8 @@
 {
 	"id": "convergence",
 	"displayName": "Convergence",
+	"$comment": "referenceSizeNorm: this glyph's regular footprint as a fraction of the ring diameter. The recognizer divides the drawn size (sizeNorm) by it to get sizeRatio (1 = regular), which drives spell strength and effect scale. Seeded from labelled-sample medians via scripts/glyph-reference-sizes.ts.",
+	"referenceSizeNorm": 0.165,
 	"allowedLayers": ["middle", "outer"],
 	"sourceNotes": "Convergence focuses a spell's magic down toward a single point. It can also pack loose particles tightly enough to become somewhat rigid, as with the compacted sand in Serpent's Bed of Sand.",
 	"semantic": {

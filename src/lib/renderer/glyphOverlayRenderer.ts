@@ -251,9 +251,36 @@ function confidencePercent(confidence: number | null | undefined): number {
 	return Math.round((confidence ?? 0) * 100);
 }
 
+/** Subset of `renderer.effectSize` config the overlay needs to read sigil size. */
+interface SizeDiagnosticsConfig {
+	defaultReferenceSizeNorm: number;
+}
+
+// Shows how big a sigil or sign was drawn relative to its own regular size, the
+// same signal the compiler turns into spell strength. Recognition normalizes size
+// away for identity, so this is read from the raw candidate footprint
+// (`sizeNorm`) against the glyph's `referenceSizeNorm`.
+function sizeStrengthLabel(
+	candidate: SymbolCandidate,
+	recognition: Recognition,
+	effectSize: SizeDiagnosticsConfig | undefined
+): string | null {
+	if (recognition.kind !== 'sigil' && recognition.kind !== 'sign') {
+		return null;
+	}
+	const reference = recognition.referenceSizeNorm ?? effectSize?.defaultReferenceSizeNorm;
+	if (!reference || reference <= 0) {
+		return null;
+	}
+	const ratio = candidate.sizeNorm / reference;
+	const tag = ratio > 1.25 ? 'strong' : ratio < 0.8 ? 'weak' : 'regular';
+	return `×${ratio.toFixed(2)} ${tag}`;
+}
+
 function candidateDebugLabels(
 	candidate: SymbolCandidate,
-	recognition: Recognition | undefined
+	recognition: Recognition | undefined,
+	effectSize: SizeDiagnosticsConfig | undefined
 ): string[] {
 	if (!recognition) {
 		return [candidate.candidateId];
@@ -270,6 +297,10 @@ function candidateDebugLabels(
 			ml?.accepted || recognition.diagnostics?.topMatches?.[0]?.source === 'ml' ? 'ML' : 'T';
 		const id = recognition.id ?? 'unknown';
 		const labels = [`${source} ${id} ${confidencePercent(recognition.confidence)}`];
+		const sizeLabel = sizeStrengthLabel(candidate, recognition, effectSize);
+		if (sizeLabel) {
+			labels.push(sizeLabel);
+		}
 		if (ml && !ml.accepted) {
 			if (ml.available) {
 				const mlId = ml.id ?? ml.topMatches[0]?.id ?? 'unknown';
@@ -311,7 +342,8 @@ function drawCandidateDebugLabel(
 export function drawCandidateDebug(
 	ctx: CanvasRenderingContext2D,
 	candidates: SymbolCandidate[] | null | undefined,
-	recognitions: Recognition[] | null | undefined
+	recognitions: Recognition[] | null | undefined,
+	effectSize?: SizeDiagnosticsConfig
 ): void {
 	const byCandidate = new Map(
 		(recognitions ?? []).map((recognition) => [recognition.candidateId, recognition])
@@ -341,7 +373,7 @@ export function drawCandidateDebug(
 			candidate.bounds.width,
 			candidate.bounds.height
 		);
-		const labels = candidateDebugLabels(candidate, recognition);
+		const labels = candidateDebugLabels(candidate, recognition, effectSize);
 		drawCandidateDebugLabel(
 			ctx,
 			labels,

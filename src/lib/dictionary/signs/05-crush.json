@@ -1,6 +1,8 @@
 {
 	"id": "crush",
 	"displayName": "Crush",
+	"$comment": "referenceSizeNorm: this glyph's regular footprint as a fraction of the ring diameter. The recognizer divides the drawn size (sizeNorm) by it to get sizeRatio (1 = regular), which drives spell strength and effect scale. Seeded from labelled-sample medians via scripts/glyph-reference-sizes.ts.",
+	"referenceSizeNorm": 0.235,
 	"allowedLayers": ["middle", "outer"],
 	"sourceNotes": "Crush is a semi-directional sign that breaks things apart. With earth magic it disintegrates objects into tiny sand-like or powdered pieces; inverted crush can reform powdered material into its original shape until the spell ends.",
 	"semantic": {

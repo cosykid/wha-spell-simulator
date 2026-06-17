@@ -1,6 +1,8 @@
 {
 	"id": "levitation",
 	"displayName": "Levitation",
+	"$comment": "referenceSizeNorm: this glyph's regular footprint as a fraction of the ring diameter. The recognizer divides the drawn size (sizeNorm) by it to get sizeRatio (1 = regular), which drives spell strength and effect scale. Seeded from labelled-sample medians via scripts/glyph-reference-sizes.ts.",
+	"referenceSizeNorm": 0.176,
 	"allowedLayers": ["middle", "outer"],
 	"sourceNotes": "Levitation is a directional sign with different behavior depending on the sigil. With water, fire, or light it can hold magic or objects aloft; with air or wind it moves the object bearing the seal in the direction the sign points.",
 	"semantic": {

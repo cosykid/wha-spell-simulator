@@ -2,6 +2,8 @@
 	"id": "crystal",
 	"displayName": "Crystal",
 	"element": "earth",
+	"$comment": "referenceSizeNorm: this glyph's regular footprint as a fraction of the ring diameter. The recognizer divides the drawn size (sizeNorm) by it to get sizeRatio (1 = regular), which drives spell strength and effect scale. Seeded from labelled-sample medians via scripts/glyph-reference-sizes.ts.",
+	"referenceSizeNorm": 0.3,
 	"allowedLayers": ["center", "middle", "outer"],
 	"sourceNotes": "Crystal creates and manipulates crystalline objects. The source notes treat it as a distinct sigil used only in a small number of known spells, especially Richeh's crystal magic.",
 	"recognitionRotationInvariant": false,

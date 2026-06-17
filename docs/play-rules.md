@@ -8,7 +8,7 @@ This file is the compact contract for parser, compiler, and renderer behavior. U
 - Ring neatness contributes to spell quality and stability.
 - The current compiler chooses one primary sigil as the element or element variant.
 - Multiple recognized sigils are unsupported for now. The parser reports them, and the compiler rejects the spell instead of guessing how to mix elements.
-- Sigil size changes effect scale. Larger sigils make larger effects, within renderer clamps.
+- Sigil size sets spell strength and effect scale. Size is measured relative to each sigil's own regular size (`referenceSizeNorm`), so `sizeRatio` and `strength` reflect how big it was drawn for that glyph rather than raw ink size. Larger sigils make stronger, larger effects, within renderer clamps.
 - Sigils can be recognized in center, middle, or outer ring layers.
 - Sigil orientation does not carry meaning for the current spell model.
 - Signs modify the primary sigil. They affect manifestations, direction, force, focus, spread, range, and lifetime bias.

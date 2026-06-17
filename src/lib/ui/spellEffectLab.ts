@@ -278,6 +278,12 @@ export function buildSpellIR({
 }): SpellIR {
 	const { effectScale, force, spread, focus, gravity, duration, stability } =
 		values as Required<ControlValues>;
+	// The lab drives effectScale directly; invert the compiler's curve to recover
+	// the sizeRatio (and from it primarySizeNorm/strength) that would produce it.
+	const labSizeRatio =
+		1 +
+		(effectScale - config.renderer.effectSize.neutralScale) /
+			config.renderer.effectSize.sizeRatioInfluence;
 	const direction = directionFromTiltAngles(
 		values.xTiltDeg!,
 		values.yTiltDeg!
@@ -294,9 +300,9 @@ export function buildSpellIR({
 		element,
 		sigil: sigil ?? element,
 		elementConfidence: 1,
-		primarySizeNorm:
-			(effectScale - config.renderer.effectSize.baseScale) /
-			config.renderer.effectSize.sigilSizeInfluence,
+		primarySizeNorm: labSizeRatio * config.renderer.effectSize.defaultReferenceSizeNorm,
+		sizeRatio: labSizeRatio,
+		strength: clamp(labSizeRatio / config.renderer.effectSize.strengthFullSizeRatio),
 		effectScale,
 		primaryManifestation,
 		manifestations,

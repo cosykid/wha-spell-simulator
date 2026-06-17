@@ -1,6 +1,8 @@
 {
 	"id": "billowing",
 	"displayName": "Billowing",
+	"$comment": "referenceSizeNorm: this glyph's regular footprint as a fraction of the ring diameter. The recognizer divides the drawn size (sizeNorm) by it to get sizeRatio (1 = regular), which drives spell strength and effect scale. Seeded from labelled-sample medians via scripts/glyph-reference-sizes.ts.",
+	"referenceSizeNorm": 0.237,
 	"allowedLayers": ["middle", "outer"],
 	"sourceNotes": "Billowing is a non-directional sign that lets a spell produce a fluffy cloud, described as comfortable to sit on. It may need collection to gather and convert material, and it can sometimes stand in for a sigil.",
 	"semantic": {
