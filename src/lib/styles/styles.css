@@ -338,7 +338,16 @@ body:not(.sigil-maker-page) .app-shell {
 	user-select: none;
 	touch-action: manipulation;
 }
+.zoom-btn.active {
+	color: #f6f0d6;
+	border-color: var(--teal);
+	background: var(--teal);
+	box-shadow: 0 1px 2px rgba(16, 34, 38, 0.32) inset;
+}
 
+.zoom-btn.active:hover {
+	background: #1a606a;
+}
 .zoom-btn::after,
 .canvas-action-controls button::after {
 	position: absolute;
