@@ -43,7 +43,7 @@ Candidate building has two refinement modes:
 
 In recognition-guided mode, each component is clustered into a single-linkage merge forest with union-find, every viable whole-symbol tree node is scored, and the parser chooses between keeping a node whole or taking its child groups. Each group in a cut pays `CONFIG.recognition.groupPenalty`, currently `0.75`, so a split only wins when the child groups clearly outscore the whole.
 
-Node scoring during the tree cut is deliberately lightweight. It runs only the `$P` + chamfer shape match, not kNN voting, the full structural blend, or ONNX inference, and it stops scoring signs for a node once a sigil clears a dominant threshold. The full hybrid recognizer runs once afterward on the chosen groups, so the expensive pass is not repeated per tree node. The union-find clustering also replaces an earlier all-pairs rescan, keeping the path fast.
+Node scoring during the tree cut is deliberately lightweight. It runs only the `$P` + chamfer shape match, not the full structural blend or ONNX inference, and it stops scoring signs for a node once a sigil clears a dominant threshold. The full hybrid recognizer runs once afterward on the chosen groups, so the expensive pass is not repeated per tree node. The union-find clustering also replaces an earlier all-pairs rescan, keeping the path fast.
 
 The `groupPenalty` is tuned so complex multi-stroke sigils (water, wind, light) and multi-stroke signs (levitation, column) stay whole, while genuinely separate symbols split apart. Setting `recognitionGuidedDecomposition` to false keeps candidate building on the cheaper proximity path, which is responsive but cannot separate every bridged symbol.
 
@@ -63,15 +63,16 @@ The matcher records:
 - `candidateExplainedRatio`
 - `templateCoveredRatio`
 - `unexplainedInkRatio`
-- kNN votes and nearest examples
 
 The core matcher confidence is:
 
 ```txt
-0.45 * pScore + 0.35 * chamferScore + 0.20 * knnVoteConfidence
+0.45 * pScore + 0.35 * chamferScore
 ```
 
-The decomposition scorer runs only the `$P` + chamfer shape match and skips kNN voting, structural blending, and status logic, which are reserved for the final pass over the chosen groups.
+The `0.20` confidence headroom formerly reserved for kNN is intentionally left unfilled rather than renormalized. This keeps weak or ambiguous matches from looking stronger just because the kNN vote was removed.
+
+The decomposition scorer runs only the `$P` + chamfer shape match and skips structural blending and status logic, which are reserved for the final pass over the chosen groups.
 
 The symbol recognizer then blends matcher confidence with structural compatibility, layer fit, size fit, and candidate neatness. The final contextual score weights matcher confidence at `0.66` and structural compatibility at `0.16`, with the remainder split across layer fit, size fit, and neatness.
 
@@ -82,9 +83,9 @@ Structural compatibility checks aspect ratio, stroke count, stroke-length profil
 
 For sigils, the structural score leads with shape compatibility (`0.5`) because aspect ratio is near-useless when most sigils fill the same square box; stroke-length profile and stroke count contribute the rest. This is what keeps an angular glyph (for example `crystal`) from being absorbed by a dense, flowing template (for example `aeriform`), which the ink-proximity matcher alone cannot separate since both fill the same bounds. Signs keep their stroke-structure-led blend, and simple signs get extra caps so a lone line is not too easily accepted as a complete sign.
 
-Rough two-stroke sign candidates in sign-capable layers can receive a small structural confidence floor when they strongly match a simple sign such as `column`. This helps diagnostics prefer a rough column over a weak sigil guess such as `aeriform`, but acceptance still requires ink coverage, confidence, and kNN agreement.
+Rough two-stroke sign candidates in sign-capable layers can receive a small structural confidence floor when they strongly match a simple sign such as `column`. This helps diagnostics prefer a rough column over a weak sigil guess such as `aeriform`, but acceptance still requires ink coverage, confidence, and structural compatibility.
 
-Dictionary-derived recognition examples are cached per dictionary object, and candidate/example matcher scores are reused within a recognition pass. This keeps repeated kNN voting and final entry scoring from recomputing the same normalized shape match.
+Dictionary-derived recognition examples are cached per dictionary object, and candidate/example matcher scores are reused within a recognition pass. This keeps repeated entry scoring from recomputing the same normalized shape match.
 
 ## ML Recognition
 
@@ -138,9 +139,8 @@ For template-only recognition, a candidate is accepted only when all of these ar
 - Its final confidence meets `CONFIG.recognition.minConfidence`.
 - Its unexplained ink stays below `CONFIG.recognition.contaminationThreshold`.
 - Its template coverage meets `CONFIG.recognition.minTemplateCoverage`.
-- The nearest-neighbor vote is not tied and agrees with the best scored dictionary entry.
 
-Close competitors, tied votes, missing required ink, and structural mismatch can turn a high-looking score into `ambiguous` or `unknown`. Extra unrelated ink can produce `contaminated`.
+Close competitors, missing required ink, and structural mismatch can turn a high-looking score into `ambiguous` or `unknown`. Extra unrelated ink can produce `contaminated`.
 
 For ML recognition, `CONFIG.recognition.ml` adds separate accept, override, and super-confident thresholds. ML acceptance still respects dictionary layer constraints and the template verifier unless the prediction clears the super-confident path.
 
@@ -190,7 +190,7 @@ The overlay still draws candidate bounds. It does not visualize proximity graph 
 
 Relevant coverage:
 
-- `tests/matcher.test.ts` covers point-cloud distance, chamfer scoring, and kNN voting.
+- `tests/matcher.test.ts` covers point-cloud distance and chamfer scoring.
 - `tests/mlRecognizer.test.ts` covers hybrid ML acceptance, override, verifier, and fallback behavior.
 - `tests/decomposition.test.ts` covers grouping one sigil plus one sign, keeping nearby signs separate, preserving multi-stroke signs, rejoining touching sign fragments, ignoring ring strokes, contamination from noise, no-ring guide preview grouping, and prepared-ring fast grouping.
 - `tests/symbolRecognition.test.ts` keeps recognition regressions for signs, sigils, diagnostics, rotation, contamination, messy valid matches, rough two-stroke column diagnostics, and curve-character separation (angular `crystal` ink is not absorbed by the flowing `aeriform` sigil).
