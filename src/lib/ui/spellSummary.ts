@@ -1,3 +1,13 @@
+/**
+ * Summary projection for the simulator control panel.
+ *
+ * The compiler and recognition pipeline expose detailed state, while the control
+ * panel needs stable display fields: status text, lock state, meters, undo/redo
+ * availability, and hint visibility. This module keeps that mapping pure and
+ * testable.
+ *
+ * @packageDocumentation
+ */
 import { GLYPH_WARNINGS } from '../parser/glyphWarnings.js';
 import { clamp } from '../utils/geometry.js';
 import type { SpellIR, ClassifiedDrawing, StrokeStore } from '../types.js';
@@ -24,32 +34,44 @@ function spellStatusClass(
 
 function closedWithoutSpellStatus(spellIR: SpellIR | null | undefined): string {
 	const warnings = spellIR?.warnings ?? [];
-	if (warnings.includes(GLYPH_WARNINGS.unsupportedMultipleRings)) {
-		return 'Multiple rings detected - undo or clear';
-	}
-	if (warnings.includes(GLYPH_WARNINGS.unsupportedMultipleSigils)) {
-		return 'Multiple sigils detected - undo or clear';
-	}
-	if (
-		warnings.includes(GLYPH_WARNINGS.primaryElementMissing) ||
-		warnings.includes(GLYPH_WARNINGS.primaryElementUnsupported)
-	) {
-		return 'Ring closed - unsupported element';
-	}
-	if (warnings.includes(GLYPH_WARNINGS.symbolContaminated)) {
-		return 'Ring closed - contaminated sigil';
-	}
-	if (warnings.includes(GLYPH_WARNINGS.symbolAmbiguous)) {
-		return 'Ring closed - ambiguous sigil';
-	}
-	if (warnings.includes(GLYPH_WARNINGS.primarySigilAmbiguous)) {
-		return 'Ring closed - ambiguous sigil';
-	}
-	if (warnings.includes(GLYPH_WARNINGS.primarySigilConfidenceLow)) {
-		return 'Ring closed - unstable sigil';
+
+	for (const { matchingWarnings, status } of CLOSED_WITHOUT_SPELL_STATUSES) {
+		if (matchingWarnings.some((warning) => warnings.includes(warning))) {
+			return status;
+		}
 	}
 	return 'Ring closed - no stable magic detected';
 }
+
+const CLOSED_WITHOUT_SPELL_STATUSES = [
+	{
+		matchingWarnings: [GLYPH_WARNINGS.unsupportedMultipleRings],
+		status: 'Multiple rings detected - undo or clear'
+	},
+	{
+		matchingWarnings: [GLYPH_WARNINGS.unsupportedMultipleSigils],
+		status: 'Multiple sigils detected - undo or clear'
+	},
+	{
+		matchingWarnings: [
+			GLYPH_WARNINGS.primaryElementMissing,
+			GLYPH_WARNINGS.primaryElementUnsupported
+		],
+		status: 'Ring closed - unsupported element'
+	},
+	{
+		matchingWarnings: [GLYPH_WARNINGS.symbolContaminated],
+		status: 'Ring closed - contaminated sigil'
+	},
+	{
+		matchingWarnings: [GLYPH_WARNINGS.symbolAmbiguous, GLYPH_WARNINGS.primarySigilAmbiguous],
+		status: 'Ring closed - ambiguous sigil'
+	},
+	{
+		matchingWarnings: [GLYPH_WARNINGS.primarySigilConfidenceLow],
+		status: 'Ring closed - unstable sigil'
+	}
+] as const;
 
 function formatManifestations(spellIR: SpellIR | null | undefined): string {
 	const manifestations = Object.entries(spellIR?.manifestations ?? {}).filter(
@@ -62,20 +84,35 @@ function formatManifestations(spellIR: SpellIR | null | undefined): string {
 	return manifestations.map(([id]) => id).join(', ');
 }
 
-/** Maps a normalized 0..1 meter value to a low/medium/high level. */
+/**
+ * Maps a normalized meter value to a semantic display level.
+ *
+ * @param value - Normalized 0..1 meter value. Nullish values are treated as zero.
+ * @returns The level used by control-panel meter styling.
+ */
 export function meterLevel(value: number | null | undefined): 'low' | 'medium' | 'high' {
 	const normalized = clamp(value ?? 0);
 	return normalized < 0.33 ? 'low' : normalized < 0.67 ? 'medium' : 'high';
 }
 
-/** Formats a normalized 0..1 value as a rounded percentage string. */
+/**
+ * Formats a normalized meter value as a rounded percentage.
+ *
+ * @param value - Normalized 0..1 meter value. Nullish values are treated as zero.
+ * @returns Percentage text for the control-panel meter readout.
+ */
 export function meterPercent(value: number | null | undefined): string {
 	return `${Math.round(clamp(value ?? 0) * 100)}%`;
 }
 
 /**
- * Derives the spell-state summary shown in the control panel from the current
- * pipeline / IR. Returns plain data so the UI can render it reactively.
+ * Derives the control-panel summary from the current drawing and spell state.
+ *
+ * The returned object is deliberately plain data so Svelte components can render
+ * it reactively without depending on parser/compiler internals.
+ *
+ * @param input - Current stores, recognition result, compiled spell IR, display toggles, and history state.
+ * @returns Display-ready spell summary for the simulator controls and canvas chrome.
  */
 export function computeSummary({
 	store,
@@ -143,7 +180,9 @@ export function computeSummary({
 	};
 }
 
-/** The summary shown before the dictionary has loaded. */
+/**
+ * Summary shown before the dictionary and recognition pipeline have loaded.
+ */
 export const INITIAL_SUMMARY = {
 	statusText: 'Loading',
 	statusClass: '',
@@ -159,3 +198,8 @@ export const INITIAL_SUMMARY = {
 	portalActive: false,
 	hintHidden: false
 };
+
+/**
+ * Display contract consumed by the control panel and canvas chrome.
+ */
+export type SpellSummary = typeof INITIAL_SUMMARY;

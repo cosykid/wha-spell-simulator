@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { SvelteSet } from 'svelte/reactivity';
 	import type { Dictionary, DictionaryEntry, Point, SampleSpell } from '$lib/types.js';
+	import { strokesToPreviewPolylines } from '$lib/ui/strokePreview.js';
 
 	type ReferenceEntry = DictionaryEntry & { element?: string; sourceNotes?: string };
 
@@ -57,35 +58,10 @@
 	const sampleSpells = $derived(dictionary?.sampleSpells ?? []);
 	const sigils = $derived(dictionary?.sigils ?? []);
 	const signs = $derived(dictionary?.signs ?? []);
-
-	// Project normalized 0..1 stroke points into the 100x100 preview viewBox,
-	// matching the original 8 + value * 84 inset mapping.
-	function toPolylines(strokes: Point[][] | undefined) {
-		if (!strokes?.length) {
-			return [];
-		}
-		return strokes
-			.map((stroke) =>
-				stroke
-					.map((point) => {
-						const x = Number(point.x);
-						const y = Number(point.y);
-						if (!Number.isFinite(x) || !Number.isFinite(y)) {
-							return null;
-						}
-						const previewX = 8 + x * 84;
-						const previewY = 8 + y * 84;
-						return `${Math.round(previewX * 10) / 10},${Math.round(previewY * 10) / 10}`;
-					})
-					.filter(Boolean)
-					.join(' ')
-			)
-			.filter((points) => points.length > 0);
-	}
 </script>
 
 {#snippet strokePreview(strokes: Point[][] | undefined)}
-	{@const polylines = toPolylines(strokes)}
+	{@const polylines = strokesToPreviewPolylines(strokes)}
 	{#if polylines.length}
 		<div class="reference-preview" aria-hidden="true">
 			<svg viewBox="0 0 100 100" role="img" focusable="false">
