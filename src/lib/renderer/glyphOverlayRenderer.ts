@@ -277,6 +277,17 @@ function sizeStrengthLabel(
 	return `×${ratio.toFixed(2)} ${tag}`;
 }
 
+// Degrees the glyph is rotated from its canonical example (0 = upright as drawn
+// in the dictionary), from the ML pose head or the template matcher's winning
+// rotation. Meaningful for orientation-bearing glyphs; inherently ambiguous for
+// rotationally-symmetric ones (e.g. light), which is a property of the artwork.
+function rotationLabel(recognition: Recognition): string | null {
+	if (recognition.kind !== 'sigil' && recognition.kind !== 'sign') {
+		return null;
+	}
+	return `↻ ${Math.round(recognition.rotationOffsetDeg ?? 0)}°`;
+}
+
 function candidateDebugLabels(
 	candidate: SymbolCandidate,
 	recognition: Recognition | undefined,
@@ -300,6 +311,10 @@ function candidateDebugLabels(
 		const sizeLabel = sizeStrengthLabel(candidate, recognition, effectSize);
 		if (sizeLabel) {
 			labels.push(sizeLabel);
+		}
+		const rotLabel = rotationLabel(recognition);
+		if (rotLabel) {
+			labels.push(rotLabel);
 		}
 		if (ml && !ml.accepted) {
 			if (ml.available) {

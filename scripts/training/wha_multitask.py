@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import random
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -12,6 +13,12 @@ from PIL import Image
 from torch.utils.data import Dataset
 from torchvision import transforms
 from torchvision.models import ResNet18_Weights, resnet18
+
+from rotation_policy import (
+    ClassRotationPolicy,
+    RotationAugmentConfig,
+    rotate_pose_targets,
+)
 
 
 @dataclass(frozen=True)
@@ -42,9 +49,19 @@ class GlyphManifestDataset(Dataset):
         split: str = "train",
         transform: Any | None = None,
         manifest_name: str = "manifest.jsonl",
+        augment: bool = False,
+        rotation_policy: dict[str, ClassRotationPolicy] | None = None,
+        rotation_aug: RotationAugmentConfig | None = None,
+        seed: int = 42,
     ):
         self.dataset_root = Path(dataset_root)
         self.transform = transform or default_image_transform()
+        # Rotation augmentation is only meaningful for the training split; the
+        # validation/test splits stay deterministic so metrics are comparable.
+        self.augment = augment
+        self.rotation_policy = rotation_policy or {}
+        self.rotation_aug = rotation_aug or RotationAugmentConfig()
+        self._rng = random.Random(seed)
         manifest_path = self.dataset_root / manifest_name
 
         rows = []
@@ -61,19 +78,45 @@ class GlyphManifestDataset(Dataset):
 
         self.rows = rows
 
+    def reseed(self, seed: int) -> None:
+        """Reseed the augmentation RNG (used to give DataLoader workers distinct streams)."""
+
+        self._rng = random.Random(seed)
+
     def __len__(self) -> int:
         return len(self.rows)
 
     def __getitem__(self, index: int):
         row = self.rows[index]
         image = Image.open(self.dataset_root / row["image_path"]).convert("L")
+
+        angle_sin = row["angle_sin"]
+        angle_cos = row["angle_cos"]
+        center_x = row["center_x"]
+        center_y = row["center_y"]
+
+        if self.augment:
+            policy = self.rotation_policy.get(row["sign"])
+            deg = self.rotation_aug.sample_degrees(
+                policy if policy is not None else ClassRotationPolicy(),
+                self._rng,
+            )
+            if deg:
+                # PIL rotates pixels counter-clockwise for positive degrees. The
+                # pose targets transform with the image so the regression heads
+                # stay consistent with the augmented raster.
+                image = image.rotate(deg, resample=Image.BILINEAR, fillcolor=0)
+                angle_sin, angle_cos, center_x, center_y = rotate_pose_targets(
+                    deg, angle_sin, angle_cos, center_x, center_y
+                )
+
         image = self.transform(image)
 
         targets = GlyphTargets(
             class_index=torch.tensor(row["class_index"], dtype=torch.long),
-            angle=torch.tensor([row["angle_sin"], row["angle_cos"]], dtype=torch.float32),
+            angle=torch.tensor([angle_sin, angle_cos], dtype=torch.float32),
             scale=torch.tensor([row["scale_x"], row["scale_y"]], dtype=torch.float32),
-            center=torch.tensor([row["center_x"], row["center_y"]], dtype=torch.float32),
+            center=torch.tensor([center_x, center_y], dtype=torch.float32),
         )
 
         return image, targets

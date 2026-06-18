@@ -2,11 +2,10 @@
 	"id": "wind-underfoot",
 	"displayName": "Wind Underfoot",
 	"element": "wind",
-	"$comment": "referenceSizeNorm: this glyph's regular footprint as a fraction of the ring diameter. The recognizer divides the drawn size (sizeNorm) by it to get sizeRatio (1 = regular), which drives spell strength and effect scale. Seeded from labelled-sample medians via scripts/glyph-reference-sizes.ts.",
 	"referenceSizeNorm": 0.353,
 	"allowedLayers": ["center", "middle", "outer"],
 	"sourceNotes": "Wind Underfoot is an air-family sigil with an unclear exact mechanism. It is known to help support solid objects suspended in air, functioning somewhat like an air platform.",
-	"recognitionRotationInvariant": false,
+	"recognitionRotationInvariant": true,
 	"semantic": {
 		"force": -0.02,
 		"focus": -0.03,

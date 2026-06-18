@@ -2,7 +2,6 @@
 	"id": "light",
 	"displayName": "Light",
 	"element": "light",
-	"$comment": "referenceSizeNorm: this glyph's regular footprint as a fraction of the ring diameter. The recognizer divides the drawn size (sizeNorm) by it to get sizeRatio (1 = regular), which drives spell strength and effect scale. Seeded from labelled-sample medians via scripts/glyph-reference-sizes.ts.",
 	"referenceSizeNorm": 0.303,
 	"allowedLayers": ["center", "middle", "outer"],
 	"sourceNotes": "Light is a variant of the fire sigil. It produces magic that manifests as light rather than ordinary flame or heat.",
@@ -3631,7 +3630,7 @@
 			]
 		]
 	},
-	"recognitionRotationInvariant": false,
+	"recognitionRotationInvariant": true,
 	"semantic": {
 		"force": 0.02,
 		"focus": 0.16,

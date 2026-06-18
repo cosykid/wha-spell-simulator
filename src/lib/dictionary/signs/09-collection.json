@@ -1,7 +1,7 @@
 {
 	"id": "collection",
+	"recognitionRotationInvariant": true,
 	"displayName": "Collection",
-	"$comment": "referenceSizeNorm: this glyph's regular footprint as a fraction of the ring diameter. The recognizer divides the drawn size (sizeNorm) by it to get sizeRatio (1 = regular), which drives spell strength and effect scale. Seeded from labelled-sample medians via scripts/glyph-reference-sizes.ts.",
 	"referenceSizeNorm": 0.172,
 	"allowedLayers": ["middle", "outer"],
 	"sourceNotes": "Collection gathers material from above and around the seal so the spell can use it. It may be directional or semi-directional, has not been seen inverted, and is usually drawn with its open side facing inward.",

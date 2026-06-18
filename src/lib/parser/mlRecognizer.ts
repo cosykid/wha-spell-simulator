@@ -1,11 +1,12 @@
 import * as ort from 'onnxruntime-web/webgpu';
 import { emitMlDebug, type MlDebugConsoleLevel } from '../debug/mlDebug.js';
 import { candidateContentKey, scopedLruCache } from './recognitionMemo.js';
-import { lineSpreadRatio } from '../utils/geometry.js';
+import { boundsForStrokes, lineSpreadRatio, normalizeAngleDeg } from '../utils/geometry.js';
 import type {
 	AppConfig,
 	Dictionary,
 	DictionaryEntry,
+	Point,
 	RecognitionKind,
 	RecognizedSymbol,
 	SymbolCandidate,
@@ -36,6 +37,11 @@ interface MlRuntime {
 	batchSupported: boolean;
 	warmed: boolean;
 	warmupPromise?: Promise<void>;
+	// Each glyph's canonical pose angle: the angle the pose head predicts for the
+	// glyph's own upright dictionary template. Subtracted from a candidate's angle
+	// so an upright drawing reads ~0° regardless of the glyph's intrinsic axis
+	// orientation. Computed once per runtime; see ensureCanonicalAngles.
+	canonicalAnglesPromise?: Promise<Map<string, number>>;
 }
 
 export interface MlPrediction {
@@ -319,7 +325,14 @@ function makeCanvas(size: number): HTMLCanvasElement | OffscreenCanvas {
 	return canvas;
 }
 
-function renderCandidateTensor(candidate: SymbolCandidate, config: MlConfig): Float32Array {
+// Only the ink footprint is needed to rasterize, so both real candidates and the
+// synthetic canonical-template candidate (see canonicalAngleForEntry) qualify.
+interface RenderableCandidate {
+	bounds: SymbolCandidate['bounds'];
+	strokes: Array<{ points: Point[] }>;
+}
+
+function renderCandidateTensor(candidate: RenderableCandidate, config: MlConfig): Float32Array {
 	const renderScale = 2;
 	const size = config.inputSize;
 	const canvasSize = size * renderScale;
@@ -456,6 +469,76 @@ function predictionOutputs(results: ort.InferenceSession.ReturnType) {
 		scaleTensor: outputTensor(results, ['scale'], 2),
 		centerTensor: outputTensor(results, ['center'], 3)
 	};
+}
+
+// Scale factor applied to the [0,1] dictionary template so its rasterized
+// footprint matches a real candidate's (whose bounds live in pixels); any value
+// past renderCandidateTensor's `Math.max(width, height, 1)` clamp works.
+const CANONICAL_TEMPLATE_SCALE = 256;
+
+// Builds a renderable candidate from a glyph's upright dictionary template so it
+// can be fed through the pose head exactly like real ink.
+function canonicalCandidateFromEntry(entry: DictionaryEntry): RenderableCandidate | null {
+	const templateStrokes = (entry.strokeTemplate?.strokes ?? []).filter((points) => points.length);
+	if (!templateStrokes.length) {
+		return null;
+	}
+	const strokes = templateStrokes.map((points) => ({
+		points: points.map((point) => ({
+			x: point.x * CANONICAL_TEMPLATE_SCALE,
+			y: point.y * CANONICAL_TEMPLATE_SCALE
+		}))
+	}));
+	return { strokes, bounds: boundsForStrokes(strokes) };
+}
+
+// The angle the pose head predicts for a glyph drawn exactly as its dictionary
+// template. This is the glyph's intrinsic axis orientation in the head's frame
+// (e.g. a vertical column reads ~270°), which we treat as that glyph's "0".
+async function canonicalAngleForEntry(
+	entry: DictionaryEntry,
+	runtime: MlRuntime,
+	config: MlConfig
+): Promise<number | null> {
+	const candidate = canonicalCandidateFromEntry(entry);
+	if (!candidate) {
+		return null;
+	}
+	const input = renderCandidateTensor(candidate, config);
+	const inputName = runtime.session.inputNames[0];
+	const results = await runtime.session.run({
+		[inputName]: new ort.Tensor('float32', input, [1, 1, config.inputSize, config.inputSize])
+	});
+	const angle = outputTensor(results, ['angle'], 1).data as Float32Array;
+	return Math.atan2(angle[0] ?? 0, angle[1] ?? 1) * (180 / Math.PI);
+}
+
+// Computes (once per runtime) each glyph's canonical pose angle so the displayed
+// rotation is measured from the glyph's own upright template rather than the
+// head's absolute frame. Memoized on the runtime; failures fall back to no offset.
+function ensureCanonicalAngles(
+	dictionary: Dictionary,
+	runtime: MlRuntime,
+	config: MlConfig
+): Promise<Map<string, number>> {
+	if (!runtime.canonicalAnglesPromise) {
+		runtime.canonicalAnglesPromise = (async () => {
+			const angles = new Map<string, number>();
+			for (const entry of [...dictionary.sigils, ...dictionary.signs]) {
+				try {
+					const angle = await canonicalAngleForEntry(entry, runtime, config);
+					if (angle !== null) {
+						angles.set(entry.id, angle);
+					}
+				} catch (error) {
+					debugLog(config, 'canonical angle failed', { id: entry.id, error: describeError(error) });
+				}
+			}
+			debugLog(config, 'canonical angles ready', { count: angles.size });
+			return angles;
+		})();
+	}
+	return runtime.canonicalAnglesPromise;
 }
 
 async function predictCandidateBatch(
@@ -782,7 +865,8 @@ function applyMlResult(
 	template: RecognizedSymbol,
 	ml: MlPrediction,
 	config: MlConfig,
-	candidate: SymbolCandidate
+	candidate: SymbolCandidate,
+	canonicalAngles: Map<string, number>
 ): RecognizedSymbol {
 	const decision = acceptMlResult(template, ml, config, candidate);
 	debugLog(config, 'decision', {
@@ -821,6 +905,11 @@ function applyMlResult(
 			semantic: ml.entry.semantic ?? null,
 			referenceSizeNorm: ml.entry.referenceSizeNorm ?? null,
 			confidence: ml.confidence,
+			// The pose head predicts a continuous absolute orientation; subtract the
+			// glyph's own canonical-template angle so an upright drawing reads ~0°,
+			// instead of the glyph's intrinsic axis orientation (a vertical column's
+			// axis is ~270°, not 0°). Falls back to the raw angle if uncalibrated.
+			rotationOffsetDeg: normalizeAngleDeg(ml.angleDeg - (canonicalAngles.get(ml.entry.id) ?? 0)),
 			diagnostics: {
 				...template.diagnostics,
 				bestGuess: null,
@@ -873,6 +962,12 @@ export async function recognizeCandidatesHybridMl(
 		);
 	}
 
+	const canonicalAngles = await ensureCanonicalAngles(dictionary, runtime, cfg);
+	if (shouldContinue && !shouldContinue()) {
+		debugLog(cfg, 'template-only result returned; request superseded before inference');
+		return templateResults;
+	}
+
 	try {
 		if (candidates.length === 1 || !runtime.batchSupported) {
 			const results = [...templateResults];
@@ -893,7 +988,13 @@ export async function recognizeCandidatesHybridMl(
 					return templateResults;
 				}
 				predictions.push(prediction);
-				results[index] = applyMlResult(templateResults[index], prediction, cfg, candidates[index]);
+				results[index] = applyMlResult(
+					templateResults[index],
+					prediction,
+					cfg,
+					candidates[index],
+					canonicalAngles
+				);
 				onProgress?.([...results]);
 			}
 			debugLog(
@@ -939,7 +1040,7 @@ export async function recognizeCandidatesHybridMl(
 			}))
 		);
 		return templateResults.map((template, index) =>
-			applyMlResult(template, predictions[index], cfg, candidates[index])
+			applyMlResult(template, predictions[index], cfg, candidates[index], canonicalAngles)
 		);
 	} catch (error) {
 		debugLog(cfg, 'failed during inference; using template recognizer only', error, 'warn');

@@ -1,7 +1,7 @@
 {
 	"id": "pull",
+	"recognitionRotationInvariant": true,
 	"displayName": "Pull",
-	"$comment": "referenceSizeNorm: this glyph's regular footprint as a fraction of the ring diameter. The recognizer divides the drawn size (sizeNorm) by it to get sizeRatio (1 = regular), which drives spell strength and effect scale. Seeded from labelled-sample medians via scripts/glyph-reference-sizes.ts.",
 	"referenceSizeNorm": 0.205,
 	"allowedLayers": ["middle", "outer"],
 	"sourceNotes": "Pull is a directional sign that draws matching matter, such as water, air, or fire, toward the seal when its arrow portion points inward. If angled, it likely adds a twisting pull; if inverted, it probably pushes matter away.",

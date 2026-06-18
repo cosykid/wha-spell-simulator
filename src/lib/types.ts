@@ -17,7 +17,6 @@ export interface Vector {
 }
 
 export interface Point extends Vector {
-	pressure?: number;
 	t?: number;
 }
 
@@ -89,7 +88,7 @@ type ReferenceSizeNorm = number;
 export interface SigilEntry {
 	id: string;
 	displayName: string;
-	/** Free-form note documenting this JSON entry (e.g. what `referenceSizeNorm` means). Ignored at runtime. */
+	/** Optional JSON-side note for exceptional per-entry context. Ignored at runtime. */
 	$comment?: string;
 	element?: ElementId;
 	allowedLayers?: string[];
@@ -104,7 +103,7 @@ export interface SigilEntry {
 export interface SignEntry {
 	id: string;
 	displayName: string;
-	/** Free-form note documenting this JSON entry (e.g. what `referenceSizeNorm` means). Ignored at runtime. */
+	/** Optional JSON-side note for exceptional per-entry context. Ignored at runtime. */
 	$comment?: string;
 	/** Signs carry no element; declared so the dictionary-entry union stays uniform. */
 	element?: undefined;
@@ -305,6 +304,14 @@ export interface Recognition {
 	orientationDeg: number;
 	directedOrientationDeg: number;
 	radialFacing: RadialFacing;
+	/**
+	 * Degrees the drawn glyph is rotated relative to its canonical example
+	 * (counter-clockwise positive; 0 means drawn in the example's orientation).
+	 * Sourced from the ML pose head when ML recognizes the glyph, otherwise from
+	 * the template matcher's winning rotation. Distinct from `angleDeg`
+	 * (ring position) and `orientationDeg` (dominant-axis orientation).
+	 */
+	rotationOffsetDeg: number;
 	overdrawAmount: number;
 	neatness: number;
 	recognized: boolean;
@@ -395,7 +402,7 @@ export interface SpellIR {
 	status: string;
 	activatedAt: number | null;
 	element: ElementId | null;
-	/** The id of the primary sigil, so effects can vary by element-variant sigils (e.g. crystal, aeriform). */
+	/** The id of the primary sigil, so effects can vary by element-variant sigils (e.g. crystal, aeroform). */
 	sigil: string | null;
 	elementConfidence: number;
 	primarySizeNorm: number;

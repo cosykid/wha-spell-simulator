@@ -403,6 +403,12 @@ test('recognizes signs in the ring-relative orientation for their position', () 
 		recognitions.map((recognition) => recognition.diagnostics.recognitionRotationDeg),
 		[0, 180, 90, 135, 270]
 	);
+	// The rotation offset versus the canonical example is recorded as a first-class
+	// value, mirroring the template matcher's winning rotation here.
+	assert.deepEqual(
+		recognitions.map((recognition) => recognition.rotationOffsetDeg),
+		[0, 180, 90, 135, 270]
+	);
 });
 
 test('matches a column shape regardless of its drawn ring orientation', () => {

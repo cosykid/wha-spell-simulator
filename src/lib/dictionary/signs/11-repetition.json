@@ -1,7 +1,7 @@
 {
 	"id": "repetition",
+	"recognitionRotationInvariant": true,
 	"displayName": "Repetition",
-	"$comment": "referenceSizeNorm: this glyph's regular footprint as a fraction of the ring diameter. The recognizer divides the drawn size (sizeNorm) by it to get sizeRatio (1 = regular), which drives spell strength and effect scale. Seeded from labelled-sample medians via scripts/glyph-reference-sizes.ts.",
 	"referenceSizeNorm": 0.326,
 	"allowedLayers": ["middle", "outer"],
 	"sourceNotes": "Repetition continually resets affected objects to a previous state, effectively rewinding time for them. The source notes mention uses like preserving food and cleaning clothes, and note that its status was later retconned from sign to sigil.",

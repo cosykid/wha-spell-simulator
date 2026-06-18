@@ -2,11 +2,10 @@
 	"id": "aeroform",
 	"displayName": "Aeroform",
 	"element": "wind",
-	"$comment": "referenceSizeNorm: this glyph's regular footprint as a fraction of the ring diameter. The recognizer divides the drawn size (sizeNorm) by it to get sizeRatio (1 = regular), which drives spell strength and effect scale. Seeded from labelled-sample medians via scripts/glyph-reference-sizes.ts.",
 	"referenceSizeNorm": 0.25,
 	"allowedLayers": ["center", "middle", "outer"],
 	"sourceNotes": "Aeroform is an air-family sigil that creates and manipulates air, but does not itself move that air. It complements the wind sigil, which moves air without creating it.",
-	"recognitionRotationInvariant": false,
+	"recognitionRotationInvariant": true,
 	"semantic": {
 		"force": -0.04,
 		"focus": -0.05,

@@ -12,8 +12,7 @@
 # Required tools: psql/pg_dump (matching server major), aws, zip, uv.
 #
 # Required env:
-#   DATABASE_URL          Postgres connection string. A Neon '-pooler' host is
-#                         rewritten to the direct host automatically.
+#   DATABASE_URL_VPS      Postgres connection string (DATABASE_URL also accepted).
 # Required unless --no-upload:
 #   R2_ENDPOINT           https://<account-id>.r2.cloudflarestorage.com
 #   R2_ACCESS_KEY_ID      R2 API token credentials (S3-compatible)
@@ -35,7 +34,8 @@ if [[ "${1:-}" == "--no-upload" ]]; then
 	upload=false
 fi
 
-: "${DATABASE_URL:?DATABASE_URL is required}"
+db_url="${DATABASE_URL_VPS:-${DATABASE_URL:-}}"
+: "${db_url:?Set DATABASE_URL_VPS (or DATABASE_URL)}"
 
 for tool in zip uv; do
 	command -v "$tool" > /dev/null || {
@@ -44,16 +44,13 @@ for tool in zip uv; do
 	}
 done
 
-# pg_dump should use Neon's direct host, not the pgbouncer pooler.
-direct_url="${DATABASE_URL/-pooler./.}"
-
 ###############################################################################
 # Robust PostgreSQL client resolution (version-matching, no guessing)
 ###############################################################################
 
 detect_pg_major() {
 	# Extract server major version (e.g. 18 from 18.2, 17 from 17.1, etc.)
-	psql "$direct_url" --no-psqlrc --quiet --tuples-only \
+	psql "$db_url" --no-psqlrc --quiet --tuples-only \
 		-c "show server_version;" \
 		| sed 's/^ *//;s/ .*//' \
 		| cut -d. -f1
@@ -103,7 +100,7 @@ csv_path="$backup_dir/labelled_samples-$stamp.csv"
 ###############################################################################
 
 echo "Dumping database to $dump_path ..."
-"$PG_DUMP" --format=custom --no-owner --no-privileges --file "$dump_path" "$direct_url"
+"$PG_DUMP" --format=custom --no-owner --no-privileges --file "$dump_path" "$db_url"
 
 # Validate dump integrity early
 "$PG_RESTORE" --list "$dump_path" > /dev/null
@@ -116,7 +113,7 @@ echo "Dump OK ($(du -h "$dump_path" | cut -f1))"
 echo "Exporting labelled_samples to $csv_path ..."
 # COPY of a bare table name skips generated columns (data_hash), which the
 # dataset converter needs — go through SELECT * to include them.
-"$PSQL" "$direct_url" --no-psqlrc --quiet \
+"$PSQL" "$db_url" --no-psqlrc --quiet \
 	-c "\\copy (select * from labelled_samples) to '$csv_path' with (format csv, header)"
 
 [[ -s "$csv_path" ]] || { echo "CSV export came out empty" >&2; exit 1; }
@@ -138,7 +135,7 @@ mkdir -p "$ds_root"
 
 echo "Building ML dataset (JSONL + images) ..."
 uv run --project "$ds_project" "$ds_project/wha-ds-converter.py" \
-	--database-url "$direct_url" \
+	--database-url "$db_url" \
 	-o "$ds_root/dataset.jsonl"
 uv run --project "$ds_project" "$ds_project/wha-ds-imageifier.py" \
 	"$ds_root/dataset.jsonl" -o "$ds_root/images"

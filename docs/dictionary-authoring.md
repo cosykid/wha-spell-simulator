@@ -6,6 +6,7 @@
   - [Signs](#signs)
   - [Sample Spells](#sample-spells)
 - [Common Properties](#common-properties)
+  - [`referenceSizeNorm`](#referencesizenorm)
 - [`strokeTemplate`](#stroketemplate)
 - [Recognition Examples](#recognition-examples)
 - [Sigil-Only Properties](#sigil-only-properties)
@@ -123,17 +124,31 @@ Example:
 "sourceNotes": "Column causes the magic of its glyph to manifest in a column or beam above the glyph."
 ```
 
+### `referenceSizeNorm`
+
+This glyph's regular footprint as a fraction of the ring diameter. The recognizer divides the drawn symbol size (`sizeNorm`) by `referenceSizeNorm` to produce `sizeRatio`, where `1` means regular size for that glyph.
+
+`sizeRatio` drives spell strength and effect scale after recognition. The value belongs in each JSON entry because it differs by glyph, but the explanation belongs here rather than in repeated `$comment` fields.
+
+Most existing values were seeded from labelled-sample medians with `scripts/glyph-reference-sizes.ts`.
+
+Example:
+
+```json
+"referenceSizeNorm": 0.21
+```
+
 ### `recognitionRotationInvariant`
 
-Controls sigil recognition only.
+Controls whether the learned ML recognizer should treat a glyph as the same class at any drawn angle. The training pipeline reads this field and applies full-range rotation augmentation when it is `true`.
 
-If `true`, the matcher can rotate the drawn sigil candidate to match the template. Use `false` when the authored upright silhouette should be the only accepted pose. Current dictionary sigils set this explicitly because sigil rotation policy is part of recognition tuning.
+Current sigils and signs set this explicitly to `true`, so the browser model can learn to recognize each glyph even when it is drawn rotated. Use `false` only when the authored upright silhouette should be the only accepted pose, or when changing orientation should create a different class.
 
-The default in code is effectively `true` for sigils when the field is omitted.
+For the template matcher, sigils use this field directly. Signs are special: sign templates are authored in a canonical bottom-of-ring pose, at `270` degrees, and the parser rotates a recognition copy of each sign candidate into that pose before matching. The template fallback then allows only a small tolerance, even when `recognitionRotationInvariant` is `true`, because sign orientation still carries spell meaning.
 
-Use `allowedRotationsDeg` when a sigil should allow only specific rotations instead of arbitrary rotation.
+The default in code is effectively `true` for sigils when the field is omitted and `false` for signs in the training policy. Keep the field explicit on authored dictionary entries so training behavior is obvious in review.
 
-Signs do not use this field. Sign templates are authored in a canonical bottom-of-ring pose, at `270` degrees, and the parser rotates sign matching from that pose to the candidate's ring position.
+Use `allowedRotationsDeg` when a glyph should allow only specific class-preserving rotations instead of arbitrary rotation.
 
 ## `strokeTemplate`
 
@@ -365,11 +380,12 @@ Use this checklist:
 2. Choose a stable `id`.
 3. Set `displayName`.
 4. Set `element`.
-5. Set `allowedLayers`.
-6. Add `semantic`.
-7. Create and paste `strokeTemplate`.
-8. Set `recognitionRotationInvariant`.
-9. Test in the main app with Diagnostics enabled.
+5. Set `referenceSizeNorm`.
+6. Set `allowedLayers`.
+7. Add `semantic`.
+8. Create and paste `strokeTemplate`.
+9. Set `recognitionRotationInvariant`.
+10. Test in the main app with Diagnostics enabled.
 
 Minimal shape:
 
@@ -378,6 +394,7 @@ Minimal shape:
 	"id": "example-sigil",
 	"displayName": "Example Sigil",
 	"element": "light",
+	"referenceSizeNorm": 0.25,
 	"allowedLayers": ["center", "middle", "outer"],
 	"strokeTemplate": {
 		"sourceAspectRatio": 1,
@@ -401,13 +418,15 @@ Use this checklist:
 1. Add a new entry file to `src/lib/dictionary/signs/NN-example-sign.json`.
 2. Choose a stable `id`.
 3. Set `displayName`.
-4. Set `allowedLayers`.
-5. Set `sourceNotes` when there is useful player-facing context.
-6. Add `semantic.manifestation`.
-7. Add `semantic.directionMode`.
-8. Add numeric semantic deltas.
-9. Create and paste `strokeTemplate`.
-10. Test in the main app with Diagnostics enabled.
+4. Set `referenceSizeNorm`.
+5. Set `allowedLayers`.
+6. Set `sourceNotes` when there is useful player-facing context.
+7. Add `semantic.manifestation`.
+8. Add `semantic.directionMode`.
+9. Add numeric semantic deltas.
+10. Create and paste `strokeTemplate`.
+11. Set `recognitionRotationInvariant`.
+12. Test in the main app with Diagnostics enabled.
 
 Minimal shape:
 
@@ -415,6 +434,8 @@ Minimal shape:
 {
 	"id": "example-sign",
 	"displayName": "Example Sign",
+	"recognitionRotationInvariant": true,
+	"referenceSizeNorm": 0.2,
 	"allowedLayers": ["middle", "outer"],
 	"sourceNotes": "Longer explanation shown in the Signs tab.",
 	"semantic": {
