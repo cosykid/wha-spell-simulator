@@ -16,7 +16,7 @@ export const SAMPLE_SYMBOLS: SampleSymbol[] = [
 	{ id: 'crystal', displayName: 'Crystal' },
 	{ id: 'wind-directs-air', displayName: 'Wind Directs Air' },
 	{ id: 'wind-underfoot', displayName: 'Wind Underfoot' },
-	{ id: 'aeriforms', displayName: 'Aeriforms' },
+	{ id: 'aeroform', displayName: 'Aeroform' },
 	{ id: 'billowing', displayName: 'Billowing' },
 	{ id: 'collection', displayName: 'Collection' },
 	{ id: 'column', displayName: 'Column' },

@@ -39,7 +39,7 @@ The current compiler supports one recognized sigil per spell. If the parser reco
 
 Current sigil ids:
 
-- `aeriform`
+- `aeroform`
 - `crystal`
 - `earth`
 - `fire`

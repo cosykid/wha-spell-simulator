@@ -3,6 +3,11 @@ import type {
 	ReviewStatus,
 	SampleSubmission
 } from '$lib/structures/labelledSample.js';
+import {
+	AEROFORM_SIGN_ID,
+	AEROFORM_SIGN_ID_FILTER_VALUES,
+	canonicalizeSignId
+} from '$lib/dictionary/signIds.js';
 import { randomUUID } from 'node:crypto';
 import { sql, type SqlBool } from 'kysely';
 import { getDb, type Db } from './db.js';
@@ -82,12 +87,18 @@ function rowToSample(row: LabelledSampleRow): LabelledSample {
 	return {
 		id: row.id,
 		data: row.data,
-		label: row.label,
+		label: { ...row.label, signId: canonicalizeSignId(row.label.signId || row.sign_id) },
 		meta: { ...row.meta, capturedAt: toIso(row.captured_at) },
 		review: row.review_status
 			? { status: row.review_status, reviewedAt: toIso(row.reviewed_at) }
 			: null
 	};
+}
+
+function signIdFilterValues(signId: string): string[] {
+	return canonicalizeSignId(signId) === AEROFORM_SIGN_ID
+		? [...AEROFORM_SIGN_ID_FILTER_VALUES]
+		: [signId];
 }
 
 /**
@@ -102,7 +113,8 @@ export async function insertLabelledSample(
 	submission: SampleSubmission,
 	db: Db = getDb()
 ): Promise<LabelledSample> {
-	const id = `sample:${submission.label.signId}:${randomUUID()}`;
+	const label = { ...submission.label, signId: canonicalizeSignId(submission.label.signId) };
+	const id = `sample:${label.signId}:${randomUUID()}`;
 	const capturedAt = new Date().toISOString();
 
 	try {
@@ -110,9 +122,9 @@ export async function insertLabelledSample(
 			.insertInto('labelled_samples')
 			.values({
 				id,
-				sign_id: submission.label.signId,
+				sign_id: label.signId,
 				data: JSON.stringify(submission.data),
-				label: JSON.stringify(submission.label),
+				label: JSON.stringify(label),
 				meta: JSON.stringify(submission.meta),
 				// Mirror the handle out of `meta` for searching; blank → null.
 				discord_username: submission.meta.discordUsername?.trim() || null,
@@ -143,7 +155,7 @@ export async function listLabelledSamples(
 		.orderBy('id', 'desc');
 
 	if (query.signId !== undefined) {
-		builder = builder.where('sign_id', '=', query.signId);
+		builder = builder.where('sign_id', 'in', signIdFilterValues(query.signId));
 	}
 	if (query.reviewStatus === 'pending') {
 		builder = builder.where('review_status', 'is', null);
@@ -191,7 +203,12 @@ export async function countSamplesBySignId(db: Db = getDb()): Promise<SignSample
 		.groupBy('sign_id')
 		.execute()) as { sign_id: string; count: string }[];
 
-	return rows.map((row) => ({ signId: row.sign_id, count: Number(row.count) }));
+	const merged = new Map<string, number>();
+	for (const row of rows) {
+		const signId = canonicalizeSignId(row.sign_id);
+		merged.set(signId, (merged.get(signId) ?? 0) + Number(row.count));
+	}
+	return [...merged.entries()].map(([signId, count]) => ({ signId, count }));
 }
 
 /**
@@ -277,7 +294,7 @@ export async function tallyContributors(
 		.groupBy('discord_username');
 
 	if (query.signId !== undefined) {
-		builder = builder.where('sign_id', '=', query.signId);
+		builder = builder.where('sign_id', 'in', signIdFilterValues(query.signId));
 	}
 
 	const rows = (await builder.execute()) as {
@@ -346,12 +363,24 @@ export async function tallySigns(
 		rejected: string;
 	}[];
 
-	return rows.map((row) => ({
-		signId: row.sign_id,
-		total: Number(row.total),
-		approved: Number(row.approved),
-		rejected: Number(row.rejected)
-	}));
+	const merged = new Map<string, SignTally>();
+	for (const row of rows) {
+		const signId = canonicalizeSignId(row.sign_id);
+		const existing = merged.get(signId);
+		if (existing) {
+			existing.total += Number(row.total);
+			existing.approved += Number(row.approved);
+			existing.rejected += Number(row.rejected);
+			continue;
+		}
+		merged.set(signId, {
+			signId,
+			total: Number(row.total),
+			approved: Number(row.approved),
+			rejected: Number(row.rejected)
+		});
+	}
+	return [...merged.values()];
 }
 
 /** Distinct sign ids present in stored samples, sorted — backs the Leaderboard sign filter. */
@@ -362,5 +391,5 @@ export async function listSampleSignIds(db: Db = getDb()): Promise<string[]> {
 		.distinct()
 		.orderBy('sign_id')
 		.execute()) as { sign_id: string }[];
-	return rows.map((row) => row.sign_id);
+	return [...new Set(rows.map((row) => canonicalizeSignId(row.sign_id)))].sort();
 }

@@ -81,9 +81,9 @@ Structural compatibility checks aspect ratio, stroke count, stroke-length profil
 - `straightness` — the arc-length fraction of the ink that runs locally straight. A polygon only spikes in curvature at its corners, while a smooth arc sustains curvature along its whole length, so angular glyphs score high and flowing ones score low.
 - `loopRatio` — the arc-length fraction of the ink that lives in closed (looping) strokes.
 
-For sigils, the structural score leads with shape compatibility (`0.5`) because aspect ratio is near-useless when most sigils fill the same square box; stroke-length profile and stroke count contribute the rest. This is what keeps an angular glyph (for example `crystal`) from being absorbed by a dense, flowing template (for example `aeriform`), which the ink-proximity matcher alone cannot separate since both fill the same bounds. Signs keep their stroke-structure-led blend, and simple signs get extra caps so a lone line is not too easily accepted as a complete sign.
+For sigils, the structural score leads with shape compatibility (`0.5`) because aspect ratio is near-useless when most sigils fill the same square box; stroke-length profile and stroke count contribute the rest. This is what keeps an angular glyph (for example `crystal`) from being absorbed by a dense, flowing template (for example `aeroform`), which the ink-proximity matcher alone cannot separate since both fill the same bounds. Signs keep their stroke-structure-led blend, and simple signs get extra caps so a lone line is not too easily accepted as a complete sign.
 
-Rough two-stroke sign candidates in sign-capable layers can receive a small structural confidence floor when they strongly match a simple sign such as `column`. This helps diagnostics prefer a rough column over a weak sigil guess such as `aeriform`, but acceptance still requires ink coverage, confidence, and structural compatibility.
+Rough two-stroke sign candidates in sign-capable layers can receive a small structural confidence floor when they strongly match a simple sign such as `column`. This helps diagnostics prefer a rough column over a weak sigil guess such as `aeroform`, but acceptance still requires ink coverage, confidence, and structural compatibility.
 
 Dictionary-derived recognition examples are cached per dictionary object, and candidate/example matcher scores are reused within a recognition pass. This keeps repeated entry scoring from recomputing the same normalized shape match.
 
@@ -193,5 +193,5 @@ Relevant coverage:
 - `tests/matcher.test.ts` covers point-cloud distance and chamfer scoring.
 - `tests/mlRecognizer.test.ts` covers hybrid ML acceptance, override, verifier, and fallback behavior.
 - `tests/decomposition.test.ts` covers grouping one sigil plus one sign, keeping nearby signs separate, preserving multi-stroke signs, rejoining touching sign fragments, ignoring ring strokes, contamination from noise, no-ring guide preview grouping, and prepared-ring fast grouping.
-- `tests/symbolRecognition.test.ts` keeps recognition regressions for signs, sigils, diagnostics, rotation, contamination, messy valid matches, rough two-stroke column diagnostics, and curve-character separation (angular `crystal` ink is not absorbed by the flowing `aeriform` sigil).
+- `tests/symbolRecognition.test.ts` keeps recognition regressions for signs, sigils, diagnostics, rotation, contamination, messy valid matches, rough two-stroke column diagnostics, and curve-character separation (angular `crystal` ink is not absorbed by the flowing `aeroform` sigil).
 - `tests/ringDetector.test.ts` keeps ring behavior independent of symbol recognition.

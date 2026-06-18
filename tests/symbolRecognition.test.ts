@@ -259,7 +259,7 @@ test('keeps column classified as column instead of a larger sigil', () => {
 	assert.equal(recognition.diagnostics.topMatches[0].id, 'column');
 });
 
-test('prefers column over aeriform for rough two-stroke column marks', () => {
+test('prefers column over aeroform for rough two-stroke column marks', () => {
 	const roughStrokes = [
 		stroke('s1', [
 			{ x: 160, y: 160 },
@@ -284,14 +284,14 @@ test('prefers column over aeriform for rough two-stroke column marks', () => {
 	assert.equal(recognition.recognized, false);
 	assert.equal(recognition.diagnostics.bestGuess!.id, 'column');
 	assert.equal(recognition.diagnostics.topMatches[0].id, 'column');
-	assert.notEqual(recognition.diagnostics.topMatches[0].id, 'aeriform');
+	assert.notEqual(recognition.diagnostics.topMatches[0].id, 'aeroform');
 });
 
 function matchById(recognition: RecognizedSymbol, id: string) {
 	return recognition.diagnostics.topMatches.find((match) => match.id === id);
 }
 
-test('classifies a clean crystal sigil as crystal, not the curved aeriform', () => {
+test('classifies a clean crystal sigil as crystal, not the curved aeroform', () => {
 	const crystal = realDictionary.sigils.find((entry) => entry.id === 'crystal');
 	assert.ok(crystal);
 
@@ -302,24 +302,24 @@ test('classifies a clean crystal sigil as crystal, not the curved aeriform', () 
 	assert.equal(recognition.id, 'crystal');
 	assert.equal(recognition.diagnostics.topMatches[0].id, 'crystal');
 
-	// The angular crystal ink must not look like the flowing, looping aeriform sigil: whenever
-	// aeriform appears as a contender its shape agreement should trail crystal's by a wide margin.
+	// The angular crystal ink must not look like the flowing, looping aeroform sigil: whenever
+	// aeroform appears as a contender its shape agreement should trail crystal's by a wide margin.
 	const crystalMatch = matchById(recognition, 'crystal')!;
-	const aeriformMatch = matchById(recognition, 'aeriform');
-	if (aeriformMatch) {
+	const aeroformMatch = matchById(recognition, 'aeroform');
+	if (aeroformMatch) {
 		const crystalShape = crystalMatch.shapeScore ?? 0;
-		const aeriformShape = aeriformMatch.shapeScore ?? 0;
+		const aeroformShape = aeroformMatch.shapeScore ?? 0;
 		assert.ok(
-			crystalShape - aeriformShape > 0.3,
-			`expected crystal shape (${crystalShape}) to clear aeriform (${aeriformShape})`
+			crystalShape - aeroformShape > 0.3,
+			`expected crystal shape (${crystalShape}) to clear aeroform (${aeroformShape})`
 		);
-		assert.ok(crystalMatch.confidence > aeriformMatch.confidence);
+		assert.ok(crystalMatch.confidence > aeroformMatch.confidence);
 	}
 });
 
-test('ranks a hand-drawn angular crisscross above aeriform', () => {
+test('ranks a hand-drawn angular crisscross above aeroform', () => {
 	// A straight-line lattice, the way someone might freehand a crystal sigil. It fills the same
-	// square box as aeriform, so ink-proximity alone cannot separate them; curve character must.
+	// square box as aeroform, so ink-proximity alone cannot separate them; curve character must.
 	const line = (x1: number, y1: number, x2: number, y2: number, id: string): Stroke => {
 		const points: Point[] = [];
 		for (let i = 0; i <= 10; i += 1) {
@@ -343,24 +343,24 @@ test('ranks a hand-drawn angular crisscross above aeriform', () => {
 
 	assert.equal(recognition.diagnostics.topMatches[0].id, 'crystal');
 	const crystalMatch = matchById(recognition, 'crystal')!;
-	const aeriformMatch = matchById(recognition, 'aeriform');
-	if (aeriformMatch) {
+	const aeroformMatch = matchById(recognition, 'aeroform');
+	if (aeroformMatch) {
 		assert.ok(
-			crystalMatch.confidence > aeriformMatch.confidence,
-			`expected crystal (${crystalMatch.confidence}) to outrank aeriform (${aeriformMatch.confidence})`
+			crystalMatch.confidence > aeroformMatch.confidence,
+			`expected crystal (${crystalMatch.confidence}) to outrank aeroform (${aeroformMatch.confidence})`
 		);
 	}
 });
 
-test('still recognizes the aeriform sigil from its own strokes', () => {
-	const aeriform = realDictionary.sigils.find((entry) => entry.id === 'aeriform');
-	assert.ok(aeriform);
+test('still recognizes the aeroform sigil from its own strokes', () => {
+	const aeroform = realDictionary.sigils.find((entry) => entry.id === 'aeroform');
+	assert.ok(aeroform);
 
-	const drawnAeriform = cleanCandidateFromTemplate(aeriform, { layer: 'center' });
-	const [recognition] = recognizeCandidates([drawnAeriform], realDictionary, CONFIG);
+	const drawnAeroform = cleanCandidateFromTemplate(aeroform, { layer: 'center' });
+	const [recognition] = recognizeCandidates([drawnAeroform], realDictionary, CONFIG);
 
-	assert.equal(recognition.id, 'aeriform');
-	assert.equal(recognition.diagnostics.topMatches[0].id, 'aeriform');
+	assert.equal(recognition.id, 'aeroform');
+	assert.equal(recognition.diagnostics.topMatches[0].id, 'aeroform');
 });
 
 test('recognizes signs in the ring-relative orientation for their position', () => {
