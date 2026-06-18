@@ -45,6 +45,7 @@
 	} from '$lib/types.js';
 	import { setupCanvasSizing } from '$lib/ui/canvasSizing.js';
 	import { computeSummary, INITIAL_SUMMARY } from '$lib/ui/spellSummary.js';
+	import { defaultControlValues, buildSpellIR } from '$lib/ui/spellEffectLab.js';
 	import { eraseSegment } from '$lib/utils/strokeErase.js';
 	import { onMount } from 'svelte';
 
@@ -71,6 +72,7 @@
 	let mlDebugEvents = $state<MlDebugEvent[]>([]);
 	let showGuides = $state(true);
 	let showDiagnostics = $state(false);
+	let showPaper = $state(false);
 	let togglePreferencesLoaded = $state(false);
 	// True once drawing capture has attached its pointer listeners. The status
 	// text can leave "Loading" before this (a resize-triggered recompute), so this
@@ -148,6 +150,8 @@
 	let pipeline: ClassifiedDrawing | null = null;
 	let spellIR: SpellIR | null = null;
 	let previousRing: RingInfo | null = null;
+	let paperApi: any = null;
+	let demoSpell: { spellIR: SpellIR; ring: RingInfo; expiresAt: number } | null = null;
 	let resizeObserver: ResizeObserver | null = null;
 	let workspaceResizeObserver: ResizeObserver | null = null;
 	let rafId: number | null = null;
@@ -169,37 +173,40 @@
 	let canvasHeightMatched = $state(false);
 
 	function loadTogglePreferences() {
-		try {
-			const stored = localStorage.getItem(TOGGLE_PREFERENCES_STORAGE_KEY);
-			if (!stored) {
-				return;
-			}
+			try {
+				const stored = localStorage.getItem(TOGGLE_PREFERENCES_STORAGE_KEY);
+				if (!stored) {
+					return;
+				}
 
-			const preferences = JSON.parse(stored) as Partial<TogglePreferences>;
-			if (typeof preferences.showGuides === 'boolean') {
-				showGuides = preferences.showGuides;
+				const preferences = JSON.parse(stored) as Partial<TogglePreferences>;
+				if (typeof preferences.showGuides === 'boolean') {
+					showGuides = preferences.showGuides;
+				}
+				if (typeof preferences.showDiagnostics === 'boolean') {
+					showDiagnostics = preferences.showDiagnostics;
+				}
+				if (typeof preferences.showPaper === 'boolean') {
+					showPaper = preferences.showPaper;
+				}
+				if (preferences.arrangeShapes === true) {
+					activeTool = 'arrange';
+				}
+			} catch {
+				// Ignore invalid or unavailable local storage and keep the defaults.
 			}
-			if (typeof preferences.showDiagnostics === 'boolean') {
-				showDiagnostics = preferences.showDiagnostics;
-			}
-			if (preferences.arrangeShapes === true) {
-				activeTool = 'arrange';
-			}
-		} catch {
-			// Ignore invalid or unavailable local storage and keep the defaults.
 		}
-	}
 
 	function saveTogglePreferences() {
-		try {
-			localStorage.setItem(
-				TOGGLE_PREFERENCES_STORAGE_KEY,
-				JSON.stringify({ showGuides, showDiagnostics, arrangeShapes: activeTool === 'arrange' })
-			);
-		} catch {
-			// Preference persistence is best-effort.
+			try {
+				localStorage.setItem(
+					TOGGLE_PREFERENCES_STORAGE_KEY,
+					JSON.stringify({ showGuides, showDiagnostics, showPaper, arrangeShapes: activeTool === 'arrange' })
+				);
+			} catch {
+				// Preference persistence is best-effort.
+			}
 		}
-	}
 
 	// Unified undo/redo history. A snapshot captures the full drawing state (freehand
 	// strokes plus editable placements) so undo and redo work the same for both. Oldest
@@ -381,28 +388,52 @@
 	}
 
 	function applyClassifiedDrawing(result: ClassifiedDrawing, seq: number) {
-		if (seq !== recomputeSeq) {
-			return;
-		}
+			if (seq !== recomputeSeq) {
+				return;
+			}
 
-		pipeline = result;
-		previousRing = pipeline.ring;
-		spellIR = compileSpell({ glyphAST: pipeline.glyphAST, config: CONFIG });
-		summary = computeSummary({
-			store,
-			pipeline,
-			spellIR,
-			showGuides,
-			arrangeMode: activeTool === 'arrange',
-			eraseMode: activeTool === 'erase',
-			placementCount: placements.count(),
-			hintDismissed: canvasHintDismissed,
-			canUndo: historyIndex > 0,
-			canRedo: historyIndex < history.length - 1
-		});
-		capture?.setLocked(summary.inputLocked);
-		diagnostics = buildDiagnostics();
-	}
+			// detect ring closure transition
+			const wasClosed = Boolean(previousRing?.complete);
+			const nowClosed = Boolean(result.ring?.complete);
+
+			pipeline = result;
+			previousRing = pipeline.ring;
+			spellIR = compileSpell({ glyphAST: pipeline.glyphAST, config: CONFIG });
+			summary = computeSummary({
+				store,
+				pipeline,
+				spellIR,
+				showGuides,
+				arrangeMode: activeTool === 'arrange',
+				eraseMode: activeTool === 'erase',
+				placementCount: placements.count(),
+				hintDismissed: canvasHintDismissed,
+				canUndo: historyIndex > 0,
+				canRedo: historyIndex < history.length - 1
+			});
+			capture?.setLocked(summary.inputLocked);
+			diagnostics = buildDiagnostics();
+
+			// If the ring just closed and the paper toggle is enabled, spawn a paper that will
+			// react to effect particles. Prefer the ring's detected center if available so the
+			// paper falls back onto the seal; otherwise fall back to canvas center.
+			if (!wasClosed && nowClosed && showPaper && paperApi && typeof paperApi.spawn === 'function') {
+				try {
+					const canvas = glyphCanvas;
+					const ringCenter = result.ring?.center;
+					const pos = ringCenter
+						? { x: ringCenter.x, y: ringCenter.y }
+						: canvas
+						? { x: canvas.width / 2, y: canvas.height / 2 }
+						: undefined;
+					// spawn() applies an internal "lift" by default so the paper appears
+					// slightly above the chosen point and will fall under gravity.
+					paperApi.spawn({ pos });
+				} catch (e) {
+					console.error('paper spawn failed', e);
+				}
+			}
+		}
 
 	async function recompute() {
 		if (!dictionary || !dictionarySnapshot) {
@@ -468,12 +499,28 @@
 			});
 		}
 
-		renderer!.renderEffect({
-			spellIR,
-			ring: pipeline?.ring,
-			timestamp,
-			showGuides
-		});
+			// If a demo spell is active, let it override the rendered effect for its lifetime.
+			if (demoSpell) {
+				// expire demoSpell when its time passes
+				if (performance.now() > demoSpell.expiresAt) {
+					demoSpell = null;
+				} else {
+					renderer!.renderEffect({ spellIR: demoSpell.spellIR, ring: demoSpell.ring, timestamp, showGuides });
+				}
+			} else {
+				renderer!.renderEffect({ spellIR, ring: pipeline?.ring, timestamp, showGuides });
+			}
+
+		// If the paper module is attached, run its frame step after effects render so
+		// papers draw on top of effect particles and remain visible.
+		if (paperApi && typeof paperApi.frame === 'function') {
+								try {
+									paperApi.frame(timestamp, demoSpell?.ring ?? pipeline?.ring);
+								} catch (e) {
+									console.error('paper frame failed', e);
+								}
+								}
+
 		rafId = requestAnimationFrame(animationFrame);
 	}
 
@@ -496,16 +543,25 @@
 	}
 
 	function handleClear() {
-		cancelActiveRecognition();
-		store.clear();
-		placements.clear();
-		armedShape = null;
-		armedShapeId = null;
-		setSelected(null);
-		previousRing = null;
-		pushHistory();
-		void recompute();
-	}
+			cancelActiveRecognition();
+			store.clear();
+			placements.clear();
+			armedShape = null;
+			armedShapeId = null;
+			setSelected(null);
+			previousRing = null;
+			// clear any demo spell or spawned papers too
+			demoSpell = null;
+			try {
+				if (paperApi && typeof paperApi.removeAll === 'function') {
+					paperApi.removeAll();
+				}
+			} catch (e) {
+				console.error('clear papers failed', e);
+			}
+			pushHistory();
+			void recompute();
+		}
 
 	function setSelected(id: string | null) {
 		selectedPlacementId = id;
@@ -774,6 +830,27 @@
 		return () => document.body.classList.remove('diagnostics-visible');
 	});
 
+	// Manage the paper simulation based on the UI toggle. If disabled, remove any papers.
+	$effect(() => {
+		if (!paperApi) return;
+		if (!showPaper) {
+			if (typeof paperApi.removeAll === 'function') {
+				paperApi.removeAll();
+			}
+			return;
+		}
+		// If enabled and a ring is already closed, spawn one immediately.
+		if (showPaper && pipeline?.ring?.complete) {
+			try {
+				const canvas = glyphCanvas;
+				const pos = canvas ? { x: canvas.width / 2, y: canvas.height / 2 } : undefined;
+				paperApi.spawn({ pos });
+			} catch (e) {
+				console.error('paper spawn failed', e);
+			}
+		}
+	});
+
 	// Keep the canvas cursor in sync with the active tool and re-derive the
 	// eraser ring's size after zoom changes resize the canvas's on-screen box.
 	$effect(() => {
@@ -799,7 +876,63 @@
 		updateCanvasCursor();
 	}
 
-	onMount(() => {
+	// Spawn a paper immediately (prefer ring center; fall back to canvas center)
+	function spawnPaperNow(pos?: { x: number; y: number }) {
+		if (!paperApi || typeof paperApi.spawn !== 'function') {
+			console.warn('paper simulation not available');
+			return null;
+		}
+		try {
+			const canvas = glyphCanvas;
+			let spawnPos = pos;
+			if (!spawnPos) {
+				const ringCenter = pipeline?.ring?.center;
+				spawnPos = ringCenter ? { x: ringCenter.x, y: ringCenter.y } : canvas ? { x: canvas.width / 2, y: canvas.height / 2 } : undefined;
+			}
+			const p = paperApi.spawn({ pos: spawnPos });
+			console.log('spawnPaperNow -> spawned', p?.id ?? p);
+			return p;
+		} catch (e) {
+			console.error('paper spawn failed', e);
+			return null;
+		}
+	}
+
+	// Cast a simple demo fire spell positioned on the ring or canvas center. This
+	// creates a synthetic SpellIR and temporary ring that the renderer will use for
+	// the active effect for the spell's duration.
+	function castDemoFireSpell() {
+		if (!renderer) {
+			console.warn('renderer not ready');
+			return;
+		}
+		const values = defaultControlValues();
+		// tuned for a quick fire burst
+		values.effectScale = 1.6;
+		values.force = 0.9;
+		values.spread = 0.28;
+		values.focus = 0.6;
+		values.duration = 3; // seconds
+		values.gravity = 1;
+		values.xTiltDeg = 0;
+		values.yTiltDeg = -28;
+		values.ringRadius = 0.34;
+		// backdate activation so emission begins immediately (skip portal tilt hold)
+		const activatedAt = performance.now() - (CONFIG.renderer?.portalTiltMs ?? 0) - 30;
+		const spell = buildSpellIR({ values, element: 'fire', sigil: 'fire', activatedAt, config: CONFIG });
+		const canvas = glyphCanvas;
+		const ring: RingInfo =
+			pipeline?.ring ?? {
+				found: true,
+				complete: true,
+				center: canvas ? { x: canvas.width / 2, y: canvas.height / 2 } : { x: 400, y: 300 },
+				radius: canvas ? Math.min(canvas.width, canvas.height) * values.ringRadius : 240
+			};
+		demoSpell = { spellIR: spell, ring, expiresAt: performance.now() + spell.duration * 1000 + 200 };
+		console.log('castDemoFireSpell -> demoSpell created', { activatedAt: spell.activatedAt, duration: spell.duration });
+		}
+
+	onMount(async () => {
 		loadTogglePreferences();
 		togglePreferencesLoaded = true;
 		mlDebugEvents = mlDebugEventsSnapshot();
@@ -821,11 +954,26 @@
 		);
 
 		renderer = new CanvasRenderer({ glyphCanvas, effectCanvas, config: CONFIG });
-		capture = new DrawingCapture(glyphCanvas, store, CONFIG, {
-			onStart: () => {
-				cancelActiveRecognition();
-				dismissCanvasHint();
-			},
+				// Paper simulation integration (optional, modular).
+				// To remove this feature entirely: delete `src/lib/ui/paperSimulation.ts` and
+				// remove the three-line attach block below (the import/attach and the
+				// paper spawn call in `applyClassifiedDrawing`). The module is self-contained.
+				try {
+					const mod = await import('$lib/ui/paperSimulation.js');
+					if (mod && typeof mod.attachPaperSimulation === 'function') {
+						// capture API so we can spawn/remove papers in response to UI
+						paperApi = await mod.attachPaperSimulation(renderer as any);
+						// expose for debugging in the console: `window.__paperApi.spawn({ pos })`.
+						(window as any).__paperApi = paperApi;
+					}
+					} catch (e) {
+						// ignore if not present
+					}
+				capture = new DrawingCapture(glyphCanvas, store, CONFIG, {
+					onStart: () => {
+						cancelActiveRecognition();
+						dismissCanvasHint();
+					},
 			onCommit: () => {
 				pushHistory();
 				strokes = mergedStrokes();
@@ -941,6 +1089,26 @@
 				}
 			}
 
+			// Global shortcuts (no modifier) — ignore when typing in inputs
+			if (!typing) {
+				const nk = event.key.toLowerCase();
+				if (nk === 'p') {
+					event.preventDefault();
+					spawnPaperNow();
+					return;
+				}
+				if (nk === 'f') {
+					event.preventDefault();
+					castDemoFireSpell();
+					return;
+				}
+				if (nk === 'c') {
+					event.preventDefault();
+					handleClear();
+					return;
+				}
+			}
+
 			const isMac = navigator.platform.toUpperCase().includes('MAC');
 			const ctrl = isMac ? event.metaKey : event.ctrlKey;
 			if (!ctrl) return;
@@ -990,11 +1158,14 @@
 
 	<main class="workspace" class:canvas-height-matched={canvasHeightMatched} bind:this={workspace}>
 		<ControlPanel
-			{summary}
-			bind:showGuides
-			bind:showDiagnostics
-			onToggleGuides={handleToggleGuides}
-		/>
+		{summary}
+		bind:showGuides
+		bind:showDiagnostics
+		bind:showPaper
+		onToggleGuides={handleToggleGuides}
+		onSpawnPaper={spawnPaperNow}
+		onCastFire={castDemoFireSpell}
+	/>
 
 		<section class="canvas-panel" aria-label="Spell drawing surface">
 			<div

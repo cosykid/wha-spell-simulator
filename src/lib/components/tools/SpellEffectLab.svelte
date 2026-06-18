@@ -104,12 +104,23 @@
 		}
 	}
 
-	onMount(() => {
+	onMount(async () => {
 		const glyphCtx = glyphCanvas.getContext('2d')!;
 		const effectCtx = effectCanvas.getContext('2d')!;
 		effectRenderer = new SpellEffectRenderer(effectCanvas, CONFIG);
 		activatedAt = performance.now();
 		let rafId: number | null = null;
+
+		// Attach optional paper simulation (modular). Safe if the module is removed.
+		try {
+			// dynamic import to avoid breaking if file deleted later
+			const mod = await import('$lib/ui/paperSimulation.js');
+			if (mod && typeof mod.attachPaperSimulation === 'function') {
+				mod.attachPaperSimulation({ effectRenderer, glyphCanvas, effectCanvas } as any);
+			}
+		} catch (e) {
+			// no-op if paperSimulation is absent
+		}
 
 		function buildRing() {
 			const width = glyphCanvas.width;

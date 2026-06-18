@@ -13,18 +13,24 @@
 	}
 
 	interface Props {
-		summary: Summary;
-		showGuides?: boolean;
-		showDiagnostics?: boolean;
-		onToggleGuides?: () => void;
-	}
+				summary: Summary;
+				showGuides?: boolean;
+				showDiagnostics?: boolean;
+				showPaper?: boolean;
+				onToggleGuides?: () => void;
+				onSpawnPaper?: () => void;
+				onCastFire?: () => void;
+			}
 
 	let {
-		summary,
-		showGuides = $bindable(),
-		showDiagnostics = $bindable(),
-		onToggleGuides
-	}: Props = $props();
+			summary,
+			showGuides = $bindable(),
+			showDiagnostics = $bindable(),
+			showPaper = $bindable(),
+			onToggleGuides,
+			onSpawnPaper,
+			onCastFire
+		}: Props = $props();
 
 	const meters = $derived([
 		{ label: 'Quality', value: summary.quality },
@@ -48,6 +54,20 @@
 			<input type="checkbox" id="diagnosticsToggle" bind:checked={showDiagnostics} />
 			<span>Glyph Diagnostics</span>
 		</label>
+
+		<label class="toggle">
+			<input type="checkbox" id="paperToggle" bind:checked={showPaper} />
+			<span>Spawn Paper</span>
+		</label>
+
+		<div class="small-actions">
+			<button type="button" class="tool-btn" onclick={() => onSpawnPaper?.()} title="Spawn a paper now">
+				Spawn Paper Now
+			</button>
+			<button type="button" class="tool-btn" onclick={() => onCastFire?.()} title="Cast a demo fire spell (shortcut: F)">
+				Cast Fire (F)
+			</button>
+		</div>
 	</section>
 
 	<h2 class="panel-section-title">Spell State</h2>
