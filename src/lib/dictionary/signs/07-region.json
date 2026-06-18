@@ -1,7 +1,7 @@
 {
 	"id": "region",
+	"recognitionRotationInvariant": true,
 	"displayName": "Region (Direction)",
-	"$comment": "referenceSizeNorm: this glyph's regular footprint as a fraction of the ring diameter. The recognizer divides the drawn size (sizeNorm) by it to get sizeRatio (1 = regular), which drives spell strength and effect scale. Seeded from labelled-sample medians via scripts/glyph-reference-sizes.ts.",
 	"referenceSizeNorm": 0.154,
 	"allowedLayers": ["middle", "outer"],
 	"sourceNotes": "Region is a directional sign that determines where magic manifests relative to the seal. Inward-facing region signs confine magic inside the ring, outward-facing signs push it outside, and one-sided arrangements make it shoot in that direction.",

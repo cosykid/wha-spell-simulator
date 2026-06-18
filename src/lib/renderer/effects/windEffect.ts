@@ -83,8 +83,8 @@ function windFlowConfig(
 			(0.6 + spellIR.force) *
 			(0.88 + scale * 0.12) *
 			(1 - convergence.strength * 0.28) *
-			// Aeriform is a slow, drifting gas rather than a sharp gust.
-			(spellIR.sigil === 'aeriform' ? 0.72 : 1),
+			// Aeroform is a slow, drifting gas rather than a sharp gust.
+			(spellIR.sigil === 'aeroform' ? 0.72 : 1),
 		mod: emissionModifier(spellIR)
 	};
 }
@@ -148,22 +148,22 @@ export function drawWindEffect(
 		state.particles.push(spawnWindParticle(spellIR, portal, flow));
 	}
 
-	// Per-variant palette so aeriform reads pale and gaseous and wind-underfoot reads earthy.
+	// Per-variant palette so aeroform reads pale and gaseous and wind-underfoot reads earthy.
 	const variant = spellIR.sigil;
 	const outerColor =
-		variant === 'aeriform'
+		variant === 'aeroform'
 			? '205, 232, 240'
 			: variant === 'wind-underfoot'
 				? '150, 205, 160'
 				: '184, 232, 215';
 	const innerColor =
-		variant === 'aeriform'
+		variant === 'aeroform'
 			? '240, 250, 255'
 			: variant === 'wind-underfoot'
 				? '205, 240, 200'
 				: '224, 248, 231';
-	const outerWidthMul = variant === 'aeriform' ? 3.4 : 2.7;
-	const variantAlphaMul = variant === 'aeriform' ? 0.72 : 1;
+	const outerWidthMul = variant === 'aeroform' ? 3.4 : 2.7;
+	const variantAlphaMul = variant === 'aeroform' ? 0.72 : 1;
 
 	ctx.lineCap = 'round';
 	for (const particle of state.particles) {

@@ -59,7 +59,7 @@ export function bakePlacementToStrokes(placement: Placement): Stroke[] {
 				(point.x - 0.5) * transform.scaleX,
 				(point.y - 0.5) * transform.scaleY
 			);
-			return { x: canvasPoint.x, y: canvasPoint.y, pressure: 0.5, t: 0 };
+			return { x: canvasPoint.x, y: canvasPoint.y, t: 0 };
 		}),
 		startedAt: 0,
 		endedAt: 0

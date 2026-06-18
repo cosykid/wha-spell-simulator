@@ -21,7 +21,7 @@ model can learn to predict.
 
 - Python 3.14+ (might work with earlier versions, but untested)
 - [`uv`](https://docs.astral.sh/uv/) for package management
-- `DATABASE_URL` or `NEON_DATABASE_URL` pointing at the app database
+- `DATABASE_URL_VPS` (or `DATABASE_URL`) pointing at the app database
 
 Install dependencies:
 

@@ -2,7 +2,6 @@
 	"id": "wind-directs-air",
 	"displayName": "Wind (Directs Air)",
 	"element": "wind",
-	"$comment": "referenceSizeNorm: this glyph's regular footprint as a fraction of the ring diameter. The recognizer divides the drawn size (sizeNorm) by it to get sizeRatio (1 = regular), which drives spell strength and effect scale. Seeded from labelled-sample medians via scripts/glyph-reference-sizes.ts.",
 	"referenceSizeNorm": 0.25,
 	"allowedLayers": ["center", "middle", "outer"],
 	"sourceNotes": "The wind sigil is one of the four primary tetrad sigils and is also associated with levitation. It moves and manipulates air, but the source notes distinguish that from creating new air.",
@@ -3075,7 +3074,7 @@
 			]
 		]
 	},
-	"recognitionRotationInvariant": false,
+	"recognitionRotationInvariant": true,
 	"semantic": {
 		"force": 0.08,
 		"focus": 0.08,

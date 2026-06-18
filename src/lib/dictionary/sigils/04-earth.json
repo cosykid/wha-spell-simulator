@@ -2,7 +2,6 @@
 	"id": "earth",
 	"displayName": "Earth",
 	"element": "earth",
-	"$comment": "referenceSizeNorm: this glyph's regular footprint as a fraction of the ring diameter. The recognizer divides the drawn size (sizeNorm) by it to get sizeRatio (1 = regular), which drives spell strength and effect scale. Seeded from labelled-sample medians via scripts/glyph-reference-sizes.ts.",
 	"referenceSizeNorm": 0.245,
 	"allowedLayers": ["center", "middle", "outer"],
 	"sourceNotes": "The earth sigil is one of the four primary tetrad sigils and is also called the sigil of might. It manipulates solid materials such as stone, sand, soil, and wood, but is not shown creating those substances outright.",
@@ -2359,7 +2358,7 @@
 			]
 		]
 	},
-	"recognitionRotationInvariant": false,
+	"recognitionRotationInvariant": true,
 	"semantic": {
 		"force": 0.1,
 		"focus": 0.1,

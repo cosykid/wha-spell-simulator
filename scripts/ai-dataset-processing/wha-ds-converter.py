@@ -9,6 +9,8 @@ from collections import defaultdict
 from pathlib import Path
 from statistics import mean, stdev
 
+from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
+
 import psycopg
 from psycopg.rows import dict_row
 from tqdm import tqdm
@@ -175,7 +177,7 @@ def parse_args():
     parser.add_argument(
         "--database-url",
         default=None,
-        help="Postgres connection string. Defaults to DATABASE_URL or NEON_DATABASE_URL.",
+        help="Postgres connection string. Defaults to DATABASE_URL_VPS or DATABASE_URL.",
     )
     parser.add_argument(
         "--review-status",
@@ -199,12 +201,32 @@ def parse_args():
     return parser.parse_args()
 
 
+def ensure_ssl_root(url):
+    """When the connection string verifies the server cert but names no root CA,
+    fall back to the OS trust store (libpq's `system`) instead of the default
+    ~/.postgresql/root.crt, which usually does not exist on dev machines. This
+    lets a publicly-trusted server cert (e.g. Let's Encrypt) verify with no setup.
+    """
+    parts = urlsplit(url)
+    query = dict(parse_qsl(parts.query, keep_blank_values=True))
+    if query.get("sslmode") in ("verify-ca", "verify-full") and not query.get("sslrootcert"):
+        query["sslrootcert"] = "system"
+        return urlunsplit(parts._replace(query=urlencode(query)))
+    return url
+
+
 def database_url(explicit):
     load_dotenv()
-    url = explicit or os.environ.get("DATABASE_URL") or os.environ.get("NEON_DATABASE_URL")
+    # DATABASE_URL_VPS is the app's current Postgres connection string (see
+    # src/lib/server/storage/db.ts); DATABASE_URL is kept as a generic fallback.
+    url = (
+        explicit
+        or os.environ.get("DATABASE_URL_VPS")
+        or os.environ.get("DATABASE_URL")
+    )
     if not url:
-        raise SystemExit("Set DATABASE_URL/NEON_DATABASE_URL or pass --database-url.")
-    return url
+        raise SystemExit("Set DATABASE_URL_VPS (or DATABASE_URL) or pass --database-url.")
+    return ensure_ssl_root(url)
 
 
 def fetch_rows(args):

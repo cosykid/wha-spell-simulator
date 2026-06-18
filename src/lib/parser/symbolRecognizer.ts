@@ -202,7 +202,7 @@ const SHAPE_RESAMPLE_STEP = 0.12;
 // A smooth arc sustains turning above this across many vertices; a polygon only spikes at corners.
 const STRAIGHT_CURVATURE_LIMIT = 1.1;
 // Endpoint gap (as a fraction of the stroke's own path length) under which a stroke counts as a
-// closed loop. Aeriform's little circles close; straight facet lines never do.
+// closed loop. Aeroform's little circles close; straight facet lines never do.
 const LOOP_CLOSE_FRACTION = 0.24;
 
 function resampleByStep(
@@ -255,7 +255,7 @@ function turningAngle(
 
 // Describes the kind of line a glyph is made of, independent of how its ink is split into
 // strokes: how much of it runs straight vs. curves, and how much lives in closed loops.
-// This separates angular glyphs (crystal) from flowing/looping ones (aeriform) even when both
+// This separates angular glyphs (crystal) from flowing/looping ones (aeroform) even when both
 // fill the same bounding box, which the ink-proximity matcher cannot do on its own.
 function shapeSignature(strokes: Array<{ x: number; y: number }[]>): ShapeSignature {
 	const polylines = strokes.filter((points) => points.length >= 2);
@@ -978,6 +978,9 @@ export function recognizeCandidates(
 
 		const result: RecognizedSymbol = {
 			...publicCandidate(candidate),
+			rotationOffsetDeg: normalizeAngleDeg(
+				bestTemplateMatch?.recognitionRotationDeg ?? bestTemplateMatch?.rotationDeg ?? 0
+			),
 			recognized: accepted,
 			recognitionStatus: status,
 			kind: accepted ? best.kind : 'unknown',

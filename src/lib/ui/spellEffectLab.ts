@@ -178,7 +178,7 @@ export const SIGIL_OPTIONS: Array<{ id: string; element: ElementId; label: strin
 	{ id: 'earth', element: 'earth', label: 'Earth' },
 	{ id: 'light', element: 'light', label: 'Light' },
 	{ id: 'crystal', element: 'earth', label: 'Crystal (earth)' },
-	{ id: 'aeriform', element: 'wind', label: 'Aeriform (wind)' },
+	{ id: 'aeroform', element: 'wind', label: 'Aeroform (wind)' },
 	{ id: 'wind-underfoot', element: 'wind', label: 'Wind Underfoot (wind)' }
 ];
 

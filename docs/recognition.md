@@ -81,9 +81,9 @@ Structural compatibility checks aspect ratio, stroke count, stroke-length profil
 - `straightness` — the arc-length fraction of the ink that runs locally straight. A polygon only spikes in curvature at its corners, while a smooth arc sustains curvature along its whole length, so angular glyphs score high and flowing ones score low.
 - `loopRatio` — the arc-length fraction of the ink that lives in closed (looping) strokes.
 
-For sigils, the structural score leads with shape compatibility (`0.5`) because aspect ratio is near-useless when most sigils fill the same square box; stroke-length profile and stroke count contribute the rest. This is what keeps an angular glyph (for example `crystal`) from being absorbed by a dense, flowing template (for example `aeriform`), which the ink-proximity matcher alone cannot separate since both fill the same bounds. Signs keep their stroke-structure-led blend, and simple signs get extra caps so a lone line is not too easily accepted as a complete sign.
+For sigils, the structural score leads with shape compatibility (`0.5`) because aspect ratio is near-useless when most sigils fill the same square box; stroke-length profile and stroke count contribute the rest. This is what keeps an angular glyph (for example `crystal`) from being absorbed by a dense, flowing template (for example `aeroform`), which the ink-proximity matcher alone cannot separate since both fill the same bounds. Signs keep their stroke-structure-led blend, and simple signs get extra caps so a lone line is not too easily accepted as a complete sign.
 
-Rough two-stroke sign candidates in sign-capable layers can receive a small structural confidence floor when they strongly match a simple sign such as `column`. This helps diagnostics prefer a rough column over a weak sigil guess such as `aeriform`, but acceptance still requires ink coverage, confidence, and structural compatibility.
+Rough two-stroke sign candidates in sign-capable layers can receive a small structural confidence floor when they strongly match a simple sign such as `column`. This helps diagnostics prefer a rough column over a weak sigil guess such as `aeroform`, but acceptance still requires ink coverage, confidence, and structural compatibility.
 
 Dictionary-derived recognition examples are cached per dictionary object, and candidate/example matcher scores are reused within a recognition pass. This keeps repeated entry scoring from recomputing the same normalized shape match.
 
@@ -95,6 +95,8 @@ Dictionary-derived recognition examples are cached per dictionary object, and ca
 - `GlyphResNet18MultiHead` adapts a ResNet18 backbone for grayscale glyph images.
 - The class head predicts the glyph id.
 - The pose head predicts angle as `[sin(angle), cos(angle)]`, plus normalized `scale_x`, `scale_y`, `center_x`, and `center_y`.
+
+Scale and translation are invariant by construction: each candidate is cropped to its bounding box and normalized to a fixed margined square, both when rasterizing training data and when rendering for browser inference (`renderCandidateTensor`). A glyph drawn large or small, anywhere on the canvas, produces the same model input. Rotation is handled by training-time augmentation rather than preprocessing — see [Rotation Augmentation](#rotation-augmentation).
 
 The training workflow in `scripts/training/run_glyph_training.sh` exports approved `labelled_samples` rows from Postgres, rasterizes them, trains the multi-head ResNet18 model, and exports the best checkpoint to:
 
@@ -113,6 +115,20 @@ The browser hybrid recognizer lives in `src/lib/parser/mlRecognizer.ts` and runs
 - fall back to template-only recognition if model loading or inference fails.
 
 This keeps the learned model in charge for clear hand-drawn glyphs while using template geometry, layer constraints, and contamination checks to avoid accepting ordinary closed-set guesses for random ink.
+
+## Rotation Augmentation
+
+The class head is only as rotation-robust as the training data, so the train split rotates samples on the fly. How far a class may rotate is gated by `scripts/training/rotation_policy.py`, which reads the same dictionary metadata the runtime uses:
+
+- `recognitionRotationInvariant: true` → rotate uniformly through `±--rot-invariant-deg` (default 180, the full circle). Every current sigil and sign is explicitly flagged this way, so the model learns to recognize each glyph at any rotation after retraining.
+- `allowedRotationsDeg: [...]` → snap to those orientations, plus a small jitter.
+- an orientation-locked glyph (flag `false`) → only a small `±--rot-jitter-deg` wobble (default 12), kept within the recognizer's sign tolerance so it never changes a glyph's meaning.
+
+Rotation augmentation transforms the pose targets with the image so the regression heads stay consistent. PIL/torchvision's `rotate(θ)` turns the image counter-clockwise, but the label `angle` is authored clockwise-positive in the y-down canvas (`buildSample` → `DOMMatrix.rotateSelf`), so a CCW image rotation _subtracts_ `θ` from `angle`, while `center` orbits the image center the same CCW way the pixels move and `scale_x` / `scale_y` are unchanged because they live in the overlay's pre-rotation frame. (`rotateTemplatePoint` negates its degrees and so is CCW-positive — the opposite of the label, so it is not the convention reference here.) Validation and test splits are never augmented, so metrics stay comparable.
+
+The pose head predicts a glyph's _absolute_ orientation, so an upright glyph already carries its own intrinsic axis angle (a vertical `column` reads ~270°, not 0°) and no single constant offset can zero every class. The recognizer therefore calibrates per glyph: once per model load it runs each glyph's own upright dictionary template through the pose head, caches that angle, and subtracts it. `rotationOffsetDeg` then reads ~0° when a glyph is drawn in its example orientation and grows as it is turned from there, sourced from the calibrated ML pose head when ML recognizes the glyph and from the template matcher's winning rotation otherwise. It is display/diagnostic only and does not feed spell compilation.
+
+Because gating reads the dictionary, changing a glyph's `recognitionRotationInvariant` or `allowedRotationsDeg` automatically changes its augmentation on the next training run with no code change. `scripts/training/test_rotation_policy.py` covers the pose-target math (full-turn identity, round-trip, the 90° mapping, the clockwise-positive angle sign) and policy loading. After training, `train_multitask.py` prints a per-class angle-error table over the un-augmented validation split and flags any class whose mean signed error exceeds 20°; a large per-class bias is the signature of a pose miscalibration (such as a wrong augmentation sign), so a retrain surfaces it immediately.
 
 ## Parallel Recognition
 
@@ -146,9 +162,11 @@ For ML recognition, `CONFIG.recognition.ml` adds separate accept, override, and 
 
 ## Rotation Semantics
 
-Sigils use their dictionary rotation rules. `recognitionRotationInvariant` and `allowedRotationsDeg` are copied into recognition examples.
+Both sigils and signs are flagged `recognitionRotationInvariant: true`, so a retrained learned model recognizes every glyph at any rotation and records how far it is turned from its canonical example as `rotationOffsetDeg`. `recognitionRotationInvariant` and `allowedRotationsDeg` are copied into recognition examples and gate ML [Rotation Augmentation](#rotation-augmentation) at training time.
 
-Signs keep their spell meaning from their original ring position and drawn orientation. For matching only, the recognizer rotates sign candidates into the canonical bottom-of-ring pose before comparison. The original `angleDeg`, `orientationDeg`, `directedOrientationDeg`, and `radialFacing` remain available to the compiler.
+Sigils are also matched rotation-invariantly in the template path.
+
+Signs are handled as a **hybrid**: the learned model is what recognizes them at any rotation, but the template fallback stays orientation-aware. A straight sign such as `column` is shape-ambiguous under free rotation, so the fallback still rotates sign candidates into the canonical bottom-of-ring pose and allows only a small tolerance — which also keeps a rough column from being mistaken for a flowing sigil when the model is not loaded. Signs keep their spell meaning from their ring position and drawn orientation: `angleDeg`, `orientationDeg`, `directedOrientationDeg`, and `radialFacing` remain available to the compiler, now alongside the recorded `rotationOffsetDeg`.
 
 ## Recognition Examples And Training Data
 
@@ -193,5 +211,5 @@ Relevant coverage:
 - `tests/matcher.test.ts` covers point-cloud distance and chamfer scoring.
 - `tests/mlRecognizer.test.ts` covers hybrid ML acceptance, override, verifier, and fallback behavior.
 - `tests/decomposition.test.ts` covers grouping one sigil plus one sign, keeping nearby signs separate, preserving multi-stroke signs, rejoining touching sign fragments, ignoring ring strokes, contamination from noise, no-ring guide preview grouping, and prepared-ring fast grouping.
-- `tests/symbolRecognition.test.ts` keeps recognition regressions for signs, sigils, diagnostics, rotation, contamination, messy valid matches, rough two-stroke column diagnostics, and curve-character separation (angular `crystal` ink is not absorbed by the flowing `aeriform` sigil).
+- `tests/symbolRecognition.test.ts` keeps recognition regressions for signs, sigils, diagnostics, rotation, contamination, messy valid matches, rough two-stroke column diagnostics, and curve-character separation (angular `crystal` ink is not absorbed by the flowing `aeroform` sigil).
 - `tests/ringDetector.test.ts` keeps ring behavior independent of symbol recognition.

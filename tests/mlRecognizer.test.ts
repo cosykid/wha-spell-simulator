@@ -117,6 +117,7 @@ function recognition(
 		orientationDeg: 0,
 		directedOrientationDeg: 0,
 		radialFacing: 'unclear',
+		rotationOffsetDeg: 0,
 		overdrawAmount: 0,
 		neatness: 0.9,
 		recognized,

@@ -33,8 +33,8 @@ This file is the compact contract for parser, compiler, and renderer behavior. U
 - Template recognition rasterizes normalized candidate and reference strokes into bitmap masks, then combines ink overlap with structural checks.
 - Browser ML recognition uses an ONNX-exported multi-head ResNet18 to predict glyph class and pose, then applies confidence, margin, layer, and template-verifier rules before accepting or overriding a template result.
 - `CONFIG.recognition.minConfidence` is the minimum final recognizer score for accepting a symbol.
-- `recognitionRotationInvariant` controls sigil matching only. Current sigils should usually be `false`.
-- Sign templates are authored in the bottom-of-ring pose at `270` degrees. Sign recognition rotates candidates from their ring position back to that canonical pose.
+- `recognitionRotationInvariant` controls ML rotation augmentation for sigils and signs, and template rotation matching for sigils. Current glyphs set it to `true` so the learned recognizer can classify them at any drawn angle after retraining.
+- Sign templates are authored in the bottom-of-ring pose at `270` degrees. The template fallback rotates candidates from their ring position back to that canonical pose and keeps only a small matching tolerance, because sign orientation still carries spell meaning.
 - Uniformly larger symbols can keep the same identity. Size and stroke length still affect gameplay after recognition.
 - Distortion, missing simple sign strokes, or a close competing match should lower identity confidence or produce `ambiguous` instead of choosing a wrong symbol.
 - Rough simple sign candidates can be diagnostically preferred over weak sigil guesses in sign-capable layers, but acceptance still requires confidence, ink coverage, and nearest-neighbor agreement.

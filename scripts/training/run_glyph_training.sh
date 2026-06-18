@@ -16,6 +16,9 @@ BATCH_SIZE="${BATCH_SIZE:-32}"
 LR="${LR:-3e-4}"
 WEIGHT_DECAY="${WEIGHT_DECAY:-1e-4}"
 NUM_WORKERS="${NUM_WORKERS:-0}"
+ROTATION_AUG="${ROTATION_AUG:-1}"
+ROT_INVARIANT_DEG="${ROT_INVARIANT_DEG:-180}"
+ROT_JITTER_DEG="${ROT_JITTER_DEG:-12}"
 REVIEW_STATUS="${REVIEW_STATUS:-approved}"
 LIMIT="${LIMIT:-}"
 NO_PRETRAINED="${NO_PRETRAINED:-0}"
@@ -112,9 +115,14 @@ if [[ "$SKIP_TRAIN" != "1" ]]; then
 		--weight-decay "$WEIGHT_DECAY"
 		--num-workers "$NUM_WORKERS"
 		--checkpoint-dir "$CHECKPOINT_DIR"
+		--rot-invariant-deg "$ROT_INVARIANT_DEG"
+		--rot-jitter-deg "$ROT_JITTER_DEG"
 	)
 	if [[ "$NO_PRETRAINED" == "1" ]]; then
 		train_args+=(--no-pretrained)
+	fi
+	if [[ "$ROTATION_AUG" != "1" ]]; then
+		train_args+=(--no-rotation-aug)
 	fi
 
 	echo "Training model -> $CHECKPOINT_DIR"

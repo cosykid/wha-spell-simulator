@@ -86,7 +86,8 @@ export function recognitionPlanForSymbol(
 	entry: DictionaryEntry,
 	candidate: SymbolCandidate
 ) {
-	// Only support sign rotation for now.
+	// Sigils are matched rotation-invariantly; the matcher reports the winning
+	// rotation as the offset versus the canonical example.
 	if (kind !== 'sign') {
 		return {
 			candidate,
@@ -98,8 +99,12 @@ export function recognitionPlanForSymbol(
 		};
 	}
 
-	// Signs get normalized to the bottom-of-ring template frame, then the matcher
-	// tests only the small tolerance rotations from signRecognitionRotations().
+	// Signs stay orientation-aware in this template fallback even though their
+	// dictionary flag is rotation-invariant: a straight sign (e.g. `column`) is
+	// shape-ambiguous under free rotation, so the fallback normalizes to the
+	// bottom-of-ring frame and only allows a small tolerance. The learned model
+	// (`mlRecognizer`) is what recognizes signs at any rotation and reports the
+	// continuous `rotationOffsetDeg`; the flag drives its training augmentation.
 	const baseRotationDeg = signCandidateToTemplateRotationDeg(candidate.angleDeg);
 	return {
 		candidate: rotateCandidate(candidate, baseRotationDeg),
