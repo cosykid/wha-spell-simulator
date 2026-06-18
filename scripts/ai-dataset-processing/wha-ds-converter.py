@@ -326,6 +326,8 @@ def main():
         raise SystemExit("--validation-split must be between 0 and 1 when --out-validation is set.")
     if args.out_test and not args.out_validation:
         raise SystemExit("--out-test requires --out-validation.")
+    if args.out_test and not 0 < args.test_split < 1:
+        raise SystemExit("--test-split must be between 0 and 1 when --out-test is set.")
     if args.out_test and args.validation_split + args.test_split >= 1:
         raise SystemExit("--validation-split + --test-split must be < 1 when --out-test is set.")
 
@@ -357,7 +359,6 @@ def main():
         write_jsonl(args.output, records)
         train = records
         val = []
-        test = []
 
     diffs = [b - a for b, a in zip(points_before, points_after)]
     pcts = [(b - a) / b * 100 for b, a in zip(points_before, points_after) if b]

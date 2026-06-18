@@ -59,8 +59,8 @@ def parse_args():
     parser.add_argument(
         "--test-split",
         type=float,
-        default=0.15,
-        help="Fraction per class for test set. Requires --validation-split > 0.",
+        default=0,
+        help="Fraction per class for test set. 0 disables it. Requires --validation-split > 0.",
     )
     parser.add_argument("--seed", type=int, default=42, help="Random seed for splitting")
     parser.add_argument(

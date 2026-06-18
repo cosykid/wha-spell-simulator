@@ -61,6 +61,21 @@ uv run wha-ds-converter.py \
   --validation-split 0.2
 ```
 
+Add `--out-test` for a stratified train/validation/test split:
+
+```bash
+uv run wha-ds-converter.py \
+  -o labelled_samples_vector-train.jsonl \
+  --out-validation labelled_samples_vector-validation.jsonl \
+  --out-test labelled_samples_vector-test.jsonl \
+  --validation-split 0.2 \
+  --test-split 0.15
+```
+
+The split is stratified per sign, so each split stays representative. Signs with
+only two samples keep one for train and one for validation and contribute none to
+test, since every split needs at least one training sample.
+
 Useful options:
 
 ```bash
@@ -98,7 +113,18 @@ uv run wha-ds-imageifier.py labelled_samples_vector-all.jsonl \
   --validation-split 0.2
 ```
 
-Output:
+Add `--test-split` (requires `--validation-split > 0`) for a three-way split that
+also writes a `test/` directory. It defaults to `0`, so the command above keeps the
+train/validation behaviour unless you opt in:
+
+```bash
+uv run wha-ds-imageifier.py labelled_samples_vector-all.jsonl \
+  -o labelled_samples_raster \
+  --validation-split 0.2 \
+  --test-split 0.15
+```
+
+Output (a `test/` directory is added when `--test-split > 0`):
 
 ```text
 labelled_samples_raster/
