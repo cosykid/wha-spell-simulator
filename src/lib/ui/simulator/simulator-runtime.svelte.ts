@@ -1,5 +1,8 @@
 import { CONFIG } from '$lib/config.js';
 import { emitMlDebug, ML_DEBUG_BUILD_ID } from '$lib/debug/mlDebug.js';
+import { CanvasRenderer } from '$lib/renderer/canvasRenderer.js';
+import type { CanvasBehavior } from '$lib/ui/canvas/canvasBehavior.js';
+import type { Attachment } from 'svelte/attachments';
 import { CanvasSizingController } from './canvas-sizing-controller.js';
 import type { SimulatorDrawingActions } from './drawing-actions.js';
 import type { SimulatorDrawingState } from './drawing-state.svelte.js';
@@ -9,7 +12,6 @@ import { createSimulatorKeyboardHandler } from './keyboard.js';
 import { locksFreehandInput, type CanvasMode, type CanvasTool } from './mode.js';
 import type { PanController } from './pan-controller.svelte.js';
 import type { RecognitionPipeline } from './recognition-pipeline.svelte.js';
-import { SimulatorRenderLoop } from './render-loop.js';
 import type { ShapeDragController } from './shape-drag-controller.svelte.js';
 import type { SimulatorUiState } from './ui-state.svelte.js';
 
@@ -33,12 +35,21 @@ interface SimulatorRuntimeOptions {
 export class SimulatorRuntime {
 	#input: SimulatorInputControllers | null = null;
 	#sizing: CanvasSizingController | null = null;
-	#renderLoop: SimulatorRenderLoop | null = null;
+	#renderer: CanvasRenderer | null = null;
+	#rendererGlyphCanvas: HTMLCanvasElement | null = null;
+	#rendererEffectCanvas: HTMLCanvasElement | null = null;
 	#keyboardHandler: ((event: KeyboardEvent) => void) | null = null;
+	#attachedGlyphCanvas: HTMLCanvasElement | null = null;
+	#pendingGlyphDetach: object | null = null;
+	#captureReady = false;
 	readonly #options: SimulatorRuntimeOptions;
+	readonly #canvasBehavior: CanvasBehavior;
 
 	constructor(options: SimulatorRuntimeOptions) {
 		this.#options = options;
+		this.#canvasBehavior = {
+			attach: this.#attachGlyphCanvas
+		};
 
 		$effect(() => {
 			void this.#options.ui.zoomLevel;
@@ -55,6 +66,11 @@ export class SimulatorRuntime {
 		});
 	}
 
+	/** Canvas API behavior that wires simulator pointer input to the glyph canvas. */
+	get canvasBehavior() {
+		return this.#canvasBehavior;
+	}
+
 	/** Starts all DOM-bound simulator services. */
 	mount(): () => void {
 		const { recognition, ui } = this.#options;
@@ -65,9 +81,7 @@ export class SimulatorRuntime {
 		window.addEventListener('wha:ml-debug', handleMlDebug);
 		this.#emitMountedDebugEvent();
 
-		this.#setupInputControllers();
 		this.#setupSizing();
-		this.#setupRenderLoop();
 		this.#setupKeyboardShortcuts();
 
 		const dictionaryLoad = { cancelled: false };
@@ -75,10 +89,11 @@ export class SimulatorRuntime {
 
 		return () => {
 			dictionaryLoad.cancelled = true;
-			this.#renderLoop?.stop();
 			recognition.dispose();
-			this.#input?.disable();
+			this.#pendingGlyphDetach = null;
+			this.#detachGlyphCanvas();
 			ui.inputReady = false;
+			this.#captureReady = false;
 			this.#options.shapeDrag.end();
 			this.#options.pan.end();
 			this.#sizing?.stop();
@@ -115,6 +130,59 @@ export class SimulatorRuntime {
 		this.#input?.setCaptureLocked(locked);
 	}
 
+	/** Draws one Canvas API frame for glyph ink, overlays, and spell effects. */
+	renderCanvasFrame = (ctx: CanvasRenderingContext2D, timestamp: number) => {
+		const { drawing, recognition, ui } = this.#options;
+		if (!ui.effectCanvas) {
+			return;
+		}
+
+		const glyphCanvas = ctx.canvas;
+		if (
+			!this.#renderer ||
+			this.#rendererGlyphCanvas !== glyphCanvas ||
+			this.#rendererEffectCanvas !== ui.effectCanvas
+		) {
+			this.#renderer = new CanvasRenderer({
+				glyphCanvas,
+				effectCanvas: ui.effectCanvas,
+				config: CONFIG
+			});
+			this.#rendererGlyphCanvas = glyphCanvas;
+			this.#rendererEffectCanvas = ui.effectCanvas;
+		}
+
+		const pipeline = recognition.pipeline;
+		const spellIR = recognition.spellIR;
+		const strokes = recognition.strokes;
+
+		this.#renderer.renderGlyph({
+			strokes,
+			currentStroke: this.#input?.currentStroke() ?? null,
+			pipeline,
+			showGuides: ui.showGuides,
+			showDebug: ui.showDiagnostics,
+			selection: drawing.selectionHandles(ui.activeTool)
+		});
+
+		if (spellIR?.active) {
+			this.#renderer.renderActivatedGlyph({
+				activatedAt: spellIR.activatedAt,
+				duration: spellIR.duration,
+				strokes,
+				pipeline,
+				timestamp
+			});
+		}
+
+		this.#renderer.renderEffect({
+			spellIR,
+			ring: recognition.ring,
+			timestamp,
+			showGuides: ui.showGuides
+		});
+	};
+
 	#emitMountedDebugEvent() {
 		emitMlDebug(
 			'page',
@@ -127,6 +195,51 @@ export class SimulatorRuntime {
 			},
 			CONFIG.recognition.ml.debug
 		);
+	}
+
+	#attachGlyphCanvas: Attachment<HTMLCanvasElement> = (canvas) => {
+		this.#pendingGlyphDetach = null;
+		if (this.#attachedGlyphCanvas === canvas && this.#input) {
+			return () => this.#scheduleGlyphCanvasDetach();
+		}
+
+		this.#detachGlyphCanvas();
+		this.#attachedGlyphCanvas = canvas;
+		this.#options.ui.glyphCanvas = canvas;
+		this.#setupInputControllers();
+		this.#input?.mount(this.#options.ui.canvasMode);
+		if (this.#captureReady) {
+			this.#input?.enableCapture();
+		}
+		this.setCaptureLocked(
+			locksFreehandInput(
+				this.#options.ui.canvasMode,
+				this.#options.recognition.summary.canvasLocked
+			)
+		);
+		this.#updateCanvasCursor();
+
+		return () => this.#scheduleGlyphCanvasDetach();
+	};
+
+	#scheduleGlyphCanvasDetach() {
+		const token = {};
+		this.#pendingGlyphDetach = token;
+		queueMicrotask(() => {
+			if (this.#pendingGlyphDetach === token) {
+				this.#pendingGlyphDetach = null;
+				this.#detachGlyphCanvas();
+			}
+		});
+	}
+
+	#detachGlyphCanvas() {
+		this.#input?.disable();
+		this.#input = null;
+		this.#attachedGlyphCanvas = null;
+		this.#renderer = null;
+		this.#rendererGlyphCanvas = null;
+		this.#rendererEffectCanvas = null;
 	}
 
 	#setupInputControllers() {
@@ -173,7 +286,6 @@ export class SimulatorRuntime {
 				void recognition.recompute();
 			}
 		});
-		this.#input.mount(ui.canvasMode);
 	}
 
 	#setupSizing() {
@@ -199,24 +311,6 @@ export class SimulatorRuntime {
 		this.#sizing.mount();
 	}
 
-	#setupRenderLoop() {
-		const { drawing, recognition, ui } = this.#options;
-
-		this.#renderLoop = new SimulatorRenderLoop({
-			glyphCanvas: () => ui.glyphCanvas,
-			effectCanvas: () => ui.effectCanvas,
-			currentStroke: () => this.#input?.currentStroke() ?? null,
-			strokes: () => recognition.strokes,
-			pipeline: () => recognition.pipeline,
-			spellIR: () => recognition.spellIR,
-			ring: () => recognition.ring,
-			showGuides: () => ui.showGuides,
-			showDiagnostics: () => ui.showDiagnostics,
-			selection: () => drawing.selectionHandles(ui.activeTool)
-		});
-		this.#renderLoop.start();
-	}
-
 	#setupKeyboardShortcuts() {
 		const { actions, drawing, ui } = this.#options;
 
@@ -237,6 +331,7 @@ export class SimulatorRuntime {
 		if (!loaded || loadState.cancelled) {
 			return;
 		}
+		this.#captureReady = true;
 		this.#input?.enableCapture();
 		drawing.resetHistory();
 		ui.inputReady = true;
