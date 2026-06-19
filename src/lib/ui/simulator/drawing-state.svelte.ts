@@ -10,6 +10,7 @@ import type { Placement, PlacementTransform, ShapeItem, Stroke, Vector } from '$
 import { SvelteMap } from 'svelte/reactivity';
 import { clonePlacementSnapshot, createDrawingHistory, type DrawingSnapshot } from './history.js';
 import type { CanvasTool } from './mode.js';
+import { placementsInRenderOrder } from './placement-order.js';
 import type { SelectedShape } from './types.js';
 
 /**
@@ -93,9 +94,9 @@ export class SimulatorDrawingState {
 	 * so transforms can be rendered directly from placement data while dragging.
 	 */
 	renderPlacementEntities(): PlacementEntity[] {
-		const entities = this.placements
-			.getPlacements()
-			.map((placement) => this.#placementEntity(placement));
+		const entities = placementsInRenderOrder(this.placements.getPlacements()).map((placement) =>
+			this.#placementEntity(placement)
+		);
 		this.#prunePlacementEntityCache();
 		return entities;
 	}

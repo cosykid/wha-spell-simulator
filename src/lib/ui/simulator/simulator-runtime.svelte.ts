@@ -79,11 +79,17 @@ export class SimulatorRuntime {
 			attach: this.#attachCanvasBehaviors
 		};
 
+		// Keep the placement behavior's active state derived from `canvasMode` so it
+		// stays correct no matter how the mode changed. Setting it only inside
+		// `setCanvasMode` missed mode switches that bypass it (e.g. a persisted
+		// `arrange` preference applied during `loadPreferences`), leaving arrange
+		// mode visually active but its pointer handlers disabled.
 		$effect(() => {
 			void this.#options.ui.zoomLevel;
 			void this.#options.ui.canvasMode;
 			void this.#options.recognition.summary.canvasLocked;
 
+			this.#placementBehavior.setActive(this.#options.ui.canvasMode === 'arrange');
 			this.setCaptureLocked(
 				locksFreehandInput(
 					this.#options.ui.canvasMode,
@@ -143,7 +149,6 @@ export class SimulatorRuntime {
 
 		ui.canvasMode = mode;
 		this.#input?.setMode(mode);
-		this.#placementBehavior.setActive(mode === 'arrange');
 		this.setCaptureLocked(locksFreehandInput(ui.canvasMode, recognition.summary.canvasLocked));
 		this.#updateCanvasCursor();
 
