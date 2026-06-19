@@ -130,7 +130,7 @@ This glyph's regular footprint as a fraction of the ring diameter. The recognize
 
 `sizeRatio` drives spell strength and effect scale after recognition. The value belongs in each JSON entry because it differs by glyph, but the explanation belongs here rather than in repeated `$comment` fields.
 
-Most existing values were seeded from labelled-sample medians with `scripts/glyph-reference-sizes.ts`.
+Most existing values were seeded from labelled-sample medians with `models/glyph-reference-sizes.ts`.
 
 Example:
 

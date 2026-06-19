@@ -1,7 +1,7 @@
-import { classifyDrawingAsync, type ClassifyDrawingInput } from './drawingClassifier.js';
+import { classifyDrawingAsync, type ClassifyDrawingInput } from './classifier/index.js';
 import { disposeRecognitionPool } from './recognitionPool.js';
 import type { AppConfig, ClassifiedDrawing, Dictionary } from '../types.js';
-import type { RecognitionExample } from './shapeMatcher.js';
+import type { RecognitionExample } from './shape-matcher/index.js';
 
 const EMPTY_EXAMPLES: RecognitionExample[] = [];
 const SUPERSEDED_ERROR_NAME = 'DrawingClassifierSupersededError';

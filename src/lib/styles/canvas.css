@@ -1,0 +1,94 @@
+/*
+ * Drawing surface & portal tilt, shared by the simulator canvas panel and the
+ * spell-effect lab (both render `.canvas-shell`). The #glyphCanvas / #effectCanvas
+ * ids (and their #lab* counterparts) are styled here so the 3D portal animation
+ * stays in one place. Each selector keeps its responsive overrides in this file so
+ * the cascade does not depend on stylesheet import order.
+ */
+
+.canvas-shell {
+	position: relative;
+	width: 100%;
+	height: 100%;
+	max-height: none;
+	flex: 1 1 auto;
+	background: var(--paper);
+	touch-action: none;
+	overflow: hidden;
+	perspective: 900px;
+	perspective-origin: 50% 56%;
+	transition: background var(--portal-tilt-duration) ease;
+}
+
+.canvas-shell canvas {
+	position: absolute;
+	inset: 0;
+	display: block;
+	width: 100%;
+	height: 100%;
+}
+
+#glyphCanvas,
+#labGlyphCanvas {
+	z-index: 1;
+	transform-origin: 50% 64%;
+	transform-style: preserve-3d;
+	will-change: transform, filter, box-shadow;
+	transition:
+		transform var(--portal-tilt-duration) cubic-bezier(0.16, 0.78, 0.18, 1),
+		filter var(--portal-tilt-duration) ease,
+		box-shadow var(--portal-tilt-duration) ease;
+}
+
+.canvas-shell.portal-active {
+	background: #3a332b;
+}
+
+.canvas-shell.portal-active #glyphCanvas,
+.canvas-shell.portal-active #labGlyphCanvas {
+	transform: translateY(10%) rotateX(62deg) scale(0.98);
+	/* tilt the canvas angle */
+	box-shadow:
+		0 1px 0 rgba(255, 251, 233, 0.52) inset,
+		0 28px 38px rgba(36, 27, 22, 0.3);
+	filter: drop-shadow(0 30px 24px rgba(36, 27, 22, 0.34));
+}
+
+#glyphCanvas.locked {
+	cursor: not-allowed;
+}
+
+#effectCanvas,
+#labEffectCanvas {
+	z-index: 2;
+	pointer-events: none;
+	mix-blend-mode: normal;
+}
+
+#effectCanvas {
+	transform-origin: center center;
+	transition: transform 0.22s cubic-bezier(0.25, 1, 0.5, 1);
+	will-change: transform;
+}
+
+@media (min-width: 1051px) {
+	.canvas-shell {
+		width: 100%;
+		height: auto;
+		aspect-ratio: 1 / 1;
+	}
+
+	.workspace.canvas-height-matched .canvas-shell {
+		width: auto;
+		height: 100%;
+	}
+}
+
+@media (max-width: 1050px) {
+	.canvas-shell {
+		width: 100%;
+		height: auto;
+		max-height: none;
+		aspect-ratio: 1 / 1;
+	}
+}

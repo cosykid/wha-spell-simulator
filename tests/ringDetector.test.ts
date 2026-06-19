@@ -2,8 +2,8 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import { CONFIG } from '../src/lib/config.js';
-import { classifyDrawing } from '../src/lib/parser/drawingClassifier.js';
-import { detectRing } from '../src/lib/parser/ringDetector.js';
+import { classifyDrawing } from '../src/lib/parser/classifier/index.js';
+import { detectRing } from '../src/lib/parser/rings/index.js';
 import { degreesToRadians } from '../src/lib/utils/geometry.js';
 import type { Point, Stroke, SignEntry, StrokeTemplate } from '../src/lib/types.js';
 

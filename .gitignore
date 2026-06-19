@@ -43,7 +43,7 @@ __pycache__/
 .artifacts/
 
 # ONNX Runtime web assets, synced from node_modules on postinstall
-# (scripts/sync-onnxruntime-assets.mjs). The trained model in static/models/ is
+# (models/sync-onnxruntime-assets.mjs). The trained model in static/models/ is
 # committed: the deployed site serves it from /models/.
 static/onnxruntime/
 

@@ -204,6 +204,23 @@
 </section>
 
 <style>
+	.reference-list {
+		display: grid;
+		grid-auto-rows: max-content;
+		align-content: start;
+		gap: 8px;
+		max-height: none;
+		overflow-y: auto;
+		overflow-x: hidden;
+		scrollbar-gutter: stable;
+		min-height: 0;
+		flex: 1 1 auto;
+	}
+
+	.reference-list[hidden] {
+		display: none;
+	}
+
 	.reference-source-preview {
 		margin: 0;
 		color: var(--muted-ink);

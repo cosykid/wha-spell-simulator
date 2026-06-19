@@ -3,7 +3,7 @@
  *
  * The overlay transform composes the same math as `svgStrokes.ts` (viewBox → unit box)
  * and `shapeBaker.ts` (`bakePlacementToStrokes`: scale → rotate → translate), mirroring
- * `scripts/sample-to-svg.ts` — so a correct label puts the glyph exactly where the
+ * `models/sample-to-svg.ts` — so a correct label puts the glyph exactly where the
  * contributor saw it in the Sample Maker.
  */
 

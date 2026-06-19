@@ -95,7 +95,7 @@ export const CONFIG = {
 	renderer: {
 		// Milliseconds the spell paper takes to tilt into the screen before the
 		// effect animation begins. MUST match the CSS `--portal-tilt-duration`
-		// variable in styles.css; the renderer holds the effect/glow back for this
+		// variable in tokens.css; the renderer holds the effect/glow back for this
 		// long so the canvas visibly tilts first, then the spell erupts.
 		portalTiltMs: 980,
 

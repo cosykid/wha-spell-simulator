@@ -56,3 +56,13 @@ export const TITLES: { name: string; minDrawings: number }[] = [
 export function titleForDrawings(total: number): string | null {
 	return TITLES.find((title) => total >= title.minDrawings)?.name ?? null;
 }
+
+/** Medal emoji for the top three places, empty otherwise. */
+export function medal(place: number): string {
+	return place === 1 ? '🥇' : place === 2 ? '🥈' : place === 3 ? '🥉' : '';
+}
+
+/** CSS class for a title badge (`title title-witch-master`), or empty when untitled. */
+export function titleClass(title: string | null): string {
+	return title ? `title title-${title.toLowerCase().replace(/\s+/g, '-')}` : '';
+}

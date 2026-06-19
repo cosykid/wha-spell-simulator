@@ -1,0 +1,167 @@
+/*
+ * Page skeleton & chrome containers shared by the simulator and the tools/* routes:
+ * the app shell, the workspace grid, the panel "cards", the header bits that appear
+ * outside the Header component, the tools toolbar, and the responsive grid.
+ */
+
+/* ── App shell & workspace grid ─────────────────────────────────────────── */
+
+.app-shell {
+	width: min(1480px, 100%);
+	min-height: 100vh;
+	margin: 0 auto;
+	padding: 24px;
+	display: flex;
+	flex-direction: column;
+}
+
+.simulator-shell {
+	width: min(100%, max(1480px, calc(100vh + 540px)));
+}
+
+body:not(.sigil-maker-page) .app-shell {
+	height: 100vh;
+	overflow: hidden;
+}
+
+.workspace {
+	display: grid;
+	grid-template-columns: minmax(230px, 0.8fr) minmax(0, 2.2fr) minmax(280px, 1fr);
+	gap: 18px;
+	align-items: stretch;
+	flex: 1 1 auto;
+	min-height: 0;
+}
+
+/* ── Header bits shared with the tools routes ───────────────────────────── */
+
+.eyebrow {
+	margin: 0 0 6px;
+	font-family: 'Cinzel', serif;
+	color: var(--gold);
+	font-size: 13px;
+	letter-spacing: 0;
+	text-transform: uppercase;
+}
+
+.header-actions {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+}
+
+/* ── Panel cards (canvas / control / dictionary / side) ─────────────────── */
+
+.canvas-panel,
+.control-panel,
+.dictionary-panel,
+.side-panel {
+	border: 1px solid rgba(245, 240, 219, 0.26);
+	border-radius: var(--radius);
+	background: rgba(242, 236, 214, 0.9);
+	box-shadow: 0 18px 45px var(--shadow);
+}
+
+.canvas-panel {
+	min-width: 0;
+	overflow: hidden;
+	display: flex;
+	flex-direction: column;
+	align-items: stretch;
+	justify-content: stretch;
+	background: var(--paper);
+}
+
+.control-panel,
+.dictionary-panel {
+	min-width: 0;
+	padding: 14px;
+	overflow: hidden;
+	display: flex;
+	flex-direction: column;
+}
+
+.side-panel {
+	min-width: 0;
+	padding: 14px;
+}
+
+/* ── Toolbar (tools routes) ─────────────────────────────────────────────── */
+
+.toolbar {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	min-height: 58px;
+	padding: 10px;
+	border-bottom: 1px solid rgba(36, 27, 22, 0.16);
+	background: rgba(238, 231, 207, 0.92);
+}
+
+/* ── Responsive grid ────────────────────────────────────────────────────── */
+
+/*
+ * Desktop: keep the drawing surface locked to a fixed 1:1 (square) aspect ratio.
+ * By default it is width-bound so narrow/tall windows cannot overlap the side
+ * panels. When the page script detects enough horizontal room, it switches the
+ * grid to a height-matched square that fills the same row as the side panels.
+ * (The matching .canvas-shell sizing lives in canvas.css.)
+ */
+@media (min-width: 1051px) {
+	.workspace {
+		grid-template-columns: minmax(230px, 0.85fr) minmax(0, 2.2fr) minmax(280px, 1.05fr);
+	}
+
+	.canvas-panel {
+		aspect-ratio: 1 / 1;
+		width: 100%;
+		height: auto;
+		align-self: start;
+	}
+
+	.workspace.canvas-height-matched {
+		grid-template-columns: minmax(230px, 0.85fr) auto minmax(280px, 1.05fr);
+	}
+
+	.workspace.canvas-height-matched .canvas-panel {
+		width: auto;
+		height: 100%;
+		align-self: stretch;
+	}
+}
+
+@media (max-width: 1050px) {
+	body:not(.sigil-maker-page) .app-shell {
+		height: auto;
+		overflow: visible;
+	}
+
+	.workspace {
+		grid-template-columns: 1fr;
+		align-items: start;
+	}
+
+	.canvas-panel {
+		display: block;
+	}
+
+	.side-panel {
+		order: 2;
+	}
+}
+
+@media (max-width: 640px) {
+	.app-shell {
+		padding: 12px;
+	}
+
+	.toolbar {
+		flex-wrap: wrap;
+	}
+
+	.toolbar button,
+	.toggle {
+		flex: 1 1 120px;
+		justify-content: center;
+	}
+}

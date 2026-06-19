@@ -4,7 +4,7 @@ import test from 'node:test';
 import { CONFIG } from '../src/lib/config.js';
 import { buildShapeLibrary, defaultTransformForShape } from '../src/lib/input/shapeLibrary.js';
 import { bakePlacementToStrokes } from '../src/lib/input/shapeBaker.js';
-import { classifyDrawing } from '../src/lib/parser/drawingClassifier.js';
+import { classifyDrawing } from '../src/lib/parser/classifier/index.js';
 import { compileSpell } from '../src/lib/compiler/spellBuilder.js';
 import type { Placement, Point, ShapeItem, Stroke, Vector } from '../src/lib/types.js';
 import { readRealDictionary } from './dictionaryFixtures.js';

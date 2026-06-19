@@ -1,8 +1,8 @@
 /// <reference lib="webworker" />
-import { classifyDrawingPhasedLocal } from './drawingClassifier.js';
-import { warmMlRecognizer } from './mlRecognizer.js';
+import { classifyDrawingPhasedLocal } from './classifier/index.js';
+import { warmMlRecognizer } from './ml/index.js';
 import type { AppConfig, ClassifiedDrawing, Dictionary, RingInfo, Stroke } from '../types.js';
-import type { RecognitionExample } from './shapeMatcher.js';
+import type { RecognitionExample } from './shape-matcher/index.js';
 
 interface InitMessage {
 	type: 'init';

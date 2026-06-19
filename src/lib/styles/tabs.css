@@ -1,0 +1,92 @@
+/*
+ * Panel tab strips, tab buttons, and the flex/scroll chains that let the sidebar
+ * panels fill and scroll. The button styling is grouped across the sidebar,
+ * dictionary, and diagnostics components, so it stays global to avoid triplicating
+ * it into each one.
+ */
+
+.panel-tabs,
+.reference-panel,
+.diagnostics-panel {
+	border-top: 1px solid rgba(36, 27, 22, 0.16);
+	padding-top: 14px;
+}
+
+.reference-panel {
+	border-top: 0;
+	padding-top: 0;
+}
+
+.dictionary-panel .diagnostics-panel {
+	border-top: 0;
+	padding-top: 0;
+}
+
+.reference-tabs,
+.diagnostics-tabs {
+	display: grid;
+	grid-template-columns: repeat(3, 1fr);
+	align-self: stretch;
+	gap: 4px;
+	margin-bottom: 12px;
+	border: 1px solid rgba(36, 27, 22, 0.12);
+	border-radius: 6px;
+	padding: 3px;
+	background: rgba(36, 27, 22, 0.04);
+}
+
+.panel-tab-button,
+.dictionary-tab-button,
+.diagnostic-tab-button {
+	min-width: 0;
+	padding: 0 8px;
+	border: 0;
+	border-bottom: 2px solid transparent;
+	border-radius: 0;
+	background: transparent;
+	box-shadow: none;
+	color: var(--muted-ink);
+}
+
+.panel-tab-button.active,
+.dictionary-tab-button.active,
+.diagnostic-tab-button.active {
+	color: var(--ink);
+	background: rgba(255, 251, 233, 0.56);
+	border-bottom-color: var(--teal);
+}
+
+.panel-tab-button:hover,
+.dictionary-tab-button:hover,
+.diagnostic-tab-button:hover {
+	background: rgba(255, 242, 197, 0.64);
+}
+
+.dictionary-tab-button,
+.diagnostic-tab-button {
+	min-height: 28px;
+	border-bottom: 0;
+	border-radius: 4px;
+	padding: 0 10px;
+	font-size: 13px;
+	line-height: 1.1;
+	text-align: center;
+}
+
+.dictionary-tab-button.active,
+.diagnostic-tab-button.active {
+	border-bottom-color: transparent;
+	background: rgba(255, 251, 233, 0.72);
+	box-shadow: 0 1px 0 rgba(255, 255, 255, 0.48) inset;
+}
+
+#dictionaryRootPanel,
+#diagnosticRootPanel,
+#shapesRootPanel,
+.reference-panel,
+.diagnostics-panel {
+	min-height: 0;
+	flex: 1 1 auto;
+	display: flex;
+	flex-direction: column;
+}

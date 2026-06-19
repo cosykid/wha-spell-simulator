@@ -17,3 +17,19 @@ instead of carrying legal copy inline.
 		programming-language interpretations for learning and experimentation.
 	</p>
 </footer>
+
+<style>
+	.app-footer {
+		display: grid;
+		gap: 4px;
+		margin-top: 14px;
+		color: rgba(255, 249, 232, 0.78);
+		font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+		font-size: 12px;
+		line-height: 1.4;
+	}
+
+	.app-footer p {
+		margin: 0;
+	}
+</style>

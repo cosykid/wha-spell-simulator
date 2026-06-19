@@ -93,7 +93,7 @@ through context rather than props.
 	}
 
 	/* On wider screens, lay the sidebar beside the workspace and cap the overall width. The
-	   breakpoint sits just above styles.css's 1050px one, below which the app shell stops being
+	   breakpoint sits just above layout.css's 1050px one, below which the app shell stops being
 	   height-locked — the sidebar needs that lock so its label grid scrolls instead of growing. */
 	@media (min-width: 1051px) {
 		.maker-shell {

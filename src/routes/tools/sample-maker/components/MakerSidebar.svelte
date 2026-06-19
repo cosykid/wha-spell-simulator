@@ -3,7 +3,7 @@
 The desktop side panel: a large rotated preview of the suggested sign (with its name and example
 count), a full-width reroll button plus Clear, and the always-expanded {@link Labels} grid so a
 sign can be picked without the slide-up sheet. Hidden at 1050px and below, where {@link MakerHeader}'s
-compact row takes over: below that width styles.css stops height-locking the app shell, and without
+compact row takes over: below that width layout.css stops height-locking the app shell, and without
 a bounded height the label grid would stretch the page instead of scrolling.
 -->
 <script lang="ts">

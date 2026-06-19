@@ -28,3 +28,33 @@ still being decided by the route-level drag handlers.
 		{/each}
 	</svg>
 </div>
+
+<style>
+	/* Floating preview that follows the cursor while dragging a shape onto the
+	   canvas. left/top are the pointer's viewport coordinates, so it is fixed and
+	   centered on the cursor. Without these rules the inline SVG renders unbounded
+	   and its polylines fall back to the default solid-black fill. */
+	.shape-drag-overlay {
+		position: fixed;
+		z-index: 60;
+		width: 72px;
+		height: 72px;
+		pointer-events: none;
+		transform: translate(-50%, -50%);
+		opacity: 0.9;
+	}
+
+	.shape-drag-overlay svg {
+		display: block;
+		width: 100%;
+		height: 100%;
+	}
+
+	.shape-drag-overlay polyline {
+		fill: none;
+		stroke: var(--ink);
+		stroke-width: 4;
+		stroke-linecap: round;
+		stroke-linejoin: round;
+	}
+</style>

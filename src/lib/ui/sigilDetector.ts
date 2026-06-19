@@ -33,8 +33,8 @@ import {
 
 import { cleanStrokes } from '../parser/strokeCleaner.js';
 import { normalizeStrokesForTemplate } from '../parser/templateNormalizer.js';
-import { recognizeCandidates } from '../parser/symbolRecognizer.js';
-import { scoreStrokeTemplate } from '../parser/templateMatcher.js';
+import { recognizeCandidates } from '../parser/recognition/index.js';
+import { scoreStrokeTemplate } from '../parser/template-matcher/index.js';
 
 /** A scoped subset of the dictionary used in the lab. */
 interface ActiveDictionary {
@@ -234,6 +234,23 @@ export function normalizedTemplateStrokes(
 	).strokes;
 	normalizedStrokeTemplateCache.set(strokeTemplate, normalized);
 	return normalized;
+}
+
+/**
+ * Template strokes as SVG `<polyline>` point strings, laid out in a 100×100 preview box
+ * (8px padding, 84px drawable). Used for the match-card thumbnails.
+ */
+export function previewPolylines(strokeTemplate: StrokeTemplate | undefined): string[] {
+	return normalizedTemplateStrokes(strokeTemplate)
+		.map((stroke) =>
+			stroke
+				.map(
+					(point) =>
+						`${Math.round((8 + point.x * 84) * 10) / 10},${Math.round((8 + point.y * 84) * 10) / 10}`
+				)
+				.join(' ')
+		)
+		.filter((points) => points.length > 0);
 }
 
 export function rotateTemplatePoint(point: Point, degrees: number): Point {

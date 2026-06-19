@@ -2,7 +2,7 @@
 # Dump the Postgres DB and upload it to Cloudflare R2 with
 # grandfather-father-son retention prefixes (daily/, weekly/, monthly/).
 # Expiry is handled by R2 lifecycle rules on those prefixes, not by this
-# script. Also builds the ML dataset (scripts/ai-dataset-processing pipeline)
+# script. Also builds the ML dataset (models/ai-dataset-processing pipeline)
 # from approved database samples and uploads it as latest.ml-dataset.zip —
 # latest only, since it is fully reproducible from the retained backups. When
 # HF_TOKEN is set, the dataset is also published to the Hugging Face Hub, tagged
@@ -125,11 +125,11 @@ zip -9 -jq "$csv_zip" "$csv_path"
 echo "CSV OK ($(du -h "$csv_zip" | cut -f1) zipped, ${rows}+ rows)"
 
 ###############################################################################
-# ML dataset build (scripts/ai-dataset-processing pipeline)
+# ML dataset build (models/ai-dataset-processing pipeline)
 ###############################################################################
 
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-ds_project="$script_dir/ai-dataset-processing"
+ds_project="$script_dir/../models/ai-dataset-processing"
 ds_root="$backup_dir/ml-dataset-$stamp"
 mkdir -p "$ds_root"
 

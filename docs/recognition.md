@@ -89,7 +89,7 @@ Dictionary-derived recognition examples are cached per dictionary object, and ca
 
 ## ML Recognition
 
-`scripts/training/wha_multitask.py` defines the browser model architecture:
+`models/training/wha_multitask.py` defines the browser model architecture:
 
 - `GlyphManifestDataset` loads rasterized glyph images and class/pose targets from `manifest.jsonl`.
 - `GlyphResNet18MultiHead` adapts a ResNet18 backbone for grayscale glyph images.
@@ -98,7 +98,7 @@ Dictionary-derived recognition examples are cached per dictionary object, and ca
 
 Scale and translation are invariant by construction: each candidate is cropped to its bounding box and normalized to a fixed margined square, both when rasterizing training data and when rendering for browser inference (`renderCandidateTensor`). A glyph drawn large or small, anywhere on the canvas, produces the same model input. Rotation is handled by training-time augmentation rather than preprocessing — see [Rotation Augmentation](#rotation-augmentation).
 
-The training workflow in `scripts/training/run_glyph_training.sh` exports approved `labelled_samples` rows from Postgres, rasterizes them, trains the multi-head ResNet18 model, and exports the best checkpoint to:
+The training workflow in `models/training/run_glyph_training.sh` exports approved `labelled_samples` rows from Postgres, rasterizes them, trains the multi-head ResNet18 model, and exports the best checkpoint to:
 
 ```text
 static/models/
@@ -118,7 +118,7 @@ This keeps the learned model in charge for clear hand-drawn glyphs while using t
 
 ## Rotation Augmentation
 
-The class head is only as rotation-robust as the training data, so the train split rotates samples on the fly. How far a class may rotate is gated by `scripts/training/rotation_policy.py`, which reads the same dictionary metadata the runtime uses:
+The class head is only as rotation-robust as the training data, so the train split rotates samples on the fly. How far a class may rotate is gated by `models/training/rotation_policy.py`, which reads the same dictionary metadata the runtime uses:
 
 - `recognitionRotationInvariant: true` → rotate uniformly through `±--rot-invariant-deg` (default 180, the full circle). Every current sigil and sign is explicitly flagged this way, so the model learns to recognize each glyph at any rotation after retraining.
 - `allowedRotationsDeg: [...]` → snap to those orientations, plus a small jitter.
@@ -128,7 +128,7 @@ Rotation augmentation transforms the pose targets with the image so the regressi
 
 The pose head predicts a glyph's _absolute_ orientation, so an upright glyph already carries its own intrinsic axis angle (a vertical `column` reads ~270°, not 0°) and no single constant offset can zero every class. The recognizer therefore calibrates per glyph: once per model load it runs each glyph's own upright dictionary template through the pose head, caches that angle, and subtracts it. `rotationOffsetDeg` then reads ~0° when a glyph is drawn in its example orientation and grows as it is turned from there, sourced from the calibrated ML pose head when ML recognizes the glyph and from the template matcher's winning rotation otherwise. It is display/diagnostic only and does not feed spell compilation.
 
-Because gating reads the dictionary, changing a glyph's `recognitionRotationInvariant` or `allowedRotationsDeg` automatically changes its augmentation on the next training run with no code change. `scripts/training/test_rotation_policy.py` covers the pose-target math (full-turn identity, round-trip, the 90° mapping, the clockwise-positive angle sign) and policy loading. After training, `train_multitask.py` prints a per-class angle-error table over the un-augmented validation split and flags any class whose mean signed error exceeds 20°; a large per-class bias is the signature of a pose miscalibration (such as a wrong augmentation sign), so a retrain surfaces it immediately.
+Because gating reads the dictionary, changing a glyph's `recognitionRotationInvariant` or `allowedRotationsDeg` automatically changes its augmentation on the next training run with no code change. `models/training/test_rotation_policy.py` covers the pose-target math (full-turn identity, round-trip, the 90° mapping, the clockwise-positive angle sign) and policy loading. After training, `train_multitask.py` prints a per-class angle-error table over the un-augmented validation split and flags any class whose mean signed error exceeds 20°; a large per-class bias is the signature of a pose miscalibration (such as a wrong augmentation sign), so a retrain surfaces it immediately.
 
 ## Parallel Recognition
 
