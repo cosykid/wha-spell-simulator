@@ -2,7 +2,8 @@ import { createPlacementStore } from '$lib/input/placementStore.js';
 import { bakePlacementToStrokes, placementHandles } from '$lib/input/shapeBaker.js';
 import { defaultTransformForShape } from '$lib/input/shapeLibrary.js';
 import { createStrokeStore } from '$lib/input/strokeStore.js';
-import type { PlacementTransform, ShapeItem, Vector } from '$lib/types.js';
+import type { Placement, PlacementTransform, ShapeItem, Stroke, Vector } from '$lib/types.js';
+import { SvelteMap } from 'svelte/reactivity';
 import { clonePlacementSnapshot, createDrawingHistory, type DrawingSnapshot } from './history.js';
 import type { CanvasTool } from './mode.js';
 import type { SelectedShape } from './types.js';
@@ -25,6 +26,7 @@ export class SimulatorDrawingState {
 	/** Snapshot consumed by the shape inspector in the sidebar. */
 	selected = $state<SelectedShape | null>(null);
 	#selectedPlacementId: string | null = null;
+	#bakedPlacementCache = new SvelteMap<string, { key: string; strokes: Stroke[] }>();
 
 	/** Placement id currently selected on the canvas, or `null` when nothing is selected. */
 	get selectedPlacementId() {
@@ -68,8 +70,21 @@ export class SimulatorDrawingState {
 	mergedStrokes() {
 		return [
 			...this.store.getStrokes(),
-			...this.placements.getPlacements().flatMap(bakePlacementToStrokes)
+			...this.placements
+				.getPlacements()
+				.flatMap((placement) => this.#bakedPlacementStrokes(placement))
 		];
+	}
+
+	/**
+	 * Returns the stroke set used for per-frame rendering.
+	 *
+	 * Recognition owns a separate snapshot so drag gestures do not churn the
+	 * classifier cache on every pointer move. Placement strokes are cached per
+	 * transform, so dragging one symbol does not rebake every other dropped shape.
+	 */
+	renderStrokes() {
+		return this.mergedStrokes();
 	}
 
 	/** Pushes the current drawing into undo history. */
@@ -96,6 +111,7 @@ export class SimulatorDrawingState {
 	clear() {
 		this.store.clear();
 		this.placements.clear();
+		this.#bakedPlacementCache.clear();
 		this.setSelected(null);
 	}
 
@@ -108,6 +124,7 @@ export class SimulatorDrawingState {
 	restore(snap: DrawingSnapshot) {
 		this.store.load(snap.strokes);
 		this.placements.load(snap.placements);
+		this.#bakedPlacementCache.clear();
 		if (this.#selectedPlacementId && !this.placements.get(this.#selectedPlacementId)) {
 			this.#selectedPlacementId = null;
 		}
@@ -155,6 +172,7 @@ export class SimulatorDrawingState {
 		}
 		const id = this.#selectedPlacementId;
 		this.placements.remove(id);
+		this.#bakedPlacementCache.delete(id);
 		if (this.#selectedPlacementId === id) {
 			this.setSelected(null);
 		}
@@ -176,6 +194,7 @@ export class SimulatorDrawingState {
 		}
 		bakePlacementToStrokes(placement).forEach((stroke) => this.store.addStroke(stroke.points));
 		this.placements.remove(placement.id);
+		this.#bakedPlacementCache.delete(placement.id);
 		if (this.#selectedPlacementId === placement.id) {
 			this.setSelected(null);
 		}
@@ -209,5 +228,40 @@ export class SimulatorDrawingState {
 			strokes: this.store.getStrokes(),
 			placements: clonePlacementSnapshot(this.placements.getPlacements())
 		};
+	}
+
+	#bakedPlacementStrokes(placement: Placement) {
+		const key = this.#placementBakeKey(placement);
+		const cached = this.#bakedPlacementCache.get(placement.id);
+		if (cached?.key === key) {
+			return cached.strokes;
+		}
+
+		const strokes = bakePlacementToStrokes(placement);
+		this.#bakedPlacementCache.set(placement.id, { key, strokes });
+		this.#pruneBakedPlacementCache();
+		return strokes;
+	}
+
+	#placementBakeKey(placement: Placement) {
+		const { transform } = placement;
+		return [
+			placement.sourceId,
+			placement.baseStrokes.length,
+			transform.cx,
+			transform.cy,
+			transform.scaleX,
+			transform.scaleY,
+			transform.rotationDeg
+		].join('|');
+	}
+
+	#pruneBakedPlacementCache() {
+		const liveIds = this.placements.getPlacements().map((placement) => placement.id);
+		for (const id of this.#bakedPlacementCache.keys()) {
+			if (!liveIds.includes(id)) {
+				this.#bakedPlacementCache.delete(id);
+			}
+		}
 	}
 }

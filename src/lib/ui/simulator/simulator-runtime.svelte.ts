@@ -154,7 +154,7 @@ export class SimulatorRuntime {
 
 		const pipeline = recognition.pipeline;
 		const spellIR = recognition.spellIR;
-		const strokes = recognition.strokes;
+		const strokes = drawing.renderStrokes();
 
 		this.#renderer.renderGlyph({
 			strokes,
@@ -266,7 +266,6 @@ export class SimulatorRuntime {
 				if (drawing.selectedPlacementId) {
 					drawing.setSelected(drawing.selectedPlacementId);
 				}
-				recognition.refreshStrokes();
 			},
 			onPlacementInteractionEnd: () => {
 				actions.pushHistory();
