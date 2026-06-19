@@ -1,12 +1,14 @@
 import { CONFIG } from '$lib/config.js';
 import { emitMlDebug, ML_DEBUG_BUILD_ID } from '$lib/debug/mlDebug.js';
-import { CanvasRenderer } from '$lib/renderer/canvasRenderer.js';
+import { SpellEffectRenderer } from '$lib/renderer/spellEffectRenderer.js';
 import type { CanvasBehavior } from '$lib/ui/canvas/canvasBehavior.js';
+import type { Scene } from '$lib/ui/canvas/scene.svelte.js';
 import type { Attachment } from 'svelte/attachments';
 import { CanvasSizingController } from './canvas-sizing-controller.js';
 import type { SimulatorDrawingActions } from './drawing-actions.js';
 import type { SimulatorDrawingState } from './drawing-state.svelte.js';
 import { eraserCursorCss } from './eraserCursor.js';
+import { createSimulatorGlyphScene } from './glyph-scene.svelte.js';
 import { SimulatorInputControllers } from './input-controllers.js';
 import { createSimulatorKeyboardHandler } from './keyboard.js';
 import { locksFreehandInput, type CanvasMode, type CanvasTool } from './mode.js';
@@ -36,8 +38,7 @@ interface SimulatorRuntimeOptions {
 export class SimulatorRuntime {
 	#input: SimulatorInputControllers | null = null;
 	#sizing: CanvasSizingController | null = null;
-	#renderer: CanvasRenderer | null = null;
-	#rendererGlyphCanvas: HTMLCanvasElement | null = null;
+	#effectRenderer: SpellEffectRenderer | null = null;
 	#rendererEffectCanvas: HTMLCanvasElement | null = null;
 	#keyboardHandler: ((event: KeyboardEvent) => void) | null = null;
 	#attachedGlyphCanvas: HTMLCanvasElement | null = null;
@@ -46,9 +47,17 @@ export class SimulatorRuntime {
 	readonly #options: SimulatorRuntimeOptions;
 	readonly #canvasBehavior: CanvasBehavior;
 	readonly #placementBehavior: CanvasBehavior & { setActive(active: boolean): void };
+	readonly #glyphScene: Scene;
 
 	constructor(options: SimulatorRuntimeOptions) {
 		this.#options = options;
+		this.#glyphScene = createSimulatorGlyphScene({
+			config: CONFIG,
+			drawing: options.drawing,
+			recognition: options.recognition,
+			ui: options.ui,
+			currentStroke: () => this.#input?.currentStroke() ?? null
+		});
 		this.#placementBehavior = createSimulatorPlacementBehavior({
 			placements: options.drawing.placements,
 			placementEntities: () => options.drawing.renderPlacementEntities(),
@@ -88,6 +97,11 @@ export class SimulatorRuntime {
 	/** Canvas API behavior that wires simulator pointer input to the glyph canvas. */
 	get canvasBehavior() {
 		return this.#canvasBehavior;
+	}
+
+	/** Canvas API scene that renders the simulator glyph canvas. */
+	get glyphScene() {
+		return this.#glyphScene;
 	}
 
 	/** Starts all DOM-bound simulator services. */
@@ -150,59 +164,19 @@ export class SimulatorRuntime {
 		this.#input?.setCaptureLocked(locked);
 	}
 
-	/** Draws one Canvas API frame for glyph ink, overlays, and spell effects. */
-	renderCanvasFrame = (ctx: CanvasRenderingContext2D, timestamp: number) => {
-		const { drawing, recognition, ui } = this.#options;
+	/** Draws one frame for the separate spell-effect canvas. */
+	renderCanvasFrame = (_ctx: CanvasRenderingContext2D, timestamp: number) => {
+		const { recognition, ui } = this.#options;
 		if (!ui.effectCanvas) {
 			return;
 		}
 
-		const glyphCanvas = ctx.canvas;
-		if (
-			!this.#renderer ||
-			this.#rendererGlyphCanvas !== glyphCanvas ||
-			this.#rendererEffectCanvas !== ui.effectCanvas
-		) {
-			this.#renderer = new CanvasRenderer({
-				glyphCanvas,
-				effectCanvas: ui.effectCanvas,
-				config: CONFIG
-			});
-			this.#rendererGlyphCanvas = glyphCanvas;
+		if (!this.#effectRenderer || this.#rendererEffectCanvas !== ui.effectCanvas) {
+			this.#effectRenderer = new SpellEffectRenderer(ui.effectCanvas, CONFIG);
 			this.#rendererEffectCanvas = ui.effectCanvas;
 		}
 
-		const pipeline = recognition.pipeline;
-		const spellIR = recognition.spellIR;
-		const strokes = drawing.renderInkStrokes();
-		const placements = drawing.renderPlacementEntities();
-
-		this.#renderer.renderGlyph({
-			strokes,
-			placements,
-			currentStroke: this.#input?.currentStroke() ?? null,
-			pipeline,
-			showGuides: ui.showGuides,
-			showDebug: ui.showDiagnostics,
-			timestamp,
-			selection: drawing.selectionHandles(ui.activeTool)
-		});
-
-		if (spellIR?.active) {
-			const activatedStrokes = drawing.mergedStrokes();
-			this.#renderer.renderActivatedGlyph({
-				activatedAt: spellIR.activatedAt,
-				duration: spellIR.duration,
-				strokes: activatedStrokes,
-				pipeline,
-				timestamp
-			});
-		}
-
-		this.#renderer.renderEffect({
-			spellIR,
-			ring: recognition.ring,
-			timestamp,
+		this.#effectRenderer.render(recognition.spellIR, recognition.ring, timestamp, {
 			showGuides: ui.showGuides
 		});
 	};
@@ -271,8 +245,7 @@ export class SimulatorRuntime {
 		this.#input?.disable();
 		this.#input = null;
 		this.#attachedGlyphCanvas = null;
-		this.#renderer = null;
-		this.#rendererGlyphCanvas = null;
+		this.#effectRenderer = null;
 		this.#rendererEffectCanvas = null;
 	}
 

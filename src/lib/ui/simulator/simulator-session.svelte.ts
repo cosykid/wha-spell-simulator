@@ -76,7 +76,12 @@ export class SimulatorSession {
 		return this.#runtime!.canvasBehavior;
 	}
 
-	/** Canvas API frame callback used by the main glyph canvas. */
+	/** Canvas API scene used by the main glyph canvas. */
+	get glyphScene() {
+		return this.#runtime!.glyphScene;
+	}
+
+	/** Frame callback used by the glyph canvas loop to drive the separate effect canvas. */
 	renderCanvasFrame = (ctx: CanvasRenderingContext2D, timestamp: number) => {
 		this.#runtime?.renderCanvasFrame(ctx, timestamp);
 	};

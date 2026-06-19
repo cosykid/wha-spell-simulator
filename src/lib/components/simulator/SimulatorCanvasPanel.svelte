@@ -100,6 +100,7 @@ rendering, controller state, and command handlers.
 				width={1000}
 				height={1000}
 				fill
+				scene={simulator.glyphScene}
 				controller={simulator.canvasController}
 				stableController
 				onFrame={simulator.renderCanvasFrame}
