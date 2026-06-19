@@ -63,7 +63,10 @@ test.describe('Shape placement', () => {
 		const inspectorCard = page.locator('.shape-inspector-card');
 		const box = await canvas.glyphCanvas.boundingBox();
 		if (!box) throw new Error('Expected the glyph canvas to be visible.');
-		const at = (fx: number, fy: number) => ({ x: box.x + fx * box.width, y: box.y + fy * box.height });
+		const at = (fx: number, fy: number) => ({
+			x: box.x + fx * box.width,
+			y: box.y + fy * box.height
+		});
 
 		const firePreview = page
 			.locator('#shapesRootPanel .shape-card', { hasText: 'Fire' })
@@ -108,7 +111,10 @@ test.describe('Shape placement', () => {
 			x: canvasBox.x + canvasBox.width / 2,
 			y: canvasBox.y + canvasBox.height / 2
 		};
-		const corner = { x: canvasBox.x + canvasBox.width * 0.06, y: canvasBox.y + canvasBox.height * 0.94 };
+		const corner = {
+			x: canvasBox.x + canvasBox.width * 0.06,
+			y: canvasBox.y + canvasBox.height * 0.94
+		};
 		const drop = async (label: string) => {
 			const preview = page
 				.locator('#shapesRootPanel .shape-card', { hasText: label })
