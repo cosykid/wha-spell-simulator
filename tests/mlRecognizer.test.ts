@@ -6,7 +6,7 @@ import {
 	recognizeCandidatesHybridMl,
 	type MlConfig,
 	type MlPrediction
-} from '../src/lib/parser/mlRecognizer.js';
+} from '../src/lib/parser/ml/index.js';
 import type {
 	AppConfig,
 	Dictionary,

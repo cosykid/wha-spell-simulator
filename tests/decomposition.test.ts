@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import { CONFIG } from '../src/lib/config.js';
-import { classifyDrawing } from '../src/lib/parser/drawingClassifier.js';
+import { classifyDrawing } from '../src/lib/parser/classifier/index.js';
 import { angleDegFromCenter, degreesToRadians } from '../src/lib/utils/geometry.js';
 import { readRealDictionary } from './dictionaryFixtures.js';
 import type {

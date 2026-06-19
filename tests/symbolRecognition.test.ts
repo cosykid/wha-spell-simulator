@@ -11,7 +11,7 @@ import {
 	endpointClosedness,
 	pathLength
 } from '../src/lib/utils/geometry.js';
-import { recognizeCandidates } from '../src/lib/parser/symbolRecognizer.js';
+import { recognizeCandidates } from '../src/lib/parser/recognition/index.js';
 import { readRealDictionary } from './dictionaryFixtures.js';
 import type {
 	Point,

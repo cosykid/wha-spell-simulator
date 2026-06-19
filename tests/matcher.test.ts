@@ -5,7 +5,7 @@ import {
 	pointCloudDistanceForStrokes,
 	renderInkDistanceMap,
 	scoreChamferDistance
-} from '../src/lib/parser/shapeMatcher.js';
+} from '../src/lib/parser/shape-matcher/index.js';
 import type { Point } from '../src/lib/types.js';
 
 function line(points: Point[]): Point[][] {
