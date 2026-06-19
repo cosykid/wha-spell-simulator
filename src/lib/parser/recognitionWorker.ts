@@ -1,7 +1,7 @@
 /// <reference lib="webworker" />
-import { recognizeCandidates } from './symbolRecognizer.js';
+import { recognizeCandidates } from './recognition/index.js';
 import type { AppConfig, Dictionary, SymbolCandidate } from '../types.js';
-import type { RecognitionExample } from './shapeMatcher.js';
+import type { RecognitionExample } from './shape-matcher/index.js';
 
 interface InitMessage {
 	type: 'init';

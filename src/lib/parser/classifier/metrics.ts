@@ -1,0 +1,153 @@
+import { clamp, mean, vectorFromAngleDeg } from '../../utils/geometry.js';
+import { GLYPH_WARNINGS } from '../glyphWarnings.js';
+import type { GlobalMetrics, Recognition, RingInfo, SymbolCandidate, Vector } from '../../types.js';
+
+function primarySigilScore(sigil: Recognition): number {
+	const layerBonus = sigil.layer === 'center' ? 0.12 : sigil.radiusNorm <= 0.45 ? 0.06 : 0;
+	return sigil.confidence + layerBonus;
+}
+
+/** Recognized sigils sorted by confidence. */
+export function recognizedSigils(recognitions: Recognition[]): Recognition[] {
+	return recognitions
+		.filter((recognition) => recognition.recognized && recognition.kind === 'sigil')
+		.sort((a, b) => b.confidence - a.confidence);
+}
+
+/** Selects the sigil that becomes the primary spell manifestation. */
+export function selectPrimarySigil(sigils: Recognition[]): Recognition | null {
+	return [...sigils].sort((a, b) => primarySigilScore(b) - primarySigilScore(a))[0] ?? null;
+}
+
+/** Creates compact unknown-symbol diagnostics by matching candidates to recognitions. */
+export function summarizeUnknowns(candidates: SymbolCandidate[], recognitions: Recognition[]) {
+	const byCandidate = new Map(
+		recognitions.map((recognition) => [recognition.candidateId, recognition])
+	);
+	return candidates
+		.filter((candidate) => !byCandidate.get(candidate.candidateId)?.recognized)
+		.map((candidate) => {
+			const recognition = byCandidate.get(candidate.candidateId);
+			return {
+				candidateId: candidate.candidateId,
+				strokeIds: candidate.strokeIds,
+				layer: candidate.layer,
+				radiusNorm: candidate.radiusNorm,
+				angleDeg: candidate.angleDeg,
+				reason: recognition?.recognitionStatus ?? 'no_confident_match',
+				bestGuess: recognition?.diagnostics?.bestGuess ?? null
+			};
+		});
+}
+
+function calculateDirectionalBias(signs: Recognition[]): Vector {
+	if (!signs.length) {
+		return { x: 0, y: 0 };
+	}
+
+	const vector = signs.reduce(
+		(sum, sign) => {
+			const direction = vectorFromAngleDeg(sign.angleDeg);
+			const weight =
+				sign.confidence * sign.neatness * Math.max(0.3, sign.sizeNorm + sign.lengthNorm);
+			return {
+				x: sum.x + direction.x * weight,
+				y: sum.y + direction.y * weight
+			};
+		},
+		{ x: 0, y: 0 }
+	);
+
+	const magnitude = Math.hypot(vector.x, vector.y);
+	if (magnitude < 0.001) {
+		return { x: 0, y: 0 };
+	}
+	return {
+		x: vector.x / magnitude,
+		y: vector.y / magnitude
+	};
+}
+
+/** Computes spell-wide neatness, symmetry, and instability metrics. */
+export function calculateGlobalMetrics(
+	ring: RingInfo,
+	recognitions: Recognition[],
+	unknowns: unknown[]
+): GlobalMetrics {
+	const recognized = recognitions.filter((recognition) => recognition.recognized);
+	const neatnessAverage = mean(
+		[ring.neatness ?? 0, ...recognized.map((recognition) => recognition.neatness ?? 0.6)].filter(
+			(value) => value > 0
+		)
+	);
+	const signs = recognized.filter((recognition) => recognition.kind === 'sign');
+	const directionalBias = calculateDirectionalBias(signs);
+	const unknownPenalty = clamp(unknowns.length / 6);
+	const contaminatedPenalty = clamp(
+		recognitions.filter((recognition) => recognition.recognitionStatus === 'contaminated').length /
+			4
+	);
+	const ambiguousPenalty = clamp(
+		recognitions.filter((recognition) => recognition.recognitionStatus === 'ambiguous').length / 5
+	);
+	const messyPenalty = clamp(
+		recognitions.filter((recognition) => recognition.recognitionStatus === 'valid_messy').length / 8
+	);
+
+	return {
+		neatness: clamp(neatnessAverage || 0),
+		radialSymmetry: clamp(1 - Math.hypot(directionalBias.x, directionalBias.y) * 0.35),
+		instability: clamp(
+			0.22 +
+				unknownPenalty * 0.34 +
+				contaminatedPenalty * 0.22 +
+				ambiguousPenalty * 0.12 +
+				messyPenalty * 0.08 +
+				(1 - (ring.neatness ?? 0.4)) * 0.36
+		)
+	};
+}
+
+/** Builds user-facing glyph warnings from ring and recognition state. */
+export function warningList(
+	ring: RingInfo,
+	primarySigil: Recognition | null,
+	unsupportedMultipleSigils: unknown[],
+	unknowns: Array<{ radiusNorm: number }>,
+	recognitions: Recognition[]
+): string[] {
+	const warnings: string[] = [];
+	if (!ring.found) {
+		warnings.push(GLYPH_WARNINGS.noRingDetected);
+	} else if (!ring.complete) {
+		warnings.push(GLYPH_WARNINGS.ringIncomplete);
+	}
+	if (ring.unsupportedNestedRings?.length) {
+		warnings.push(GLYPH_WARNINGS.unsupportedNestedRing);
+	}
+	if (ring.unsupportedMultipleRings?.length) {
+		warnings.push(GLYPH_WARNINGS.unsupportedMultipleRings);
+	}
+	if (unsupportedMultipleSigils.length) {
+		warnings.push(GLYPH_WARNINGS.unsupportedMultipleSigils);
+	}
+	if (!primarySigil) {
+		warnings.push(GLYPH_WARNINGS.missingPrimarySigil);
+	}
+	if (unknowns.some((unknown) => unknown.radiusNorm <= 0.36)) {
+		warnings.push(GLYPH_WARNINGS.centerUnknownContamination);
+	}
+	if (recognitions.some((recognition) => recognition.recognized && recognition.nearBoundary)) {
+		warnings.push(GLYPH_WARNINGS.symbolNearLayerBoundary);
+	}
+	if (recognitions.some((recognition) => recognition.recognitionStatus === 'contaminated')) {
+		warnings.push(GLYPH_WARNINGS.symbolContaminated);
+	}
+	if (recognitions.some((recognition) => recognition.recognitionStatus === 'ambiguous')) {
+		warnings.push(GLYPH_WARNINGS.symbolAmbiguous);
+	}
+	if (recognitions.some((recognition) => recognition.recognitionStatus === 'valid_messy')) {
+		warnings.push(GLYPH_WARNINGS.symbolMessy);
+	}
+	return warnings;
+}

@@ -1,8 +1,8 @@
-import { recognizeCandidates } from './symbolRecognizer.js';
-import { recognizeCandidatesHybridMl } from './mlRecognizer.js';
+import { recognizeCandidatesHybridMl } from './ml/index.js';
+import { recognizeCandidates } from './recognition/index.js';
 import { emitMlDebug } from '../debug/mlDebug.js';
 import type { AppConfig, Dictionary, RecognizedSymbol, SymbolCandidate } from '../types.js';
-import type { RecognitionExample } from './shapeMatcher.js';
+import type { RecognitionExample } from './shape-matcher/index.js';
 
 // Final candidate recognition is the dominant cost once decomposition is cheap,
 // and each candidate is scored independently. This module fans those per-
