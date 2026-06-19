@@ -233,7 +233,7 @@ test('recognizes overdraw as valid messy instead of rejecting the symbol', () =>
 
 test('keeps fire classified when one ray is bolded', () => {
 	const fire = realDictionary.sigils.find((entry) => entry.id === 'fire');
-	const fireWithBoldedRay = candidateFromTemplate(fire!, 12, 1);
+	const fireWithBoldedRay = candidateFromTemplate(fire!, 6, 1);
 
 	const [recognition] = recognizeCandidates([fireWithBoldedRay], realDictionary, CONFIG);
 
