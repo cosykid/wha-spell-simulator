@@ -11,6 +11,7 @@ import { SimulatorInputControllers } from './input-controllers.js';
 import { createSimulatorKeyboardHandler } from './keyboard.js';
 import { locksFreehandInput, type CanvasMode, type CanvasTool } from './mode.js';
 import type { PanController } from './pan-controller.svelte.js';
+import { createSimulatorPlacementBehavior } from './placement-behavior.svelte.js';
 import type { RecognitionPipeline } from './recognition-pipeline.svelte.js';
 import type { ShapeDragController } from './shape-drag-controller.svelte.js';
 import type { SimulatorUiState } from './ui-state.svelte.js';
@@ -44,11 +45,29 @@ export class SimulatorRuntime {
 	#captureReady = false;
 	readonly #options: SimulatorRuntimeOptions;
 	readonly #canvasBehavior: CanvasBehavior;
+	readonly #placementBehavior: CanvasBehavior & { setActive(active: boolean): void };
 
 	constructor(options: SimulatorRuntimeOptions) {
 		this.#options = options;
+		this.#placementBehavior = createSimulatorPlacementBehavior({
+			placements: options.drawing.placements,
+			placementEntities: () => options.drawing.renderPlacementEntities(),
+			getSelectedId: () => options.drawing.selectedPlacementId,
+			setSelectedId: options.drawing.setSelected,
+			hasArmedShape: () => options.shapeDrag.hasArmedShape(),
+			placeArmedShape: options.shapeDrag.placeArmedShape,
+			onChange: () => {
+				if (options.drawing.selectedPlacementId) {
+					options.drawing.setSelected(options.drawing.selectedPlacementId);
+				}
+			},
+			onInteractionEnd: () => {
+				options.actions.pushHistory();
+				void options.recognition.recompute();
+			}
+		});
 		this.#canvasBehavior = {
-			attach: this.#attachGlyphCanvas
+			attach: this.#attachCanvasBehaviors
 		};
 
 		$effect(() => {
@@ -110,6 +129,7 @@ export class SimulatorRuntime {
 
 		ui.canvasMode = mode;
 		this.#input?.setMode(mode);
+		this.#placementBehavior.setActive(mode === 'arrange');
 		this.setCaptureLocked(locksFreehandInput(ui.canvasMode, recognition.summary.canvasLocked));
 		this.#updateCanvasCursor();
 
@@ -212,6 +232,7 @@ export class SimulatorRuntime {
 		this.#options.ui.glyphCanvas = canvas;
 		this.#setupInputControllers();
 		this.#input?.mount(this.#options.ui.canvasMode);
+		this.#placementBehavior.setActive(this.#options.ui.canvasMode === 'arrange');
 		if (this.#captureReady) {
 			this.#input?.enableCapture();
 		}
@@ -224,6 +245,15 @@ export class SimulatorRuntime {
 		this.#updateCanvasCursor();
 
 		return () => this.#scheduleGlyphCanvasDetach();
+	};
+
+	#attachCanvasBehaviors: Attachment<HTMLCanvasElement> = (canvas) => {
+		const detachGlyphCanvas = this.#attachGlyphCanvas(canvas);
+		const detachPlacements = this.#placementBehavior.attach(canvas);
+		return () => {
+			detachPlacements?.();
+			detachGlyphCanvas?.();
+		};
 	};
 
 	#scheduleGlyphCanvasDetach() {
@@ -247,16 +277,11 @@ export class SimulatorRuntime {
 	}
 
 	#setupInputControllers() {
-		const { actions, drawing, recognition, shapeDrag, ui } = this.#options;
+		const { actions, drawing, recognition, ui } = this.#options;
 
 		this.#input = new SimulatorInputControllers({
 			glyphCanvas: () => ui.glyphCanvas,
 			store: drawing.store,
-			placements: drawing.placements,
-			getSelectedId: () => drawing.selectedPlacementId,
-			setSelectedId: drawing.setSelected,
-			hasArmedShape: () => shapeDrag.hasArmedShape(),
-			placeArmedShape: shapeDrag.placeArmedShape,
 			onStrokeStart: () => {
 				recognition.cancelActiveRecognition();
 				actions.dismissCanvasHint();
@@ -265,15 +290,6 @@ export class SimulatorRuntime {
 				actions.pushHistory();
 				recognition.refreshStrokes();
 				recognition.scheduleRecompute(STROKE_RECOGNITION_DEBOUNCE_MS);
-			},
-			onPlacementChange: () => {
-				if (drawing.selectedPlacementId) {
-					drawing.setSelected(drawing.selectedPlacementId);
-				}
-			},
-			onPlacementInteractionEnd: () => {
-				actions.pushHistory();
-				void recognition.recompute();
 			},
 			onEraseBegin: () => {
 				recognition.cancelActiveRecognition();

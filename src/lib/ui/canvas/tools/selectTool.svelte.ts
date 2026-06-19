@@ -96,7 +96,7 @@ export interface SelectTool extends CanvasBehavior {
 
 /**
  * Selects and transforms {@link TransformableEntity} entities (symbols) with the same
- * move/scale/elongate/rotate handles the legacy `PlacementController` uses — reusing
+ * move/scale/elongate/rotate handles used by simulator placements — reusing
  * `shapeBaker`'s hit-testing and handle geometry. A whole drag gesture is committed to
  * the scene as a single `transformEntity` command, so one undo reverses the gesture.
  *

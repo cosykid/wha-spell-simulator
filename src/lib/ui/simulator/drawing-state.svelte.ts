@@ -2,8 +2,10 @@ import { createPlacementStore } from '$lib/input/placementStore.js';
 import { bakePlacementToStrokes, placementHandles } from '$lib/input/shapeBaker.js';
 import { defaultTransformForShape } from '$lib/input/shapeLibrary.js';
 import { createStrokeStore } from '$lib/input/strokeStore.js';
-import { makePlacementEntity } from '$lib/ui/canvas/entities/placementEntity.js';
-import type { Entity } from '$lib/ui/canvas/entity.js';
+import {
+	makePlacementEntity,
+	type PlacementEntity
+} from '$lib/ui/canvas/entities/placementEntity.js';
 import type { Placement, PlacementTransform, ShapeItem, Stroke, Vector } from '$lib/types.js';
 import { SvelteMap } from 'svelte/reactivity';
 import { clonePlacementSnapshot, createDrawingHistory, type DrawingSnapshot } from './history.js';
@@ -29,7 +31,7 @@ export class SimulatorDrawingState {
 	selected = $state<SelectedShape | null>(null);
 	#selectedPlacementId: string | null = null;
 	#bakedPlacementCache = new SvelteMap<string, { key: string; strokes: Stroke[] }>();
-	#placementEntityCache = new SvelteMap<string, { key: string; entity: Entity }>();
+	#placementEntityCache = new SvelteMap<string, { key: string; entity: PlacementEntity }>();
 
 	/** Placement id currently selected on the canvas, or `null` when nothing is selected. */
 	get selectedPlacementId() {
@@ -90,7 +92,7 @@ export class SimulatorDrawingState {
 	 * Recognition owns the baked Stroke[] snapshot. The live canvas uses entities
 	 * so transforms can be rendered directly from placement data while dragging.
 	 */
-	renderPlacementEntities() {
+	renderPlacementEntities(): PlacementEntity[] {
 		const entities = this.placements
 			.getPlacements()
 			.map((placement) => this.#placementEntity(placement));
@@ -272,7 +274,7 @@ export class SimulatorDrawingState {
 		].join('|');
 	}
 
-	#placementEntity(placement: Placement) {
+	#placementEntity(placement: Placement): PlacementEntity {
 		const key = this.#placementBakeKey(placement);
 		const cached = this.#placementEntityCache.get(placement.id);
 		if (cached?.key === key) {

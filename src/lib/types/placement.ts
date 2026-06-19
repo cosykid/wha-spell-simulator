@@ -60,14 +60,3 @@ export interface PlacementStore {
 	getPlacements(): Placement[];
 	count(): number;
 }
-
-export interface PlacementControllerApi {
-	getSelectedId(): string | null;
-	setSelectedId(id: string | null): void;
-	hasArmedShape(): boolean;
-	placeShape(point: Vector): string | null;
-	onChange(): void;
-	// Fired once when a drag gesture that actually moved a shape ends, so the caller can
-	// record a single undo step for the whole gesture rather than one per pointer move.
-	onInteractionEnd(): void;
-}

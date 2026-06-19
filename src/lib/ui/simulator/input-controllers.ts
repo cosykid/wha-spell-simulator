@@ -1,8 +1,7 @@
 import { CONFIG } from '$lib/config.js';
 import { DrawingCapture } from '$lib/input/drawingCapture.js';
 import { EraserController } from '$lib/input/eraserController.js';
-import { PlacementController } from '$lib/input/placementController.js';
-import type { PlacementStore, StrokeStore, Vector } from '$lib/types.js';
+import type { StrokeStore, Vector } from '$lib/types.js';
 import { eraseSegment } from '$lib/utils/strokeErase.js';
 import type { CanvasMode } from './mode.js';
 
@@ -17,24 +16,10 @@ interface SimulatorInputControllerOptions {
 	glyphCanvas: () => HTMLCanvasElement;
 	/** Freehand stroke store used by draw and erase tools. */
 	store: StrokeStore;
-	/** Editable placement store used by arrange mode. */
-	placements: PlacementStore;
-	/** Returns the currently selected placement id. */
-	getSelectedId: () => string | null;
-	/** Updates selection from placement-controller hit testing. */
-	setSelectedId: (id: string | null) => void;
-	/** Whether a palette shape is armed for click-to-place. */
-	hasArmedShape: () => boolean;
-	/** Places the currently armed palette shape on the canvas. */
-	placeArmedShape: (point: Vector) => string | null;
 	/** Fired when a freehand stroke begins. */
 	onStrokeStart: () => void;
 	/** Fired when a freehand stroke commits. */
 	onStrokeCommit: () => void;
-	/** Fired while an editable placement is being transformed. */
-	onPlacementChange: () => void;
-	/** Fired after a placement transform gesture ends. */
-	onPlacementInteractionEnd: () => void;
 	/** Fired when an erase gesture begins. */
 	onEraseBegin: () => void;
 	/** Fired after erase mutates the stroke store. */
@@ -44,12 +29,13 @@ interface SimulatorInputControllerOptions {
 }
 
 /**
- * Mounts and coordinates the three pointer-input controllers used by the canvas:
- * freehand drawing, editable placement transforms, and erasing.
+ * Mounts and coordinates pointer-input controllers for freehand drawing and erasing.
+ *
+ * Editable placement transforms are now handled by a Canvas API behavior in
+ * `placement-behavior.svelte.ts`.
  */
 export class SimulatorInputControllers {
 	#capture: DrawingCapture | null = null;
-	#placement: PlacementController | null = null;
 	#eraser: EraserController | null = null;
 	readonly #options: SimulatorInputControllerOptions;
 
@@ -64,16 +50,6 @@ export class SimulatorInputControllers {
 			onStart: this.#options.onStrokeStart,
 			onCommit: this.#options.onStrokeCommit
 		});
-		this.#placement = new PlacementController(glyphCanvas, this.#options.placements, {
-			getSelectedId: this.#options.getSelectedId,
-			setSelectedId: this.#options.setSelectedId,
-			hasArmedShape: this.#options.hasArmedShape,
-			placeShape: this.#options.placeArmedShape,
-			onChange: this.#options.onPlacementChange,
-			onInteractionEnd: this.#options.onPlacementInteractionEnd
-		});
-		this.#placement.enable();
-		this.#placement.setActive(mode === 'arrange');
 		this.#eraser = new EraserController(glyphCanvas, {
 			onBegin: this.#options.onEraseBegin,
 			applyErase: (from, to) => this.#applyErase(from, to),
@@ -91,7 +67,6 @@ export class SimulatorInputControllers {
 	/** Removes all pointer listeners owned by the input controllers. */
 	disable() {
 		this.#capture?.disable();
-		this.#placement?.disable();
 		this.#eraser?.disable();
 	}
 
@@ -107,7 +82,6 @@ export class SimulatorInputControllers {
 
 	/** Switches arrange and erase controller activation for the current canvas mode. */
 	setMode(mode: CanvasMode) {
-		this.#placement?.setActive(mode === 'arrange');
 		this.#eraser?.setActive(mode === 'erase');
 	}
 
