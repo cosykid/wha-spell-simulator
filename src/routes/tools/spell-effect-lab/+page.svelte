@@ -1,17 +1,7 @@
 <script lang="ts">
 	import { CONFIG } from '$lib/config.js';
 	import { writeJson } from '$lib/debug/debugOverlay.js';
-	import {
-		activePortalPlane,
-		convergenceFlow,
-		resetParticleState
-	} from '$lib/renderer/effects/effectUtils.js';
-	import { drawGlowingStrokes } from '$lib/renderer/glyphOverlayRenderer.js';
-	import { SpellEffectRenderer } from '$lib/renderer/spellEffectRenderer.js';
 	import { setStatus } from '$lib/state.svelte';
-	import type { RingInfo } from '$lib/types.js';
-	import { drawGuides } from '$canvas/guideRenderer.js';
-	import { renderPaper } from '$canvas/entities/paperEntity.js';
 	import {
 		DEFAULT_SIGIL,
 		EFFECT_CONTROLS,
@@ -24,6 +14,7 @@
 	} from '$lib/ui/spellEffectLab.js';
 	import { roundDeep } from '$lib/utils/json.js';
 	import { onMount } from 'svelte';
+	import { LabPreview } from './lab-preview.js';
 
 	const controlEntries = Object.entries(EFFECT_CONTROLS);
 
@@ -37,7 +28,7 @@
 	let effectCanvas: HTMLCanvasElement;
 	let canvasShell: HTMLDivElement;
 	let irPre = $state<HTMLPreElement | null>(null);
-	let effectRenderer: SpellEffectRenderer | null = null;
+	let preview: LabPreview | null = null;
 
 	const irJson = $derived(
 		roundDeep(buildSpellIR({ values, element, sigil, activatedAt, config: CONFIG }))
@@ -49,18 +40,9 @@
 		}
 	});
 
-	function resetParticles() {
-		if (!effectRenderer) {
-			return;
-		}
-		effectRenderer.lastSignature = null;
-		effectRenderer.lastTime = null;
-		resetParticleState(effectRenderer.state);
-	}
-
 	function restartSpell() {
 		activatedAt = performance.now();
-		resetParticles();
+		preview?.resetParticles();
 	}
 
 	function handleSlider(key: string, event: Event & { currentTarget: HTMLInputElement }) {
@@ -100,159 +82,14 @@
 	}
 
 	onMount(() => {
-		const glyphCtx = glyphCanvas.getContext('2d')!;
-		const effectCtx = effectCanvas.getContext('2d')!;
-		effectRenderer = new SpellEffectRenderer(effectCanvas, CONFIG);
 		activatedAt = performance.now();
-		let rafId: number | null = null;
-
-		function buildRing() {
-			const width = glyphCanvas.width;
-			const height = glyphCanvas.height;
-			return {
-				found: true,
-				complete: true,
-				center: { x: width / 2, y: height * 0.56 },
-				radius: Math.min(width, height) * values.ringRadius,
-				strokeIds: ['lab-ring']
-			};
-		}
-
-		function buildRingStroke(ring: RingInfo) {
-			const points = [];
-			for (let index = 0; index <= 96; index += 1) {
-				const angle = (index / 96) * Math.PI * 2;
-				points.push({
-					x: ring.center.x + Math.cos(angle) * ring.radius,
-					y: ring.center.y + Math.sin(angle) * ring.radius
-				});
-			}
-			return { id: 'lab-ring', points };
-		}
-
-		function buildSigilStroke(ring: RingInfo) {
-			const radius = ring.radius * (0.16 + values.effectScale * 0.035);
-			const points = [];
-			// pentagram example
-			for (let index = 0; index < 6; index += 1) {
-				const angle = -Math.PI / 2 + index * ((Math.PI * 2) / 5);
-				points.push({
-					x: ring.center.x + Math.cos(angle) * radius,
-					y: ring.center.y + Math.sin(angle) * radius
-				});
-			}
-			return { id: 'lab-sigil', points };
-		}
-
-		function drawSyntheticGlyph(ring: RingInfo, timestamp: number) {
-			const width = glyphCanvas.width;
-			const height = glyphCanvas.height;
-			const ringStroke = buildRingStroke(ring);
-			const sigilStroke = buildSigilStroke(ring);
-
-			renderPaper(glyphCtx, width, height);
-			drawGuides(glyphCtx, ring, width, height, CONFIG);
-
-			glyphCtx.save();
-			glyphCtx.lineCap = 'round';
-			glyphCtx.lineJoin = 'round';
-			glyphCtx.strokeStyle = CONFIG.renderer.inkColor;
-			glyphCtx.lineWidth = 4.4;
-			glyphCtx.beginPath();
-			glyphCtx.moveTo(ringStroke.points[0].x, ringStroke.points[0].y);
-			for (const point of ringStroke.points.slice(1)) {
-				glyphCtx.lineTo(point.x, point.y);
-			}
-			glyphCtx.stroke();
-
-			glyphCtx.beginPath();
-			glyphCtx.moveTo(sigilStroke.points[0].x, sigilStroke.points[0].y);
-			for (const point of sigilStroke.points.slice(1)) {
-				glyphCtx.lineTo(point.x, point.y);
-			}
-			glyphCtx.stroke();
-			glyphCtx.restore();
-
-			drawGlowingStrokes(
-				glyphCtx,
-				activatedAt,
-				new Set(['lab-ring', 'lab-sigil']),
-				[ringStroke, sigilStroke],
-				values.duration * 1000,
-				timestamp
-			);
-		}
-
-		function drawConvergencePathGuide(spellIR: ReturnType<typeof buildSpellIR>, ring: RingInfo) {
-			const convergence = spellIR.manifestations?.convergence;
-			if (!convergence?.strength) {
-				return;
-			}
-
-			const portal = activePortalPlane(effectCanvas, ring);
-			const flow = convergenceFlow(spellIR, portal, 0);
-			const guideLength = ring.radius * (0.72 + spellIR.force * 0.46 + spellIR.range * 0.22);
-			const end = {
-				x: flow.origin.x + flow.direction.x * guideLength,
-				y: flow.origin.y + flow.direction.y * guideLength
-			};
-			const radiusX = Math.max(5, flow.radiusX);
-			const radiusY = Math.max(4, flow.radiusY);
-
-			effectCtx.save();
-			effectCtx.globalCompositeOperation = 'source-over';
-			effectCtx.strokeStyle = 'rgba(19, 118, 166, 0.78)';
-			effectCtx.lineWidth = 1.4;
-			effectCtx.setLineDash([4, 5]);
-			effectCtx.beginPath();
-			effectCtx.moveTo(flow.origin.x, flow.origin.y);
-			effectCtx.lineTo(end.x, end.y);
-			effectCtx.stroke();
-			effectCtx.beginPath();
-			effectCtx.ellipse(end.x, end.y, radiusX, radiusY, 0, 0, Math.PI * 2);
-			effectCtx.stroke();
-			effectCtx.setLineDash([]);
-			effectCtx.beginPath();
-			effectCtx.moveTo(end.x - 7, end.y);
-			effectCtx.lineTo(end.x + 7, end.y);
-			effectCtx.moveTo(end.x, end.y - 7);
-			effectCtx.lineTo(end.x, end.y + 7);
-			effectCtx.stroke();
-			effectCtx.restore();
-		}
-
-		function resizeCanvases() {
-			const rect = canvasShell.getBoundingClientRect();
-			const width = Math.max(1, Math.round(rect.width));
-			const height = Math.max(1, Math.round(rect.height));
-			if (glyphCanvas.width === width && glyphCanvas.height === height) {
-				return;
-			}
-
-			glyphCanvas.width = width;
-			glyphCanvas.height = height;
-			effectCanvas.width = width;
-			effectCanvas.height = height;
-			resetParticles();
-		}
-
-		function animationFrame(timestamp: number) {
-			resizeCanvases();
-			const ring = buildRing();
-			const spellIR = buildSpellIR({ values, element, sigil, activatedAt, config: CONFIG });
-			drawSyntheticGlyph(ring, timestamp);
-			effectRenderer!.render(spellIR, ring, timestamp, { showGuides: false });
-			drawConvergencePathGuide(spellIR, ring);
-			rafId = requestAnimationFrame(animationFrame);
-		}
-
-		rafId = requestAnimationFrame(animationFrame);
-
-		return () => {
-			if (rafId) {
-				cancelAnimationFrame(rafId);
-			}
-		};
+		preview = new LabPreview(glyphCanvas, effectCanvas, canvasShell, () => ({
+			values,
+			element,
+			sigil,
+			activatedAt
+		}));
+		return preview.start();
 	});
 </script>
 

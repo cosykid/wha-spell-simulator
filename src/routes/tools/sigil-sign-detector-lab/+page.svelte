@@ -1,5 +1,5 @@
 <script lang="ts">
-	import type { Dictionary, SigilEntry, Stroke, StrokeTemplate } from '$lib/types.js';
+	import type { Dictionary, SigilEntry, Stroke } from '$lib/types.js';
 
 	import Canvas from '$canvas/Canvas.svelte';
 	import { paperEntity } from '$canvas/entities/paperEntity.js';
@@ -12,15 +12,10 @@
 	import { loadDictionary } from '$lib/dictionary/dictionaryLoader.js';
 	import { setStatus } from '$lib/state.svelte';
 	import { disposeSigilAnalysis, requestSigilAnalysis } from '$lib/ui/sigilAnalysisClient.js';
-	import {
-		type AnalysisResult,
-		normalizedTemplateStrokes,
-		percent,
-		statusClass,
-		statusLabel
-	} from '$lib/ui/sigilDetector.js';
+	import { type AnalysisResult, percent, statusClass, statusLabel } from '$lib/ui/sigilDetector.js';
 	import { roundDeep } from '$lib/utils/json.js';
 	import { onDestroy } from 'svelte';
+	import MatchCard from './MatchCard.svelte';
 
 	let dictionary = $state<Dictionary | null>(null);
 	// Plain (non-reactive) copy of the dictionary for cloning to the analysis
@@ -135,19 +130,6 @@
 
 	onDestroy(disposeSigilAnalysis);
 
-	function previewPolylines(strokeTemplate: StrokeTemplate | undefined) {
-		return normalizedTemplateStrokes(strokeTemplate)
-			.map((stroke) =>
-				stroke
-					.map(
-						(point) =>
-							`${Math.round((8 + point.x * 84) * 10) / 10},${Math.round((8 + point.y * 84) * 10) / 10}`
-					)
-					.join(' ')
-			)
-			.filter((points) => points.length > 0);
-	}
-
 	function handleUndo() {
 		scene.undo();
 	}
@@ -236,49 +218,7 @@
 					<p class="reference-note">Draw one sigil or sign.</p>
 				{:else}
 					{#each analysis.matches.slice(0, 8) as match, index (match.entry.id)}
-						{@const polylines = previewPolylines(match.entry.strokeTemplate)}
-						<article class="reference-card detector-match-card {index === 0 ? 'best' : ''}">
-							{#if polylines.length}
-								<div class="reference-preview detector-match-preview" aria-hidden="true">
-									<svg viewBox="0 0 100 100" role="img" focusable="false">
-										{#each polylines as points, i (i)}
-											<polyline {points}></polyline>
-										{/each}
-									</svg>
-								</div>
-							{/if}
-							<div class="detector-match-body">
-								<div class="reference-card-header">
-									<strong>{match.entry.displayName ?? match.entry.id}</strong>
-									<span>{match.kind}</span>
-								</div>
-								<div class="detector-score-bar">
-									<span style="width: {Math.round(match.templateMatch.confidence * 100)}%"></span>
-								</div>
-								<dl>
-									<div>
-										<dt>Template</dt>
-										<dd>{percent(match.templateMatch.confidence)}</dd>
-									</div>
-									<div>
-										<dt>Ink</dt>
-										<dd>{percent(match.templateMatch.inkScore)}</dd>
-									</div>
-									<div>
-										<dt>Explained</dt>
-										<dd>{percent(match.templateMatch.candidateExplainedRatio)}</dd>
-									</div>
-									<div>
-										<dt>Covered</dt>
-										<dd>{percent(match.templateMatch.templateCoveredRatio)}</dd>
-									</div>
-									<div>
-										<dt>Rotation</dt>
-										<dd>{Math.round(match.templateMatch.rotationDeg)} deg</dd>
-									</div>
-								</dl>
-							</div>
-						</article>
+						<MatchCard {match} best={index === 0} />
 					{/each}
 				{/if}
 			</div>
@@ -337,40 +277,6 @@
 		max-height: 32vh;
 		overflow: auto;
 		scrollbar-gutter: stable;
-	}
-
-	.detector-match-card {
-		display: grid;
-		grid-template-columns: 72px minmax(0, 1fr);
-		gap: 9px;
-		align-items: center;
-	}
-
-	.detector-match-card.best {
-		border-color: rgba(31, 111, 115, 0.48);
-	}
-
-	.detector-match-preview {
-		width: 72px;
-	}
-
-	.detector-match-body {
-		min-width: 0;
-	}
-
-	.detector-score-bar {
-		height: 7px;
-		overflow: hidden;
-		border-radius: 999px;
-		background: rgba(36, 27, 22, 0.14);
-		margin: 7px 0;
-	}
-
-	.detector-score-bar span {
-		display: block;
-		height: 100%;
-		border-radius: inherit;
-		background: var(--teal);
 	}
 
 	.reference-note {
