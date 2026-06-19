@@ -44,3 +44,76 @@
 		{/if}
 	</div>
 </header>
+
+<style>
+	.app-header {
+		display: flex;
+		align-items: end;
+		justify-content: space-between;
+		gap: 18px;
+		margin-bottom: 18px;
+		color: #fff9e8;
+	}
+
+	.app-header h1 {
+		margin: 0;
+		font-family: 'Cinzel', serif;
+		font-size: 28px;
+		line-height: 1.1;
+		font-weight: 700;
+		letter-spacing: 0;
+	}
+
+	.header-link {
+		font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+		min-height: 36px;
+		display: inline-flex;
+		align-items: center;
+		border: 1px solid rgba(255, 247, 219, 0.34);
+		border-radius: 999px;
+		padding: 0 14px;
+		color: #fff8df;
+		text-decoration: none;
+		background: rgba(36, 27, 22, 0.28);
+	}
+
+	.header-link:hover {
+		background: rgba(36, 27, 22, 0.44);
+	}
+
+	.status-pill {
+		min-width: 156px;
+		border: 1px solid rgba(255, 247, 219, 0.34);
+		border-radius: 999px;
+		padding: 9px 14px;
+		text-align: center;
+		color: #fff8df;
+		background: rgba(36, 27, 22, 0.44);
+	}
+
+	.status-pill.active {
+		border-color: rgba(255, 209, 93, 0.8);
+		background: rgba(184, 69, 49, 0.58);
+	}
+
+	.status-pill.prepared {
+		border-color: rgba(101, 181, 184, 0.86);
+		background: rgba(31, 111, 115, 0.62);
+	}
+
+	.status-pill.invalid {
+		border-color: rgba(255, 173, 143, 0.8);
+		background: rgba(84, 47, 43, 0.72);
+	}
+
+	@media (max-width: 640px) {
+		.app-header {
+			display: grid;
+			align-items: start;
+		}
+
+		.app-header h1 {
+			font-size: 23px;
+		}
+	}
+</style>

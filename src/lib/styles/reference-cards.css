@@ -1,0 +1,89 @@
+/*
+ * Reference card & preview design system. Shared by the dictionary reference, the
+ * shape palette inspector, and the sigil/sign detector lab — three separate
+ * components/routes — so it has to be global rather than co-located.
+ */
+
+.reference-card {
+	border: 1px solid rgba(36, 27, 22, 0.14);
+	border-radius: 6px;
+	padding: 9px;
+	background: rgba(255, 251, 233, 0.82);
+}
+
+.reference-card.has-template {
+	display: grid;
+	grid-template-columns: 82px minmax(0, 1fr);
+	gap: 9px;
+	align-items: center;
+}
+
+.reference-preview {
+	width: 82px;
+	aspect-ratio: 1 / 1;
+	border: 1px solid rgba(36, 27, 22, 0.14);
+	border-radius: 6px;
+	background: #f4eed8;
+}
+
+.reference-preview svg {
+	display: block;
+	width: 100%;
+	height: 100%;
+}
+
+.reference-preview polyline {
+	fill: none;
+	stroke: var(--ink);
+	stroke-width: 4;
+	stroke-linecap: round;
+	stroke-linejoin: round;
+}
+
+.reference-card-header {
+	display: flex;
+	align-items: baseline;
+	justify-content: space-between;
+	gap: 10px;
+	margin-bottom: 6px;
+}
+
+.reference-card-header strong {
+	font-size: 14px;
+}
+
+.reference-card-header span {
+	color: var(--muted-ink);
+	font-size: 12px;
+	text-transform: capitalize;
+}
+
+.reference-card-description {
+	margin: 0 0 8px;
+	color: var(--muted-ink);
+	font-size: 12px;
+	line-height: 1.4;
+}
+
+.reference-card dl {
+	display: grid;
+	gap: 4px;
+	margin: 0;
+}
+
+.reference-card dl div {
+	display: flex;
+	justify-content: space-between;
+	gap: 12px;
+}
+
+.reference-card dt {
+	color: var(--muted-ink);
+	font-size: 12px;
+}
+
+.reference-card dd {
+	margin: 0;
+	text-align: right;
+	font-size: 12px;
+}

@@ -92,3 +92,21 @@ state remain centralized.
 		<Diagnostics {diagnostics} />
 	</section>
 </aside>
+
+<style>
+	.panel-tabs {
+		display: grid;
+		grid-template-columns: repeat(3, 1fr);
+		gap: 0;
+		border-top: 0;
+		padding-top: 0;
+		margin-bottom: 14px;
+		border-bottom: 1px solid rgba(36, 27, 22, 0.2);
+	}
+
+	#dictionaryRootPanel[hidden],
+	#diagnosticRootPanel[hidden],
+	#shapesRootPanel[hidden] {
+		display: none;
+	}
+</style>

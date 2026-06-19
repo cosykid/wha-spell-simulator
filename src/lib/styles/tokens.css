@@ -1,0 +1,19 @@
+@import url('https://fonts.googleapis.com/css2?family=IM+Fell+English:ital@0;1&family=Cinzel:wght@400;600&family=JetBrains+Mono:wght@400;500&display=swap');
+@import url('./debug.css');
+
+:root {
+	color-scheme: light;
+	--ink: #20302f;
+	--muted-ink: #5a6660;
+	--paper: #e7dab4;
+	--paper-deep: #c7ab6e;
+	--panel: #f2ecd6;
+	--panel-line: #b69a5c;
+	--ember: #b25738;
+	--teal: #1f6f7a;
+	--violet: #5d507f;
+	--gold: #c4981f;
+	--shadow: rgba(16, 34, 38, 0.28);
+	--radius: 8px;
+	--portal-tilt-duration: 980ms;
+}

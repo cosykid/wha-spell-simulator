@@ -1,7 +1,6 @@
 <script lang="ts">
 	import { page } from '$app/state';
 	import Header from '$lib/components/Header.svelte';
-	import '$lib/styles/styles.css';
 	import type { Snippet } from 'svelte';
 	import { tools } from './tools';
 

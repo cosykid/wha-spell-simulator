@@ -169,3 +169,41 @@
 		</div>
 	</div>
 </section>
+
+<style>
+	.diagnostic-copy-button {
+		position: absolute;
+		top: 7px;
+		right: 21px;
+		z-index: 1;
+		min-height: 28px;
+		padding: 0 9px;
+		border-radius: 6px;
+		background: rgba(255, 242, 197, 0.92);
+		color: var(--muted-ink);
+		font-size: 12px;
+	}
+
+	.diagnostic-panel-shell {
+		min-height: 0;
+		flex: 1 1 auto;
+		display: flex;
+		flex-direction: column;
+	}
+
+	.diagnostic-panel-shell[hidden] {
+		display: none;
+	}
+
+	.diagnostic-viewer-shell {
+		position: relative;
+		min-height: 0;
+		flex: 1 1 auto;
+		display: flex;
+	}
+
+	.diagnostic-viewer-shell .diagnostic-output {
+		flex: 1 1 auto;
+		min-height: 0;
+	}
+</style>

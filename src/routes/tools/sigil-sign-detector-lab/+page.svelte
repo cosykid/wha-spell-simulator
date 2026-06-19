@@ -295,3 +295,92 @@
 		</section>
 	</aside>
 </main>
+
+<style>
+	.detector-lab-workspace {
+		grid-template-columns: minmax(520px, 1fr) minmax(360px, 0.48fr);
+	}
+
+	.detector-lab-toolbar {
+		flex-wrap: wrap;
+	}
+
+	.detector-lab-side-panel {
+		display: grid;
+		gap: 14px;
+		align-content: start;
+	}
+
+	.detector-lab-decision-grid {
+		display: grid;
+		grid-template-columns: minmax(0, 1fr) auto;
+		gap: 7px 14px;
+		font-size: 14px;
+	}
+
+	.detector-lab-decision-grid span {
+		color: var(--muted-ink);
+	}
+
+	.detector-lab-decision-grid strong {
+		color: var(--teal);
+		font-variant-numeric: tabular-nums;
+	}
+
+	.detector-lab-small-output {
+		max-height: 180px;
+	}
+
+	.detector-match-list {
+		display: grid;
+		gap: 8px;
+		max-height: 32vh;
+		overflow: auto;
+		scrollbar-gutter: stable;
+	}
+
+	.detector-match-card {
+		display: grid;
+		grid-template-columns: 72px minmax(0, 1fr);
+		gap: 9px;
+		align-items: center;
+	}
+
+	.detector-match-card.best {
+		border-color: rgba(31, 111, 115, 0.48);
+	}
+
+	.detector-match-preview {
+		width: 72px;
+	}
+
+	.detector-match-body {
+		min-width: 0;
+	}
+
+	.detector-score-bar {
+		height: 7px;
+		overflow: hidden;
+		border-radius: 999px;
+		background: rgba(36, 27, 22, 0.14);
+		margin: 7px 0;
+	}
+
+	.detector-score-bar span {
+		display: block;
+		height: 100%;
+		border-radius: inherit;
+		background: var(--teal);
+	}
+
+	.reference-note {
+		border: 1px solid rgba(36, 27, 22, 0.14);
+		border-radius: 6px;
+		padding: 10px;
+		color: var(--muted-ink);
+		background: rgba(255, 251, 233, 0.82);
+		font-size: 13px;
+		line-height: 1.4;
+		flex: 1 1 auto;
+	}
+</style>

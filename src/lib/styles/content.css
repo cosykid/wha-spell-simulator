@@ -1,0 +1,58 @@
+/*
+ * Shared content primitives used across panels and tools routes: small text
+ * utilities and the monospace JSON/IR output boxes.
+ */
+
+.label {
+	color: var(--muted-ink);
+	font-size: 13px;
+}
+
+.panel-description {
+	margin: 0 0 10px;
+	color: var(--muted-ink);
+	font-size: 12px;
+	line-height: 1.35;
+}
+
+.diagnostic-block {
+	min-width: 0;
+}
+
+.diagnostic-block h2 {
+	margin: 0 0 8px;
+	font-family: 'Cinzel', serif;
+	font-size: 15px;
+	letter-spacing: 0;
+}
+
+.diagnostic-output {
+	max-height: none;
+	overflow-y: auto;
+	overflow-x: auto;
+	scrollbar-gutter: stable;
+	margin: 0;
+	border: 1px solid rgba(36, 27, 22, 0.16);
+	border-radius: 6px;
+	padding: 10px;
+	color: #2b211a;
+	background: #fffbe9;
+	font-family: 'JetBrains Mono', Consolas, 'Courier New', monospace;
+	font-size: 12px;
+	line-height: 1.45;
+	white-space: pre-wrap;
+}
+
+.template-output {
+	width: 100%;
+	min-height: 48vh;
+	resize: vertical;
+	border: 1px solid rgba(36, 27, 22, 0.16);
+	border-radius: 6px;
+	padding: 10px;
+	color: #2b211a;
+	background: #fffbe9;
+	font-family: 'JetBrains Mono', Consolas, 'Courier New', monospace;
+	font-size: 12px;
+	line-height: 1.45;
+}

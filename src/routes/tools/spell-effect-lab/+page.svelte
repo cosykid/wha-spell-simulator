@@ -324,3 +324,90 @@
 		</section>
 	</aside>
 </main>
+
+<style>
+	.effect-lab-workspace {
+		grid-template-columns: minmax(560px, 1fr) minmax(360px, 0.48fr);
+	}
+
+	.effect-lab-toolbar {
+		flex-wrap: wrap;
+	}
+
+	.effect-lab-canvas-shell {
+		position: relative;
+		width: min(100%, 920px);
+		max-height: calc(100vh - 178px);
+		aspect-ratio: 9 / 7;
+		touch-action: none;
+	}
+
+	.effect-lab-canvas-shell canvas {
+		position: absolute;
+		inset: 0;
+		display: block;
+		width: 100%;
+		height: 100%;
+	}
+
+	.effect-lab-side-panel {
+		display: grid;
+		gap: 14px;
+		align-content: start;
+		overflow: auto;
+	}
+
+	.effect-lab-controls {
+		display: grid;
+		gap: 10px;
+	}
+
+	.effect-lab-help {
+		margin: 0;
+		color: color-mix(in srgb, var(--muted-ink) 84%, white);
+		font-size: 12px;
+		line-height: 1.4;
+	}
+
+	.effect-lab-slider {
+		display: grid;
+		grid-template-columns: minmax(0, 1fr) auto;
+		gap: 7px 12px;
+		align-items: center;
+		color: var(--muted-ink);
+		font-size: 13px;
+	}
+
+	.effect-lab-slider strong {
+		min-width: 52px;
+		color: var(--teal);
+		text-align: right;
+		font-variant-numeric: tabular-nums;
+	}
+
+	.effect-lab-slider small {
+		grid-column: 1 / -1;
+		color: color-mix(in srgb, var(--muted-ink) 82%, white);
+		line-height: 1.35;
+	}
+
+	.effect-lab-slider input {
+		grid-column: 1 / -1;
+		width: 100%;
+	}
+
+	.effect-lab-ir-input {
+		min-height: 150px;
+	}
+
+	.effect-lab-ir-output {
+		max-height: 260px;
+	}
+
+	.effect-lab-button-row {
+		display: grid;
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+		gap: 8px;
+		margin-top: 8px;
+	}
+</style>

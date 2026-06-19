@@ -135,3 +135,120 @@
 		{/if}
 	</div>
 </section>
+
+<style>
+	.shape-palette {
+		display: grid;
+		gap: 12px;
+		flex: 1 1 auto;
+		overflow-y: auto;
+		overflow-x: hidden;
+		scrollbar-gutter: stable;
+		min-height: 0;
+	}
+
+	.shape-group-title {
+		margin: 0 0 6px;
+		font-family: 'Cinzel', serif;
+		font-size: 13px;
+		text-transform: uppercase;
+		color: var(--muted-ink);
+	}
+
+	.shape-card-grid {
+		display: grid;
+		grid-template-columns: repeat(auto-fill, minmax(86px, 1fr));
+		gap: 8px;
+	}
+
+	.shape-card {
+		display: grid;
+		justify-items: center;
+		gap: 6px;
+		padding: 8px;
+		border: 1px solid rgba(36, 27, 22, 0.14);
+		border-radius: 6px;
+		background: rgba(255, 251, 233, 0.82);
+		cursor: pointer;
+	}
+
+	.shape-card:hover {
+		background: rgba(255, 242, 197, 0.78);
+	}
+
+	.shape-card.armed {
+		border-color: var(--teal);
+		box-shadow: 0 0 0 1px var(--teal);
+	}
+
+	.shape-card .reference-preview {
+		width: 100%;
+		/* Without this, a wide glyph's SVG min-content inflates the card's auto grid
+		   track, so width: 100% overflows the content box and the box drifts off-center. */
+		min-width: 0;
+		cursor: grab;
+		touch-action: none;
+		user-select: none;
+	}
+
+	.shape-card .reference-preview:active {
+		cursor: grabbing;
+	}
+
+	.shape-card-label {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		gap: 2px;
+		width: 100%;
+		min-width: 0;
+		font-size: 12px;
+		line-height: 1.12;
+		text-align: center;
+	}
+
+	.shape-card-label strong,
+	.shape-card-label span {
+		max-width: 100%;
+		overflow-wrap: anywhere;
+	}
+
+	.shape-card-label span {
+		color: var(--muted-ink);
+		font-size: 11px;
+		text-transform: capitalize;
+	}
+
+	.shape-inspector {
+		flex: 0 0 auto;
+		margin-top: 12px;
+		padding-top: 12px;
+		border-top: 1px solid rgba(36, 27, 22, 0.16);
+	}
+
+	.shape-inspector-card {
+		display: grid;
+		gap: 8px;
+	}
+
+	.shape-field {
+		display: grid;
+		gap: 4px;
+		font-size: 12px;
+		color: var(--muted-ink);
+	}
+
+	.shape-field input[type='range'] {
+		width: 100%;
+	}
+
+	.shape-commit {
+		margin-top: 4px;
+		background: var(--teal);
+		color: #fffbe9;
+	}
+
+	.shape-remove {
+		margin-top: 2px;
+	}
+</style>
