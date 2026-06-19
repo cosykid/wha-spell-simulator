@@ -1,0 +1,213 @@
+import { createPlacementStore } from '$lib/input/placementStore.js';
+import { bakePlacementToStrokes, placementHandles } from '$lib/input/shapeBaker.js';
+import { defaultTransformForShape } from '$lib/input/shapeLibrary.js';
+import { createStrokeStore } from '$lib/input/strokeStore.js';
+import type { PlacementTransform, ShapeItem, Vector } from '$lib/types.js';
+import { clonePlacementSnapshot, createDrawingHistory, type DrawingSnapshot } from './history.js';
+import type { CanvasTool } from './mode.js';
+import type { SelectedShape } from './types.js';
+
+/**
+ * Owns mutable drawing data for the simulator canvas.
+ *
+ * This object keeps freehand strokes, editable shape placements, selection
+ * state, and undo/redo snapshots together so the route session can treat the
+ * drawing as one domain model instead of coordinating several stores directly.
+ */
+export class SimulatorDrawingState {
+	/** Freehand ink store used by pointer drawing and erasing. */
+	readonly store = createStrokeStore();
+	/** Editable symbol/ring placements dropped from the shape palette. */
+	readonly placements = createPlacementStore();
+	/** Undo/redo history covering both freehand ink and editable placements. */
+	readonly history = createDrawingHistory();
+
+	/** Snapshot consumed by the shape inspector in the sidebar. */
+	selected = $state<SelectedShape | null>(null);
+	#selectedPlacementId: string | null = null;
+
+	/** Placement id currently selected on the canvas, or `null` when nothing is selected. */
+	get selectedPlacementId() {
+		return this.#selectedPlacementId;
+	}
+
+	/** Whether an undo snapshot is available. */
+	get canUndo() {
+		return this.history.canUndo;
+	}
+
+	/** Whether a redo snapshot is available. */
+	get canRedo() {
+		return this.history.canRedo;
+	}
+
+	/**
+	 * Selects an editable placement and refreshes the sidebar-friendly selection snapshot.
+	 *
+	 * @param id - Placement id to select, or `null` to clear selection.
+	 */
+	setSelected = (id: string | null) => {
+		this.#selectedPlacementId = id;
+		const placement = id ? this.placements.get(id) : null;
+		this.selected = placement
+			? {
+					kind: placement.kind,
+					sourceId: placement.sourceId,
+					transform: { ...placement.transform }
+				}
+			: null;
+	};
+
+	/**
+	 * Returns the complete ink model used by recognition and rendering.
+	 *
+	 * Editable placements are baked to temporary strokes without mutating the
+	 * placement store, so recognition sees dropped shapes and hand-drawn strokes
+	 * as one drawing.
+	 */
+	mergedStrokes() {
+		return [
+			...this.store.getStrokes(),
+			...this.placements.getPlacements().flatMap(bakePlacementToStrokes)
+		];
+	}
+
+	/** Pushes the current drawing into undo history. */
+	pushHistory() {
+		this.history.push(this.snapshot());
+	}
+
+	/** Replaces undo history with the current drawing as the initial snapshot. */
+	resetHistory() {
+		this.history.reset(this.snapshot());
+	}
+
+	/** Moves one snapshot backward in history. */
+	undo() {
+		return this.history.undo();
+	}
+
+	/** Moves one snapshot forward in history. */
+	redo() {
+		return this.history.redo();
+	}
+
+	/** Clears freehand strokes, placements, and selection. */
+	clear() {
+		this.store.clear();
+		this.placements.clear();
+		this.setSelected(null);
+	}
+
+	/**
+	 * Restores strokes and placements from a history snapshot.
+	 *
+	 * Selection is preserved only when the selected placement still exists in the
+	 * restored snapshot.
+	 */
+	restore(snap: DrawingSnapshot) {
+		this.store.load(snap.strokes);
+		this.placements.load(snap.placements);
+		if (this.#selectedPlacementId && !this.placements.get(this.#selectedPlacementId)) {
+			this.#selectedPlacementId = null;
+		}
+		this.setSelected(this.#selectedPlacementId);
+	}
+
+	/**
+	 * Adds a palette item as an editable placement at a canvas point.
+	 *
+	 * @returns The id of the newly created placement.
+	 */
+	placeShape(item: ShapeItem, point: Vector, canvas: HTMLCanvasElement) {
+		const placement = this.placements.add({
+			kind: item.kind,
+			sourceId: item.sourceId,
+			baseStrokes: item.baseStrokes,
+			transform: defaultTransformForShape(item, point, canvas)
+		});
+		this.setSelected(placement.id);
+		return placement.id;
+	}
+
+	/**
+	 * Applies a transform patch to the selected placement.
+	 *
+	 * @returns `true` when a selected placement was updated.
+	 */
+	updateSelectedTransform(patch: Partial<PlacementTransform>) {
+		if (!this.#selectedPlacementId) {
+			return false;
+		}
+		this.placements.update(this.#selectedPlacementId, patch);
+		this.setSelected(this.#selectedPlacementId);
+		return true;
+	}
+
+	/**
+	 * Removes the selected editable placement.
+	 *
+	 * @returns `true` when a placement was removed.
+	 */
+	deleteSelectedPlacement() {
+		if (!this.#selectedPlacementId) {
+			return false;
+		}
+		const id = this.#selectedPlacementId;
+		this.placements.remove(id);
+		if (this.#selectedPlacementId === id) {
+			this.setSelected(null);
+		}
+		return true;
+	}
+
+	/**
+	 * Bakes the selected editable placement into permanent freehand strokes.
+	 *
+	 * @returns `true` when a placement was committed.
+	 */
+	commitSelectedPlacement() {
+		if (!this.#selectedPlacementId) {
+			return false;
+		}
+		const placement = this.placements.get(this.#selectedPlacementId);
+		if (!placement) {
+			return false;
+		}
+		bakePlacementToStrokes(placement).forEach((stroke) => this.store.addStroke(stroke.points));
+		this.placements.remove(placement.id);
+		if (this.#selectedPlacementId === placement.id) {
+			this.setSelected(null);
+		}
+		return true;
+	}
+
+	/** Scales editable placements after the backing canvas is resized. */
+	scalePlacements(scaleX: number, scaleY: number) {
+		for (const placement of this.placements.getPlacements()) {
+			this.placements.update(placement.id, {
+				cx: placement.transform.cx * scaleX,
+				cy: placement.transform.cy * scaleY,
+				scaleX: placement.transform.scaleX * scaleX,
+				scaleY: placement.transform.scaleY * scaleY
+			});
+		}
+	}
+
+	/** Returns transform handles for the selected placement while arrange mode is active. */
+	selectionHandles(activeTool: CanvasTool) {
+		const placement =
+			activeTool === 'arrange' && this.#selectedPlacementId
+				? this.placements.get(this.#selectedPlacementId)
+				: null;
+		return placement ? placementHandles(placement) : null;
+	}
+
+	/** Captures immutable drawing state for undo/redo history. */
+	snapshot(): DrawingSnapshot {
+		return {
+			strokes: this.store.getStrokes(),
+			placements: clonePlacementSnapshot(this.placements.getPlacements())
+		};
+	}
+}

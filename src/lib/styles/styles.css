@@ -444,7 +444,8 @@ body:not(.sigil-maker-page) .app-shell {
 	color: var(--ink);
 }
 
-.tool-btn svg {
+.tool-btn svg,
+.zoom-btn svg {
 	width: 18px;
 	height: 18px;
 	display: block;

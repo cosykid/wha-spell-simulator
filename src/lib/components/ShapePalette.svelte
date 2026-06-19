@@ -1,5 +1,6 @@
 <script lang="ts">
-	import type { Point, PlacementTransform, ShapeItem, ShapeLibrary } from '$lib/types.js';
+	import type { PlacementTransform, ShapeItem, ShapeLibrary } from '$lib/types.js';
+	import { strokesToPreviewPolylines } from '$lib/ui/strokePreview.js';
 
 	interface SelectedShape {
 		kind: string;
@@ -39,28 +40,6 @@
 			: []
 	);
 
-	// Project normalized 0..1 stroke points into the 100x100 preview viewBox.
-	function toPolylines(strokes: Point[][] | undefined) {
-		if (!strokes?.length) {
-			return [];
-		}
-		return strokes
-			.map((stroke) =>
-				stroke
-					.map((point) => {
-						const x = Number(point.x);
-						const y = Number(point.y);
-						if (!Number.isFinite(x) || !Number.isFinite(y)) {
-							return null;
-						}
-						return `${Math.round((8 + x * 84) * 10) / 10},${Math.round((8 + y * 84) * 10) / 10}`;
-					})
-					.filter(Boolean)
-					.join(' ')
-			)
-			.filter((points) => points.length > 0);
-	}
-
 	function patchField(field: keyof PlacementTransform, value: string) {
 		onChange({ [field]: Number(value) });
 	}
@@ -78,7 +57,7 @@
 				<h3 class="shape-group-title">{group.title}</h3>
 				<div class="shape-card-grid">
 					{#each group.items as item (item.id)}
-						{@const polylines = toPolylines(item.baseStrokes)}
+						{@const polylines = strokesToPreviewPolylines(item.baseStrokes)}
 						<button type="button" class="shape-card" class:armed={armedShapeId === item.id}>
 							{#if polylines.length}
 								<span

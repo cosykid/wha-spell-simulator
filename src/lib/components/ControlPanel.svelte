@@ -1,19 +1,8 @@
 <script lang="ts">
-	import { meterLevel, meterPercent } from '$lib/ui/spellSummary.js';
-
-	interface Summary {
-		statusText: string;
-		statusClass: string;
-		element: string;
-		manifestation: string;
-		quality: number;
-		stability: number;
-		force: number;
-		[key: string]: unknown;
-	}
+	import { meterLevel, meterPercent, type SpellSummary } from '$lib/ui/spellSummary.js';
 
 	interface Props {
-		summary: Summary;
+		summary: SpellSummary;
 		showGuides?: boolean;
 		showDiagnostics?: boolean;
 		onToggleGuides?: () => void;
