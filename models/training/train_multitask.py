@@ -22,7 +22,7 @@ from wha_multitask import (
     glyph_multitask_loss,
 )
 
-# scripts/training/train_multitask.py -> repo root is two parents up.
+# models/training/train_multitask.py -> repo root is two parents up.
 DEFAULT_DICTIONARY_DIR = Path(__file__).resolve().parents[2] / "src" / "lib" / "dictionary"
 
 

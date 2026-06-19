@@ -2,7 +2,7 @@
 
 Pure-stdlib so it runs without the PyTorch training venv:
 
-    python3 scripts/training/test_rotation_policy.py
+    python3 models/training/test_rotation_policy.py
 """
 
 from __future__ import annotations

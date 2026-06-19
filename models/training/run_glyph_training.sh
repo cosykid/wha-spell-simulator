@@ -2,8 +2,8 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-PROCESS_DIR="$ROOT_DIR/scripts/ai-dataset-processing"
-TRAIN_DIR="$ROOT_DIR/scripts/training"
+PROCESS_DIR="$ROOT_DIR/models/ai-dataset-processing"
+TRAIN_DIR="$ROOT_DIR/models/training"
 
 ARTIFACT_DIR="${ARTIFACT_DIR:-$ROOT_DIR/.artifacts/glyph-training}"
 VECTOR_ALL="${VECTOR_ALL:-$ARTIFACT_DIR/labelled_samples_vector-all.jsonl}"

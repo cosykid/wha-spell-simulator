@@ -40,7 +40,7 @@ import {
 	normalizePostgresConnectionString,
 	sslFor
 } from '../src/lib/server/storage/postgresConnection.js';
-import { loadDotEnv } from './load-env.js';
+import { loadDotEnv } from '../scripts/load-env.js';
 
 interface ClassStats {
 	signId: string;

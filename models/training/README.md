@@ -3,8 +3,8 @@
 This folder contains PyTorch-side training helpers for datasets exported by:
 
 ```bash
-scripts/ai-dataset-processing/wha-ds-converter.py
-scripts/ai-dataset-processing/wha-ds-imageifier.py
+models/ai-dataset-processing/wha-ds-converter.py
+models/ai-dataset-processing/wha-ds-imageifier.py
 ```
 
 `wha_multitask.py` provides:
@@ -76,7 +76,7 @@ LIMIT=20 SKIP_TRAIN=1 npm run train:glyphs
 ## Manual Install
 
 ```bash
-cd scripts/training
+cd models/training
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
@@ -142,7 +142,7 @@ CLI flags: `--no-rotation-aug`, `--rot-invariant-deg`, `--rot-jitter-deg`,
 `--rot-allowed-jitter-deg`, `--dictionary-dir`. Run the math/policy checks with:
 
 ```bash
-python3 scripts/training/test_rotation_policy.py
+python3 models/training/test_rotation_policy.py
 ```
 
 ## Browser Recognition

@@ -19,7 +19,7 @@
  * re-sampling the path, so the reconstruction is faithful by construction.
  *
  * Usage:
- *   node --import tsx scripts/sample-to-svg.ts <sample.json> [options]
+ *   node --import tsx models/sample-to-svg.ts <sample.json> [options]
  *
  * Options:
  *   -o, --out <file>   Write to <file>. Use "-" for stdout. Default: <input>.svg
@@ -88,7 +88,7 @@ function parseArgs(argv: string[]): Cli {
 function printHelpAndExit(code: number): never {
 	// The leading doc comment is the help text; print a trimmed version.
 	process.stdout.write(
-		'Usage: node --import tsx scripts/sample-to-svg.ts <sample.json> [-o <file>] [--no-label] [--svg-dir <dir>]\n'
+		'Usage: node --import tsx models/sample-to-svg.ts <sample.json> [-o <file>] [--no-label] [--svg-dir <dir>]\n'
 	);
 	process.exit(code);
 }
