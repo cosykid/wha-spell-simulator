@@ -3,7 +3,7 @@ import test from 'node:test';
 
 import { CONFIG } from '../src/lib/config.js';
 import { buildShapeLibrary, defaultTransformForShape } from '../src/lib/input/shapeLibrary.js';
-import { bakePlacementToStrokes } from '../src/lib/input/shapeBaker.js';
+import { bakePlacementToStrokes, createPlacementPointMapper } from '../src/lib/input/shapeBaker.js';
 import { classifyDrawing } from '../src/lib/parser/classifier/index.js';
 import { compileSpell } from '../src/lib/compiler/spellBuilder.js';
 import type { Placement, Point, ShapeItem, Stroke, Vector } from '../src/lib/types.js';
@@ -61,6 +61,26 @@ test('a baked ring is detected as a prepared, not yet sealed, boundary', () => {
 	const { pipeline } = compileFromPlacements([place('p1', library.ring, center)]);
 	assert.equal(pipeline.ring.found, true);
 	assert.equal(pipeline.ring.complete, false);
+});
+
+test('placement point transform matches baked recognition strokes', () => {
+	const placement = place('p1', library.ring, center, {
+		scaleX: 420,
+		scaleY: 260,
+		rotationDeg: 37
+	});
+	const baked = bakePlacementToStrokes(placement);
+	const toCanvas = createPlacementPointMapper(placement.transform);
+
+	for (const [strokeIndex, sourceStroke] of placement.baseStrokes.entries()) {
+		for (const [pointIndex, sourcePoint] of sourceStroke.entries()) {
+			const rendered = toCanvas(sourcePoint);
+			const recognized = baked[strokeIndex]!.points[pointIndex]!;
+
+			assert.equal(rendered.x, recognized.x);
+			assert.equal(rendered.y, recognized.y);
+		}
+	}
 });
 
 test('a baked ring with a baked fire sigil compiles to a prepared fire spell', () => {

@@ -154,22 +154,26 @@ export class SimulatorRuntime {
 
 		const pipeline = recognition.pipeline;
 		const spellIR = recognition.spellIR;
-		const strokes = drawing.renderStrokes();
+		const strokes = drawing.renderInkStrokes();
+		const placements = drawing.renderPlacementEntities();
 
 		this.#renderer.renderGlyph({
 			strokes,
+			placements,
 			currentStroke: this.#input?.currentStroke() ?? null,
 			pipeline,
 			showGuides: ui.showGuides,
 			showDebug: ui.showDiagnostics,
+			timestamp,
 			selection: drawing.selectionHandles(ui.activeTool)
 		});
 
 		if (spellIR?.active) {
+			const activatedStrokes = drawing.mergedStrokes();
 			this.#renderer.renderActivatedGlyph({
 				activatedAt: spellIR.activatedAt,
 				duration: spellIR.duration,
-				strokes,
+				strokes: activatedStrokes,
 				pipeline,
 				timestamp
 			});

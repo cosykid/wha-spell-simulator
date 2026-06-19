@@ -2,6 +2,8 @@ import { createPlacementStore } from '$lib/input/placementStore.js';
 import { bakePlacementToStrokes, placementHandles } from '$lib/input/shapeBaker.js';
 import { defaultTransformForShape } from '$lib/input/shapeLibrary.js';
 import { createStrokeStore } from '$lib/input/strokeStore.js';
+import { makePlacementEntity } from '$lib/ui/canvas/entities/placementEntity.js';
+import type { Entity } from '$lib/ui/canvas/entity.js';
 import type { Placement, PlacementTransform, ShapeItem, Stroke, Vector } from '$lib/types.js';
 import { SvelteMap } from 'svelte/reactivity';
 import { clonePlacementSnapshot, createDrawingHistory, type DrawingSnapshot } from './history.js';
@@ -27,6 +29,7 @@ export class SimulatorDrawingState {
 	selected = $state<SelectedShape | null>(null);
 	#selectedPlacementId: string | null = null;
 	#bakedPlacementCache = new SvelteMap<string, { key: string; strokes: Stroke[] }>();
+	#placementEntityCache = new SvelteMap<string, { key: string; entity: Entity }>();
 
 	/** Placement id currently selected on the canvas, or `null` when nothing is selected. */
 	get selectedPlacementId() {
@@ -76,15 +79,23 @@ export class SimulatorDrawingState {
 		];
 	}
 
+	/** Returns freehand strokes used for per-frame glyph rendering. */
+	renderInkStrokes() {
+		return this.store.getStrokes();
+	}
+
 	/**
-	 * Returns the stroke set used for per-frame rendering.
+	 * Returns editable placements as Canvas entities for per-frame rendering.
 	 *
-	 * Recognition owns a separate snapshot so drag gestures do not churn the
-	 * classifier cache on every pointer move. Placement strokes are cached per
-	 * transform, so dragging one symbol does not rebake every other dropped shape.
+	 * Recognition owns the baked Stroke[] snapshot. The live canvas uses entities
+	 * so transforms can be rendered directly from placement data while dragging.
 	 */
-	renderStrokes() {
-		return this.mergedStrokes();
+	renderPlacementEntities() {
+		const entities = this.placements
+			.getPlacements()
+			.map((placement) => this.#placementEntity(placement));
+		this.#prunePlacementEntityCache();
+		return entities;
 	}
 
 	/** Pushes the current drawing into undo history. */
@@ -112,6 +123,7 @@ export class SimulatorDrawingState {
 		this.store.clear();
 		this.placements.clear();
 		this.#bakedPlacementCache.clear();
+		this.#placementEntityCache.clear();
 		this.setSelected(null);
 	}
 
@@ -125,6 +137,7 @@ export class SimulatorDrawingState {
 		this.store.load(snap.strokes);
 		this.placements.load(snap.placements);
 		this.#bakedPlacementCache.clear();
+		this.#placementEntityCache.clear();
 		if (this.#selectedPlacementId && !this.placements.get(this.#selectedPlacementId)) {
 			this.#selectedPlacementId = null;
 		}
@@ -173,6 +186,7 @@ export class SimulatorDrawingState {
 		const id = this.#selectedPlacementId;
 		this.placements.remove(id);
 		this.#bakedPlacementCache.delete(id);
+		this.#placementEntityCache.delete(id);
 		if (this.#selectedPlacementId === id) {
 			this.setSelected(null);
 		}
@@ -195,6 +209,7 @@ export class SimulatorDrawingState {
 		bakePlacementToStrokes(placement).forEach((stroke) => this.store.addStroke(stroke.points));
 		this.placements.remove(placement.id);
 		this.#bakedPlacementCache.delete(placement.id);
+		this.#placementEntityCache.delete(placement.id);
 		if (this.#selectedPlacementId === placement.id) {
 			this.setSelected(null);
 		}
@@ -247,6 +262,7 @@ export class SimulatorDrawingState {
 		const { transform } = placement;
 		return [
 			placement.sourceId,
+			placement.kind,
 			placement.baseStrokes.length,
 			transform.cx,
 			transform.cy,
@@ -256,11 +272,32 @@ export class SimulatorDrawingState {
 		].join('|');
 	}
 
+	#placementEntity(placement: Placement) {
+		const key = this.#placementBakeKey(placement);
+		const cached = this.#placementEntityCache.get(placement.id);
+		if (cached?.key === key) {
+			return cached.entity;
+		}
+
+		const entity = makePlacementEntity(placement);
+		this.#placementEntityCache.set(placement.id, { key, entity });
+		return entity;
+	}
+
 	#pruneBakedPlacementCache() {
 		const liveIds = this.placements.getPlacements().map((placement) => placement.id);
 		for (const id of this.#bakedPlacementCache.keys()) {
 			if (!liveIds.includes(id)) {
 				this.#bakedPlacementCache.delete(id);
+			}
+		}
+	}
+
+	#prunePlacementEntityCache() {
+		const liveIds = this.placements.getPlacements().map((placement) => placement.id);
+		for (const id of this.#placementEntityCache.keys()) {
+			if (!liveIds.includes(id)) {
+				this.#placementEntityCache.delete(id);
 			}
 		}
 	}

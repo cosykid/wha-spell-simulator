@@ -9,6 +9,7 @@ import { drawGuides } from '$canvas/guideRenderer.js';
 import { renderPaper } from '$canvas/entities/paperEntity.js';
 import { renderStrokeInk } from '$canvas/entities/strokeEntity.js';
 import { drawSelection } from '$canvas/selectionRenderer.js';
+import type { Entity } from '$canvas/entity.js';
 import type {
 	AppConfig,
 	Stroke,
@@ -33,10 +34,12 @@ function getActivatedStrokeIds(pipeline: ClassifiedDrawing | null | undefined): 
 
 interface GlyphRenderParams {
 	strokes: Stroke[];
+	placements?: Entity[];
 	currentStroke: Stroke | null | undefined;
 	pipeline: ClassifiedDrawing | null | undefined;
 	showGuides: boolean;
 	showDebug: boolean;
+	timestamp: number;
 	selection?: PlacementHandles | null;
 }
 
@@ -76,10 +79,12 @@ export class CanvasRenderer {
 
 	renderGlyph({
 		strokes,
+		placements = [],
 		currentStroke,
 		pipeline,
 		showGuides,
 		showDebug,
+		timestamp,
 		selection
 	}: GlyphRenderParams): void {
 		const width = this.glyphCanvas.width;
@@ -92,6 +97,10 @@ export class CanvasRenderer {
 
 		for (const stroke of strokes) {
 			renderStrokeInk(this.glyphCtx, stroke, 0.94, this.config.renderer.inkColor, 4.4);
+		}
+
+		for (const placement of placements) {
+			placement.render(this.glyphCtx, timestamp);
 		}
 
 		if (currentStroke) {
