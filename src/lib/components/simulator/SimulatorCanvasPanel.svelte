@@ -3,9 +3,8 @@
 Main drawing surface for the spell simulator.
 
 This component owns the canvas markup and immediate canvas controls: undo/redo,
-clear, arrange, eraser, zoom, and pan. The route still owns all recognition,
-rendering, and controller state; this panel only binds DOM nodes and dispatches
-user actions through callback props.
+clear, arrange, eraser, zoom, and pan. The simulator session owns recognition,
+rendering, controller state, and command handlers.
 -->
 <script lang="ts">
 	import Eraser from 'lucide-svelte/icons/eraser';
@@ -17,64 +16,25 @@ user actions through callback props.
 	import ZoomIn from 'lucide-svelte/icons/zoom-in';
 	import ZoomOut from 'lucide-svelte/icons/zoom-out';
 	import CanvasIconButton from './CanvasIconButton.svelte';
-	import type { SpellSummary } from '$lib/ui/spellSummary.js';
-	import type { CanvasTool } from '$lib/ui/simulator/mode.js';
+	import type { SimulatorSession } from '$lib/ui/simulator/simulator-session.svelte.js';
 
 	interface Props {
-		summary: SpellSummary;
-		inputReady: boolean;
-		activeTool: CanvasTool;
-		panEnabled: boolean;
-		zoomLevel: number;
-		zoomMin: number;
-		zoomMax: number;
-		panX: number;
-		panY: number;
-		glyphCanvas?: HTMLCanvasElement;
-		effectCanvas?: HTMLCanvasElement;
-		canvasShell?: HTMLDivElement;
-		onStartPan: (event: PointerEvent) => void;
-		onUndo: () => void;
-		onRedo: () => void;
-		onClear: () => void;
-		onToggleArrange: () => void;
-		onToggleEraser: () => void;
-		onZoomOut: () => void;
-		onTogglePan: () => void;
-		onZoomIn: () => void;
+		simulator: SimulatorSession;
 	}
 
-	let {
-		summary,
-		inputReady,
-		activeTool,
-		panEnabled,
-		zoomLevel,
-		zoomMin,
-		zoomMax,
-		panX,
-		panY,
-		glyphCanvas = $bindable(),
-		effectCanvas = $bindable(),
-		canvasShell = $bindable(),
-		onStartPan,
-		onUndo,
-		onRedo,
-		onClear,
-		onToggleArrange,
-		onToggleEraser,
-		onZoomOut,
-		onTogglePan,
-		onZoomIn
-	}: Props = $props();
+	let { simulator }: Props = $props();
+	let ui = $derived(simulator.ui);
+	let pan = $derived(simulator.pan);
+	let actions = $derived(simulator.actions);
+	let recognition = $derived(simulator.recognition);
 </script>
 
 <section class="canvas-panel" aria-label="Spell drawing surface">
 	<div
 		class="canvas-shell"
 		data-testid="canvas-shell"
-		bind:this={canvasShell}
-		class:portal-active={summary.portalActive}
+		bind:this={ui.canvasShell}
+		class:portal-active={recognition.summary.portalActive}
 		role="region"
 		aria-label="Spell drawing canvas"
 		tabindex="-1"
@@ -83,23 +43,23 @@ user actions through callback props.
 			class="canvas-hint"
 			id="canvasHint"
 			data-testid="canvas-hint"
-			class:hidden={summary.hintHidden}
-			class:below-actions={!summary.hintHidden && !summary.undoDisabled}
+			class:hidden={recognition.summary.hintHidden}
+			class:below-actions={!recognition.summary.hintHidden && !recognition.summary.undoDisabled}
 		>
 			Draw an open spell ring. Place sigils in the center and signs around them. When everything is
 			ready, seal the circle to awaken the spell.
 		</p>
 		<div
 			class="canvas-action-controls"
-			class:hidden={!summary.hintHidden && summary.undoDisabled}
+			class:hidden={!recognition.summary.hintHidden && recognition.summary.undoDisabled}
 			aria-label="Canvas actions"
 		>
 			<CanvasIconButton
 				id="undoButton"
 				testId="undo-button"
 				label="Undo"
-				disabled={summary.undoDisabled}
-				onclick={onUndo}
+				disabled={recognition.summary.undoDisabled}
+				onclick={actions.undo}
 			>
 				<Undo2 aria-hidden="true" />
 			</CanvasIconButton>
@@ -107,30 +67,35 @@ user actions through callback props.
 				id="redoButton"
 				testId="redo-button"
 				label="Redo"
-				disabled={summary.redoDisabled}
-				onclick={onRedo}
+				disabled={recognition.summary.redoDisabled}
+				onclick={actions.redo}
 			>
 				<Redo2 aria-hidden="true" />
 			</CanvasIconButton>
-			<CanvasIconButton id="clearButton" testId="clear-button" label="Clear" onclick={onClear}>
+			<CanvasIconButton
+				id="clearButton"
+				testId="clear-button"
+				label="Clear"
+				onclick={actions.clear}
+			>
 				<Trash2 aria-hidden="true" />
 			</CanvasIconButton>
 		</div>
 		<div
 			class="canvas-container"
 			data-testid="canvas-container"
-			onpointerdown={onStartPan}
+			onpointerdown={pan.start}
 			tabindex="0"
 			aria-label="Canvas container for panning"
 			role="button"
-			style="transform: translate({panX}px, {panY}px) scale({zoomLevel});"
+			style="transform: translate({pan.panX}px, {pan.panY}px) scale({ui.zoomLevel});"
 		>
 			<canvas
 				id="glyphCanvas"
 				data-testid="glyph-canvas"
-				data-input-ready={inputReady}
-				bind:this={glyphCanvas}
-				class:locked={summary.canvasLocked}
+				data-input-ready={ui.inputReady}
+				bind:this={ui.glyphCanvas}
+				class:locked={recognition.summary.canvasLocked}
 				width="1000"
 				height="1000"
 			></canvas>
@@ -138,20 +103,20 @@ user actions through callback props.
 		<canvas
 			id="effectCanvas"
 			data-testid="effect-canvas"
-			bind:this={effectCanvas}
+			bind:this={ui.effectCanvas}
 			width="1000"
 			height="1000"
-			style="transform: scale({zoomLevel});"
+			style="transform: scale({ui.zoomLevel});"
 		></canvas>
 		<div class="zoom-controls" aria-label="Canvas zoom controls">
 			<CanvasIconButton
 				id="arrangeToggle"
 				testId="arrange-toggle"
 				buttonClass="tool-btn"
-				active={activeTool === 'arrange'}
-				pressed={activeTool === 'arrange'}
+				active={ui.activeTool === 'arrange'}
+				pressed={ui.activeTool === 'arrange'}
 				label="Arrange shapes"
-				onclick={onToggleArrange}
+				onclick={simulator.handleToggleArrange}
 			>
 				<Hand aria-hidden="true" />
 			</CanvasIconButton>
@@ -159,36 +124,36 @@ user actions through callback props.
 				id="eraserToggle"
 				testId="eraser-toggle"
 				buttonClass="tool-btn"
-				active={activeTool === 'erase'}
-				pressed={activeTool === 'erase'}
+				active={ui.activeTool === 'erase'}
+				pressed={ui.activeTool === 'erase'}
 				label="Eraser"
-				onclick={onToggleEraser}
+				onclick={simulator.handleToggleEraser}
 			>
 				<Eraser aria-hidden="true" />
 			</CanvasIconButton>
 			<CanvasIconButton
 				buttonClass="zoom-btn"
 				label="Zoom out"
-				disabled={zoomLevel <= zoomMin}
-				onclick={onZoomOut}
+				disabled={ui.zoomLevel <= ui.zoomMin}
+				onclick={ui.zoomOut}
 			>
 				<ZoomOut aria-hidden="true" />
 			</CanvasIconButton>
 			<CanvasIconButton
 				id="panToggle"
 				buttonClass="zoom-btn"
-				active={panEnabled}
-				pressed={panEnabled}
+				active={ui.panEnabled}
+				pressed={ui.panEnabled}
 				label="Pan"
-				onclick={onTogglePan}
+				onclick={simulator.handleTogglePan}
 			>
 				<Move aria-hidden="true" />
 			</CanvasIconButton>
 			<CanvasIconButton
 				buttonClass="zoom-btn"
 				label="Zoom in"
-				disabled={zoomLevel >= zoomMax}
-				onclick={onZoomIn}
+				disabled={ui.zoomLevel >= ui.zoomMax}
+				onclick={ui.zoomIn}
 			>
 				<ZoomIn aria-hidden="true" />
 			</CanvasIconButton>

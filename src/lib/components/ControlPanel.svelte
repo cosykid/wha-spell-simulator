@@ -1,19 +1,14 @@
 <script lang="ts">
-	import { meterLevel, meterPercent, type SpellSummary } from '$lib/ui/spellSummary.js';
+	import { meterLevel, meterPercent } from '$lib/ui/spellSummary.js';
+	import type { SimulatorSession } from '$lib/ui/simulator/simulator-session.svelte.js';
 
 	interface Props {
-		summary: SpellSummary;
-		showGuides?: boolean;
-		showDiagnostics?: boolean;
-		onToggleGuides?: () => void;
+		simulator: SimulatorSession;
 	}
 
-	let {
-		summary,
-		showGuides = $bindable(),
-		showDiagnostics = $bindable(),
-		onToggleGuides
-	}: Props = $props();
+	let { simulator }: Props = $props();
+	let ui = $derived(simulator.ui);
+	let summary = $derived(simulator.recognition.summary);
 
 	const meters = $derived([
 		{ label: 'Quality', value: summary.quality },
@@ -28,13 +23,13 @@
 			<input
 				type="checkbox"
 				id="guidesToggle"
-				bind:checked={showGuides}
-				onchange={onToggleGuides}
+				bind:checked={ui.showGuides}
+				onchange={simulator.handleToggleGuides}
 			/>
 			<span>Guides</span>
 		</label>
 		<label class="toggle">
-			<input type="checkbox" id="diagnosticsToggle" bind:checked={showDiagnostics} />
+			<input type="checkbox" id="diagnosticsToggle" bind:checked={ui.showDiagnostics} />
 			<span>Glyph Diagnostics</span>
 		</label>
 	</section>
