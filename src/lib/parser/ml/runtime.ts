@@ -13,6 +13,7 @@ function configureOrtRuntime(): void {
 		return;
 	}
 	ort.env.wasm.wasmPaths = '/onnxruntime/';
+	ort.env.logLevel = 'error';
 	ort.env.webgpu.powerPreference = 'high-performance';
 	ortConfigured = true;
 }
@@ -86,6 +87,7 @@ export async function loadRuntime(config: MlConfig): Promise<MlRuntime | null> {
 				ort.InferenceSession.create(config.modelUrl, {
 					executionProviders: providers,
 					graphOptimizationLevel: 'all',
+					logSeverityLevel: 3,
 					externalData: [
 						{
 							path: config.externalDataPath,

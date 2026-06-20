@@ -98,15 +98,20 @@ Dictionary-derived recognition examples are cached per dictionary object, and ca
 
 Scale and translation are invariant by construction: each candidate is cropped to its bounding box and normalized to a fixed margined square, both when rasterizing training data and when rendering for browser inference (`renderCandidateTensor`). A glyph drawn large or small, anywhere on the canvas, produces the same model input. Rotation is handled by training-time augmentation rather than preprocessing — see [Rotation Augmentation](#rotation-augmentation).
 
+The current deployed model uses 96x96 grayscale inputs. `CONFIG.recognition.ml.inputSize`, `default_image_transform(...)`, and the checkpoint's saved `--image-size` must agree; the training/export default is 96. Reducing the input from the previous 224px model is the main browser latency win.
+
 The training workflow in `models/training/run_glyph_training.sh` exports approved `labelled_samples` rows from Postgres, rasterizes them, trains the multi-head ResNet18 model, and exports the best checkpoint to:
 
 ```text
 static/models/
   glyph-recognizer.onnx
+  glyph-recognizer.onnx.data
   glyph-class-to-idx.json
 ```
 
-The browser hybrid recognizer lives in `src/lib/parser/mlRecognizer.ts` and runs through `onnxruntime-web` when the model files are available. Template recognition still runs first. The ML result can:
+`export_onnx.py` writes the deployed graph as an FP16-converted ONNX model with float32 inputs and outputs (`keep_io_types=True`), so browser tensors remain `Float32Array`. Weights live in the external-data sidecar. Export validates a 3-image dynamic-batch run with `onnxruntime` and compares class argmax against the torch model on real validation rasters; if FP16 parity falls below the configured threshold, export overwrites the deployment with FP32 instead.
+
+The browser hybrid recognizer lives under `src/lib/parser/ml/` and runs through `onnxruntime-web` when the model files are available. It asks for WebGPU first and falls back to WASM. Template recognition still runs first. The ML result can:
 
 - reinforce a matching template result when the model is more confident;
 - accept a template-unknown candidate when the template verifier still sees glyph-like evidence;
@@ -115,6 +120,8 @@ The browser hybrid recognizer lives in `src/lib/parser/mlRecognizer.ts` and runs
 - fall back to template-only recognition if model loading or inference fails.
 
 This keeps the learned model in charge for clear hand-drawn glyphs while using template geometry, layer constraints, and contamination checks to avoid accepting ordinary closed-set guesses for random ink.
+
+The runtime also batches ML work when the exported graph supports dynamic batch dimensions. Canonical pose calibration for all dictionary glyphs runs as one batched inference per loaded model, and multiple candidate tensors are packed into one `session.run(...)`. If a batched call fails, the runtime disables batching for that session and retries candidate inference one at a time.
 
 ## Rotation Augmentation
 
@@ -128,7 +135,7 @@ Rotation augmentation transforms the pose targets with the image so the regressi
 
 The pose head predicts a glyph's _absolute_ orientation, so an upright glyph already carries its own intrinsic axis angle (a vertical `column` reads ~270°, not 0°) and no single constant offset can zero every class. The recognizer therefore calibrates per glyph: once per model load it runs each glyph's own upright dictionary template through the pose head, caches that angle, and subtracts it. `rotationOffsetDeg` then reads ~0° when a glyph is drawn in its example orientation and grows as it is turned from there, sourced from the calibrated ML pose head when ML recognizes the glyph and from the template matcher's winning rotation otherwise. It is display/diagnostic only and does not feed spell compilation.
 
-Because gating reads the dictionary, changing a glyph's `recognitionRotationInvariant` or `allowedRotationsDeg` automatically changes its augmentation on the next training run with no code change. `models/training/test_rotation_policy.py` covers the pose-target math (full-turn identity, round-trip, the 90° mapping, the clockwise-positive angle sign) and policy loading. After training, `train_multitask.py` prints a per-class angle-error table over the un-augmented validation split and flags any class whose mean signed error exceeds 20°; a large per-class bias is the signature of a pose miscalibration (such as a wrong augmentation sign), so a retrain surfaces it immediately.
+Because gating reads the dictionary, changing a glyph's `recognitionRotationInvariant` or `allowedRotationsDeg` automatically changes its augmentation on the next training run with no code change. `models/training/test_rotation_policy.py` covers the pose-target math (full-turn identity, round-trip, the 90° mapping, the clockwise-positive angle sign) and policy loading. After training, `train_multitask.py` prints a per-class angle-error table over the un-augmented validation split with mean signed bias, mean absolute error, resultant `R`, and count. A class is flagged only when mean signed bias exceeds 20° and `R >= 0.6`, which means the errors are tightly clustered enough for the bias to be meaningful. Rotation-symmetric glyphs often have large absolute angle error but low `R`; those are diagnostic noise, not recognition failures. `rotationOffsetDeg` remains display-only and does not feed spell compilation.
 
 ## Parallel Recognition
 
@@ -137,6 +144,7 @@ Final candidate recognition is the dominant cost once candidates are grouped, an
 - The pool sizes itself to `min(8, hardwareConcurrency - 1)` module workers.
 - Each worker (`src/lib/parser/recognitionWorker.ts`) is initialized once per dictionary, so its example caches warm up and persist across the candidates it scores.
 - Candidates are dispatched independently and reassembled in their original order.
+- ML inference then runs over the chosen candidates in one dynamic batch when possible, with a single-candidate fallback for older or broken exports.
 
 The pool degrades to the synchronous `recognizeCandidates(...)` when `Worker` is unavailable (server or test runtime), when there is at most one candidate, or when a worker errors. Output remains compatible either way, so `classifyDrawing(...)` stays correct for tests and server use while the browser UI uses `classifyDrawingAsync(...)`. The no-ring guide preview and prepared-ring paths still use cheap grouping first, then send final candidate recognition through the same async path when useful. The UI guards overlapping recomputes with a sequence token so only the newest result is applied, and disposes the pool when the parser view unmounts.
 
@@ -190,7 +198,7 @@ The ML model is trained from labelled handwriting samples captured by the Sample
 
 ## Storage
 
-Runtime recognition does not query the database. The browser loads the static ONNX model and class map from `static/models/` when available, and the template recognizer derives `RecognitionExample` values from the in-repo dictionary at runtime.
+Runtime recognition does not query the database. The browser loads the static ONNX model, external-data sidecar, and class map from `static/models/` when available, and the template recognizer derives `RecognitionExample` values from the in-repo dictionary at runtime.
 
 The browser parser modules stay pure and server-portable. They do not import Neon or browser-only APIs.
 

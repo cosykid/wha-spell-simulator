@@ -20,7 +20,7 @@ The app lets users draw or arrange spell circles on a canvas, then converts thos
 - Lets you draw spell diagrams on a paper-like canvas.
 - Lets you place ring, sigil, and sign shapes from a palette, then move, scale, elongate, and rotate them instead of drawing each one by hand.
 - Detects one enclosing ring and distinguishes prepared versus active spells.
-- Recognizes glyphs with a hybrid browser pipeline: a template matcher provides geometric verification, while an ONNX-exported multi-head ResNet18 model classifies symbols and estimates angle, scale, and position.
+- Recognizes glyphs with a hybrid browser pipeline: a template matcher provides geometric verification, while a 96px FP16 ONNX-exported multi-head ResNet18 model classifies symbols and estimates angle, scale, and position.
 - Trains the ResNet18 recognizer from more than 8,000 hand-drawn labelled samples collected with the Sample Maker tool and stored in Postgres (accurate as of June 16, 2026).
 - Recognizes signs that modify direction, levitation, convergence, force, spread, focus, range, duration, and stability.
 - Produces parser diagnostics, `GlyphAST`, and `SpellIR` output for inspection, including tentative glyph labels while symbols are still being drawn.
@@ -127,11 +127,18 @@ npm test
 ## Optional Storage
 
 Runtime recognition does not need a live database. The browser loads static
-model files from `static/models/` when available and falls back to in-repo
-dictionary templates if the ONNX model cannot run. Neon Postgres is used to
-persist the by-eye **labelled handwriting samples** collected by the Sample
-Maker tool (see the Labelled Samples API below). Those samples feed the
-PyTorch training pipeline that exports the browser recognizer.
+model files from `static/models/` when available:
+
+- `glyph-recognizer.onnx`
+- `glyph-recognizer.onnx.data`
+- `glyph-class-to-idx.json`
+
+The ONNX graph and external-data sidecar are produced by the PyTorch export
+pipeline and served from `/models/`. If the ONNX runtime, graph, sidecar, or
+class map cannot load, recognition falls back to in-repo dictionary templates.
+Neon Postgres is used to persist the by-eye **labelled handwriting samples**
+collected by the Sample Maker tool (see the Labelled Samples API below). Those
+samples feed the PyTorch training pipeline that exports the browser recognizer.
 
 As of June 16, 2026, the labelled dataset contains more than 8,000 hand-drawn
 glyph samples.

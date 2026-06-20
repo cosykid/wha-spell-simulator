@@ -1,6 +1,6 @@
 import * as ort from 'onnxruntime-web/webgpu';
 import { candidateContentKey, scopedLruCache } from '../recognitionMemo.js';
-import type { Dictionary, SymbolCandidate, TopMatch } from '../../types.js';
+import type { Dictionary, DictionaryEntry, SymbolCandidate, TopMatch } from '../../types.js';
 import { debugLog, describeError } from './config.js';
 import { dictionaryEntry } from './dictionary.js';
 import {
@@ -112,25 +112,78 @@ function predictionFromOutputs(
 	};
 }
 
-async function canonicalAngleForEntry(
-	entry: NonNullable<MlPrediction['entry']>,
-	runtime: MlRuntime,
-	config: MlConfig
-): Promise<number | null> {
-	const candidate = canonicalCandidateFromEntry(entry);
-	if (!candidate) {
-		return null;
-	}
-	const input = renderCandidateTensor(candidate, config);
-	const inputName = runtime.session.inputNames[0];
-	const results = await runtime.session.run({
-		[inputName]: new ort.Tensor('float32', input, [1, 1, config.inputSize, config.inputSize])
-	});
-	const angle = outputTensor(results, ['angle'], 1).data as Float32Array;
-	return Math.atan2(angle[0] ?? 0, angle[1] ?? 1) * (180 / Math.PI);
+function angleDegFromRow(angle: Float32Array, row: number): number {
+	const offset = row * 2;
+	return Math.atan2(angle[offset] ?? 0, angle[offset + 1] ?? 1) * (180 / Math.PI);
 }
 
-/** Computes canonical glyph pose offsets once per loaded runtime. */
+interface RenderedEntry {
+	entry: DictionaryEntry;
+	input: Float32Array;
+}
+
+function renderCanonicalEntries(entries: DictionaryEntry[], config: MlConfig): RenderedEntry[] {
+	const rendered: RenderedEntry[] = [];
+	for (const entry of entries) {
+		const candidate = canonicalCandidateFromEntry(entry);
+		if (candidate) {
+			rendered.push({ entry, input: renderCandidateTensor(candidate, config) });
+		}
+	}
+	return rendered;
+}
+
+/** Calibrates every glyph's canonical pose angle in one batched inference. */
+async function canonicalAnglesBatched(
+	rendered: RenderedEntry[],
+	runtime: MlRuntime,
+	config: MlConfig
+): Promise<Map<string, number>> {
+	const angles = new Map<string, number>();
+	if (!rendered.length) {
+		return angles;
+	}
+	const pixels = config.inputSize * config.inputSize;
+	const batch = new Float32Array(rendered.length * pixels);
+	rendered.forEach((item, index) => batch.set(item.input, index * pixels));
+
+	const inputName = runtime.session.inputNames[0];
+	const results = await runtime.session.run({
+		[inputName]: new ort.Tensor('float32', batch, [
+			rendered.length,
+			1,
+			config.inputSize,
+			config.inputSize
+		])
+	});
+	const angle = outputTensor(results, ['angle'], 1).data as Float32Array;
+	rendered.forEach((item, index) => angles.set(item.entry.id, angleDegFromRow(angle, index)));
+	return angles;
+}
+
+/** Per-glyph fallback used when batched calibration fails (for example a fixed-batch model). */
+async function canonicalAnglesPerEntry(
+	rendered: RenderedEntry[],
+	runtime: MlRuntime,
+	config: MlConfig
+): Promise<Map<string, number>> {
+	const angles = new Map<string, number>();
+	const inputName = runtime.session.inputNames[0];
+	for (const { entry, input } of rendered) {
+		try {
+			const results = await runtime.session.run({
+				[inputName]: new ort.Tensor('float32', input, [1, 1, config.inputSize, config.inputSize])
+			});
+			const angle = outputTensor(results, ['angle'], 1).data as Float32Array;
+			angles.set(entry.id, angleDegFromRow(angle, 0));
+		} catch (error) {
+			debugLog(config, 'canonical angle failed', { id: entry.id, error: describeError(error) });
+		}
+	}
+	return angles;
+}
+
+/** Computes canonical glyph pose offsets once per loaded runtime, batched in one inference. */
 export function ensureCanonicalAngles(
 	dictionary: Dictionary,
 	runtime: MlRuntime,
@@ -138,16 +191,15 @@ export function ensureCanonicalAngles(
 ): Promise<Map<string, number>> {
 	if (!runtime.canonicalAnglesPromise) {
 		runtime.canonicalAnglesPromise = (async () => {
-			const angles = new Map<string, number>();
-			for (const entry of [...dictionary.sigils, ...dictionary.signs]) {
-				try {
-					const angle = await canonicalAngleForEntry(entry, runtime, config);
-					if (angle !== null) {
-						angles.set(entry.id, angle);
-					}
-				} catch (error) {
-					debugLog(config, 'canonical angle failed', { id: entry.id, error: describeError(error) });
-				}
+			const rendered = renderCanonicalEntries([...dictionary.sigils, ...dictionary.signs], config);
+			let angles: Map<string, number>;
+			try {
+				angles = await canonicalAnglesBatched(rendered, runtime, config);
+			} catch (error) {
+				debugLog(config, 'batched canonical angles failed; using per-entry', {
+					error: describeError(error)
+				});
+				angles = await canonicalAnglesPerEntry(rendered, runtime, config);
 			}
 			debugLog(config, 'canonical angles ready', { count: angles.size });
 			return angles;

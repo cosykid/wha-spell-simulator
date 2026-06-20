@@ -29,7 +29,7 @@ class GlyphTargets:
     center: torch.Tensor
 
 
-def default_image_transform(image_size: int = 224):
+def default_image_transform(image_size: int = 96):
     return transforms.Compose(
         [
             transforms.Grayscale(num_output_channels=1),

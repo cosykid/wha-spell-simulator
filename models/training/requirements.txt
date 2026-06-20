@@ -3,4 +3,6 @@ torchvision
 pillow
 onnx
 onnxscript
+onnxconverter_common
+onnxruntime
 certifi

@@ -42,20 +42,18 @@ export function isStrokeEntity(entity: { id: string }): entity is StrokeEntity {
 
 ### Avoid: the god-file
 
-These files have grown past the point where anyone can keep them in their head:
+Current files to keep an eye on:
 
-| File                                                                          | Lines | What it mixes                                                                                             |
-| ----------------------------------------------------------------------------- | ----- | --------------------------------------------------------------------------------------------------------- |
-| [`src/routes/+page.svelte`](../src/routes/+page.svelte)                       | 1277  | pan, zoom, undo/redo, shape-drag, eraser, recompute pipeline, diagnostics, prefs, keyboard, full template |
-| [`src/lib/parser/mlRecognizer.ts`](../src/lib/parser/mlRecognizer.ts)         | 1082  | 37 functions behind 6 exports                                                                             |
-| [`src/lib/parser/symbolRecognizer.ts`](../src/lib/parser/symbolRecognizer.ts) | 1046  | 28 functions behind 3 exports                                                                             |
+| File                                                                                                        | Lines | Why it is risky                                                                                    |
+| ----------------------------------------------------------------------------------------------------------- | ----- | -------------------------------------------------------------------------------------------------- |
+| [`src/lib/ui/canvas/tools/selectTool.svelte.ts`](../src/lib/ui/canvas/tools/selectTool.svelte.ts)           | ~550  | many pointer gestures and transform cases                                                          |
+| [`src/lib/renderer/effects/waterEffect.ts`](../src/lib/renderer/effects/waterEffect.ts)                     | ~550  | effect-specific particles, drawing, and tuning live together                                       |
+| [`src/lib/ui/simulator/placement-behavior.svelte.ts`](../src/lib/ui/simulator/placement-behavior.svelte.ts) | ~420  | move, scale, elongate, rotate, select, and armed-placement behavior share one interaction strategy |
 
-A useful tell: in `symbolRecognizer.ts`, **28 functions hide behind 3 exports.**
-The other 25 are implementation detail that the file's reader has to wade
-through to find the 3 that matter. That ratio is the signal to split. Group the
-private helpers by what they serve (for example template scoring, region
-heuristics, feature extraction) and move each group to its own file with its own
-small public surface.
+A useful tell is a long file with only a tiny public surface. If a file has a
+few exports but dozens of private helpers, the reader still has to wade through
+all the helpers to understand the exports. Group private helpers by what they
+serve and move each group to its own file with its own small public surface.
 
 ### How to split
 
@@ -114,35 +112,43 @@ The architecture is legible from three files you can read in five minutes total:
 You can answer "how does undo work here?" without reading a single line of
 rendering code, because the concepts are separated and each is named.
 
-### Avoid: the entry point that buries the architecture
+### Good: the simulator route is now a table of contents
 
-Open [`src/routes/+page.svelte`](../src/routes/+page.svelte) and the first ~800
-lines are imperative machinery: `startPan`/`handlePanMove`/`endPan`,
-`pushHistory`/`scaleSnapshot`/`restore`, `beginShapeDrag`/`handleShapeDragMove`,
-eraser wiring, the recompute sequence guard. The page's actual structure (a
-header, a control panel, a canvas, a dictionary sidebar) doesn't appear until
-the template at line ~988, and even there it's interleaved with hundreds of
-lines of hand-inlined SVG icon paths.
+[`src/routes/+page.svelte`](../src/routes/+page.svelte) is the current target
+shape: a short route shell that creates one `SimulatorSession`, mounts it, and
+renders named components:
 
-A reader who just wants to know "what is on this page and how do the parts fit
-together" has to scroll past everything to find out. The fix is to make the file
-read like its own outline:
+```svelte
+<Header />
+<ControlPanel {simulator} />
+<SimulatorCanvasPanel {simulator} />
+<SimulatorSidebar {simulator} />
+```
 
-- Lift each self-contained behaviour into a module or hook: **pan/zoom**,
-  **undo/redo history**, **shape drag-and-drop**, **diagnostics assembly**,
-  **toggle-preference persistence**. The page _coordinates_ them. It shouldn't
-  _contain_ them.
-- Extract repeated inline SVG icons (undo, redo, clear, arrange, eraser, pan)
-  into small icon components. The template should show _what_ each button is,
-  not 8 lines of `<path d="...">`.
-- The goal: a `+page.svelte` whose script is mostly wiring and whose template
-  reads as `<Header/> <ControlPanel/> <CanvasPanel/> <DictionarySidebar/>`.
+The old route used to bury pan, zoom, undo/redo, shape drag, eraser,
+recognition, diagnostics, preferences, keyboard handling, and the full template
+in one file. That work now lives behind named modules:
 
-> **Note: the simulator is migrating onto the shared Canvas API.** The main glyph
-> canvas now renders through [`src/lib/ui/canvas/`](../src/lib/ui/canvas/) scenes,
-> entities, and behaviors, while the separate spell-effect canvas remains a
-> bespoke renderer. New glyph-canvas work should use the entity model and keep
-> recognition/parser inputs as `Stroke[]`.
+- [`simulator-session.svelte.ts`](../src/lib/ui/simulator/simulator-session.svelte.ts)
+  assembles the subsystem objects.
+- [`simulator-runtime.svelte.ts`](../src/lib/ui/simulator/simulator-runtime.svelte.ts)
+  owns mounted DOM services, global listeners, resize, keyboard, and effect
+  rendering.
+- [`drawing-state.svelte.ts`](../src/lib/ui/simulator/drawing-state.svelte.ts)
+  owns strokes, editable placements, selection, and history.
+- [`recognition-pipeline.svelte.ts`](../src/lib/ui/simulator/recognition-pipeline.svelte.ts)
+  owns dictionary loading, stroke snapshots, recompute scheduling, diagnostics,
+  and summary state.
+- [`glyph-scene.svelte.ts`](../src/lib/ui/simulator/glyph-scene.svelte.ts)
+  builds the Canvas API scene for the main glyph canvas.
+- [`placement-behavior.svelte.ts`](../src/lib/ui/simulator/placement-behavior.svelte.ts)
+  handles arrange-mode placement input.
+
+> **Canvas boundary:** the main glyph canvas renders through
+> [`src/lib/ui/canvas/`](../src/lib/ui/canvas/) scenes, entities, and behaviors.
+> The separate spell-effect canvas remains a bespoke renderer. Recognition,
+> parser, and ML inputs stay `Stroke[]`; editable placements are baked with
+> `bakePlacementToStrokes(...)` only when recognition recomputes.
 
 ---
 
@@ -172,22 +178,20 @@ one chunk of the template (plus that chunk's handlers), that chunk wants to be a
 component, and the state should move _into_ it, shrinking the parent's script
 and template at once.
 
-[`src/routes/+page.svelte`](../src/routes/+page.svelte) is the worked example.
-Its ~30 top-level reactive variables are not all page-level concerns. Several
-are local clusters hiding in the global scope:
+The simulator split is the worked example. Its state is grouped by where it is
+read:
 
-| Cluster           | State that serves only it                                                           | Markup it drives                                                     |
-| ----------------- | ----------------------------------------------------------------------------------- | -------------------------------------------------------------------- |
-| **Drag preview**  | `dragPreview`, `shapeDragPointerId`, `draggedShape` + `shapePreviewPoints()`        | the `{#if dragPreview}` overlay at the bottom                        |
-| **Zoom controls** | `zoomLevel` + `handleZoomIn/Out`, `ZOOM_*` constants                                | the `<div class="zoom-controls">` buttons + the `scale()` transforms |
-| **Pan**           | `panEnabled`, `panX/Y`, the four `panStart*` vars + `startPan/handlePanMove/endPan` | the `canvas-container` pointer handlers + pan toggle                 |
+| Cluster            | Owner                                                                              | What reads it                                             |
+| ------------------ | ---------------------------------------------------------------------------------- | --------------------------------------------------------- |
+| **Drag preview**   | [`ShapeDragController`](../src/lib/ui/simulator/shape-drag-controller.svelte.ts)   | `<ShapeDragOverlay>` in the route shell                   |
+| **Zoom/pan/mode**  | [`SimulatorUiState`](../src/lib/ui/simulator/ui-state.svelte.ts) + `PanController` | `<SimulatorCanvasPanel>` controls and canvas transforms   |
+| **Drawing model**  | [`SimulatorDrawingState`](../src/lib/ui/simulator/drawing-state.svelte.ts)         | recognition, glyph scene, sidebar inspector, undo/redo    |
+| **Recognition**    | [`RecognitionPipeline`](../src/lib/ui/simulator/recognition-pipeline.svelte.ts)    | control panel, diagnostics, glyph scene overlays          |
+| **Canvas runtime** | [`SimulatorRuntime`](../src/lib/ui/simulator/simulator-runtime.svelte.ts)          | the session facade and mounted canvas/effect DOM services |
 
-The drag-preview cluster is the textbook case: a piece of state, a helper that
-only it calls, and a block of markup nobody else touches. That is a
-`<ShapeDragOverlay>` component, and lifting it deletes four things from the page
-at once. (Pan is a partial case: extracting it surfaces that `panEnabled` is
-also read by `setTool` and the cursor effect. That's a feature. The extraction
-shows you exactly where the real coupling is, instead of letting it hide.)
+When adding simulator state, put it in the owner that matches its readers. If it
+is only visual, it probably belongs near a component or Canvas entity. If it
+changes parser input, it belongs in the drawing or recognition state.
 
 ### Keep the tree shallow and the boundaries clean
 
@@ -217,9 +221,10 @@ global sheet.
 
 ### Good: a clear split
 
-The top of [`src/lib/styles/styles.css`](../src/lib/styles/styles.css) is exactly
-what global CSS should hold: the `:root` design tokens and the reset, the things
-every component legitimately shares:
+[`src/lib/styles/tokens.css`](../src/lib/styles/tokens.css) and
+[`src/lib/styles/base.css`](../src/lib/styles/base.css) hold what global CSS
+should hold: design tokens, reset rules, and base element styling that every
+component legitimately shares:
 
 ```css
 :root {
@@ -247,23 +252,22 @@ those tokens:
 
 `.canvas-surface` can't collide with anything. It exists only where it's used.
 
-### Avoid: page styles in the global sheet
+### Avoid: component styles in global files
 
-[`src/routes/+page.svelte`](../src/routes/+page.svelte) has **no `<style>` block
-at all.** Every class it uses (`canvas-shell`, `zoom-controls`, `workspace`,
-`canvas-hint`, and so on) is declared in the 1500-line global
-[`styles.css`](../src/lib/styles/styles.css). The cost:
+The simulator used to keep page-specific selectors such as `canvas-shell`,
+`zoom-controls`, `workspace`, and `canvas-hint` in one giant global stylesheet.
+That made every UI edit feel risky:
 
 - To understand or tweak the canvas panel you read its markup in one file and
-  hunt its styles in a 1500-line file 20 directories away.
+  hunted its styles in another file 20 directories away.
 - `zoom-controls` is global, so touching it _could_ affect anything. You have to
   prove it doesn't before you change it.
 - When the page's UI is split into components (Rules 1-3), the CSS doesn't come
   along, so the global sheet just keeps growing.
 
 The fix tracks the component split: as each section of `+page.svelte` becomes a
-component, move its rules out of `styles.css` into that component's `<style>`,
-and leave behind only the tokens and reset.
+component, move its rules into that component's `<style>`, and leave behind only
+tokens, reset, base, or genuinely shared layout/reference styles.
 
 ### Rules of thumb
 
@@ -271,8 +275,8 @@ and leave behind only the tokens and reset.
   component, so you rarely need `:global(...)`. Reach for `:global` only
   deliberately, and leave a comment saying why.
 - **A class used in exactly one component's markup belongs in that component.**
-  If you're adding a selector to `styles.css`, ask "is this genuinely shared, or
-  am I just putting it where the old code did?"
+  If you're adding a selector to `src/lib/styles/`, ask "is this genuinely
+  shared, or am I just putting it where the old code did?"
 - **Share through tokens, not shared classes.** Need a consistent color, gap, or
   radius? Use a `var(--token)`, not a global utility class copied across pages.
 
@@ -352,15 +356,29 @@ const tool = $derived<CanvasBehavior>(mode === 'draw' ? draw : select);
 <Canvas {scene} controller={tool} />
 ```
 
-### Why this beats the imperative alternative
+### Simulator canvas contracts
 
-The counter-example is, again, [`src/routes/+page.svelte`](../src/routes/+page.svelte).
-It orchestrates undo/redo history, rendering, _and_ the animation loop in one
-file, so every part is wired directly to every other. To add a feature you must
-first understand the whole thing, and the odds of breaking something unrelated
-climb with each line. With the contracts above, a new feature is a new `Entity`,
-`Command`, or `CanvasBehavior`, written and understood on its own, leaving the
-shared machinery untouched.
+The simulator now follows the Canvas API split, with one important compatibility
+rule:
+
+- **Rendering:** the glyph canvas is a `Scene` built in
+  [`glyph-scene.svelte.ts`](../src/lib/ui/simulator/glyph-scene.svelte.ts).
+  Paper, guides, freehand ink, placements, debug overlays, selection handles,
+  and activation glow are entity layers.
+- **Input:** freehand drawing and erasing still commit to the stroke store.
+  Arrange-mode placement editing is a `CanvasBehavior` in
+  [`placement-behavior.svelte.ts`](../src/lib/ui/simulator/placement-behavior.svelte.ts).
+- **Recognition:** the parser and ML model consume `Stroke[]`. Editable
+  placements are Canvas entities for live rendering, but recognition sees them
+  only after `bakePlacementToStrokes(...)` creates temporary strokes.
+- **Ordering:** rings render below sigils and signs via
+  [`placement-order.ts`](../src/lib/ui/simulator/placement-order.ts), and
+  hit-testing reverses the same order so symbols inside a ring win the click.
+
+This is why the branch can add lines while still being a refactor: the old
+implicit coupling is now explicit contracts. A new visual is an `Entity`; a new
+interaction mode is a `CanvasBehavior`; a recognition change remains a
+`Stroke[]` pipeline change.
 
 ### Reach for a pattern when it earns its keep
 
@@ -545,17 +563,14 @@ and let everything else follow from it automatically.
   build optimistic UI: derive from the source of truth, bump the value locally
   for instant feedback, then let the next dependency change reconcile it.
 
-Good: `const tool = $derived(mode === 'draw' ? draw : select)` in the
-[Canvas usage](../src/lib/ui/canvas/Canvas.svelte#L20).
+Good: `activeTool = $derived(toolForMode(this.canvasMode))` in
+[`ui-state.svelte.ts`](../src/lib/ui/simulator/ui-state.svelte.ts). The active
+tool is a pure view of `canvasMode`, so it never needs manual sync.
 
 Avoid: a value kept in sync by hand. The tell is calling the same
-compute-and-assign after every mutation. In
-[`+page.svelte`](../src/routes/+page.svelte), `summary` is a `$state` reassigned
-through `computeSummary(...)` in five different handlers. The deeper smell is that
-its inputs (the pipeline, the stroke store) are imperative variables rather than
-`$state`, which is what forces the manual resync. When you catch yourself
-re-running a function to keep a variable current, that variable wants to be a
-`$derived` and its inputs want to be `$state`.
+compute-and-assign after every mutation. When you catch yourself re-running a
+function to keep a variable current, that variable wants to be a `$derived` and
+its inputs want to be `$state`.
 
 ---
 
@@ -568,8 +583,8 @@ browser.
 
 - **Push complex logic out of components into pure modules.** The hard parts of
   this app already live this way: recognition
-  ([`symbolRecognizer.ts`](../src/lib/parser/symbolRecognizer.ts),
-  [`ringDetector.ts`](../src/lib/parser/ringDetector.ts)), compilation
+  ([`recognizeCandidates.ts`](../src/lib/parser/recognition/recognizeCandidates.ts),
+  [`detectRing.ts`](../src/lib/parser/rings/detectRing.ts)), compilation
   ([`spellBuilder.ts`](../src/lib/compiler/spellBuilder.ts),
   [`semanticRules.ts`](../src/lib/compiler/semanticRules.ts)), and geometry
   ([`geometry.ts`](../src/lib/utils/geometry.ts)) are pure transforms. That is
@@ -598,7 +613,7 @@ serve the core rule. Copy them.
 
 Numbers get names at the top of the file: `INK_LINE_WIDTH`, `COMMITTED_ALPHA`
 (`strokeEntity.ts`), `RECOGNITION_AMBIGUITY_GAP`, `SIMPLE_SIGN_STROKE_LIMIT`
-(`symbolRecognizer.ts`). A named constant tells the next reader what a magic
+(`recognizeCandidates.ts`). A named constant tells the next reader what a magic
 number _means_. An inline `0.94` makes them guess.
 
 ### One source of truth
@@ -626,7 +641,7 @@ Before you open a PR, skim your diff against these:
 - [ ] No cluster of `$state`/`$derived` is used only by one chunk of the
       template. If one is, that chunk is a component.
 - [ ] Component/page styles live in a scoped `<style>`, not the global sheet.
-      `styles.css` got only tokens or a genuinely shared rule.
+      `src/lib/styles/` got only tokens, base rules, or a genuinely shared rule.
 - [ ] A new feature was added by implementing a small contract (`Entity`,
       `Command`, `CanvasBehavior`, and so on), not by editing shared machinery.
       Any new abstraction earns its keep with a real second case.
