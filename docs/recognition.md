@@ -106,7 +106,7 @@ static/models/
   glyph-class-to-idx.json
 ```
 
-The browser hybrid recognizer lives in `src/lib/parser/mlRecognizer.ts` and runs through `onnxruntime-web` when the model files are available. Template recognition still runs first. The ML result can:
+The browser hybrid recognizer lives under `src/lib/parser/ml/` and runs through `onnxruntime-web` when the model files are available. Template recognition still runs first. The ML result can:
 
 - reinforce a matching template result when the model is more confident;
 - accept a template-unknown candidate when the template verifier still sees glyph-like evidence;
