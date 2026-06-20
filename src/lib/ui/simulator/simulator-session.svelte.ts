@@ -71,6 +71,21 @@ export class SimulatorSession {
 		return this.#runtime!.mount();
 	}
 
+	/** Canvas API controller used by the main glyph canvas. */
+	get canvasController() {
+		return this.#runtime!.canvasBehavior;
+	}
+
+	/** Canvas API scene used by the main glyph canvas. */
+	get glyphScene() {
+		return this.#runtime!.glyphScene;
+	}
+
+	/** Frame callback used by the glyph canvas loop to drive the separate effect canvas. */
+	renderCanvasFrame = (ctx: CanvasRenderingContext2D, timestamp: number) => {
+		this.#runtime?.renderCanvasFrame(ctx, timestamp);
+	};
+
 	/** Refreshes summary state after guide visibility changes. */
 	handleToggleGuides = () => {
 		this.recognition.refreshSummary();

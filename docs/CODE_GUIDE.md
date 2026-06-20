@@ -138,11 +138,11 @@ read like its own outline:
 - The goal: a `+page.svelte` whose script is mostly wiring and whose template
   reads as `<Header/> <ControlPanel/> <CanvasPanel/> <DictionarySidebar/>`.
 
-> **Note: there are two canvas systems in this repo.** The main route still
-> drives the canvas imperatively through `CanvasRenderer` + raw
-> `glyphCanvas`/`effectCanvas`, while [`src/lib/ui/canvas/`](../src/lib/ui/canvas/)
-> is the cleaner entity/scene/tool model the tools were built on. New canvas
-> work should move toward the entity model, not extend the imperative one.
+> **Note: the simulator is migrating onto the shared Canvas API.** The main glyph
+> canvas now renders through [`src/lib/ui/canvas/`](../src/lib/ui/canvas/) scenes,
+> entities, and behaviors, while the separate spell-effect canvas remains a
+> bespoke renderer. New glyph-canvas work should use the entity model and keep
+> recognition/parser inputs as `Stroke[]`.
 
 ---
 

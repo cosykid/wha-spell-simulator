@@ -1,15 +1,20 @@
 import { CONFIG } from '$lib/config.js';
 import { emitMlDebug, ML_DEBUG_BUILD_ID } from '$lib/debug/mlDebug.js';
+import { SpellEffectRenderer } from '$lib/renderer/spellEffectRenderer.js';
+import type { CanvasBehavior } from '$lib/ui/canvas/canvasBehavior.js';
+import type { Scene } from '$lib/ui/canvas/scene.svelte.js';
+import type { Attachment } from 'svelte/attachments';
 import { CanvasSizingController } from './canvas-sizing-controller.js';
 import type { SimulatorDrawingActions } from './drawing-actions.js';
 import type { SimulatorDrawingState } from './drawing-state.svelte.js';
 import { eraserCursorCss } from './eraserCursor.js';
+import { createSimulatorGlyphScene } from './glyph-scene.svelte.js';
 import { SimulatorInputControllers } from './input-controllers.js';
 import { createSimulatorKeyboardHandler } from './keyboard.js';
 import { locksFreehandInput, type CanvasMode, type CanvasTool } from './mode.js';
 import type { PanController } from './pan-controller.svelte.js';
+import { createSimulatorPlacementBehavior } from './placement-behavior.svelte.js';
 import type { RecognitionPipeline } from './recognition-pipeline.svelte.js';
-import { SimulatorRenderLoop } from './render-loop.js';
 import type { ShapeDragController } from './shape-drag-controller.svelte.js';
 import type { SimulatorUiState } from './ui-state.svelte.js';
 
@@ -33,18 +38,58 @@ interface SimulatorRuntimeOptions {
 export class SimulatorRuntime {
 	#input: SimulatorInputControllers | null = null;
 	#sizing: CanvasSizingController | null = null;
-	#renderLoop: SimulatorRenderLoop | null = null;
+	#effectRenderer: SpellEffectRenderer | null = null;
+	#rendererEffectCanvas: HTMLCanvasElement | null = null;
 	#keyboardHandler: ((event: KeyboardEvent) => void) | null = null;
+	#attachedGlyphCanvas: HTMLCanvasElement | null = null;
+	#pendingGlyphDetach: object | null = null;
+	#captureReady = false;
 	readonly #options: SimulatorRuntimeOptions;
+	readonly #canvasBehavior: CanvasBehavior;
+	readonly #placementBehavior: CanvasBehavior & { setActive(active: boolean): void };
+	readonly #glyphScene: Scene;
 
 	constructor(options: SimulatorRuntimeOptions) {
 		this.#options = options;
+		this.#glyphScene = createSimulatorGlyphScene({
+			config: CONFIG,
+			drawing: options.drawing,
+			recognition: options.recognition,
+			ui: options.ui,
+			currentStroke: () => this.#input?.currentStroke() ?? null
+		});
+		this.#placementBehavior = createSimulatorPlacementBehavior({
+			placements: options.drawing.placements,
+			placementEntities: () => options.drawing.renderPlacementEntities(),
+			getSelectedId: () => options.drawing.selectedPlacementId,
+			setSelectedId: options.drawing.setSelected,
+			hasArmedShape: () => options.shapeDrag.hasArmedShape(),
+			placeArmedShape: options.shapeDrag.placeArmedShape,
+			onChange: () => {
+				if (options.drawing.selectedPlacementId) {
+					options.drawing.setSelected(options.drawing.selectedPlacementId);
+				}
+			},
+			onInteractionEnd: () => {
+				options.actions.pushHistory();
+				void options.recognition.recompute();
+			}
+		});
+		this.#canvasBehavior = {
+			attach: this.#attachCanvasBehaviors
+		};
 
+		// Keep the placement behavior's active state derived from `canvasMode` so it
+		// stays correct no matter how the mode changed. Setting it only inside
+		// `setCanvasMode` missed mode switches that bypass it (e.g. a persisted
+		// `arrange` preference applied during `loadPreferences`), leaving arrange
+		// mode visually active but its pointer handlers disabled.
 		$effect(() => {
 			void this.#options.ui.zoomLevel;
 			void this.#options.ui.canvasMode;
 			void this.#options.recognition.summary.canvasLocked;
 
+			this.#placementBehavior.setActive(this.#options.ui.canvasMode === 'arrange');
 			this.setCaptureLocked(
 				locksFreehandInput(
 					this.#options.ui.canvasMode,
@@ -53,6 +98,16 @@ export class SimulatorRuntime {
 			);
 			this.#updateCanvasCursor();
 		});
+	}
+
+	/** Canvas API behavior that wires simulator pointer input to the glyph canvas. */
+	get canvasBehavior() {
+		return this.#canvasBehavior;
+	}
+
+	/** Canvas API scene that renders the simulator glyph canvas. */
+	get glyphScene() {
+		return this.#glyphScene;
 	}
 
 	/** Starts all DOM-bound simulator services. */
@@ -65,9 +120,7 @@ export class SimulatorRuntime {
 		window.addEventListener('wha:ml-debug', handleMlDebug);
 		this.#emitMountedDebugEvent();
 
-		this.#setupInputControllers();
 		this.#setupSizing();
-		this.#setupRenderLoop();
 		this.#setupKeyboardShortcuts();
 
 		const dictionaryLoad = { cancelled: false };
@@ -75,10 +128,11 @@ export class SimulatorRuntime {
 
 		return () => {
 			dictionaryLoad.cancelled = true;
-			this.#renderLoop?.stop();
 			recognition.dispose();
-			this.#input?.disable();
+			this.#pendingGlyphDetach = null;
+			this.#detachGlyphCanvas();
 			ui.inputReady = false;
+			this.#captureReady = false;
 			this.#options.shapeDrag.end();
 			this.#options.pan.end();
 			this.#sizing?.stop();
@@ -115,6 +169,23 @@ export class SimulatorRuntime {
 		this.#input?.setCaptureLocked(locked);
 	}
 
+	/** Draws one frame for the separate spell-effect canvas. */
+	renderCanvasFrame = (_ctx: CanvasRenderingContext2D, timestamp: number) => {
+		const { recognition, ui } = this.#options;
+		if (!ui.effectCanvas) {
+			return;
+		}
+
+		if (!this.#effectRenderer || this.#rendererEffectCanvas !== ui.effectCanvas) {
+			this.#effectRenderer = new SpellEffectRenderer(ui.effectCanvas, CONFIG);
+			this.#rendererEffectCanvas = ui.effectCanvas;
+		}
+
+		this.#effectRenderer.render(recognition.spellIR, recognition.ring, timestamp, {
+			showGuides: ui.showGuides
+		});
+	};
+
 	#emitMountedDebugEvent() {
 		emitMlDebug(
 			'page',
@@ -129,17 +200,66 @@ export class SimulatorRuntime {
 		);
 	}
 
+	#attachGlyphCanvas: Attachment<HTMLCanvasElement> = (canvas) => {
+		this.#pendingGlyphDetach = null;
+		if (this.#attachedGlyphCanvas === canvas && this.#input) {
+			return () => this.#scheduleGlyphCanvasDetach();
+		}
+
+		this.#detachGlyphCanvas();
+		this.#attachedGlyphCanvas = canvas;
+		this.#options.ui.glyphCanvas = canvas;
+		this.#setupInputControllers();
+		this.#input?.mount(this.#options.ui.canvasMode);
+		this.#placementBehavior.setActive(this.#options.ui.canvasMode === 'arrange');
+		if (this.#captureReady) {
+			this.#input?.enableCapture();
+		}
+		this.setCaptureLocked(
+			locksFreehandInput(
+				this.#options.ui.canvasMode,
+				this.#options.recognition.summary.canvasLocked
+			)
+		);
+		this.#updateCanvasCursor();
+
+		return () => this.#scheduleGlyphCanvasDetach();
+	};
+
+	#attachCanvasBehaviors: Attachment<HTMLCanvasElement> = (canvas) => {
+		const detachGlyphCanvas = this.#attachGlyphCanvas(canvas);
+		const detachPlacements = this.#placementBehavior.attach(canvas);
+		return () => {
+			detachPlacements?.();
+			detachGlyphCanvas?.();
+		};
+	};
+
+	#scheduleGlyphCanvasDetach() {
+		const token = {};
+		this.#pendingGlyphDetach = token;
+		queueMicrotask(() => {
+			if (this.#pendingGlyphDetach === token) {
+				this.#pendingGlyphDetach = null;
+				this.#detachGlyphCanvas();
+			}
+		});
+	}
+
+	#detachGlyphCanvas() {
+		this.#input?.disable();
+		this.#input = null;
+		this.#attachedGlyphCanvas = null;
+		this.#effectRenderer = null;
+		this.#rendererEffectCanvas = null;
+	}
+
 	#setupInputControllers() {
-		const { actions, drawing, recognition, shapeDrag, ui } = this.#options;
+		const { actions, drawing, recognition, ui } = this.#options;
 
 		this.#input = new SimulatorInputControllers({
 			glyphCanvas: () => ui.glyphCanvas,
 			store: drawing.store,
-			placements: drawing.placements,
-			getSelectedId: () => drawing.selectedPlacementId,
-			setSelectedId: drawing.setSelected,
-			hasArmedShape: () => shapeDrag.hasArmedShape(),
-			placeArmedShape: shapeDrag.placeArmedShape,
 			onStrokeStart: () => {
 				recognition.cancelActiveRecognition();
 				actions.dismissCanvasHint();
@@ -148,16 +268,6 @@ export class SimulatorRuntime {
 				actions.pushHistory();
 				recognition.refreshStrokes();
 				recognition.scheduleRecompute(STROKE_RECOGNITION_DEBOUNCE_MS);
-			},
-			onPlacementChange: () => {
-				if (drawing.selectedPlacementId) {
-					drawing.setSelected(drawing.selectedPlacementId);
-				}
-				recognition.refreshStrokes();
-			},
-			onPlacementInteractionEnd: () => {
-				actions.pushHistory();
-				void recognition.recompute();
 			},
 			onEraseBegin: () => {
 				recognition.cancelActiveRecognition();
@@ -173,7 +283,6 @@ export class SimulatorRuntime {
 				void recognition.recompute();
 			}
 		});
-		this.#input.mount(ui.canvasMode);
 	}
 
 	#setupSizing() {
@@ -199,24 +308,6 @@ export class SimulatorRuntime {
 		this.#sizing.mount();
 	}
 
-	#setupRenderLoop() {
-		const { drawing, recognition, ui } = this.#options;
-
-		this.#renderLoop = new SimulatorRenderLoop({
-			glyphCanvas: () => ui.glyphCanvas,
-			effectCanvas: () => ui.effectCanvas,
-			currentStroke: () => this.#input?.currentStroke() ?? null,
-			strokes: () => recognition.strokes,
-			pipeline: () => recognition.pipeline,
-			spellIR: () => recognition.spellIR,
-			ring: () => recognition.ring,
-			showGuides: () => ui.showGuides,
-			showDiagnostics: () => ui.showDiagnostics,
-			selection: () => drawing.selectionHandles(ui.activeTool)
-		});
-		this.#renderLoop.start();
-	}
-
 	#setupKeyboardShortcuts() {
 		const { actions, drawing, ui } = this.#options;
 
@@ -237,6 +328,7 @@ export class SimulatorRuntime {
 		if (!loaded || loadState.cancelled) {
 			return;
 		}
+		this.#captureReady = true;
 		this.#input?.enableCapture();
 		drawing.resetHistory();
 		ui.inputReady = true;

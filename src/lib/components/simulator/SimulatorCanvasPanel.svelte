@@ -15,6 +15,7 @@ rendering, controller state, and command handlers.
 	import Undo2 from 'lucide-svelte/icons/undo-2';
 	import ZoomIn from 'lucide-svelte/icons/zoom-in';
 	import ZoomOut from 'lucide-svelte/icons/zoom-out';
+	import Canvas from '$lib/ui/canvas/Canvas.svelte';
 	import CanvasIconButton from './CanvasIconButton.svelte';
 	import type { SimulatorSession } from '$lib/ui/simulator/simulator-session.svelte.js';
 
@@ -90,15 +91,20 @@ rendering, controller state, and command handlers.
 			role="button"
 			style="transform: translate({pan.panX}px, {pan.panY}px) scale({ui.zoomLevel});"
 		>
-			<canvas
+			<Canvas
 				id="glyphCanvas"
-				data-testid="glyph-canvas"
-				data-input-ready={ui.inputReady}
-				bind:this={ui.glyphCanvas}
-				class:locked={recognition.summary.canvasLocked}
-				width="1000"
-				height="1000"
-			></canvas>
+				testId="glyph-canvas"
+				inputReady={ui.inputReady}
+				bind:canvas={ui.glyphCanvas}
+				canvasClass={recognition.summary.canvasLocked ? 'locked' : undefined}
+				width={1000}
+				height={1000}
+				fill
+				scene={simulator.glyphScene}
+				controller={simulator.canvasController}
+				stableController
+				onFrame={simulator.renderCanvasFrame}
+			/>
 		</div>
 		<canvas
 			id="effectCanvas"

@@ -33,6 +33,30 @@ function localToCanvas(
 	};
 }
 
+/**
+ * Transforms a unit-box placement point into canvas space.
+ *
+ * Placement templates are centered on (0.5, 0.5); keeping this helper shared
+ * ensures Canvas entity rendering and recognition baking do not drift apart.
+ */
+export function createPlacementPointMapper(
+	transform: PlacementTransform
+): (point: Vector) => Vector {
+	const basis = transformBasis(transform);
+	return (point) =>
+		localToCanvas(
+			transform,
+			basis,
+			(point.x - 0.5) * transform.scaleX,
+			(point.y - 0.5) * transform.scaleY
+		);
+}
+
+/** Convenience wrapper for callers that only need to transform one point. */
+export function placementPointToCanvas(transform: PlacementTransform, point: Vector): Vector {
+	return createPlacementPointMapper(transform)(point);
+}
+
 // Map a canvas point back into the placement's unrotated, centered frame.
 export function toLocalPoint(transform: PlacementTransform, point: Vector): Vector {
 	const basis = transformBasis(transform);
@@ -49,16 +73,11 @@ export function toLocalPoint(transform: PlacementTransform, point: Vector): Vect
 // parser reads exactly like freehand input.
 export function bakePlacementToStrokes(placement: Placement): Stroke[] {
 	const { transform } = placement;
-	const basis = transformBasis(transform);
+	const toCanvas = createPlacementPointMapper(transform);
 	return placement.baseStrokes.map((points, strokeIndex) => ({
 		id: `${placement.id}.${strokeIndex}`,
 		points: points.map((point) => {
-			const canvasPoint = localToCanvas(
-				transform,
-				basis,
-				(point.x - 0.5) * transform.scaleX,
-				(point.y - 0.5) * transform.scaleY
-			);
+			const canvasPoint = toCanvas(point);
 			return { x: canvasPoint.x, y: canvasPoint.y, t: 0 };
 		}),
 		startedAt: 0,

@@ -48,10 +48,26 @@ Usage:
 		scene?: Scene;
 		/** Active interaction (draw/select tool, or legacy `DrawController`). */
 		controller?: CanvasBehavior;
+		/** Keep the initially attached controller mounted across reactive updates. */
+		stableController?: boolean;
 		/** Runs a requestAnimationFrame loop when provided. Escape hatch for bespoke rendering. */
 		onFrame?: (ctx: CanvasRenderingContext2D, timestamp: number) => void;
 		/** Exposes the 2D context for on-demand drawing. */
 		ctx?: CanvasRenderingContext2D | null;
+		/** Exposes the underlying canvas element for code that still needs DOM access. */
+		canvas?: HTMLCanvasElement | null;
+		/** Optional id for the underlying canvas element. */
+		id?: string;
+		/** Optional test id for the underlying canvas element. */
+		testId?: string;
+		/** Optional class for the underlying canvas element. */
+		canvasClass?: string;
+		/** Optional class for the wrapper surface. */
+		surfaceClass?: string;
+		/** Fill the parent instead of using the default centered tool surface sizing. */
+		fill?: boolean;
+		/** Optional data attribute used by simulator readiness tests. */
+		inputReady?: boolean;
 	}
 
 	let {
@@ -61,8 +77,16 @@ Usage:
 		aspectRatio = '1 / 1',
 		scene,
 		controller,
+		stableController = false,
 		onFrame,
-		ctx = $bindable(null)
+		ctx = $bindable(null),
+		canvas = $bindable(null),
+		id,
+		testId,
+		canvasClass,
+		surfaceClass,
+		fill = false,
+		inputReady
 	}: Props = $props();
 
 	let shell = $state<HTMLElement>();
@@ -72,6 +96,10 @@ Usage:
 		return () => {
 			ctx = null;
 		};
+	};
+
+	const attachStableController: Attachment<HTMLCanvasElement> = (canvas) => {
+		return controller?.attach(canvas);
 	};
 
 	$effect(() => {
@@ -91,12 +119,21 @@ Usage:
 	});
 </script>
 
-<div class="canvas-surface" bind:this={shell} style="--canvas-aspect: {aspectRatio};">
+<div
+	class={['canvas-surface', fill && 'canvas-surface-fill', surfaceClass].filter(Boolean).join(' ')}
+	bind:this={shell}
+	style="--canvas-aspect: {aspectRatio};"
+>
 	<canvas
+		{id}
+		data-testid={testId}
+		data-input-ready={inputReady}
+		class={canvasClass}
 		{width}
 		{height}
+		bind:this={canvas}
 		{@attach captureContext}
-		{@attach controller && controller.attach}
+		{@attach stableController ? attachStableController : controller && controller.attach}
 		{@attach resize &&
 			shell &&
 			resizeCanvas({
@@ -130,5 +167,25 @@ Usage:
 		max-width: 100%;
 		max-height: 100%;
 		aspect-ratio: var(--canvas-aspect, 1 / 1);
+	}
+
+	.canvas-surface-fill {
+		position: absolute;
+		inset: 0;
+		width: 100%;
+		height: 100%;
+		max-height: none;
+		aspect-ratio: auto;
+		margin: 0;
+		background: transparent;
+		display: block;
+	}
+
+	.canvas-surface-fill canvas {
+		width: 100%;
+		height: 100%;
+		max-width: none;
+		max-height: none;
+		aspect-ratio: auto;
 	}
 </style>
