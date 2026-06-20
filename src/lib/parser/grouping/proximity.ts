@@ -37,7 +37,10 @@ function sampledStrokePoints(stroke: Stroke): Stroke['points'] {
 	}
 
 	const stride = Math.ceil(points.length / 28);
-	return points.filter((_, index) => index % stride === 0);
+	const sampled = points.filter(
+		(_, index) => index === 0 || index === points.length - 1 || index % stride === 0
+	);
+	return sampled;
 }
 
 function pointToPolylineDistance(

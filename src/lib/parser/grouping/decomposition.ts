@@ -253,15 +253,7 @@ function shouldMergeFragmentGroups(
 	ring: RingInfo,
 	config: AppConfig
 ): boolean {
-	if (a.length > 2 && b.length > 2) {
-		return false;
-	}
-
-	const candidateA = buildCandidate(a, 0, ring, config);
-	const candidateB = buildCandidate(b, 0, ring, config);
-	const sameLayer =
-		candidateA.layer === candidateB.layer || candidateA.nearBoundary || candidateB.nearBoundary;
-	if (!sameLayer) {
+	if (!groupsTouch(a, b, ring)) {
 		return false;
 	}
 
@@ -270,7 +262,7 @@ function shouldMergeFragmentGroups(
 		return false;
 	}
 
-	return groupsTouch(a, b, ring);
+	return true;
 }
 
 /** Merges tiny fragment groups that are likely parts of one intended symbol. */
