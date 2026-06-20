@@ -1,0 +1,43 @@
+# Local dependencies and package-manager output
+node_modules/
+npm-debug.log*
+
+# Local secrets
+.env
+.env.*
+!.env.example
+
+# Build output and generated deployment artifacts
+dist/
+build/
+.svelte-kit/
+.vercel/
+
+# Test output
+test-results/
+playwright-report/
+coverage/
+
+# Python caches and local virtualenvs
+__pycache__/
+*.py[cod]
+.venv/
+.venv-uv/
+.ruff_cache/
+models/**/.venv/
+models/**/__pycache__/
+
+# Local training/data artifacts
+.artifacts/
+*.csv
+*.jsonl
+
+# Synced from onnxruntime-web during postinstall.
+static/onnxruntime/
+
+# Local editor and OS metadata
+.DS_Store
+Icon?
+.codex/
+.claude/
+.vscode/
