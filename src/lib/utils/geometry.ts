@@ -55,6 +55,41 @@ export function distance(a: Vector, b: Vector): number {
 	return Math.hypot(dx, dy);
 }
 
+export function pointToSegmentDistance(point: Vector, start: Vector, end: Vector): number {
+	const dx = end.x - start.x;
+	const dy = end.y - start.y;
+	const lengthSq = dx * dx + dy * dy;
+	if (lengthSq < 1e-12) {
+		return distance(point, start);
+	}
+	const t = clamp(((point.x - start.x) * dx + (point.y - start.y) * dy) / lengthSq);
+	return distance(point, { x: start.x + dx * t, y: start.y + dy * t });
+}
+
+function orientation(a: Vector, b: Vector, c: Vector): number {
+	return (b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x);
+}
+
+function segmentsCross(a1: Vector, a2: Vector, b1: Vector, b2: Vector): boolean {
+	const o1 = orientation(a1, a2, b1);
+	const o2 = orientation(a1, a2, b2);
+	const o3 = orientation(b1, b2, a1);
+	const o4 = orientation(b1, b2, a2);
+	return o1 * o2 < 0 && o3 * o4 < 0;
+}
+
+export function segmentToSegmentDistance(a1: Vector, a2: Vector, b1: Vector, b2: Vector): number {
+	if (segmentsCross(a1, a2, b1, b2)) {
+		return 0;
+	}
+	return Math.min(
+		pointToSegmentDistance(a1, b1, b2),
+		pointToSegmentDistance(a2, b1, b2),
+		pointToSegmentDistance(b1, a1, a2),
+		pointToSegmentDistance(b2, a1, a2)
+	);
+}
+
 export function pathLength(points: Vector[]): number {
 	let length = 0;
 	for (let index = 1; index < points.length; index += 1) {
