@@ -73,7 +73,7 @@ export const CONFIG = {
 			enabled: true,
 			modelUrl: '/models/glyph-recognizer.onnx',
 			classMapUrl: '/models/glyph-class-to-idx.json',
-			inputSize: 224,
+			inputSize: 96,
 			margin: 0.2,
 			strokeWidth: 2,
 			acceptConfidence: 0.74,

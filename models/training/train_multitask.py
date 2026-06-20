@@ -3,7 +3,9 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import time
+from functools import partial
 from pathlib import Path
 
 import torch
@@ -18,6 +20,7 @@ from wha_multitask import (
     GlyphManifestDataset,
     GlyphResNet18MultiHead,
     batch_to_device,
+    default_image_transform,
     glyph_collate_batch,
     glyph_multitask_loss,
 )
@@ -30,6 +33,12 @@ def parse_args():
     parser = argparse.ArgumentParser(description="Train the WHA glyph class + pose model.")
     parser.add_argument("dataset_root", help="Raster dataset root from wha-ds-imageifier.py")
     parser.add_argument("--epochs", type=int, default=20)
+    parser.add_argument(
+        "--image-size",
+        type=int,
+        default=96,
+        help="Square input edge the rasters are resized to before training.",
+    )
     parser.add_argument("--batch-size", type=int, default=32)
     parser.add_argument("--lr", type=float, default=3e-4)
     parser.add_argument("--weight-decay", type=float, default=1e-4)
@@ -94,12 +103,20 @@ def choose_device(explicit):
     return torch.device("cpu")
 
 
+def _reseed_worker(worker_id: int, seed: int) -> None:
+    """Give each DataLoader worker its own augmentation RNG stream."""
+    info = torch.utils.data.get_worker_info()
+    if info is not None:
+        info.dataset.reseed(seed + worker_id + 1)
+
+
 def make_loader(
     dataset_root,
     split,
     batch_size,
     num_workers,
     shuffle,
+    image_size=96,
     augment=False,
     rotation_policy=None,
     rotation_aug=None,
@@ -108,26 +125,24 @@ def make_loader(
     dataset = GlyphManifestDataset(
         dataset_root,
         split=split,
+        transform=default_image_transform(image_size),
         augment=augment,
         rotation_policy=rotation_policy,
         rotation_aug=rotation_aug,
         seed=seed,
     )
 
-    # Give each worker its own augmentation stream so they don't draw identical
-    # rotations; the main-process (num_workers=0) path keeps the dataset seed.
-    def worker_init_fn(worker_id: int) -> None:
-        info = torch.utils.data.get_worker_info()
-        if info is not None:
-            info.dataset.reseed(seed + worker_id + 1)
-
+    # A module-level partial (not a closure) so DataLoader can pickle it to
+    # spawned workers on macOS; each worker still gets its own RNG stream. The
+    # main-process (num_workers=0) path keeps the dataset seed.
+    reseed = partial(_reseed_worker, seed=seed) if augment and num_workers > 0 else None
     return DataLoader(
         dataset,
         batch_size=batch_size,
         shuffle=shuffle,
         num_workers=num_workers,
         collate_fn=glyph_collate_batch,
-        worker_init_fn=worker_init_fn if augment and num_workers > 0 else None,
+        worker_init_fn=reseed,
     )
 
 
@@ -170,18 +185,22 @@ def run_epoch(model, loader, optimizer, device, args, train):
 def angle_bias_by_class(model, loader, device, class_to_idx):
     """Per-class angle prediction error on the (un-augmented) validation set.
 
-    The pose head should read ~0 bias for an upright glyph, so a large per-class
-    `bias` is the signature of an orientation miscalibration (e.g. the historical
-    `rotate_pose_targets` sign bug, or full-rotation augmentation the head can't
-    fit). Run after training so a retrain surfaces it immediately, class by class.
-
-    `bias` is the mean signed error (pred - true) and `abs` the mean absolute
-    error, both circular and in degrees.
+    `bias` is the mean signed error (pred - true), `abs` the mean absolute error,
+    both circular degrees. `R` is the error resultant length (0..1): a high R
+    means the per-sample errors cluster, so a nonzero `bias` is a real
+    orientation miscalibration (e.g. the historical `rotate_pose_targets` sign
+    bug). A low R means the errors are spread around the circle because the glyph
+    has no recoverable absolute orientation -- a rotationally symmetric sigil
+    like `crystal` looks identical at many angles -- so its `bias` is meaningless
+    noise. A class is only flagged when it has both a large bias AND a tight
+    error distribution, so symmetric glyphs stop tripping the alarm.
     """
     model.eval()
     idx_to_class = {index: name for name, index in class_to_idx.items()}
     sum_signed: dict[int, float] = {}
     sum_abs: dict[int, float] = {}
+    sum_cos: dict[int, float] = {}
+    sum_sin: dict[int, float] = {}
     counts: dict[int, int] = {}
 
     def wrap_deg(value: torch.Tensor) -> torch.Tensor:
@@ -193,21 +212,39 @@ def angle_bias_by_class(model, loader, device, class_to_idx):
         pred = torch.atan2(outputs["angle"][:, 0], outputs["angle"][:, 1])
         true = torch.atan2(targets.angle[:, 0], targets.angle[:, 1])
         err = wrap_deg(torch.rad2deg(pred - true))
-        for cls, e in zip(targets.class_index.tolist(), err.tolist()):
+        err_rad = torch.deg2rad(err)
+        for cls, e, c, s in zip(
+            targets.class_index.tolist(),
+            err.tolist(),
+            torch.cos(err_rad).tolist(),
+            torch.sin(err_rad).tolist(),
+        ):
             sum_signed[cls] = sum_signed.get(cls, 0.0) + e
             sum_abs[cls] = sum_abs.get(cls, 0.0) + abs(e)
+            sum_cos[cls] = sum_cos.get(cls, 0.0) + c
+            sum_sin[cls] = sum_sin.get(cls, 0.0) + s
             counts[cls] = counts.get(cls, 0) + 1
 
+    # Below this resultant the error distribution is too diffuse for `bias` to
+    # mean anything, so we do not flag the class regardless of its bias.
+    flag_min_resultant = 0.6
     rows = [
-        (idx_to_class.get(cls, f"class:{cls}"), sum_signed[cls] / n, sum_abs[cls] / n, n)
+        (
+            idx_to_class.get(cls, f"class:{cls}"),
+            sum_signed[cls] / n,
+            sum_abs[cls] / n,
+            math.hypot(sum_cos[cls] / n, sum_sin[cls] / n),
+            n,
+        )
         for cls, n in counts.items()
     ]
     rows.sort(key=lambda row: abs(row[1]), reverse=True)
     print("per-class angle error (deg), worst bias first:")
-    print(f"  {'class':16} {'bias':>8} {'abs':>7} {'n':>5}")
-    for name, bias, abs_err, n in rows:
-        flag = "  <-- miscalibrated" if abs(bias) > 20.0 else ""
-        print(f"  {name:16} {bias:8.1f} {abs_err:7.1f} {n:5d}{flag}")
+    print(f"  {'class':16} {'bias':>8} {'abs':>7} {'R':>6} {'n':>5}")
+    for name, bias, abs_err, resultant, n in rows:
+        flagged = abs(bias) > 20.0 and resultant >= flag_min_resultant
+        flag = "  <-- miscalibrated" if flagged else ""
+        print(f"  {name:16} {bias:8.1f} {abs_err:7.1f} {resultant:6.2f} {n:5d}{flag}")
 
 
 def main():
@@ -239,12 +276,20 @@ def main():
         args.batch_size,
         args.num_workers,
         True,
+        image_size=args.image_size,
         augment=rotation_aug.enabled,
         rotation_policy=rotation_policy,
         rotation_aug=rotation_aug,
         seed=args.aug_seed,
     )
-    val_loader = make_loader(dataset_root, "validation", args.batch_size, args.num_workers, False)
+    val_loader = make_loader(
+        dataset_root,
+        "validation",
+        args.batch_size,
+        args.num_workers,
+        False,
+        image_size=args.image_size,
+    )
 
     model = GlyphResNet18MultiHead(
         num_classes=len(class_to_idx),
@@ -256,7 +301,10 @@ def main():
     checkpoint_dir.mkdir(parents=True, exist_ok=True)
     best_val = float("inf")
 
-    print(f"device={device} classes={len(class_to_idx)} train={len(train_loader.dataset)} validation={len(val_loader.dataset)}")
+    print(
+        f"device={device} image_size={args.image_size} classes={len(class_to_idx)} "
+        f"train={len(train_loader.dataset)} validation={len(val_loader.dataset)}"
+    )
 
     training_started = time.perf_counter()
     for epoch in range(1, args.epochs + 1):
