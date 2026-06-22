@@ -26,6 +26,7 @@ import type {
 } from '$lib/types.js';
 import { computeSummary, INITIAL_SUMMARY, type SpellSummary } from '$lib/ui/spellSummary.js';
 import { buildSimulatorDiagnostics } from './diagnostics.js';
+import { visibleCanvasShortAxis } from './layout.js';
 import type { CanvasTool } from './mode.js';
 import type { SimulatorDiagnostics } from './types.js';
 
@@ -205,19 +206,23 @@ export class RecognitionPipeline {
 		this.refreshStrokes();
 		const seq = ++this.#recomputeSeq;
 		let result: ClassifiedDrawing;
+		const glyphCanvas = this.#options.glyphCanvas();
+		const guideReferenceSize = visibleCanvasShortAxis(glyphCanvas);
 		this.#mlDebugLog('recompute starting', {
 			strokes: this.#strokes.length,
 			previousRingFound: this.#previousRing?.found ?? false,
-			canvasWidth: this.#options.glyphCanvas().width,
-			canvasHeight: this.#options.glyphCanvas().height
+			canvasWidth: glyphCanvas.width,
+			canvasHeight: glyphCanvas.height,
+			guideReferenceSize
 		});
 		try {
 			result = await classifyDrawingOffThread(
 				{
 					strokes: this.#strokes,
 					previousRing: this.#previousRing,
-					canvasWidth: this.#options.glyphCanvas().width,
-					canvasHeight: this.#options.glyphCanvas().height,
+					canvasWidth: glyphCanvas.width,
+					canvasHeight: glyphCanvas.height,
+					guideReferenceSize,
 					dictionary: this.#dictionarySnapshot,
 					config: CONFIG
 				},

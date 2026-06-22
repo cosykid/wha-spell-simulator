@@ -23,3 +23,16 @@ export function shouldMatchCanvasHeight(workspace: HTMLElement): boolean {
 	const requiredWidth = rect.height + CANVAS_LAYOUT_MIN_SIDE_COLUMNS + columnGap * 2;
 	return window.innerWidth >= DESKTOP_LAYOUT_MIN_WIDTH && rect.width >= requiredWidth;
 }
+
+/**
+ * The simulator canvas is a cover-square sized to the viewport's long edge. In
+ * non-square viewports, some of that canvas sits off-screen; guide rings and
+ * no-ring recognition should use the visible short edge as their logical paper
+ * size so glyph scale stays tied to what the user can see.
+ */
+export function visibleCanvasShortAxis(canvas: HTMLCanvasElement): number {
+	const cssLong = Math.max(window.innerWidth, window.innerHeight);
+	const cssShort = Math.min(window.innerWidth, window.innerHeight);
+	const scale = cssLong > 0 ? canvas.width / cssLong : 1;
+	return cssShort * scale;
+}

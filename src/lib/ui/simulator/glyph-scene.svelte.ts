@@ -12,6 +12,7 @@ import {
 	drawStrokeIdDebug
 } from '$lib/renderer/glyphOverlayRenderer.js';
 import type { SimulatorDrawingState } from './drawing-state.svelte.js';
+import { visibleCanvasShortAxis } from './layout.js';
 import type { RecognitionPipeline } from './recognition-pipeline.svelte.js';
 import type { SimulatorUiState } from './ui-state.svelte.js';
 
@@ -50,22 +51,10 @@ function guideEntity({ config, recognition, ui }: SimulatorGlyphSceneOptions): E
 				ctx.canvas.width,
 				ctx.canvas.height,
 				config,
-				visibleShortAxis(ctx.canvas)
+				visibleCanvasShortAxis(ctx.canvas)
 			);
 		}
 	};
-}
-
-/**
- * The canvas is a cover-square sized to the long viewport edge, so its short visible
- * extent is the viewport's short side. Returned in canvas pixels so guides drawn
- * against it land within the on-screen area instead of the off-screen overflow.
- */
-function visibleShortAxis(canvas: HTMLCanvasElement): number {
-	const cssLong = Math.max(window.innerWidth, window.innerHeight);
-	const cssShort = Math.min(window.innerWidth, window.innerHeight);
-	const scale = cssLong > 0 ? canvas.width / cssLong : 1;
-	return cssShort * scale;
 }
 
 function strokeLayerEntity({ config, drawing }: SimulatorGlyphSceneOptions): Entity {

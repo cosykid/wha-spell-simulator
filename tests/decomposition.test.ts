@@ -426,6 +426,38 @@ test('no-ring guide preview separates rough center and sign clusters', () => {
 	);
 });
 
+test('no-ring guide preview uses visible guide size for cover-square canvas size normalization', () => {
+	const fire = realDictionary.sigils.find((sigil) => sigil.id === 'fire');
+	assert.ok(fire?.strokeTemplate);
+	const strokes = strokesFromTemplate(fire.strokeTemplate, 'fire', 600, 600, 110);
+
+	const fullCanvas = classifyDrawing({
+		strokes,
+		previousRing: null,
+		canvasWidth: 1200,
+		canvasHeight: 1200,
+		dictionary: realDictionary,
+		config: CONFIG
+	});
+	const visibleGuide = classifyDrawing({
+		strokes,
+		previousRing: null,
+		canvasWidth: 1200,
+		canvasHeight: 1200,
+		guideReferenceSize: 400,
+		dictionary: realDictionary,
+		config: CONFIG
+	});
+
+	assert.equal(fullCanvas.ring.found, false);
+	assert.equal(visibleGuide.ring.found, false);
+	assert.equal(visibleGuide.recognitions[0]?.id, 'fire');
+	assert.ok(
+		visibleGuide.candidates[0].sizeNorm > fullCanvas.candidates[0].sizeNorm * 2.9,
+		`expected visible guide sizing to raise sizeNorm, got ${fullCanvas.candidates[0].sizeNorm} -> ${visibleGuide.candidates[0].sizeNorm}`
+	);
+});
+
 test('no-ring guide preview keeps nearby side marks separate from center strokes', () => {
 	const result = classifyDrawing({
 		strokes: [

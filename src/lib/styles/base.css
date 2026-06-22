@@ -111,7 +111,8 @@ button:active {
 }
 
 .toggle input:checked {
-	background: var(--teal);
+	background: var(--warm-wood);
+	box-shadow: inset 0 0 0 1px var(--warm-wood-deep);
 }
 
 .toggle input:checked::before {

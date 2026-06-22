@@ -15,6 +15,14 @@ export interface ClassifyDrawingInput {
 	previousRing?: RingInfo | null;
 	canvasWidth?: number;
 	canvasHeight?: number;
+	/**
+	 * Logical paper size for guide-ring previews, in canvas pixels. The full-screen
+	 * simulator uses a cover-square canvas whose backing store can extend off-screen,
+	 * so callers can pass the visible short axis to keep no-ring glyph size
+	 * diagnostics aligned with the drawn guides. Omitted callers keep the historical
+	 * `min(canvasWidth, canvasHeight)` behavior.
+	 */
+	guideReferenceSize?: number;
 	dictionary: Dictionary;
 	config: AppConfig;
 	recognitionExamples?: RecognitionExample[];

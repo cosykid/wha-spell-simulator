@@ -18,6 +18,7 @@ interface ClassifyMessage {
 	previousRing?: RingInfo | null;
 	canvasWidth?: number;
 	canvasHeight?: number;
+	guideReferenceSize?: number;
 }
 
 type InboundMessage = InitMessage | ClassifyMessage;
@@ -55,6 +56,7 @@ ctx.onmessage = (event: MessageEvent<InboundMessage>) => {
 					previousRing: message.previousRing,
 					canvasWidth: message.canvasWidth,
 					canvasHeight: message.canvasHeight,
+					guideReferenceSize: message.guideReferenceSize,
 					dictionary,
 					config,
 					recognitionExamples

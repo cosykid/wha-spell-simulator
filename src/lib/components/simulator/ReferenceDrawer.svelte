@@ -58,7 +58,6 @@ panel shows is driven by the reference tab triggers on the canvas edge.
 <style>
 	.ref-title {
 		margin: 0 0 14px;
-		padding-right: 36px;
 		font-family: 'Cinzel', serif;
 		font-size: 18px;
 		font-weight: 600;
