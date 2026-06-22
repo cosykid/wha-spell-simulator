@@ -22,6 +22,7 @@ import numpy as np
 import onnx
 import torch
 
+from clip_to_minmax import replace_clip_with_min_max
 from wha_multitask import (
     GlyphManifestDataset,
     GlyphResNet18MultiHead,
@@ -204,6 +205,11 @@ def main():
     # FP16 straight to `output` once and score that exact file, rather than
     # saving the same in-memory model twice (which would leave stale data refs).
     model_fp16 = convert_to_fp16(fp32_path)
+    # Firefox WebGPU: onnxruntime-web's fp16 Clip kernel unpacks its bounds with
+    # bitcast<vec2<f16>>, which naga rejects. Clip(x, lo, hi) == Min(Max(x, lo), hi),
+    # so rewrite it to ops with compiling kernels. See clip_to_minmax.py.
+    clips = replace_clip_with_min_max(model_fp16)
+    print(f"rewrote {clips} Clip node(s) as Max/Min for Firefox WebGPU")
     save_with_external_data(model_fp16, output)
 
     # 3. Parity: torch argmax vs the deployed FP16 argmax on real validation
