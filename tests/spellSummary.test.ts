@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { computeSummary } from '../src/lib/ui/spellSummary.js';
+import { computeSummary, meterPips } from '../src/lib/ui/spellSummary.js';
 import type { ClassifiedDrawing, SpellIR, StrokeStore } from '../src/lib/types.js';
 
 function storeWithCount(count: number, canRedo = false): StrokeStore {
@@ -102,4 +102,18 @@ test('erase mode locks freehand input without sealing the canvas', () => {
 	});
 	assert.equal(summary.inputLocked, true);
 	assert.equal(summary.canvasLocked, false);
+});
+
+test('meterPips fills pips proportionally and rounds to the nearest pip', () => {
+	assert.equal(meterPips(0, 10), 0);
+	assert.equal(meterPips(1, 10), 10);
+	assert.equal(meterPips(0.55, 10), 6);
+	assert.equal(meterPips(0.62, 8), 5);
+});
+
+test('meterPips clamps out-of-range and nullish values', () => {
+	assert.equal(meterPips(null, 10), 0);
+	assert.equal(meterPips(undefined, 10), 0);
+	assert.equal(meterPips(-0.5, 10), 0);
+	assert.equal(meterPips(1.4, 10), 10);
 });

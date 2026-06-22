@@ -11,6 +11,9 @@ import type { PlacementTransform } from '$lib/types.js';
 
 export type RootTab = 'dictionary' | 'shapes' | 'diagnostic';
 
+/** Which slide-out drawer is currently open, if any. */
+export type DrawerId = 'menu' | 'reference';
+
 /**
  * Snapshot of the selected editable shape shown by the shape inspector.
  */

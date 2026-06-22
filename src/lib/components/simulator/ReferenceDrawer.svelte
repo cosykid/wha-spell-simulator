@@ -1,15 +1,15 @@
 <!--
 @component
-Tabbed right rail for simulator reference content.
-
-The sidebar groups the dictionary reference, draggable shape palette, and
-diagnostics panel behind one root tab state. The simulator session owns the
-state and command handlers used by these page-specific panels.
+Right slide-out reference palette: dictionary, draggable shapes, and diagnostics.
+Non-modal so the canvas stays interactive while you drag shapes out of it. Which
+panel shows is driven by the reference tab triggers on the canvas edge.
 -->
 <script lang="ts">
 	import Diagnostics from '$lib/components/Diagnostics.svelte';
 	import DictionaryReference from '$lib/components/DictionaryReference.svelte';
 	import ShapePalette from '$lib/components/ShapePalette.svelte';
+	import Drawer from './Drawer.svelte';
+	import type { RootTab } from '$lib/ui/simulator/types.js';
 	import type { SimulatorSession } from '$lib/ui/simulator/simulator-session.svelte.js';
 
 	interface Props {
@@ -22,35 +22,16 @@ state and command handlers used by these page-specific panels.
 	let recognition = $derived(simulator.recognition);
 	let actions = $derived(simulator.actions);
 	let shapeDrag = $derived(simulator.shapeDrag);
+
+	const TITLES: Record<RootTab, string> = {
+		dictionary: 'Dictionary',
+		shapes: 'Shapes',
+		diagnostic: 'Diagnostics'
+	};
 </script>
 
-<aside class="dictionary-panel" aria-label="Dictionary and diagnostics">
-	<div class="panel-tabs">
-		<button
-			type="button"
-			class="panel-tab-button"
-			class:active={ui.rootTab === 'dictionary'}
-			onclick={() => (ui.rootTab = 'dictionary')}
-		>
-			Dictionary
-		</button>
-		<button
-			type="button"
-			class="panel-tab-button"
-			class:active={ui.rootTab === 'shapes'}
-			onclick={() => (ui.rootTab = 'shapes')}
-		>
-			Shapes
-		</button>
-		<button
-			type="button"
-			class="panel-tab-button"
-			class:active={ui.rootTab === 'diagnostic'}
-			onclick={() => (ui.rootTab = 'diagnostic')}
-		>
-			Diagnostic
-		</button>
-	</div>
+<Drawer side="right" open={ui.referenceOpen} label={TITLES[ui.rootTab]} onClose={ui.closeDrawers}>
+	<h2 class="ref-title">{TITLES[ui.rootTab]}</h2>
 
 	<section id="dictionaryRootPanel" hidden={ui.rootTab !== 'dictionary'}>
 		<DictionaryReference dictionary={recognition.dictionary} />
@@ -72,17 +53,16 @@ state and command handlers used by these page-specific panels.
 	<section id="diagnosticRootPanel" hidden={ui.rootTab !== 'diagnostic'}>
 		<Diagnostics diagnostics={recognition.diagnostics} />
 	</section>
-</aside>
+</Drawer>
 
 <style>
-	.panel-tabs {
-		display: grid;
-		grid-template-columns: repeat(3, 1fr);
-		gap: 0;
-		border-top: 0;
-		padding-top: 0;
-		margin-bottom: 14px;
-		border-bottom: 1px solid rgba(36, 27, 22, 0.2);
+	.ref-title {
+		margin: 0 0 14px;
+		padding-right: 36px;
+		font-family: 'Cinzel', serif;
+		font-size: 18px;
+		font-weight: 600;
+		color: var(--ink-sepia);
 	}
 
 	#dictionaryRootPanel[hidden],

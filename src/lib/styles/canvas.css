@@ -4,6 +4,25 @@
  * ids (and their #lab* counterparts) are styled here so the 3D portal animation
  * stays in one place. Each selector keeps its responsive overrides in this file so
  * the cascade does not depend on stylesheet import order.
+ *
+ * The portal tilt's vertical metrics (transform-origin and the downward shift) are
+ * written as an offset from centre scaled by `--portal-fit`, the fraction of the
+ * canvas height that is actually on screen (visible height / canvas height). The
+ * simulator canvas is a cover-square sized to the long viewport edge, so on a
+ * landscape screen it stands taller than the viewport and raw percentages of its
+ * own height would pivot and slide the tilt below the visible area. `--portal-fit`
+ * defaults to 1 (canvas fills the viewport, as in the lab), which reproduces the
+ * original 64% / 10% values exactly.
+ *
+ * On activation the paper shrinks (scale) and tilts back under a tight perspective
+ * so it reads as a small trapezium receding into depth, framed by the dark void.
+ * The spell effect is drawn on a separate flat canvas and anchored to the ring in
+ * canvas space, so these magic numbers are mirrored by the portal model in
+ * effects/effectUtils.ts. Keep the two in sync:
+ *   scale(0.45)            <-> PORTAL_SHRINK
+ *   rotateX(62deg)         <-> PORTAL_SCALE_Y (foreshortening)
+ *   transform-origin 64%   <-> PORTAL_ORIGIN_Y
+ *   translateY 10%         <-> PORTAL_LIFT_Y
  */
 
 .canvas-shell {
@@ -15,8 +34,6 @@
 	background: var(--paper);
 	touch-action: none;
 	overflow: hidden;
-	perspective: 900px;
-	perspective-origin: 50% 56%;
 	transition: background var(--portal-tilt-duration) ease;
 }
 
@@ -31,7 +48,7 @@
 #glyphCanvas,
 #labGlyphCanvas {
 	z-index: 1;
-	transform-origin: 50% 64%;
+	transform-origin: 50% calc(50% + 14% * var(--portal-fit, 1));
 	transform-style: preserve-3d;
 	will-change: transform, filter, box-shadow;
 	transition:
@@ -46,8 +63,11 @@
 
 .canvas-shell.portal-active #glyphCanvas,
 .canvas-shell.portal-active #labGlyphCanvas {
-	transform: translateY(10%) rotateX(62deg) scale(0.98);
-	/* tilt the canvas angle */
+	transform: perspective(850px) translateY(calc(10% * var(--portal-fit, 1))) rotateX(62deg)
+		scale(0.45);
+	/* shrink + tilt the paper into a receding trapezium (mirrored in effectUtils.ts).
+	   perspective() is on the element itself: an intermediate flat wrapper would drop
+	   an ancestor `perspective`, collapsing the tilt back to a flat squash. */
 	box-shadow:
 		0 1px 0 rgba(255, 251, 233, 0.52) inset,
 		0 28px 38px rgba(36, 27, 22, 0.3);

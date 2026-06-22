@@ -3,7 +3,7 @@ import { drawWaterEffect } from './effects/waterEffect.js';
 import { drawWindEffect } from './effects/windEffect.js';
 import { drawEarthEffect } from './effects/earthEffect.js';
 import { drawLightEffect } from './effects/lightEffect.js';
-import { resetParticleState } from './effects/effectUtils.js';
+import { portalScaledRing, resetParticleState } from './effects/effectUtils.js';
 import type { EffectState, RenderSpellIR } from './effects/effectUtils.js';
 import { clamp } from '../utils/geometry.js';
 import type { AppConfig, SpellIR, RingInfo, ElementId } from '../types.js';
@@ -76,6 +76,8 @@ export function spellEmission(
 
 interface RenderOptions {
 	showGuides?: boolean;
+	/** Fraction of canvas height on screen; scales the portal tilt to match the CSS. Defaults to 1. */
+	portalFit?: number;
 }
 
 export class SpellEffectRenderer {
@@ -153,10 +155,14 @@ export class SpellEffectRenderer {
 			return;
 		}
 
-		const renderSpellIR: RenderSpellIR = { ...spellIR, emission };
+		// The activated paper is shrunk and tilted by CSS. Emit from the matching
+		// smaller portal, scaled to the viewport the same way (see portalFit).
+		const portalFit = options.portalFit ?? 1;
+		const portalRing = portalScaledRing(ring, this.canvas, portalFit);
+		const renderSpellIR: RenderSpellIR = { ...spellIR, emission, portalFit };
 		ctx.save();
 		ctx.globalCompositeOperation = 'lighter';
-		drawEffect(ctx, this.state, renderSpellIR, ring, dt, this.config);
+		drawEffect(ctx, this.state, renderSpellIR, portalRing, dt, this.config);
 		ctx.restore();
 	}
 

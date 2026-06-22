@@ -6,12 +6,15 @@ import type { AppConfig, SpellIR, RingInfo, Vector } from '../../types.js';
 // ---------------------------------------------------------------------------
 
 /**
- * The effect draw functions receive the compiled SpellIR augmented with a
- * runtime `emission` scalar (0..1) that fades the effect out at end-of-duration.
- * spellEffectRenderer spreads `emission` into a copy of the SpellIR before
- * passing it to element effects.
+ * The effect draw functions receive the compiled SpellIR augmented with two
+ * runtime scalars that spellEffectRenderer spreads into a copy of the SpellIR
+ * before passing it to element effects:
+ * - `emission` (0..1) fades the effect out at end-of-duration.
+ * - `portalFit` (0..1) scales the portal tilt's vertical metrics back onto the
+ *   visible area on landscape, matching the CSS (see {@link activePortalPlane}).
+ *   Defaults to 1 (canvas fills the viewport).
  */
-export type RenderSpellIR = SpellIR & { emission?: number };
+export type RenderSpellIR = SpellIR & { emission?: number; portalFit?: number };
 
 // ---------------------------------------------------------------------------
 // Shared particle / portal types used across element effects
@@ -361,21 +364,70 @@ export function scaledParticleCount(
 
 // ---------------------------------------------------------------------------
 // Portal geometry
+//
+// On activation the paper is shrunk and tilted back by CSS (see `.portal-active`
+// in styles/canvas.css). These constants mirror that transform so effects — drawn
+// flat and anchored to the ring in canvas space — land on the same on-screen
+// portal. Keep them in sync with canvas.css:
+//   PORTAL_SHRINK   <-> scale()                 PORTAL_SCALE_Y <-> rotateX(62deg)
+//   PORTAL_ORIGIN_Y <-> transform-origin y      PORTAL_LIFT_Y  <-> translateY
+//
+// The CSS scales its vertical metrics by `var(--portal-fit)` so the tilt stays on
+// screen on landscape. The functions below take the same `portalFit` (default 1)
+// and apply it to PORTAL_ORIGIN_Y and PORTAL_LIFT_Y to track the CSS.
 // ---------------------------------------------------------------------------
 
+export const PORTAL_SHRINK = 0.45;
+const PORTAL_SCALE_Y = 0.44;
+const PORTAL_ORIGIN_Y = 0.64;
+const PORTAL_LIFT_Y = 0.1;
+
+// The portal tilt's vertical pivot as a canvas-height fraction. Written as an
+// offset from centre scaled by portalFit so it tracks the CSS transform-origin
+// (50% + 14% * --portal-fit). portalFit 1 reproduces the fixed PORTAL_ORIGIN_Y.
+function portalOriginY(canvas: HTMLCanvasElement, portalFit: number): number {
+	return canvas.height * (0.5 + (PORTAL_ORIGIN_Y - 0.5) * portalFit);
+}
+
+/**
+ * Shrinks a ring toward the portal tilt origin by {@link PORTAL_SHRINK}, mirroring
+ * the CSS `scale()` on the activated paper. Effects are anchored to the ring in
+ * canvas space, so feeding them the scaled ring shrinks the whole effect — base
+ * ellipse and every radius-derived plume size — onto the smaller portal at once.
+ */
+export function portalScaledRing(
+	ring: RingInfo,
+	canvas: HTMLCanvasElement,
+	portalFit: number = 1
+): RingInfo {
+	const originX = canvas.width / 2;
+	const originY = portalOriginY(canvas, portalFit);
+	return {
+		...ring,
+		center: {
+			x: originX + (ring.center.x - originX) * PORTAL_SHRINK,
+			y: originY + (ring.center.y - originY) * PORTAL_SHRINK
+		},
+		radius: ring.radius * PORTAL_SHRINK
+	};
+}
+
 // The activated paper is drawn as a tilted ellipse, so effects emit from that same screen-space portal.
-export function activePortalPlane(canvas: HTMLCanvasElement, ring: RingInfo): Portal {
-	const scaleY = 0.44;
-	const originY = canvas.height * 0.64;
-	const liftY = canvas.height * 0.1;
+export function activePortalPlane(
+	canvas: HTMLCanvasElement,
+	ring: RingInfo,
+	portalFit: number = 1
+): Portal {
+	const originY = portalOriginY(canvas, portalFit);
+	const liftY = canvas.height * PORTAL_LIFT_Y * portalFit;
 	return {
 		center: {
 			x: ring.center.x,
-			y: originY + (ring.center.y - originY) * scaleY + liftY
+			y: originY + (ring.center.y - originY) * PORTAL_SCALE_Y + liftY
 		},
 		radiusX: ring.radius,
-		radiusY: ring.radius * scaleY,
-		scaleY
+		radiusY: ring.radius * PORTAL_SCALE_Y,
+		scaleY: PORTAL_SCALE_Y
 	};
 }
 
@@ -402,11 +454,10 @@ export function portalOutDirection(spellIR: RenderSpellIR): Vector {
 	const paperX = direction.x ?? 0;
 	const paperY = direction.y ?? -1;
 	const paperZ = direction.z ?? 0;
-	const paperYScreenScale = 0.44;
 
 	return normalizeVector({
 		x: paperX,
-		y: paperY * paperYScreenScale - paperZ
+		y: paperY * PORTAL_SCALE_Y - paperZ
 	});
 }
 

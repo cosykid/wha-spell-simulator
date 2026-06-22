@@ -1,6 +1,6 @@
 import type { AppConfig, ClassifiedDrawing, SpellIR, Stroke } from '$lib/types.js';
 import { drawGuides } from '$lib/ui/canvas/guideRenderer.js';
-import { paperEntity } from '$lib/ui/canvas/entities/paperEntity.js';
+import { texturedPaperEntity } from '$lib/ui/canvas/entities/paperEntity.js';
 import { renderStrokeInk } from '$lib/ui/canvas/entities/strokeEntity.js';
 import { drawSelection } from '$lib/ui/canvas/selectionRenderer.js';
 import type { Entity } from '$lib/ui/canvas/entity.js';
@@ -44,9 +44,28 @@ function guideEntity({ config, recognition, ui }: SimulatorGlyphSceneOptions): E
 			if (!ui.showGuides) {
 				return;
 			}
-			drawGuides(ctx, recognition.pipeline?.ring, ctx.canvas.width, ctx.canvas.height, config);
+			drawGuides(
+				ctx,
+				recognition.pipeline?.ring,
+				ctx.canvas.width,
+				ctx.canvas.height,
+				config,
+				visibleShortAxis(ctx.canvas)
+			);
 		}
 	};
+}
+
+/**
+ * The canvas is a cover-square sized to the long viewport edge, so its short visible
+ * extent is the viewport's short side. Returned in canvas pixels so guides drawn
+ * against it land within the on-screen area instead of the off-screen overflow.
+ */
+function visibleShortAxis(canvas: HTMLCanvasElement): number {
+	const cssLong = Math.max(window.innerWidth, window.innerHeight);
+	const cssShort = Math.min(window.innerWidth, window.innerHeight);
+	const scale = cssLong > 0 ? canvas.width / cssLong : 1;
+	return cssShort * scale;
 }
 
 function strokeLayerEntity({ config, drawing }: SimulatorGlyphSceneOptions): Entity {
@@ -169,7 +188,7 @@ function activatedGlyphEntity({
 
 export function createSimulatorGlyphScene(options: SimulatorGlyphSceneOptions): Scene {
 	return createScene([
-		paperEntity(),
+		texturedPaperEntity('/images/background.jpg'),
 		guideEntity(options),
 		strokeLayerEntity(options),
 		placementLayerEntity(options),

@@ -7,7 +7,7 @@ import {
 	type CanvasMode
 } from './mode.js';
 import { loadSimulatorPreferences, saveSimulatorPreferences } from './preferences.js';
-import type { RootTab } from './types.js';
+import type { DrawerId, RootTab } from './types.js';
 
 /**
  * Bindable UI state for the simulator route.
@@ -26,8 +26,14 @@ export class SimulatorUiState {
 	showDiagnostics = $state(false);
 	/** Whether pointer input has been enabled after dictionary loading. */
 	inputReady = $state(false);
-	/** Active right-rail tab. */
+	/** Active reference-drawer tab. */
 	rootTab = $state<RootTab>('dictionary');
+	/** Which slide-out drawer is open, if any. Only one opens at a time. */
+	openDrawer = $state<DrawerId | null>(null);
+	/** Whether the left menu drawer is open. */
+	menuOpen = $derived(this.openDrawer === 'menu');
+	/** Whether the right reference drawer is open. */
+	referenceOpen = $derived(this.openDrawer === 'reference');
 	/** Current canvas zoom multiplier. */
 	zoomLevel = $state(1);
 	/** Current interaction mode for the canvas. */
@@ -40,6 +46,13 @@ export class SimulatorUiState {
 	panEnabled = $derived(panEnabledForMode(this.canvasMode));
 	/** Whether desktop layout should match canvas height to workspace height. */
 	canvasHeightMatched = $state(false);
+	/**
+	 * Fraction of the canvas height that is on screen (visible height / canvas
+	 * height), fed to the portal tilt as `--portal-fit`. The cover-square canvas
+	 * stands taller than the viewport on landscape, so this scales the tilt's
+	 * vertical metrics back onto the visible area. 1 when the canvas fits.
+	 */
+	portalFit = $state(1);
 
 	/** Bound glyph canvas element. */
 	glyphCanvas = $state<HTMLCanvasElement>(null!);
@@ -102,6 +115,26 @@ export class SimulatorUiState {
 		return togglePanMode(this.canvasMode);
 	}
 
+	/** Toggles the left menu drawer, closing any other open drawer. */
+	toggleMenu = () => {
+		this.openDrawer = this.openDrawer === 'menu' ? null : 'menu';
+	};
+
+	/** Opens the reference drawer to a tab, or toggles it closed if already on that tab. */
+	openReference = (tab: RootTab) => {
+		if (this.openDrawer === 'reference' && this.rootTab === tab) {
+			this.openDrawer = null;
+			return;
+		}
+		this.rootTab = tab;
+		this.openDrawer = 'reference';
+	};
+
+	/** Closes whichever drawer is open. */
+	closeDrawers = () => {
+		this.openDrawer = null;
+	};
+
 	/** Marks the first-use canvas hint as dismissed. */
 	dismissCanvasHint() {
 		if (this.canvasHintDismissed) {
@@ -111,8 +144,10 @@ export class SimulatorUiState {
 		return true;
 	}
 
-	/** Recomputes the workspace/canvas layout mode. */
+	/** Recomputes viewport-derived layout: canvas-height matching and portal fit. */
 	updateCanvasLayoutMode = () => {
+		const longEdge = Math.max(window.innerWidth, window.innerHeight);
+		this.portalFit = longEdge > 0 ? window.innerHeight / longEdge : 1;
 		if (!this.workspace) {
 			return;
 		}

@@ -16,4 +16,32 @@
 	--shadow: rgba(16, 34, 38, 0.28);
 	--radius: 8px;
 	--portal-tilt-duration: 980ms;
+
+	/* ── Minimal full-bleed canvas chrome & slide-out drawers ──────────── */
+	/* Warm sepia ink for chrome that floats directly on the parchment. */
+	--ink-sepia: #38291a;
+	--ink-sepia-70: rgba(56, 41, 26, 0.7);
+	--ink-sepia-45: rgba(56, 41, 26, 0.45);
+	--ink-sepia-20: rgba(56, 41, 26, 0.2);
+	/* Translucent surfaces: chrome buttons read as a faint shadow on paper, */
+	/* drawers as frosted parchment that slides over the canvas. */
+	--chrome-glass: rgba(244, 236, 214, 0.42);
+	--chrome-glass-strong: rgba(244, 236, 214, 0.85);
+	--drawer-glass: rgba(237, 228, 202, 0.72);
+	--drawer-blur: 22px;
+	--drawer-shadow: 0 18px 70px rgba(36, 27, 22, 0.32);
+	/* Inversed chrome buttons: a dark ink fill with a pale icon, the look the */
+	/* action bar, menu, and zoom controls share. */
+	--chrome-btn-bg: rgba(56, 41, 26, 0.9);
+	--chrome-btn-bg-hover: rgba(40, 29, 18, 1);
+	--chrome-btn-fg: var(--panel);
+	--chrome-btn-border: rgba(56, 41, 26, 0.95);
+	/* Ornate left/right edge frame (frame.jpg) width, scales with the viewport. */
+	--frame-width: clamp(12px, 1vw, 20px);
+	/* The visible gap floating chrome keeps from the border. The frame only runs
+	   down the left/right edges, so the horizontal inset adds the frame width to
+	   keep that same gap past it, while top/bottom uses the gap on its own. */
+	--chrome-gap: clamp(12px, 1.5vw, 26px);
+	--chrome-inset-x: calc(var(--frame-width) + var(--chrome-gap));
+	--chrome-inset-y: var(--chrome-gap);
 }

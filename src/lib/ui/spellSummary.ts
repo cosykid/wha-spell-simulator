@@ -106,6 +106,18 @@ export function meterPercent(value: number | null | undefined): string {
 }
 
 /**
+ * Quantizes a normalized meter value into a count of filled pips, for the
+ * diamond-pip meters in the minimal canvas chrome.
+ *
+ * @param value - Normalized 0..1 meter value. Nullish values are treated as zero.
+ * @param total - Number of pips in the row.
+ * @returns How many of the `total` pips should render filled (0..total).
+ */
+export function meterPips(value: number | null | undefined, total = 10): number {
+	return Math.round(clamp(value ?? 0) * total);
+}
+
+/**
  * Derives the control-panel summary from the current drawing and spell state.
  *
  * The returned object is deliberately plain data so Svelte components can render
