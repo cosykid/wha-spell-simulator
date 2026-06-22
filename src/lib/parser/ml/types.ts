@@ -28,6 +28,10 @@ export interface MlRuntime {
 	warmed: boolean;
 	warmupPromise?: Promise<void>;
 	canonicalAnglesPromise?: Promise<Map<string, number>>;
+	/** Calibrated canonical angles once ready. Read non-blocking; empty until then. */
+	canonicalAngles?: Map<string, number>;
+	/** Serializes session.run calls so they never overlap. See sessionQueue.ts. */
+	runChain?: Promise<unknown>;
 }
 
 /** One ML prediction projected back into dictionary identity space. */

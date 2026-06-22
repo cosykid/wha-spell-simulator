@@ -5,6 +5,9 @@ import { ensureCanonicalAngles, predictCandidateSingle, predictCandidates } from
 import { loadRuntime } from './runtime.js';
 import type { MlPrediction, MlProgress, ShouldContinue } from './types.js';
 
+/** Rotation falls back to uncorrected (offset 0) until calibration finishes. */
+const EMPTY_CANONICAL_ANGLES: Map<string, number> = new Map();
+
 /**
  * Refines template recognition with ML predictions when the browser runtime is available.
  *
@@ -41,11 +44,10 @@ export async function recognizeCandidatesHybridMl(
 		);
 	}
 
-	const canonicalAngles = await ensureCanonicalAngles(dictionary, runtime, cfg);
-	if (shouldContinue && !shouldContinue()) {
-		debugLog(cfg, 'template-only result returned; request superseded before inference');
-		return templateResults;
-	}
+	// Calibration only adjusts rendered rotation, so it must not block prediction.
+	// Use whatever angles are ready (empty on a cold start) and kick off the
+	// background calibration below, after this pass's predictions are queued.
+	const canonicalAngles = runtime.canonicalAngles ?? EMPTY_CANONICAL_ANGLES;
 
 	try {
 		if (candidates.length === 1 || !runtime.batchSupported) {
@@ -126,5 +128,10 @@ export async function recognizeCandidatesHybridMl(
 		return templateResults.map((result) =>
 			attachUnavailableMlDiagnostics(result, 'inference_failed')
 		);
+	} finally {
+		// Warm calibration in the background for later recognitions. Memoized, so it
+		// runs once; placed here so its GPU work queues after this pass's predictions
+		// rather than blocking the first result behind an ~8s cold compile.
+		void ensureCanonicalAngles(dictionary, runtime, cfg);
 	}
 }

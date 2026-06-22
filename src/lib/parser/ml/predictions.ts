@@ -3,6 +3,7 @@ import { candidateContentKey, scopedLruCache } from '../recognitionMemo.js';
 import type { Dictionary, DictionaryEntry, SymbolCandidate, TopMatch } from '../../types.js';
 import { debugLog, describeError } from './config.js';
 import { dictionaryEntry } from './dictionary.js';
+import { runSession } from './sessionQueue.js';
 import {
 	canonicalCandidateFromEntry,
 	renderCandidatesTensor,
@@ -148,7 +149,7 @@ async function canonicalAnglesBatched(
 	rendered.forEach((item, index) => batch.set(item.input, index * pixels));
 
 	const inputName = runtime.session.inputNames[0];
-	const results = await runtime.session.run({
+	const results = await runSession(runtime, {
 		[inputName]: new ort.Tensor('float32', batch, [
 			rendered.length,
 			1,
@@ -171,7 +172,7 @@ async function canonicalAnglesPerEntry(
 	const inputName = runtime.session.inputNames[0];
 	for (const { entry, input } of rendered) {
 		try {
-			const results = await runtime.session.run({
+			const results = await runSession(runtime, {
 				[inputName]: new ort.Tensor('float32', input, [1, 1, config.inputSize, config.inputSize])
 			});
 			const angle = outputTensor(results, ['angle'], 1).data as Float32Array;
@@ -201,6 +202,7 @@ export function ensureCanonicalAngles(
 				});
 				angles = await canonicalAnglesPerEntry(rendered, runtime, config);
 			}
+			runtime.canonicalAngles = angles;
 			debugLog(config, 'canonical angles ready', { count: angles.size });
 			return angles;
 		})();
@@ -232,7 +234,7 @@ async function predictCandidateBatch(
 			config.inputSize
 		])
 	};
-	const results = await runtime.session.run(feeds);
+	const results = await runSession(runtime, feeds);
 	if (shouldContinue && !shouldContinue()) {
 		return null;
 	}
@@ -283,7 +285,7 @@ export async function predictCandidateSingle(
 	const feeds: OrtFeeds = {
 		[inputName]: new ort.Tensor('float32', input, [1, 1, config.inputSize, config.inputSize])
 	};
-	const results = await runtime.session.run(feeds);
+	const results = await runSession(runtime, feeds);
 	const outputs = predictionOutputs(results);
 	const prediction = predictionFromOutputs(
 		runtime,
