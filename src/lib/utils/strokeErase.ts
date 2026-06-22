@@ -1,4 +1,4 @@
-import { pathLength } from './geometry.js';
+import { pathLength, pointToSegmentDistance, segmentToSegmentDistance } from './geometry.js';
 import type { Point, Stroke, Vector } from '../types.js';
 
 export interface EraseOptions {
@@ -9,42 +9,6 @@ export interface EraseOptions {
 export interface EraseResult {
 	strokes: Stroke[];
 	changed: boolean;
-}
-
-function pointToSegmentDistance(p: Vector, a: Vector, b: Vector): number {
-	const abx = b.x - a.x;
-	const aby = b.y - a.y;
-	const lengthSq = abx * abx + aby * aby;
-	if (lengthSq === 0) {
-		return Math.hypot(p.x - a.x, p.y - a.y);
-	}
-	const t = Math.max(0, Math.min(1, ((p.x - a.x) * abx + (p.y - a.y) * aby) / lengthSq));
-	return Math.hypot(p.x - (a.x + t * abx), p.y - (a.y + t * aby));
-}
-
-function orientation(a: Vector, b: Vector, c: Vector): number {
-	return (b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x);
-}
-
-function segmentsCross(a1: Vector, a2: Vector, b1: Vector, b2: Vector): boolean {
-	const o1 = orientation(a1, a2, b1);
-	const o2 = orientation(a1, a2, b2);
-	const o3 = orientation(b1, b2, a1);
-	const o4 = orientation(b1, b2, a2);
-	// Collinear touches fall through to the endpoint distance checks below.
-	return o1 * o2 < 0 && o3 * o4 < 0;
-}
-
-function segmentToSegmentDistance(a1: Vector, a2: Vector, b1: Vector, b2: Vector): number {
-	if (segmentsCross(a1, a2, b1, b2)) {
-		return 0;
-	}
-	return Math.min(
-		pointToSegmentDistance(a1, b1, b2),
-		pointToSegmentDistance(a2, b1, b2),
-		pointToSegmentDistance(b1, a1, a2),
-		pointToSegmentDistance(b2, a1, a2)
-	);
 }
 
 /**
