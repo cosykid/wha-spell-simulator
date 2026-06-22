@@ -182,7 +182,8 @@ export class SimulatorRuntime {
 		}
 
 		this.#effectRenderer.render(recognition.spellIR, recognition.ring, timestamp, {
-			showGuides: ui.showGuides
+			showGuides: ui.showGuides,
+			portalFit: ui.portalFit
 		});
 	};
 

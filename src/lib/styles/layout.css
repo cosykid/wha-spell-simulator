@@ -15,10 +15,6 @@
 	flex-direction: column;
 }
 
-.simulator-shell {
-	width: min(100%, max(1480px, calc(100vh + 540px)));
-}
-
 body:not(.sigil-maker-page) .app-shell {
 	height: 100vh;
 	overflow: hidden;
@@ -53,8 +49,6 @@ body:not(.sigil-maker-page) .app-shell {
 /* ── Panel cards (canvas / control / dictionary / side) ─────────────────── */
 
 .canvas-panel,
-.control-panel,
-.dictionary-panel,
 .side-panel {
 	border: 1px solid rgba(245, 240, 219, 0.26);
 	border-radius: var(--radius);
@@ -70,15 +64,6 @@ body:not(.sigil-maker-page) .app-shell {
 	align-items: stretch;
 	justify-content: stretch;
 	background: var(--paper);
-}
-
-.control-panel,
-.dictionary-panel {
-	min-width: 0;
-	padding: 14px;
-	overflow: hidden;
-	display: flex;
-	flex-direction: column;
 }
 
 .side-panel {

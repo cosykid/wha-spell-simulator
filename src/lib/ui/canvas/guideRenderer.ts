@@ -6,10 +6,17 @@ export function drawGuides(
 	ring: RingInfo | null | undefined,
 	width: number,
 	height: number,
-	config: AppConfig
+	config: AppConfig,
+	/**
+	 * Reference length the default (no ring drawn) guide is sized against. Defaults
+	 * to the full canvas. The simulator passes the visible viewport's short axis so
+	 * the guide fits on screen even when the canvas is a cover-square that overflows
+	 * the viewport (see canvasSizing.ts / SimulatorStage).
+	 */
+	referenceSize = Math.min(width, height)
 ): void {
 	const center = ring?.found ? ring.center : { x: width / 2, y: height / 2 };
-	const radius = ring?.found ? ring.radius : Math.min(width, height) * 0.36;
+	const radius = ring?.found ? ring.radius : referenceSize * 0.36;
 	const guideRadii = [
 		radius * config.layers.centerMax,
 		radius * config.layers.middleMax,

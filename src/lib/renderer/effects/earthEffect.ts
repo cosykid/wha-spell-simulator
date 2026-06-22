@@ -123,7 +123,7 @@ export function drawEarthEffect(
 ): void {
 	const scale = effectScale(spellIR);
 	const opacity = effectOpacity(spellIR);
-	const portal = activePortalPlane(ctx.canvas, ring);
+	const portal = activePortalPlane(ctx.canvas, ring, spellIR.portalFit);
 	state.earthFrame = ((state.earthFrame as number | undefined) ?? 0) + dt;
 	const flow = earthFlowConfig(spellIR, ring, portal, state.earthFrame as number);
 	const targetCount = Math.round(

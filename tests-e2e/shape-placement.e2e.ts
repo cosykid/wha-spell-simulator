@@ -2,6 +2,8 @@ import { expect, test, type Locator } from '@playwright/test';
 import { SpellCanvasPage } from './pages/SpellCanvasPage.js';
 
 async function centerOf(locator: Locator): Promise<{ x: number; y: number }> {
+	await locator.scrollIntoViewIfNeeded();
+	await expect(locator).toBeVisible();
 	const box = await locator.boundingBox();
 	if (!box) {
 		throw new Error('Expected locator to be visible before calculating its center.');

@@ -51,3 +51,8 @@ static/onnxruntime/
 .csv
 # JSON Lines <https://jsonlines.org/>
 .jsonl
+
+# High-res image masters. The optimized assets served from static/images/
+# (background.jpg, frame.jpg) are committed; these originals are kept locally
+# for re-tuning only.
+assets-src/

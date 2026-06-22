@@ -43,6 +43,46 @@
 	white-space: pre-wrap;
 }
 
+/*
+ * Slim sepia scrollbar for the panel and tool scroll regions, replacing the
+ * default chrome so it reads as part of the parchment surface.
+ */
+.shape-palette,
+.reference-list,
+.diagnostic-output {
+	scrollbar-width: thin;
+	scrollbar-color: var(--ink-sepia-45) transparent;
+}
+
+.shape-palette::-webkit-scrollbar,
+.reference-list::-webkit-scrollbar,
+.diagnostic-output::-webkit-scrollbar {
+	width: 8px;
+	height: 8px;
+}
+
+.shape-palette::-webkit-scrollbar-thumb,
+.reference-list::-webkit-scrollbar-thumb,
+.diagnostic-output::-webkit-scrollbar-thumb {
+	background: var(--ink-sepia-45);
+	border: 2px solid transparent;
+	border-radius: 999px;
+	background-clip: padding-box;
+}
+
+.shape-palette::-webkit-scrollbar-thumb:hover,
+.reference-list::-webkit-scrollbar-thumb:hover,
+.diagnostic-output::-webkit-scrollbar-thumb:hover {
+	background: var(--ink-sepia-70);
+	background-clip: padding-box;
+}
+
+.shape-palette::-webkit-scrollbar-track,
+.reference-list::-webkit-scrollbar-track,
+.diagnostic-output::-webkit-scrollbar-track {
+	background: transparent;
+}
+
 .template-output {
 	width: 100%;
 	min-height: 48vh;

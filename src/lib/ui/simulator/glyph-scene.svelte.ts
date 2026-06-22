@@ -1,6 +1,6 @@
 import type { AppConfig, ClassifiedDrawing, SpellIR, Stroke } from '$lib/types.js';
 import { drawGuides } from '$lib/ui/canvas/guideRenderer.js';
-import { paperEntity } from '$lib/ui/canvas/entities/paperEntity.js';
+import { texturedPaperEntity } from '$lib/ui/canvas/entities/paperEntity.js';
 import { renderStrokeInk } from '$lib/ui/canvas/entities/strokeEntity.js';
 import { drawSelection } from '$lib/ui/canvas/selectionRenderer.js';
 import type { Entity } from '$lib/ui/canvas/entity.js';
@@ -12,6 +12,7 @@ import {
 	drawStrokeIdDebug
 } from '$lib/renderer/glyphOverlayRenderer.js';
 import type { SimulatorDrawingState } from './drawing-state.svelte.js';
+import { visibleCanvasShortAxis } from './layout.js';
 import type { RecognitionPipeline } from './recognition-pipeline.svelte.js';
 import type { SimulatorUiState } from './ui-state.svelte.js';
 
@@ -44,7 +45,14 @@ function guideEntity({ config, recognition, ui }: SimulatorGlyphSceneOptions): E
 			if (!ui.showGuides) {
 				return;
 			}
-			drawGuides(ctx, recognition.pipeline?.ring, ctx.canvas.width, ctx.canvas.height, config);
+			drawGuides(
+				ctx,
+				recognition.pipeline?.ring,
+				ctx.canvas.width,
+				ctx.canvas.height,
+				config,
+				visibleCanvasShortAxis(ctx.canvas)
+			);
 		}
 	};
 }
@@ -169,7 +177,7 @@ function activatedGlyphEntity({
 
 export function createSimulatorGlyphScene(options: SimulatorGlyphSceneOptions): Scene {
 	return createScene([
-		paperEntity(),
+		texturedPaperEntity('/images/background.jpg'),
 		guideEntity(options),
 		strokeLayerEntity(options),
 		placementLayerEntity(options),

@@ -91,6 +91,11 @@ export class SimulatorSession {
 		this.recognition.refreshSummary();
 	};
 
+	/** Selects freehand draw mode (the pen tool). */
+	handleSelectDraw = () => {
+		this.#runtime?.setCanvasMode('draw');
+	};
+
 	/** Toggles arrange mode. */
 	handleToggleArrange = () => {
 		this.#runtime?.setCanvasMode(this.ui.toggleArrangeMode());

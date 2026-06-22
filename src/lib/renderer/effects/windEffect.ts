@@ -137,7 +137,7 @@ export function drawWindEffect(
 ): void {
 	const scale = effectScale(spellIR);
 	const opacity = effectOpacity(spellIR);
-	const portal = activePortalPlane(ctx.canvas, ring);
+	const portal = activePortalPlane(ctx.canvas, ring, spellIR.portalFit);
 	state.windFrame = ((state.windFrame as number | undefined) ?? 0) + dt;
 	const flow = windFlowConfig(spellIR, ring, portal, state.windFrame as number);
 	const targetCount = Math.round(

@@ -199,7 +199,8 @@ export function classifyDrawingOffThread(
 			strokes: input.strokes,
 			previousRing: input.previousRing,
 			canvasWidth: input.canvasWidth,
-			canvasHeight: input.canvasHeight
+			canvasHeight: input.canvasHeight,
+			guideReferenceSize: input.guideReferenceSize
 		});
 	});
 }

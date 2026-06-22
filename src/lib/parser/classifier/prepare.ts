@@ -12,6 +12,7 @@ export function prepareRecognition(input: ClassifyDrawingInput): PreparedRecogni
 		previousRing = null,
 		canvasWidth,
 		canvasHeight,
+		guideReferenceSize,
 		dictionary,
 		config,
 		recognitionExamples = []
@@ -20,13 +21,17 @@ export function prepareRecognition(input: ClassifyDrawingInput): PreparedRecogni
 	const ring = detectRing(cleanedStrokes, previousRing, config);
 
 	if (!ring.found) {
+		const guideSize =
+			typeof guideReferenceSize === 'number' && Number.isFinite(guideReferenceSize)
+				? guideReferenceSize
+				: Math.min(canvasWidth ?? 0, canvasHeight ?? 0);
 		const guideRing =
-			canvasWidth && canvasHeight
+			canvasWidth && canvasHeight && guideSize > 0
 				? {
 						found: true,
 						complete: false,
 						center: { x: canvasWidth / 2, y: canvasHeight / 2 },
-						radius: Math.min(canvasWidth, canvasHeight) * 0.36,
+						radius: guideSize * 0.36,
 						strokeIds: [] as string[]
 					}
 				: null;

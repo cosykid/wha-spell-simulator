@@ -511,7 +511,7 @@ export function drawWaterEffect(
 	config: AppConfig
 ): void {
 	const scale = effectScale(spellIR);
-	const portal = activePortalPlane(ctx.canvas, ring);
+	const portal = activePortalPlane(ctx.canvas, ring, spellIR.portalFit);
 	state.waterFrame = ((state.waterFrame as number | undefined) ?? 0) + dt;
 	const flow = waterFlowConfig(spellIR, ring, portal, state.waterFrame as number);
 	const baseCount = flow.suspended

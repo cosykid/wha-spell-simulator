@@ -243,7 +243,7 @@ export function drawLightEffect(
 	config: AppConfig
 ): void {
 	const scale = effectScale(spellIR);
-	const portal = activePortalPlane(ctx.canvas, ring);
+	const portal = activePortalPlane(ctx.canvas, ring, spellIR.portalFit);
 	state.lightFrame = ((state.lightFrame as number | undefined) ?? 0) + dt;
 	const flow = lightFlowConfig(spellIR, ring, portal, state.lightFrame as number);
 	const targetCount = Math.round(

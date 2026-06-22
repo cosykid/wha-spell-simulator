@@ -5,7 +5,6 @@
  * it into each one.
  */
 
-.panel-tabs,
 .reference-panel,
 .diagnostics-panel {
 	border-top: 1px solid rgba(36, 27, 22, 0.16);
@@ -35,7 +34,6 @@
 	background: rgba(36, 27, 22, 0.04);
 }
 
-.panel-tab-button,
 .dictionary-tab-button,
 .diagnostic-tab-button {
 	min-width: 0;
@@ -48,7 +46,6 @@
 	color: var(--muted-ink);
 }
 
-.panel-tab-button.active,
 .dictionary-tab-button.active,
 .diagnostic-tab-button.active {
 	color: var(--ink);
@@ -56,7 +53,6 @@
 	border-bottom-color: var(--teal);
 }
 
-.panel-tab-button:hover,
 .dictionary-tab-button:hover,
 .diagnostic-tab-button:hover {
 	background: rgba(255, 242, 197, 0.64);

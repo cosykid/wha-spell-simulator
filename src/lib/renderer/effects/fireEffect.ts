@@ -290,7 +290,7 @@ export function drawFireEffect(
 ): void {
 	const scale = effectScale(spellIR);
 	const opacity = effectOpacity(spellIR);
-	const portal = activePortalPlane(ctx.canvas, ring);
+	const portal = activePortalPlane(ctx.canvas, ring, spellIR.portalFit);
 	state.fireFrame = ((state.fireFrame as number | undefined) ?? 0) + dt;
 	const flow = fireFlowConfig(spellIR, ring, portal, state.fireFrame as number);
 	const baseCount = flow.suspended
