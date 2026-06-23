@@ -315,6 +315,7 @@ export class SimulatorRuntime {
 		this.#keyboardHandler = createSimulatorKeyboardHandler({
 			activeTool: () => ui.activeTool,
 			selectedPlacementId: () => drawing.selectedPlacementId,
+			selectTool: (mode) => this.setCanvasMode(mode),
 			commitSelected: actions.commitSelected,
 			deleteSelected: actions.removeSelectedShape,
 			undo: actions.undo,

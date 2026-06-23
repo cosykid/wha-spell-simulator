@@ -37,7 +37,7 @@ static/onnxruntime/
 
 # Local editor and OS metadata
 .DS_Store
-Icon?
+/Icon?
 .codex/
 .claude/
 .vscode/

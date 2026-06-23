@@ -22,6 +22,7 @@ spills off-screen.
 
 	interface Props {
 		label: string;
+		shortcut?: string;
 		active?: boolean;
 		disabled?: boolean;
 		pipFirst?: boolean;
@@ -34,6 +35,7 @@ spills off-screen.
 
 	let {
 		label,
+		shortcut,
 		active = false,
 		disabled = false,
 		pipFirst = false,
@@ -61,6 +63,7 @@ spills off-screen.
 	<span class="tool-pip" aria-hidden="true"></span>
 	<HoverLabel
 		{label}
+		{shortcut}
 		placement={labelBelow ? 'below' : 'above'}
 		caret={pipFirst ? 'right' : 'left'}
 		chip={pipFirst ? 'right' : 'left'}

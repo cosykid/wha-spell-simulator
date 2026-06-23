@@ -22,7 +22,7 @@ build/
 
 # macOS
 .DS_Store
-Icon?
+/Icon?
 
 # Obsidian local vault state
 docs/.obsidian/

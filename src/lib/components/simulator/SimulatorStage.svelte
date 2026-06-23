@@ -8,19 +8,19 @@ This is the simulator view's table of contents: the canvas, the chrome clusters,
 and the drawers each live one named click away.
 -->
 <script lang="ts">
-	import Menu from 'lucide-svelte/icons/menu';
-	import ZoomIn from 'lucide-svelte/icons/zoom-in';
-	import ZoomOut from 'lucide-svelte/icons/zoom-out';
 	import CanvasActionBar from './CanvasActionBar.svelte';
 	import CanvasIconButton from './CanvasIconButton.svelte';
-	import DrawTools from './DrawTools.svelte';
+	import ArcaneMenu from './icons/ArcaneMenu.svelte';
+	import ArcaneRecenter from './icons/ArcaneRecenter.svelte';
+	import ArcaneZoomIn from './icons/ArcaneZoomIn.svelte';
+	import ArcaneZoomOut from './icons/ArcaneZoomOut.svelte';
 	import MenuDrawer from './MenuDrawer.svelte';
 	import ReferenceDrawer from './ReferenceDrawer.svelte';
 	import ReferenceTabs from './ReferenceTabs.svelte';
 	import SimulatorCanvasPanel from './SimulatorCanvasPanel.svelte';
 	import SpellMeters from './SpellMeters.svelte';
 	import StatusReadout from './StatusReadout.svelte';
-	import TransformTools from './TransformTools.svelte';
+	import ToolDock from './ToolDock.svelte';
 	import type { SimulatorSession } from '$lib/ui/simulator/simulator-session.svelte.js';
 
 	interface Props {
@@ -29,6 +29,7 @@ and the drawers each live one named click away.
 
 	let { simulator }: Props = $props();
 	let ui = $derived(simulator.ui);
+	let pan = $derived(simulator.pan);
 	let recognition = $derived(simulator.recognition);
 </script>
 
@@ -64,25 +65,29 @@ and the drawers each live one named click away.
 			pressed={ui.menuOpen}
 			onclick={ui.toggleMenu}
 		>
-			<Menu aria-hidden="true" />
+			<ArcaneMenu aria-hidden="true" />
 		</CanvasIconButton>
 		<CanvasActionBar {simulator} />
 	</div>
 
-	<div class="chrome chrome-left"><DrawTools {simulator} /></div>
-	<div class="chrome chrome-tr"><TransformTools {simulator} /></div>
+	<div class="chrome chrome-left"><ToolDock {simulator} /></div>
 	<div class="chrome chrome-right"><ReferenceTabs {simulator} /></div>
 	<div class="chrome chrome-bl"><SpellMeters {simulator} /></div>
 	<div class="chrome chrome-bc"><StatusReadout {simulator} /></div>
 
 	<div class="chrome chrome-br">
+		{#if pan.isOffset}
+			<CanvasIconButton buttonClass="zoom-btn" label="Re-center" onclick={pan.recenter}>
+				<ArcaneRecenter aria-hidden="true" />
+			</CanvasIconButton>
+		{/if}
 		<CanvasIconButton
 			buttonClass="zoom-btn"
 			label="Zoom out"
 			disabled={ui.zoomLevel <= ui.zoomMin}
 			onclick={ui.zoomOut}
 		>
-			<ZoomOut aria-hidden="true" />
+			<ArcaneZoomOut aria-hidden="true" />
 		</CanvasIconButton>
 		<CanvasIconButton
 			buttonClass="zoom-btn"
@@ -91,7 +96,7 @@ and the drawers each live one named click away.
 			disabled={ui.zoomLevel >= ui.zoomMax}
 			onclick={ui.zoomIn}
 		>
-			<ZoomIn aria-hidden="true" />
+			<ArcaneZoomIn aria-hidden="true" />
 		</CanvasIconButton>
 	</div>
 
@@ -223,15 +228,11 @@ and the drawers each live one named click away.
 		gap: 8px;
 	}
 
-	/* Tucked just below the top-left action bar, matching its left edge. */
+	/* Vertically centred on the left edge, clear of the centred canvas. */
 	.chrome-left {
-		top: calc(var(--chrome-inset-y) + 56px);
+		top: 50%;
 		left: var(--chrome-inset-x);
-	}
-
-	.chrome-tr {
-		top: var(--chrome-inset-y);
-		right: var(--chrome-inset-x);
+		transform: translateY(-50%);
 	}
 
 	.chrome-right {
@@ -258,84 +259,14 @@ and the drawers each live one named click away.
 		gap: 6px;
 	}
 
-	.chrome-tl :global(.menu-trigger) {
-		display: inline-flex;
-		align-items: center;
-		justify-content: center;
-		width: 33px;
-		height: 33px;
-		min-height: 33px;
-		padding: 0;
-		border: 1px solid var(--chrome-btn-border);
-		border-radius: 9px;
-		color: var(--chrome-btn-fg);
-		background: var(--chrome-btn-bg);
-		box-shadow: none;
-		transition:
-			color 160ms ease,
-			background 160ms ease,
-			border-color 160ms ease;
-	}
-
-	.chrome-tl :global(.menu-trigger:hover) {
-		background: var(--chrome-btn-bg-hover);
-	}
-
-	.chrome-tl :global(.menu-trigger svg) {
-		width: 16px;
-		height: 16px;
-		fill: none;
-		stroke: currentColor;
-		stroke-width: 1.9;
-		stroke-linecap: round;
-		stroke-linejoin: round;
-	}
-
-	.chrome-br :global(.zoom-btn) {
-		display: inline-flex;
-		align-items: center;
-		justify-content: center;
-		width: 31px;
-		height: 31px;
-		min-height: 31px;
-		padding: 0;
-		border: 1px solid var(--chrome-btn-border);
-		border-radius: 9px;
-		color: var(--chrome-btn-fg);
-		background: var(--chrome-btn-bg);
-		box-shadow: none;
-	}
-
-	.chrome-br :global(.zoom-btn:hover:not(:disabled)) {
-		background: var(--chrome-btn-bg-hover);
-	}
-
-	.chrome-br :global(.zoom-btn:disabled) {
-		opacity: 0.4;
-		cursor: not-allowed;
-	}
-
-	.chrome-br :global(svg) {
-		width: 15px;
-		height: 15px;
-		fill: none;
-		stroke: currentColor;
-		stroke-width: 1.9;
-		stroke-linecap: round;
-		stroke-linejoin: round;
-	}
+	/* The menu and zoom buttons are CanvasIconButton plates; their look lives there.
+	   The chrome wrappers above own only placement. */
 
 	/* On phones the responsive --chrome-inset already tightens spacing; only the
 	   hint text needs to shrink. */
 	@media (max-width: 640px) {
 		.canvas-hint {
 			font-size: 12px;
-		}
-	}
-
-	@media (prefers-reduced-motion: reduce) {
-		.chrome-tl :global(.menu-trigger) {
-			transition: none;
 		}
 	}
 </style>

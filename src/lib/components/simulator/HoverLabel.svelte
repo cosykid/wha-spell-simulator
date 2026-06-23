@@ -17,12 +17,15 @@ side keeps it on-screen for the edge- and corner-hugging docks.
 		placement?: 'above' | 'below';
 		caret?: 'center' | 'left' | 'right';
 		chip?: 'center' | 'left' | 'right';
+		shortcut?: string;
 	}
 
-	let { label, placement = 'above', caret = 'center', chip = 'center' }: Props = $props();
+	let { label, placement = 'above', caret = 'center', chip = 'center', shortcut }: Props = $props();
 </script>
 
-<span class="hover-box {placement} chip-{chip}" aria-hidden="true">{label}</span>
+<span class="hover-box {placement} chip-{chip}" aria-hidden="true">
+	{label}{#if shortcut}<kbd class="hover-key">{shortcut}</kbd>{/if}
+</span>
 <span class="hover-caret {placement} caret-{caret}" aria-hidden="true"></span>
 
 <style>
@@ -54,6 +57,19 @@ side keeps it on-screen for the edge- and corner-hugging docks.
 		text-align: center;
 		white-space: nowrap;
 		transform: translateX(var(--tx)) translateY(calc((1 - var(--label-shown, 0)) * 3px));
+	}
+
+	/* The shortcut key, shown as a faint outlined cap after the name. */
+	.hover-key {
+		margin-left: 8px;
+		padding: 0 5px;
+		border: 1px solid rgba(242, 236, 214, 0.45);
+		border-radius: 3px;
+		font-family: inherit;
+		font-size: 11px;
+		line-height: 1.5;
+		text-transform: uppercase;
+		opacity: 0.85;
 	}
 
 	/*

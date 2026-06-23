@@ -57,7 +57,7 @@ so there is exactly one "Shapes" button (the E2E entry point).
 		min-height: 36px;
 		padding: 0 12px;
 		border: 1px solid transparent;
-		border-radius: 999px;
+		border-radius: var(--chrome-btn-radius);
 		color: var(--ink-sepia-45);
 		background: transparent;
 		box-shadow: none;

@@ -36,6 +36,7 @@ square; the stage centres it on the parchment.
 		class="canvas-container"
 		data-testid="canvas-container"
 		onpointerdown={pan.start}
+		ondblclick={() => ui.panEnabled && pan.recenter()}
 		tabindex="0"
 		aria-label="Canvas container for panning"
 		role="button"
