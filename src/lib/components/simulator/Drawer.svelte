@@ -115,7 +115,6 @@ instead of forcing a trip to a far corner.
 	.drawer.left {
 		left: 0;
 		transform: translateX(-103%);
-		border-right: 1px solid rgba(255, 250, 230, 0.16);
 		border-top-right-radius: 18px;
 		border-bottom-right-radius: 18px;
 	}
@@ -123,7 +122,6 @@ instead of forcing a trip to a far corner.
 	.drawer.right {
 		right: 0;
 		transform: translateX(103%);
-		border-left: 1px solid rgba(255, 250, 230, 0.16);
 		border-top-left-radius: 18px;
 		border-bottom-left-radius: 18px;
 	}
@@ -147,11 +145,11 @@ instead of forcing a trip to a far corner.
 		display: inline-flex;
 		align-items: center;
 		justify-content: center;
-		width: 24px;
-		height: 56px;
+		width: 26px;
+		height: 60px;
 		min-height: 0;
 		padding: 0;
-		border: 1px solid rgba(255, 250, 230, 0.16);
+		border: 0;
 		color: var(--ink-sepia-45);
 		background: var(--drawer-glass);
 		-webkit-backdrop-filter: blur(var(--drawer-blur)) saturate(1.1);
@@ -168,16 +166,14 @@ instead of forcing a trip to a far corner.
 	   outward corners, and lean on a soft ambient shadow (no hard offset) so the tab
 	   reads as the panel's own material bulging out rather than a chip stuck on. */
 	.drawer.right .drawer-close {
-		right: calc(100% - 1px);
-		border-right: 0;
-		border-radius: 14px 0 0 14px;
+		right: 100%;
+		border-radius: 18px 0 0 18px;
 		box-shadow: -16px 0 28px -14px rgba(36, 27, 22, 0.3);
 	}
 
 	.drawer.left .drawer-close {
-		left: calc(100% - 1px);
-		border-left: 0;
-		border-radius: 0 14px 14px 0;
+		left: 100%;
+		border-radius: 0 18px 18px 0;
 		box-shadow: 16px 0 28px -14px rgba(36, 27, 22, 0.3);
 	}
 
@@ -188,7 +184,7 @@ instead of forcing a trip to a far corner.
 
 	.drawer-close:hover {
 		color: var(--ink-sepia);
-		background: var(--chrome-glass-strong);
+		background: rgba(232, 222, 192, 0.92);
 	}
 
 	.drawer-close :global(svg) {
