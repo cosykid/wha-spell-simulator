@@ -145,4 +145,44 @@ test.describe('Shape placement', () => {
 		await page.mouse.click(canvasCenter.x, canvasCenter.y);
 		await expect(inspectorCard).toContainText('sigil');
 	});
+
+	// Copy/paste clones a selected placement in arrange mode. The copy keeps the
+	// same kind and source and lands as a new selected shape, leaving the original
+	// behind (proven by deleting the copy and reselecting the original).
+	test('copies and pastes a placement, preserving its kind and source', async ({ page }) => {
+		const canvas = new SpellCanvasPage(page);
+		await canvas.goto();
+		await page.getByRole('button', { name: 'Shapes', exact: true }).click();
+
+		const inspectorCard = page.locator('.shape-inspector-card');
+		const firePreview = page
+			.locator('#shapesRootPanel .shape-card', { hasText: 'Fire' })
+			.first()
+			.locator('.reference-preview');
+		const previewCenter = await centerOf(firePreview);
+		const canvasCenter = await centerOf(canvas.glyphCanvas);
+
+		// Drop a fire sigil. The drop switches to arrange mode and selects it.
+		await page.mouse.move(previewCenter.x, previewCenter.y);
+		await page.mouse.down();
+		await page.mouse.move(canvasCenter.x, canvasCenter.y);
+		await page.mouse.up();
+		await expect(inspectorCard).toContainText('fire');
+		await expect(inspectorCard).toContainText('sigil');
+
+		// Copy, then paste a cascaded copy. Paste selects the new shape, so the
+		// inspector still shows a fire sigil.
+		await page.keyboard.press('ControlOrMeta+c');
+		await page.keyboard.press('ControlOrMeta+v');
+		await expect(inspectorCard).toContainText('fire');
+		await expect(inspectorCard).toContainText('sigil');
+
+		// Deleting the pasted copy leaves the original behind: clicking its center
+		// reselects a fire sigil, proving paste created a second placement.
+		await page.keyboard.press('Delete');
+		await expect(inspectorCard).toBeHidden();
+		await page.mouse.click(canvasCenter.x, canvasCenter.y);
+		await expect(inspectorCard).toContainText('fire');
+		await expect(inspectorCard).toContainText('sigil');
+	});
 });
