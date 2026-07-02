@@ -6,8 +6,14 @@ import { degreesToRadians, normalizeAngleDeg, radiansToDegrees } from '../utils/
 import type { DirectedSource, FieldVector, SpawnDomain, SpellField, Vector } from '../types.js';
 
 const FIELD_TUNING = {
-	// How strongly a column's off-center position leans the beam sideways.
-	axialLean: 0.8,
+	// How far a column's ring position shifts its beam axis off center, so the
+	// beam manifests toward the side with the most or largest signs.
+	axialLean: 0.55,
+	// Beam footprint: the jet is strong within this distance of the beam axis
+	// and soft outside it, so columns read as a column instead of a sheet.
+	axialFootprint: 0.45,
+	// Chimney draft: how strongly a column gathers magic toward its beam axis.
+	axialConverge: 0.6,
 	// Distance from a radial source's center where its force peaks. Below this
 	// the force ramps to zero so the center is not a singularity.
 	radialCore: 0.4,
@@ -16,6 +22,14 @@ const FIELD_TUNING = {
 	// Lift per unit of tangential flow: swirl about the seal pumps magic up the
 	// out-axis like a tornado updraft, regardless of spin direction.
 	swirlLift: 0.35,
+	// Height (in ring radii) where levitation lift fades to zero, so held
+	// magic settles into a hovering mass instead of climbing forever.
+	hoverCeiling: 0.85,
+	// How strongly levitation gathers its held magic toward the seal axis.
+	hoverGather: 0.5,
+	// The gather goes slack inside this radius so the held mass keeps volume
+	// as a blob instead of collapsing to a point.
+	hoverBlobRadius: 0.26,
 	minimumDistance: 1e-4
 };
 
@@ -63,19 +77,32 @@ function directedTangentialness(source: DirectedSource): number {
 }
 
 /**
- * The net force on unit-mass magic at seal-space point `p`: every source's
- * contribution summed. Behaviors emerge from this sum alone — balanced columns
- * cancel their lean, angled pulls form a vortex, opposed pushes cancel.
+ * The net force on unit-mass magic at seal-space point `p` at `height` above
+ * the seal plane: every source's contribution summed. Behaviors emerge from
+ * this sum alone — balanced columns cancel into one straight beam, angled
+ * pulls form a vortex, levitation settles into a hovering mass.
  */
-export function sampleFieldForce(field: SpellField, p: Vector): FieldVector {
+export function sampleFieldForce(field: SpellField, p: Vector, height: number = 0): FieldVector {
 	const force: FieldVector = { x: 0, y: 0, z: 0 };
 
 	for (const source of field.sources) {
 		switch (source.kind) {
 			case 'axial': {
-				force.z += source.strength;
-				force.x += source.at.x * FIELD_TUNING.axialLean * source.strength;
-				force.y += source.at.y * FIELD_TUNING.axialLean * source.strength;
+				// The beam rises at an axis leaned toward the sign; magic is
+				// drafted toward that axis and jetted up within the footprint.
+				const axisX = source.at.x * FIELD_TUNING.axialLean;
+				const axisY = source.at.y * FIELD_TUNING.axialLean;
+				const dx = p.x - axisX;
+				const dy = p.y - axisY;
+				const distance = Math.hypot(dx, dy);
+				const footprint = FIELD_TUNING.axialFootprint;
+				const beam = 1 / (1 + (distance * distance) / (footprint * footprint));
+				force.z += source.strength * beam;
+				if (distance >= FIELD_TUNING.minimumDistance) {
+					const draft = radialMagnitude(distance, source.strength) * FIELD_TUNING.axialConverge;
+					force.x += (-dx / distance) * draft;
+					force.y += (-dy / distance) * draft;
+				}
 				break;
 			}
 			case 'radial': {
@@ -109,7 +136,17 @@ export function sampleFieldForce(field: SpellField, p: Vector): FieldVector {
 				break;
 			}
 			case 'buoyancy': {
-				force.z += source.strength;
+				// Lift fades with altitude so held magic hovers at equilibrium
+				// instead of climbing away; a gentle draft gathers it into one
+				// mass over the seal.
+				force.z += source.strength * Math.max(0, 1 - height / FIELD_TUNING.hoverCeiling);
+				const distance = Math.hypot(p.x, p.y);
+				const slack = Math.max(0, distance - FIELD_TUNING.hoverBlobRadius);
+				if (distance >= FIELD_TUNING.minimumDistance && slack > 0) {
+					const gather = radialMagnitude(slack, source.strength) * FIELD_TUNING.hoverGather;
+					force.x += (-p.x / distance) * gather;
+					force.y += (-p.y / distance) * gather;
+				}
 				break;
 			}
 		}

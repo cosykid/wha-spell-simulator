@@ -8,11 +8,11 @@ import { clamp, randomBetween } from '../../utils/geometry.js';
 import { sampleFieldForce, spawnDomainPosition } from '../../field/sampleField.js';
 import {
 	activePortalPlane,
-	effectOpacity,
 	effectScale,
-	particleAlpha,
 	pruneParticles,
-	scaledParticleCount
+	scaledParticleCount,
+	spellLifetimeFrames,
+	steadyParticleAlpha
 } from './effectUtils.js';
 import type { AppConfig, ElementId, RingInfo, SpellField } from '../../types.js';
 import type { EffectState, Particle, Portal, RenderSpellIR } from './effectUtils.js';
@@ -27,13 +27,16 @@ const FIELD_MOTION = {
 	gravity: 0.0015,
 	drag: 0.955,
 	// Beyond this seal-space distance a particle respawns.
-	bounds: 2.6,
-	fadeInFrames: 6
+	bounds: 2.6
 };
 
 const PARTICLE_SHAPE = {
-	minLife: 50,
-	maxLife: 110,
+	// Particles live for the whole spell and fade with emission; this stagger
+	// keeps them from all expiring on the same frame.
+	lifeVariance: 30,
+	// New particles per 60fps frame, so held forms fill in instead of popping.
+	spawnPerFrame: 6,
+	fadeInFrames: 14,
 	minRadius: 7,
 	maxRadius: 16,
 	minSpawnHeight: 0.02,
@@ -84,7 +87,7 @@ function spawnFieldParticle(spellIR: RenderSpellIR, field: SpellField): FieldPar
 		svy: force.y * warmup + randomBetween(-jitter, jitter),
 		svz: force.z * FIELD_MOTION.liftAccel * PARTICLE_SHAPE.warmupFrames,
 		age: 0,
-		life: randomBetween(PARTICLE_SHAPE.minLife, PARTICLE_SHAPE.maxLife),
+		life: spellLifetimeFrames(spellIR) + randomBetween(0, PARTICLE_SHAPE.lifeVariance),
 		radius:
 			randomBetween(PARTICLE_SHAPE.minRadius, PARTICLE_SHAPE.maxRadius) *
 			(0.7 + scale * 0.25) *
@@ -96,7 +99,7 @@ function spawnFieldParticle(spellIR: RenderSpellIR, field: SpellField): FieldPar
 function updateFieldParticle(particle: FieldParticle, field: SpellField, dt: number): void {
 	particle.age += dt;
 
-	const force = sampleFieldForce(field, { x: particle.sx, y: particle.sy });
+	const force = sampleFieldForce(field, { x: particle.sx, y: particle.sy }, particle.sz);
 	particle.svx += force.x * FIELD_MOTION.planarAccel * dt;
 	particle.svy += force.y * FIELD_MOTION.planarAccel * dt;
 	particle.svz += (force.z * FIELD_MOTION.liftAccel - FIELD_MOTION.gravity) * dt;
@@ -127,15 +130,16 @@ function drawFieldParticle(
 	particle: FieldParticle,
 	portal: Portal,
 	palette: { inner: string; outer: string },
-	opacity: number
+	spellIR: RenderSpellIR
 ): void {
 	const x = portal.center.x + particle.sx * portal.radiusX;
 	const y =
 		portal.center.y +
 		particle.sy * portal.radiusY -
 		particle.sz * portal.radiusX * PARTICLE_SHAPE.heightScale;
-	const fadeIn = Math.min(1, particle.age / FIELD_MOTION.fadeInFrames);
-	const alpha = clamp(particleAlpha(particle) * fadeIn * opacity * 1.2);
+	// Emission-driven alpha: held forms persist steadily for the spell's
+	// duration and the whole effect fades out together at the end.
+	const alpha = clamp(steadyParticleAlpha(particle, spellIR, PARTICLE_SHAPE.fadeInFrames) * 1.2);
 	const radius = particle.radius * (0.9 + Math.min(particle.sz, 1.4) * 0.2);
 
 	particle.x = x;
@@ -180,20 +184,21 @@ export function drawFieldEffect(
 	}
 
 	const portal = activePortalPlane(ctx.canvas, ring, spellIR.portalFit);
-	const opacity = effectOpacity(spellIR);
 	const palette = ELEMENT_PALETTES[spellIR.element ?? 'light'] ?? ELEMENT_PALETTES.light;
 	const baseCount =
 		config.renderer.particleBaseCount * (0.7 + clamp(field.domain.strength) * 0.2) +
 		spellIR.force * 80;
 	const targetCount = scaledParticleCount(baseCount, spellIR, config);
 
-	while (state.particles.length < targetCount) {
+	let spawnBudget = Math.ceil(PARTICLE_SHAPE.spawnPerFrame * dt);
+	while (state.particles.length < targetCount && spawnBudget > 0) {
 		state.particles.push(spawnFieldParticle(spellIR, field));
+		spawnBudget -= 1;
 	}
 
 	for (const particle of state.particles) {
 		updateFieldParticle(particle as FieldParticle, field, dt);
-		drawFieldParticle(ctx, particle as FieldParticle, portal, palette, opacity);
+		drawFieldParticle(ctx, particle as FieldParticle, portal, palette, spellIR);
 	}
 
 	pruneParticles(state);

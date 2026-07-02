@@ -18,7 +18,10 @@ import type { GlyphAST, Recognition, Vector } from '../src/lib/types.js';
 
 /**
  * Minimal recognized-sign fixture. `angleDeg` is the ring position bearing
- * (0 = east, 90 = top) and `facingDeg` the direction the sign points.
+ * (0 = east, 90 = top) and `facingDeg` the direction the sign points. Facing
+ * is carried the way real recognitions carry it: as the ML pose head's
+ * rotationOffsetDeg. `mlAccepted: false` mimics a template-only recognition,
+ * whose offset holds no facing information.
  */
 function sign({
 	id,
@@ -27,7 +30,8 @@ function sign({
 	facingDeg,
 	radiusNorm = 0.8,
 	radialFacing = 'unclear',
-	sizeNorm = 0.16
+	sizeNorm = 0.16,
+	mlAccepted = true
 }: {
 	id: string;
 	manifestation: string;
@@ -36,7 +40,9 @@ function sign({
 	radiusNorm?: number;
 	radialFacing?: string;
 	sizeNorm?: number;
+	mlAccepted?: boolean;
 }): Recognition {
+	const twistDeg = facingDeg - (angleDeg + 180);
 	return {
 		id,
 		kind: 'sign',
@@ -52,9 +58,11 @@ function sign({
 		lengthNorm: 0.5,
 		orientationDeg: facingDeg % 180,
 		directedOrientationDeg: facingDeg,
+		rotationOffsetDeg: ((-(twistDeg + angleDeg + 90) % 360) + 360) % 360,
 		radialFacing,
 		semantic: { manifestation, directionMode: 'inward' },
-		shape: {}
+		shape: {},
+		diagnostics: { ml: { accepted: mlAccepted } }
 	} as unknown as Recognition;
 }
 
@@ -106,6 +114,62 @@ test('facingTwistDeg measures rotation away from inward', () => {
 		),
 		180
 	);
+});
+
+test('template-recognized signs default to canon inward facing', () => {
+	// Hand-drawn signs the ML did not accept carry no facing information: the
+	// template matcher pre-rotates them into the bottom-of-ring frame. Canon
+	// default pose faces inward, so side columns must stay axial beams instead
+	// of flipping to inverted/outward (the fire-burst regression).
+	const field = buildSpellField(
+		[0, 90, 180, 270].map((angleDeg) =>
+			sign({
+				id: 'column',
+				manifestation: 'column',
+				angleDeg,
+				facingDeg: angleDeg, // draw-order junk claiming outward
+				mlAccepted: false
+			})
+		)
+	);
+	assert.ok(
+		field.sources.every((source) => source.kind === 'axial'),
+		'all columns stay beams'
+	);
+	const force = forceAt(field, 0, 0);
+	assert.ok(force.z > 1, 'the balanced beam rises');
+	assert.ok(Math.hypot(force.x, force.y) < 1e-6, 'no outward spray');
+});
+
+test('a column gathers magic toward its beam instead of spraying', () => {
+	const field = buildSpellField([
+		sign({ id: 'column', manifestation: 'column', angleDeg: 0, facingDeg: 180 })
+	]);
+	// Outside the beam the draft points back toward the beam axis (east side).
+	const westEdge = forceAt(field, -0.9, 0);
+	assert.ok(westEdge.x > 0, 'draft pulls toward the beam axis');
+	// The jet is strongest near the axis and soft far away.
+	const source = field.sources[0];
+	assert.ok(source.kind === 'axial');
+	const axis = source.kind === 'axial' ? { x: source.at.x * 0.55, y: source.at.y * 0.55 } : null;
+	const onAxis = sampleFieldForce(field, axis!);
+	assert.ok(onAxis.z > westEdge.z * 2, 'the jet concentrates in the beam footprint');
+});
+
+test('levitation lift fades with height into a hover equilibrium', () => {
+	const field = buildSpellField([
+		sign({ id: 'levitation', manifestation: 'levitation', angleDeg: 0, facingDeg: 180 }),
+		sign({ id: 'levitation', manifestation: 'levitation', angleDeg: 180, facingDeg: 0 })
+	]);
+	const ground = sampleFieldForce(field, { x: 0.1, y: 0 }, 0).z;
+	const midway = sampleFieldForce(field, { x: 0.1, y: 0 }, 0.5).z;
+	const ceiling = sampleFieldForce(field, { x: 0.1, y: 0 }, 0.9).z;
+	assert.ok(ground > midway, 'lift weakens as the mass rises');
+	assert.ok(midway > ceiling, 'and keeps weakening');
+	assert.ok(ceiling < 1e-9, 'no lift above the hover ceiling');
+
+	const gather = sampleFieldForce(field, { x: 0.5, y: 0 }, 0.4);
+	assert.ok(gather.x < 0, 'held magic gathers toward the seal axis');
 });
 
 test('a lone column beams upward and leans toward its own side', () => {

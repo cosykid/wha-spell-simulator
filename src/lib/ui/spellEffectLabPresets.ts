@@ -2,6 +2,7 @@
 // the Recognition fixtures a drawn spell would produce, so the field pipeline
 // (buildSpellField -> field effect) can be exercised without drawing signs.
 
+import { normalizeAngleDeg } from '../utils/geometry.js';
 import type { Recognition } from '../types.js';
 
 interface PresetSignSpec {
@@ -30,6 +31,9 @@ function presetSign({
 	radialFacing = 'unclear',
 	sizeNorm = 0.16
 }: PresetSignSpec): Recognition {
+	// Facing travels the way real recognitions carry it: as the ML pose head's
+	// rotationOffsetDeg (see facingTwistDeg in buildSpellField).
+	const twistDeg = facingDeg - (angleDeg + 180);
 	return {
 		candidateId: `preset-${id}-${angleDeg}`,
 		strokeIds: [],
@@ -48,14 +52,15 @@ function presetSign({
 		lengthNorm: 0.5,
 		orientationDeg: facingDeg % 180,
 		directedOrientationDeg: facingDeg,
-		rotationOffsetDeg: 0,
+		rotationOffsetDeg: normalizeAngleDeg(-(twistDeg + angleDeg + 90)),
 		radialFacing,
 		overdrawAmount: 0,
 		element: null,
 		semantic: { manifestation, directionMode: 'inward' },
 		referenceSizeNorm: sizeNorm,
-		shape: {}
-	} as Recognition;
+		shape: {},
+		diagnostics: { ml: { accepted: true } }
+	} as unknown as Recognition;
 }
 
 function inward(angleDeg: number): number {
@@ -181,10 +186,11 @@ export const FIELD_PRESETS: FieldPreset[] = [
 	},
 	{
 		id: 'levitation',
-		label: 'Float ×3 — hover',
-		description: 'Buoyancy beats gravity; particles drift upward and hang.',
-		signs: signsAt([30, 150, 270], (angleDeg) => ({
-			id: 'float',
+		label: 'Levitation ×4 — hover blob',
+		description:
+			'Lift fades with height; the element gathers into a mass held above the seal (water orb).',
+		signs: signsAt([0, 90, 180, 270], (angleDeg) => ({
+			id: 'levitation',
 			manifestation: 'levitation',
 			facingDeg: inward(angleDeg)
 		}))
