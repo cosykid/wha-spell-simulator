@@ -39,10 +39,6 @@ function sealPosition(sign: Recognition): Vector {
 	return { x: radial.x * radius, y: radial.y * radius };
 }
 
-function facingDirection(sign: Recognition): Vector {
-	return vectorFromAngleDeg(sign.directedOrientationDeg ?? sign.orientationDeg ?? 0);
-}
-
 /** Signed degrees from one bearing to another, in (-180, 180]. */
 function signedAngleDifferenceDeg(fromDeg: number, toDeg: number): number {
 	const wrapped = (((toDeg - fromDeg) % 360) + 360) % 360;
@@ -53,11 +49,24 @@ function signedAngleDifferenceDeg(fromDeg: number, toDeg: number): number {
  * How far the sign's facing is rotated away from pointing at the seal center.
  * 0 faces straight inward, +/-90 sideways, 180 straight outward. This is the
  * twist dial canon describes for pull: angled pulls twist, inverted pulls push.
+ *
+ * The only reliable facing signal is the ML pose head's rotationOffsetDeg.
+ * Template-matched signs are pre-rotated into the bottom-of-ring frame before
+ * matching (signRotation.ts), so their offset just echoes ring position, and
+ * stroke draw order (directedOrientationDeg, radialFacing) is arbitrary for
+ * multi-stroke glyphs. Without an ML pose the sign is read in its canonical
+ * pose, which canon defines as facing inward.
  */
 export function facingTwistDeg(sign: Recognition): number {
-	const inwardDeg = (sign.angleDeg ?? 0) + INWARD_OFFSET_DEG;
-	const facingDeg = sign.directedOrientationDeg ?? sign.orientationDeg ?? inwardDeg;
-	return signedAngleDifferenceDeg(inwardDeg, facingDeg);
+	if (!sign.diagnostics?.ml?.accepted) {
+		return 0;
+	}
+	return signedAngleDifferenceDeg(0, -((sign.rotationOffsetDeg ?? 0) + (sign.angleDeg ?? 0) + 90));
+}
+
+/** Unit vector of the sign's resolved facing: inward rotated by its twist. */
+function facingDirection(sign: Recognition): Vector {
+	return vectorFromAngleDeg((sign.angleDeg ?? 0) + INWARD_OFFSET_DEG + facingTwistDeg(sign));
 }
 
 const SEAL_CENTER: Vector = { x: 0, y: 0 };
@@ -76,9 +85,12 @@ function radialSource(
 	};
 }
 
-// Canon: inverted column emits outward on all sides, like dispersion.
+// Columns whose resolved facing points clearly outward are inverted; canon
+// says an inverted column emits outward on all sides, like dispersion.
+const COLUMN_INVERTED_TWIST_DEG = 135;
+
 function columnSource(sign: Recognition): FieldSource {
-	if (sign.radialFacing === 'outward') {
+	if (Math.abs(facingTwistDeg(sign)) >= COLUMN_INVERTED_TWIST_DEG) {
 		return radialSource(sign, 180);
 	}
 	return {
