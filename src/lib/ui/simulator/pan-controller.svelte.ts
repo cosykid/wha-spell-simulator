@@ -7,8 +7,6 @@ export class PanController {
 	panX = $state(0);
 	/** Vertical canvas translation in CSS pixels. */
 	panY = $state(0);
-	/** Whether the canvas has been panned away from its centred resting position. */
-	isOffset = $derived(this.panX !== 0 || this.panY !== 0);
 
 	#startClientX = 0;
 	#startClientY = 0;
@@ -18,6 +16,12 @@ export class PanController {
 
 	constructor(enabled: () => boolean) {
 		this.#enabled = enabled;
+		this.recenter = this.recenter.bind(this);
+	}
+
+	/** Whether the canvas has been panned away from its centred resting position. */
+	get isOffset() {
+		return this.panX !== 0 || this.panY !== 0;
 	}
 
 	/** Starts a pan gesture when pan mode is enabled and the primary pointer is used. */
@@ -35,10 +39,10 @@ export class PanController {
 	};
 
 	/** Slides the canvas back to its centred resting position. */
-	recenter = () => {
+	recenter() {
 		this.panX = 0;
 		this.panY = 0;
-	};
+	}
 
 	/** Ends the active pan gesture and removes global pointer listeners. */
 	end = (_event?: PointerEvent) => {

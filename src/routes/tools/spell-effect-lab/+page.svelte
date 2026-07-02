@@ -12,6 +12,8 @@
 		formatControlValue,
 		valuesFromSpellIR
 	} from '$lib/ui/spellEffectLab.js';
+	import { FIELD_PRESETS, presetById } from '$lib/ui/spellEffectLabPresets.js';
+	import { buildSpellField } from '$lib/field/buildSpellField.js';
 	import { roundDeep } from '$lib/utils/json.js';
 	import { onMount } from 'svelte';
 	import { LabPreview } from './lab-preview.js';
@@ -20,6 +22,9 @@
 
 	let sigil = $state(DEFAULT_SIGIL);
 	const element = $derived(elementForSigil(sigil));
+	let presetId = $state('none');
+	const preset = $derived(presetById(presetId));
+	const field = $derived(buildSpellField(preset.signs));
 	let values = $state<Record<string, number>>(defaultControlValues());
 	let irInput = $state('');
 	let activatedAt = $state(0);
@@ -31,7 +36,7 @@
 	let preview: LabPreview | null = null;
 
 	const irJson = $derived(
-		roundDeep(buildSpellIR({ values, element, sigil, activatedAt, config: CONFIG }))
+		roundDeep(buildSpellIR({ values, element, sigil, activatedAt, config: CONFIG, field }))
 	);
 
 	$effect(() => {
@@ -68,7 +73,7 @@
 
 	async function copyIR() {
 		const json = JSON.stringify(
-			roundDeep(buildSpellIR({ values, element, sigil, activatedAt, config: CONFIG })),
+			roundDeep(buildSpellIR({ values, element, sigil, activatedAt, config: CONFIG, field })),
 			null,
 			2
 		);
@@ -87,7 +92,9 @@
 			values,
 			element,
 			sigil,
-			activatedAt
+			activatedAt,
+			field,
+			presetSigns: preset.signs
 		}));
 		return preview.start();
 	});
@@ -102,6 +109,17 @@
 		<div class="toolbar effect-lab-toolbar">
 			<select class="select-control" bind:value={sigil} onchange={restartSpell}>
 				{#each SIGIL_OPTIONS as option (option.id)}
+					<option value={option.id}>{option.label}</option>
+				{/each}
+			</select>
+			<select
+				class="select-control"
+				bind:value={presetId}
+				onchange={restartSpell}
+				title={preset.description}
+				data-testid="field-preset-select"
+			>
+				{#each FIELD_PRESETS as option (option.id)}
 					<option value={option.id}>{option.label}</option>
 				{/each}
 			</select>

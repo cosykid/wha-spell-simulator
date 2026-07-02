@@ -1,0 +1,387 @@
+import assert from 'node:assert/strict';
+import test from 'node:test';
+
+import { CONFIG } from '../src/lib/config.js';
+import { compileSpell } from '../src/lib/compiler/spellBuilder.js';
+import {
+	buildSpellField,
+	emptySpellField,
+	facingTwistDeg,
+	spellFieldSignature
+} from '../src/lib/field/buildSpellField.js';
+import {
+	fieldBuoyancy,
+	sampleFieldForce,
+	spawnDomainPosition
+} from '../src/lib/field/sampleField.js';
+import type { GlyphAST, Recognition, Vector } from '../src/lib/types.js';
+
+/**
+ * Minimal recognized-sign fixture. `angleDeg` is the ring position bearing
+ * (0 = east, 90 = top) and `facingDeg` the direction the sign points.
+ */
+function sign({
+	id,
+	manifestation,
+	angleDeg,
+	facingDeg,
+	radiusNorm = 0.8,
+	radialFacing = 'unclear',
+	sizeNorm = 0.16
+}: {
+	id: string;
+	manifestation: string;
+	angleDeg: number;
+	facingDeg: number;
+	radiusNorm?: number;
+	radialFacing?: string;
+	sizeNorm?: number;
+}): Recognition {
+	return {
+		id,
+		kind: 'sign',
+		recognized: true,
+		recognitionStatus: 'valid',
+		confidence: 0.9,
+		neatness: 0.85,
+		layer: 'outer',
+		nearBoundary: false,
+		angleDeg,
+		radiusNorm,
+		sizeNorm,
+		lengthNorm: 0.5,
+		orientationDeg: facingDeg % 180,
+		directedOrientationDeg: facingDeg,
+		radialFacing,
+		semantic: { manifestation, directionMode: 'inward' },
+		shape: {}
+	} as unknown as Recognition;
+}
+
+/** Facing bearing that points a sign at `angleDeg` straight at the seal center. */
+function inwardFacing(angleDeg: number): number {
+	return (angleDeg + 180) % 360;
+}
+
+function forceAt(field: ReturnType<typeof buildSpellField>, x: number, y: number) {
+	return sampleFieldForce(field, { x, y });
+}
+
+/** Screen-space z of cross(position, force); same sign everywhere = coherent swirl. */
+function swirlAt(field: ReturnType<typeof buildSpellField>, p: Vector): number {
+	const force = sampleFieldForce(field, p);
+	return p.x * force.y - p.y * force.x;
+}
+
+const RING_SAMPLES: Vector[] = [
+	{ x: 0.5, y: 0 },
+	{ x: 0, y: 0.5 },
+	{ x: -0.5, y: 0 },
+	{ x: 0, y: -0.5 }
+];
+
+test('no signs produce an empty field with zero force', () => {
+	const field = buildSpellField([]);
+	assert.equal(field.sources.length, 0);
+	assert.deepEqual(field.domain, emptySpellField().domain);
+	assert.deepEqual(forceAt(field, 0.4, -0.2), { x: 0, y: 0, z: 0 });
+});
+
+test('facingTwistDeg measures rotation away from inward', () => {
+	assert.equal(
+		facingTwistDeg(sign({ id: 'pull', manifestation: 'pull', angleDeg: 0, facingDeg: 180 })),
+		0
+	);
+	assert.equal(
+		facingTwistDeg(sign({ id: 'pull', manifestation: 'pull', angleDeg: 0, facingDeg: 270 })),
+		90
+	);
+	assert.equal(
+		facingTwistDeg(sign({ id: 'pull', manifestation: 'pull', angleDeg: 90, facingDeg: 270 })),
+		0
+	);
+	assert.equal(
+		Math.abs(
+			facingTwistDeg(sign({ id: 'pull', manifestation: 'pull', angleDeg: 0, facingDeg: 0 }))
+		),
+		180
+	);
+});
+
+test('a lone column beams upward and leans toward its own side', () => {
+	const field = buildSpellField([
+		sign({ id: 'column', manifestation: 'column', angleDeg: 0, facingDeg: 180 })
+	]);
+	assert.equal(field.sources.length, 1);
+	assert.equal(field.sources[0].kind, 'axial');
+
+	const force = forceAt(field, 0, 0);
+	assert.ok(force.z > 0, 'column pushes out of the seal');
+	assert.ok(force.x > 0.05, 'unbalanced column leans toward the sign side');
+	assert.ok(Math.abs(force.y) < 1e-9);
+});
+
+test('balanced columns cancel their lean into a straight beam', () => {
+	const field = buildSpellField(
+		[0, 120, 240].map((angleDeg) =>
+			sign({ id: 'column', manifestation: 'column', angleDeg, facingDeg: inwardFacing(angleDeg) })
+		)
+	);
+	const force = forceAt(field, 0, 0);
+	assert.ok(Math.hypot(force.x, force.y) < 1e-6, 'lateral lean cancels');
+	assert.ok(force.z > 0.5, 'the beam strengths still add');
+});
+
+test('an inverted column pours outward like dispersion', () => {
+	const field = buildSpellField([
+		sign({
+			id: 'column',
+			manifestation: 'column',
+			angleDeg: 0,
+			facingDeg: 0,
+			radialFacing: 'outward'
+		})
+	]);
+	assert.equal(field.sources[0].kind, 'radial');
+	const force = forceAt(field, 0.5, 0);
+	assert.ok(force.x > 0, 'force points away from the seal center');
+});
+
+test('an inward pull draws toward the seal center from everywhere', () => {
+	const field = buildSpellField([
+		sign({ id: 'pull', manifestation: 'pull', angleDeg: 0, facingDeg: 180 })
+	]);
+	for (const p of RING_SAMPLES) {
+		const force = sampleFieldForce(field, p);
+		const towardCenter = -(p.x * force.x + p.y * force.y);
+		assert.ok(towardCenter > 0, `pulls inward at (${p.x}, ${p.y})`);
+	}
+});
+
+test('a pull rotated 90 degrees twists without pulling', () => {
+	const field = buildSpellField([
+		sign({ id: 'pull', manifestation: 'pull', angleDeg: 0, facingDeg: 270 })
+	]);
+	for (const p of RING_SAMPLES) {
+		const force = sampleFieldForce(field, p);
+		const radialPart = Math.abs(p.x * force.x + p.y * force.y);
+		assert.ok(radialPart < 1e-9, 'no inward or outward component');
+		assert.ok(swirlAt(field, p) > 0, 'consistent rotation direction');
+	}
+});
+
+test('three angled pulls sum into a stronger rotational force', () => {
+	const single = buildSpellField([
+		sign({ id: 'pull', manifestation: 'pull', angleDeg: 0, facingDeg: 270 })
+	]);
+	const triple = buildSpellField(
+		[0, 120, 240].map((angleDeg) =>
+			sign({
+				id: 'pull',
+				manifestation: 'pull',
+				angleDeg,
+				facingDeg: (inwardFacing(angleDeg) + 90) % 360
+			})
+		)
+	);
+	const point = { x: 0.5, y: 0 };
+	assert.ok(swirlAt(triple, point) > swirlAt(single, point) * 2.9, 'swirl scales with sign count');
+
+	const center = forceAt(triple, 0, 0);
+	assert.ok(Math.hypot(center.x, center.y) < 1e-6, 'no net translation at the center');
+});
+
+test('an inverted pull pushes away from the seal', () => {
+	const field = buildSpellField([
+		sign({ id: 'pull', manifestation: 'pull', angleDeg: 90, facingDeg: 90 })
+	]);
+	const force = forceAt(field, 0.5, 0);
+	assert.ok(force.x > 0, 'force points outward');
+});
+
+test('dispersion pours outward on all sides', () => {
+	const field = buildSpellField([
+		sign({ id: 'dispersion', manifestation: 'dispersion', angleDeg: 45, facingDeg: 45 })
+	]);
+	for (const p of RING_SAMPLES) {
+		const force = sampleFieldForce(field, p);
+		const outward = p.x * force.x + p.y * force.y;
+		assert.ok(outward > 0, `pushes outward at (${p.x}, ${p.y})`);
+	}
+});
+
+test('collection gathers inward', () => {
+	const field = buildSpellField([
+		sign({ id: 'collection', manifestation: 'collection', angleDeg: 200, facingDeg: 20 })
+	]);
+	const force = forceAt(field, 0, -0.6);
+	assert.ok(force.y > 0, 'force points back toward the center');
+});
+
+test('convergence signs merge into one attractor at their weighted point', () => {
+	const field = buildSpellField([
+		sign({ id: 'convergence', manifestation: 'convergence', angleDeg: 90, facingDeg: 270 }),
+		sign({ id: 'convergence', manifestation: 'convergence', angleDeg: 90, facingDeg: 270 })
+	]);
+	assert.equal(field.sources.length, 1);
+	const source = field.sources[0];
+	assert.equal(source.kind, 'radial');
+	assert.ok(source.kind === 'radial' && source.center.y < -0.1, 'focus sits toward the signs');
+
+	const force = forceAt(field, 0, 0.4);
+	assert.ok(force.y < 0, 'magic converges toward the focus point');
+});
+
+test('levitation and float become buoyancy lift', () => {
+	const field = buildSpellField([
+		sign({ id: 'levitation', manifestation: 'levitation', angleDeg: 0, facingDeg: 180 }),
+		sign({ id: 'float', manifestation: 'levitation', angleDeg: 180, facingDeg: 0 })
+	]);
+	assert.equal(field.sources.filter((source) => source.kind === 'buoyancy').length, 2);
+	assert.ok(fieldBuoyancy(field) > 0.5);
+	assert.ok(forceAt(field, 0.3, 0.3).z > 0.5, 'lift acts everywhere');
+});
+
+test('one-sided regions emit a sector toward their shared facing', () => {
+	const field = buildSpellField(
+		[150, 180, 210].map((angleDeg) =>
+			sign({ id: 'region', manifestation: 'directed', angleDeg, facingDeg: 0 })
+		)
+	);
+	assert.equal(field.domain.mode, 'sector');
+	assert.ok(field.domain.direction && field.domain.direction.x > 0.9, 'sector faces east');
+
+	const force = forceAt(field, 0, 0);
+	assert.ok(force.x > 0.2, 'the pushes drive magic toward that side');
+});
+
+test('region facings map to canon domains: inside, outside, and on-ring', () => {
+	const inward = buildSpellField(
+		[0, 90, 180, 270].map((angleDeg) =>
+			sign({ id: 'region', manifestation: 'directed', angleDeg, facingDeg: inwardFacing(angleDeg) })
+		)
+	);
+	assert.equal(inward.domain.mode, 'inside');
+
+	const outward = buildSpellField(
+		[0, 90, 180, 270].map((angleDeg) =>
+			sign({ id: 'region', manifestation: 'directed', angleDeg, facingDeg: angleDeg })
+		)
+	);
+	assert.equal(outward.domain.mode, 'outside');
+
+	const opposed = buildSpellField([
+		sign({ id: 'region', manifestation: 'directed', angleDeg: 0, facingDeg: 180 }),
+		sign({ id: 'region', manifestation: 'directed', angleDeg: 180, facingDeg: 180 })
+	]);
+	assert.equal(opposed.domain.mode, 'ring');
+});
+
+test('three tangential pushes produce an emergent vortex', () => {
+	const field = buildSpellField(
+		[0, 120, 240].map((angleDeg) =>
+			sign({
+				id: 'region',
+				manifestation: 'directed',
+				angleDeg,
+				facingDeg: (inwardFacing(angleDeg) + 90) % 360
+			})
+		)
+	);
+	assert.equal(field.domain.mode, 'anywhere', 'no net side to emit toward');
+
+	const swirls = RING_SAMPLES.map((p) => swirlAt(field, p));
+	assert.ok(
+		swirls.every((swirl) => Math.sign(swirl) === Math.sign(swirls[0]) && swirl !== 0),
+		'pushes combine into one consistent rotation'
+	);
+});
+
+test('spawnDomainPosition respects each domain', () => {
+	let seed = 1;
+	const random = () => {
+		seed = (seed * 16807) % 2147483647;
+		return (seed - 1) / 2147483646;
+	};
+
+	for (let i = 0; i < 40; i += 1) {
+		const inside = spawnDomainPosition({ mode: 'inside', strength: 1 }, random);
+		assert.ok(Math.hypot(inside.x, inside.y) <= 0.6 + 1e-9);
+
+		const outside = spawnDomainPosition({ mode: 'outside', strength: 1 }, random);
+		assert.ok(Math.hypot(outside.x, outside.y) >= 1.08 - 1e-9);
+
+		const ring = spawnDomainPosition({ mode: 'ring', strength: 1 }, random);
+		const ringRadius = Math.hypot(ring.x, ring.y);
+		assert.ok(ringRadius >= 0.92 - 1e-9 && ringRadius <= 1.08 + 1e-9);
+
+		const sector = spawnDomainPosition(
+			{ mode: 'sector', direction: { x: 1, y: 0 }, strength: 1 },
+			random
+		);
+		const radius = Math.hypot(sector.x, sector.y);
+		assert.ok(sector.x / radius > 0.2, 'sector spawns bias toward its direction');
+	}
+});
+
+test('field signatures change when a sign twist changes', () => {
+	const straight = buildSpellField([
+		sign({ id: 'pull', manifestation: 'pull', angleDeg: 0, facingDeg: 180 })
+	]);
+	const angled = buildSpellField([
+		sign({ id: 'pull', manifestation: 'pull', angleDeg: 0, facingDeg: 240 })
+	]);
+	assert.notEqual(spellFieldSignature(straight), spellFieldSignature(angled));
+	assert.equal(
+		spellFieldSignature(straight),
+		spellFieldSignature(
+			buildSpellField([sign({ id: 'pull', manifestation: 'pull', angleDeg: 0, facingDeg: 180 })])
+		)
+	);
+});
+
+function glyphASTWithSigns(signs: Recognition[]): GlyphAST {
+	return {
+		type: 'GlyphAST',
+		ring: {
+			found: true,
+			complete: true,
+			completeness: 1,
+			neatness: 0.8
+		},
+		primarySigil: {
+			id: 'fire',
+			element: 'fire',
+			kind: 'sigil',
+			confidence: 0.91,
+			neatness: 0.82,
+			sizeNorm: 0.2,
+			semantic: {}
+		} as unknown as Recognition,
+		signs,
+		unknowns: [],
+		globalMetrics: { neatness: 0.8, radialSymmetry: 0.5, instability: 0 },
+		warnings: []
+	} as unknown as GlyphAST;
+}
+
+test('compileSpell carries the field and keys the signature on it', () => {
+	const pullAt = (facingDeg: number) =>
+		compileSpell({
+			glyphAST: glyphASTWithSigns([
+				sign({ id: 'pull', manifestation: 'pull', angleDeg: 0, facingDeg })
+			]),
+			config: CONFIG
+		});
+
+	const straight = pullAt(180);
+	assert.equal(straight.field.sources.length, 1);
+	assert.equal(straight.field.sources[0].kind, 'radial');
+
+	const angled = pullAt(240);
+	assert.notEqual(straight.signature, angled.signature, 'twist changes reset the effect');
+
+	const bare = compileSpell({ glyphAST: glyphASTWithSigns([]), config: CONFIG });
+	assert.equal(bare.field.sources.length, 0);
+	assert.equal(bare.field.domain.mode, 'anywhere');
+});

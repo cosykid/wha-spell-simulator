@@ -25,6 +25,7 @@ The app lets users draw or arrange spell circles on a canvas, then converts thos
 - Recognizes signs that modify direction, levitation, convergence, force, spread, focus, range, duration, and stability.
 - Produces parser diagnostics, `GlyphAST`, and `SpellIR` output for inspection, including tentative glyph labels while symbols are still being drawn.
 - Renders animated element effects from the compiled spell behavior.
+- Compiles signs into a typed force field (`SpellField`): columns beam and lean, pulls twist by their facing angle, regions gate where magic spawns, and levitation lifts. Spells with signs render as particles advected through the summed field, so behaviors like vortices from angled pulls emerge from the physics.
 - Shows sample spell layouts in the Dictionary panel as drawing references.
 - Includes reference tools for making, viewing, and testing stroke templates, plus a spell effect lab for visual and animation tuning.
 
