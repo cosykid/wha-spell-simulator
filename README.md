@@ -18,7 +18,7 @@ _Witch Hat Atelier_ and related names, artwork, symbols, and trademarks belong t
 The app lets users draw or arrange spell circles on a canvas, then converts those diagrams into structured parser output, compiled effect parameters, and animated canvas effects.
 
 - Lets you draw spell diagrams on a paper-like canvas.
-- Lets you place ring, sigil, and sign shapes from a palette, then move, scale, elongate, and rotate them instead of drawing each one by hand.
+- Lets you place ring, sigil, and sign shapes from a palette, then move, scale, elongate, rotate, and duplicate them instead of drawing each one by hand.
 - Detects one enclosing ring and distinguishes prepared versus active spells.
 - Recognizes glyphs with a hybrid browser pipeline: a template matcher provides geometric verification, while a 96px FP16 ONNX-exported multi-head ResNet18 model classifies symbols and estimates angle, scale, and position.
 - Trains the ResNet18 recognizer from more than 8,000 hand-drawn labelled samples collected with the Sample Maker tool and stored in Postgres (accurate as of June 16, 2026).
@@ -35,7 +35,7 @@ If a symbol is hard to draw by hand, you can stamp it from a palette and adjust 
 
 1. Open the **Shapes** tab, or enable **Arrange Shapes** in the left control panel. Picking a shape from the palette enables Arrange Shapes automatically.
 2. Pick a **Ring**, **Sigil**, or **Sign**, then click the canvas to place it.
-3. Click a placed shape to select it, then drag its handles to move, scale, elongate, or rotate it. Press **Delete** to remove it.
+3. Click a placed shape to select it, then drag its handles to move, scale, elongate, or rotate it. Copy it with **Cmd/Ctrl+C** and paste with **Cmd/Ctrl+V** to get a duplicate that keeps its shape, size, elongation, and rotation. Press **Delete** to remove it.
 4. Turn **Arrange Shapes** off to bake the shapes into the drawing as ink. Locked shapes can no longer be edited, but you can draw over them.
 
 The placed ring is stamped open with a small gap, so the spell stays prepared rather than activating immediately. Draw across the gap by hand to seal the ring and awaken the spell.

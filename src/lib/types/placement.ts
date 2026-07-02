@@ -29,6 +29,13 @@ export interface ShapeItem {
 	label: string;
 	element: ElementId | null;
 	baseStrokes: Point[][];
+	/**
+	 * Placement-box width as a fraction of the ring diameter when stamped at
+	 * regular (1x) size. For glyphs this bakes in `referenceSizeNorm` and the
+	 * template's own padding so the drawn ink lands at `sizeRatio` 1; the ring
+	 * itself spans the whole diameter, so its fraction is 1.
+	 */
+	regularRingFraction: number;
 }
 
 export interface ShapeLibrary {
