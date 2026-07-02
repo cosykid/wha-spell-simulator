@@ -167,7 +167,35 @@ test('a pull rotated 90 degrees twists without pulling', () => {
 		const radialPart = Math.abs(p.x * force.x + p.y * force.y);
 		assert.ok(radialPart < 1e-9, 'no inward or outward component');
 		assert.ok(swirlAt(field, p) > 0, 'consistent rotation direction');
+		assert.ok(force.z > 0, 'swirl pumps lift up the seal axis');
 	}
+});
+
+test('straight pulls and dispersion gain no swirl lift', () => {
+	const pull = buildSpellField([
+		sign({ id: 'pull', manifestation: 'pull', angleDeg: 0, facingDeg: 180 })
+	]);
+	const dispersion = buildSpellField([
+		sign({ id: 'dispersion', manifestation: 'dispersion', angleDeg: 45, facingDeg: 45 })
+	]);
+	for (const p of RING_SAMPLES) {
+		assert.ok(Math.abs(sampleFieldForce(pull, p).z) < 1e-12, 'plain pull stays flat');
+		assert.ok(Math.abs(sampleFieldForce(dispersion, p).z) < 1e-12, 'dispersion pours flat');
+	}
+});
+
+test('lift scales with the tangential fraction of the twist', () => {
+	const halfTwist = buildSpellField([
+		sign({ id: 'pull', manifestation: 'pull', angleDeg: 0, facingDeg: 225 })
+	]);
+	const fullTwist = buildSpellField([
+		sign({ id: 'pull', manifestation: 'pull', angleDeg: 0, facingDeg: 270 })
+	]);
+	const point = { x: 0.5, y: 0 };
+	const partialLift = sampleFieldForce(halfTwist, point).z;
+	const fullLift = sampleFieldForce(fullTwist, point).z;
+	assert.ok(partialLift > 0, 'a 45 degree twist still lifts');
+	assert.ok(partialLift < fullLift, 'a full vortex lifts harder');
 });
 
 test('three angled pulls sum into a stronger rotational force', () => {
@@ -295,6 +323,22 @@ test('three tangential pushes produce an emergent vortex', () => {
 		swirls.every((swirl) => Math.sign(swirl) === Math.sign(swirls[0]) && swirl !== 0),
 		'pushes combine into one consistent rotation'
 	);
+});
+
+test('an emergent region vortex climbs the seal axis', () => {
+	const field = buildSpellField(
+		[0, 120, 240].map((angleDeg) =>
+			sign({
+				id: 'region',
+				manifestation: 'directed',
+				angleDeg,
+				facingDeg: (inwardFacing(angleDeg) + 90) % 360
+			})
+		)
+	);
+	for (const p of RING_SAMPLES) {
+		assert.ok(sampleFieldForce(field, p).z > 0, `tangential pushes lift at (${p.x}, ${p.y})`);
+	}
 });
 
 test('spawnDomainPosition respects each domain', () => {
