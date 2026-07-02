@@ -1,4 +1,4 @@
-import { compileSpell } from '$lib/compiler/spellBuilder.js';
+import { carrySpellActivation, compileSpell } from '$lib/compiler/spellBuilder.js';
 import { CONFIG } from '$lib/config.js';
 import {
 	emitMlDebug,
@@ -251,7 +251,10 @@ export class RecognitionPipeline {
 
 		this.#pipeline = result;
 		this.#previousRing = this.#pipeline.ring;
-		this.#spellIR = compileSpell({ glyphAST: this.#pipeline.glyphAST, config: CONFIG });
+		this.#spellIR = carrySpellActivation(
+			this.#spellIR,
+			compileSpell({ glyphAST: this.#pipeline.glyphAST, config: CONFIG })
+		);
 		this.summary = this.#computeSummary();
 		this.#options.setInputLocked(this.summary.inputLocked);
 		this.diagnostics = this.#buildDiagnostics();

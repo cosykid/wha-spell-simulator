@@ -222,16 +222,44 @@ test('an inward pull draws toward the seal center from everywhere', () => {
 	}
 });
 
-test('a pull rotated 90 degrees twists without pulling', () => {
+test('a pull rotated 90 degrees swirls around a hollow vortex eye', () => {
 	const field = buildSpellField([
 		sign({ id: 'pull', manifestation: 'pull', angleDeg: 0, facingDeg: 270 })
 	]);
 	for (const p of RING_SAMPLES) {
-		const force = sampleFieldForce(field, p);
-		const radialPart = Math.abs(p.x * force.x + p.y * force.y);
-		assert.ok(radialPart < 1e-9, 'no inward or outward component');
 		assert.ok(swirlAt(field, p) > 0, 'consistent rotation direction');
-		assert.ok(force.z > 0, 'swirl pumps lift up the seal axis');
+		assert.ok(sampleFieldForce(field, p).z > 0, 'swirl pumps lift up the seal axis');
+	}
+	// The swirl holds a funnel: displaced magic is restored toward the eye
+	// ring from both sides instead of collapsing to the center point.
+	const radialToward = (x: number) => {
+		const force = sampleFieldForce(field, { x, y: 0 });
+		return -(x * force.x) / Math.abs(x);
+	};
+	assert.ok(radialToward(0.2) < 0, 'inside the eye the flow pushes back out');
+	assert.ok(radialToward(1) > 0, 'outside the eye the flow pulls back in');
+	assert.ok(Math.abs(radialToward(0.45)) < 0.05, 'the eye ring itself is calm');
+});
+
+test('three angled pulls hold a climbing vortex instead of an orb', () => {
+	// Grasping Wind: a pinwheel of angled pulls must read as a wide spiral
+	// that climbs, never a mass gathered at the center.
+	const field = buildSpellField(
+		[0, 120, 240].map((angleDeg) =>
+			sign({
+				id: 'pull',
+				manifestation: 'pull',
+				angleDeg,
+				facingDeg: (inwardFacing(angleDeg) + 60) % 360
+			})
+		)
+	);
+	const nearCenter = sampleFieldForce(field, { x: 0.1, y: 0 });
+	assert.ok(0.1 * nearCenter.x > 0, 'the eye pushes magic off the center point');
+	const outside = sampleFieldForce(field, { x: 1, y: 0 });
+	assert.ok(1 * outside.x < 0, 'far flow still spirals back in');
+	for (const p of RING_SAMPLES) {
+		assert.ok(swirlAt(field, p) > 0, 'the pinwheel rotates one way');
 	}
 });
 
@@ -332,6 +360,56 @@ test('levitation and float become buoyancy lift', () => {
 	assert.equal(field.sources.filter((source) => source.kind === 'buoyancy').length, 2);
 	assert.ok(fieldBuoyancy(field) > 0.5);
 	assert.ok(forceAt(field, 0.3, 0.3).z > 0.5, 'lift acts everywhere');
+});
+
+test('a lone levitation sign blows the magic aside instead of holding an orb', () => {
+	const field = buildSpellField([
+		sign({ id: 'levitation', manifestation: 'levitation', angleDeg: 0, facingDeg: 180 })
+	]);
+	const center = forceAt(field, 0, 0);
+	assert.ok(center.x < -0.1, 'pressure pushes away from the sign');
+	assert.ok(Math.abs(center.y) < 1e-9, 'no sideways component off the press axis');
+	assert.ok(center.z > 0, 'the sign still lifts');
+	// No equilibrium anywhere down-pressure: the magic keeps going and never
+	// coheres into a held mass.
+	assert.ok(forceAt(field, -0.5, 0).x < 0, 'still blowing away at mid-seal');
+	assert.ok(forceAt(field, -1, 0).x < 0, 'still blowing away past the ring');
+});
+
+test('balanced levitation signs squeeze an orb into being between them', () => {
+	const single = buildSpellField([
+		sign({ id: 'levitation', manifestation: 'levitation', angleDeg: 0, facingDeg: 180 })
+	]);
+	const balanced = buildSpellField(
+		[0, 90, 180, 270].map((angleDeg) =>
+			sign({
+				id: 'levitation',
+				manifestation: 'levitation',
+				angleDeg,
+				facingDeg: inwardFacing(angleDeg)
+			})
+		)
+	);
+	const center = forceAt(balanced, 0, 0);
+	assert.ok(Math.hypot(center.x, center.y) < 1e-6, 'symmetric pressure cancels dead center');
+	assert.ok(center.z > forceAt(single, 0, 0).z * 2, 'lift adds with sign count');
+	// The squeeze restores displaced magic back toward the center, which is
+	// what makes the hovering orb exist at all.
+	for (const p of RING_SAMPLES) {
+		const force = sampleFieldForce(balanced, p);
+		const inward = -(p.x * force.x + p.y * force.y);
+		assert.ok(inward > 0, `squeeze restores toward center at (${p.x}, ${p.y})`);
+	}
+});
+
+test('field signatures change when a levitation sign moves', () => {
+	const east = buildSpellField([
+		sign({ id: 'levitation', manifestation: 'levitation', angleDeg: 0, facingDeg: 180 })
+	]);
+	const north = buildSpellField([
+		sign({ id: 'levitation', manifestation: 'levitation', angleDeg: 90, facingDeg: 270 })
+	]);
+	assert.notEqual(spellFieldSignature(east), spellFieldSignature(north));
 });
 
 test('one-sided regions emit a sector toward their shared facing', () => {

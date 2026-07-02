@@ -20,7 +20,7 @@ Particles live in seal space and are advected through `sampleFieldForce(field, p
 - Particles are projected onto the tilted portal (`z` shifts them up-screen) and tinted by an element palette.
 - Particles live for `spellLifetimeFrames` and fade with `emission` (`steadyParticleAlpha`), so held forms persist steadily and the whole effect fades out together. This is why the field renderer reads as a held beam or blob, not a repeating spray.
 
-Emergent behaviors (from summing sources alone): balanced columns cancel their lean into one straight beam; angled pulls form a rising vortex; opposed region pushes cancel; levitation gathers a blob over the seal.
+Emergent behaviors (from summing sources alone): balanced columns cancel their lean into one straight beam; angled pulls swirl around a hollow vortex eye, and a strong pinwheel of them climbs into a tornado (Grasping Wind) while a weak lone swirl stays a flat whirlpool pinned by gravity; opposed region pushes cancel; opposing levitation signs squeeze a hovering orb into being between them, while a lone levitation sign has nothing pushing back and blows the magic away without ever forming an orb.
 
 ## Shared Model
 

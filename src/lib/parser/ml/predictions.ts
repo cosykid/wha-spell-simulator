@@ -1,15 +1,22 @@
 import * as ort from 'onnxruntime-web/webgpu';
 import { candidateContentKey, scopedLruCache } from '../recognitionMemo.js';
+import { normalizeAngleDeg } from '../../utils/geometry.js';
 import type { Dictionary, DictionaryEntry, SymbolCandidate, TopMatch } from '../../types.js';
 import { debugLog, describeError } from './config.js';
 import { dictionaryEntry } from './dictionary.js';
 import { runSession } from './sessionQueue.js';
 import {
 	canonicalCandidateFromEntry,
-	renderCandidatesTensor,
-	renderCandidateTensor
+	renderCandidateTensor,
+	type RenderableCandidate
 } from './rendering.js';
-import type { MlConfig, MlPrediction, MlRuntime, OrtFeeds, ShouldContinue } from './types.js';
+import type { MlConfig, MlPrediction, MlRuntime, ShouldContinue } from './types.js';
+
+// Pose test-time augmentation: the head is noisy on a single rotated render, so
+// each candidate is rendered at these rotations and the de-rotated pose angles
+// are combined with a circular median. The class is a summed-softmax vote across
+// the same renders, which also rescues glyphs the model rejects at one rotation.
+export const POSE_TTA_ROTATIONS_DEG = [0, 45, 90, 135, 180, 225, 270, 315];
 
 function softmax(values: Float32Array): Float32Array {
 	let max = -Infinity;
@@ -76,66 +83,199 @@ function predictionOutputs(results: ort.InferenceSession.ReturnType) {
 	};
 }
 
-function predictionFromOutputs(
-	runtime: MlRuntime,
-	dictionary: Dictionary,
-	logitsTensor: ort.Tensor,
-	angleTensor: ort.Tensor,
-	scaleTensor: ort.Tensor,
-	centerTensor: ort.Tensor,
-	index: number
-): MlPrediction {
-	const logits = logitsTensor.data as Float32Array;
-	const angle = angleTensor.data as Float32Array;
-	const scale = scaleTensor.data as Float32Array;
-	const center = centerTensor.data as Float32Array;
-	const dims = logitsTensor.dims ?? [];
+function angleDegFromRow(angle: Float32Array, row: number): number {
+	const offset = row * 2;
+	return Math.atan2(angle[offset] ?? 0, angle[offset + 1] ?? 1) * (180 / Math.PI);
+}
+
+type PredictionOutputs = ReturnType<typeof predictionOutputs>;
+
+/** One row of raw model outputs, before any TTA aggregation. */
+interface RawRow {
+	probs: Float32Array;
+	angleDeg: number;
+	scaleX: number;
+	scaleY: number;
+	centerX: number;
+	centerY: number;
+}
+
+function extractRow(outputs: PredictionOutputs, runtime: MlRuntime, index: number): RawRow {
+	const logits = outputs.logitsTensor.data as Float32Array;
+	const dims = outputs.logitsTensor.dims ?? [];
 	const classCount = Number(dims[dims.length - 1] ?? runtime.idxToId.length);
-	const rowOffset = index * classCount;
+	const scale = outputs.scaleTensor.data as Float32Array;
+	const center = outputs.centerTensor.data as Float32Array;
 	const poseOffset = index * 2;
-	const probs = softmax(logits.subarray(rowOffset, rowOffset + classCount));
+	return {
+		probs: softmax(logits.subarray(index * classCount, index * classCount + classCount)),
+		angleDeg: angleDegFromRow(outputs.angleTensor.data as Float32Array, index),
+		scaleX: scale[poseOffset] ?? 0,
+		scaleY: scale[poseOffset + 1] ?? 0,
+		centerX: center[poseOffset] ?? 0,
+		centerY: center[poseOffset + 1] ?? 0
+	};
+}
+
+/** Runs a set of rendered inputs, one row each, batched when the runtime supports it. */
+async function inferRows(
+	inputs: Float32Array[],
+	runtime: MlRuntime,
+	config: MlConfig,
+	shouldContinue?: ShouldContinue
+): Promise<RawRow[] | null> {
+	if (!inputs.length) {
+		return [];
+	}
+	const size = config.inputSize;
+	const pixels = size * size;
+	const inputName = runtime.session.inputNames[0];
+
+	if (runtime.batchSupported && inputs.length > 1) {
+		try {
+			const batch = new Float32Array(inputs.length * pixels);
+			inputs.forEach((input, index) => batch.set(input, index * pixels));
+			const results = await runSession(runtime, {
+				[inputName]: new ort.Tensor('float32', batch, [inputs.length, 1, size, size])
+			});
+			const outputs = predictionOutputs(results);
+			return inputs.map((_, index) => extractRow(outputs, runtime, index));
+		} catch (error) {
+			runtime.batchSupported = false;
+			debugLog(config, 'batched inference unavailable; retrying single-row inference', {
+				rows: inputs.length,
+				error: describeError(error)
+			});
+		}
+	}
+
+	const rows: RawRow[] = [];
+	for (const input of inputs) {
+		if (shouldContinue && !shouldContinue()) {
+			return null;
+		}
+		const results = await runSession(runtime, {
+			[inputName]: new ort.Tensor('float32', input, [1, 1, size, size])
+		});
+		rows.push(extractRow(predictionOutputs(results), runtime, 0));
+	}
+	return rows;
+}
+
+/** Mean resultant length in [0, 1]; 1 means the angles are identical. */
+function circularConcentration(anglesDeg: number[]): number {
+	let sumX = 0;
+	let sumY = 0;
+	for (const deg of anglesDeg) {
+		const rad = (deg * Math.PI) / 180;
+		sumX += Math.cos(rad);
+		sumY += Math.sin(rad);
+	}
+	return anglesDeg.length ? Math.hypot(sumX, sumY) / anglesDeg.length : 0;
+}
+
+/** Angle minimizing total circular distance to the set. Robust to a lone outlier. */
+function circularMedianDeg(anglesDeg: number[]): number {
+	let best = anglesDeg[0] ?? 0;
+	let bestCost = Infinity;
+	for (const candidate of anglesDeg) {
+		let cost = 0;
+		for (const other of anglesDeg) {
+			cost += Math.abs(((other - candidate + 540) % 360) - 180);
+		}
+		if (cost < bestCost) {
+			bestCost = cost;
+			best = candidate;
+		}
+	}
+	return best;
+}
+
+// The pose head tracks input rotation, so undoing the render rotation on each
+// sample recovers estimates of the same true angle. sign is the model's
+// equivariance direction (+1 = output grows with the rotation we applied).
+function deRotate(angleOuts: number[], rotationsDeg: number[], sign: 1 | -1): number[] {
+	return angleOuts.map((deg, index) => deg - sign * rotationsDeg[index]);
+}
+
+function aggregatePoseAngle(angleOuts: number[], rotationsDeg: number[], sign?: 1 | -1): number {
+	// Before calibration fixes the model's sign, pick whichever direction makes
+	// the de-rotated samples cluster; after, reuse the calibrated sign so a
+	// candidate's pose and its canonical baseline share one convention.
+	const chosen =
+		sign != null
+			? deRotate(angleOuts, rotationsDeg, sign)
+			: circularConcentration(deRotate(angleOuts, rotationsDeg, 1)) >=
+				  circularConcentration(deRotate(angleOuts, rotationsDeg, -1))
+				? deRotate(angleOuts, rotationsDeg, 1)
+				: deRotate(angleOuts, rotationsDeg, -1);
+	return normalizeAngleDeg(circularMedianDeg(chosen));
+}
+
+function aggregateProbs(rows: RawRow[]): Float32Array {
+	const summed = new Float32Array(rows[0].probs.length);
+	for (const row of rows) {
+		for (let i = 0; i < summed.length; i += 1) {
+			summed[i] += row.probs[i];
+		}
+	}
+	for (let i = 0; i < summed.length; i += 1) {
+		summed[i] /= rows.length;
+	}
+	return summed;
+}
+
+function aggregatePrediction(
+	rows: RawRow[],
+	runtime: MlRuntime,
+	dictionary: Dictionary
+): MlPrediction {
+	const probs = aggregateProbs(rows);
 	const topMatches = topClassMatches(probs, runtime, dictionary);
 	const best = topMatches[0];
 	const resolved = best ? dictionaryEntry(dictionary, best.id) : null;
-
+	const base = rows[0];
 	return {
 		available: true,
 		id: resolved?.entry.id ?? best?.id ?? null,
 		kind: resolved?.kind ?? 'unknown',
 		entry: resolved?.entry ?? null,
 		confidence: best?.confidence ?? 0,
-		angleDeg: Math.atan2(angle[poseOffset] ?? 0, angle[poseOffset + 1] ?? 1) * (180 / Math.PI),
-		scaleX: scale[poseOffset] ?? 0,
-		scaleY: scale[poseOffset + 1] ?? 0,
-		centerX: center[poseOffset] ?? 0,
-		centerY: center[poseOffset + 1] ?? 0,
+		angleDeg: aggregatePoseAngle(
+			rows.map((row) => row.angleDeg),
+			POSE_TTA_ROTATIONS_DEG,
+			runtime.poseRotationSign
+		),
+		scaleX: base.scaleX,
+		scaleY: base.scaleY,
+		centerX: base.centerX,
+		centerY: base.centerY,
 		topMatches
 	};
 }
 
-function angleDegFromRow(angle: Float32Array, row: number): number {
-	const offset = row * 2;
-	return Math.atan2(angle[offset] ?? 0, angle[offset + 1] ?? 1) * (180 / Math.PI);
+function renderRotations(candidate: RenderableCandidate, config: MlConfig): Float32Array[] {
+	return POSE_TTA_ROTATIONS_DEG.map((deg) => renderCandidateTensor(candidate, config, deg));
 }
 
 interface RenderedEntry {
 	entry: DictionaryEntry;
-	input: Float32Array;
+	candidate: RenderableCandidate;
 }
 
-function renderCanonicalEntries(entries: DictionaryEntry[], config: MlConfig): RenderedEntry[] {
+function renderCanonicalEntries(entries: DictionaryEntry[]): RenderedEntry[] {
 	const rendered: RenderedEntry[] = [];
 	for (const entry of entries) {
 		const candidate = canonicalCandidateFromEntry(entry);
 		if (candidate) {
-			rendered.push({ entry, input: renderCandidateTensor(candidate, config) });
+			rendered.push({ entry, candidate });
 		}
 	}
 	return rendered;
 }
 
-/** Calibrates every glyph's canonical pose angle in one batched inference. */
-async function canonicalAnglesBatched(
+/** Calibrates each glyph's canonical pose angle, TTA-averaged, in one batched pass. */
+async function canonicalAnglesTta(
 	rendered: RenderedEntry[],
 	runtime: MlRuntime,
 	config: MlConfig
@@ -144,47 +284,40 @@ async function canonicalAnglesBatched(
 	if (!rendered.length) {
 		return angles;
 	}
-	const pixels = config.inputSize * config.inputSize;
-	const batch = new Float32Array(rendered.length * pixels);
-	rendered.forEach((item, index) => batch.set(item.input, index * pixels));
-
-	const inputName = runtime.session.inputNames[0];
-	const results = await runSession(runtime, {
-		[inputName]: new ort.Tensor('float32', batch, [
-			rendered.length,
-			1,
-			config.inputSize,
-			config.inputSize
-		])
-	});
-	const angle = outputTensor(results, ['angle'], 1).data as Float32Array;
-	rendered.forEach((item, index) => angles.set(item.entry.id, angleDegFromRow(angle, index)));
-	return angles;
-}
-
-/** Per-glyph fallback used when batched calibration fails (for example a fixed-batch model). */
-async function canonicalAnglesPerEntry(
-	rendered: RenderedEntry[],
-	runtime: MlRuntime,
-	config: MlConfig
-): Promise<Map<string, number>> {
-	const angles = new Map<string, number>();
-	const inputName = runtime.session.inputNames[0];
-	for (const { entry, input } of rendered) {
-		try {
-			const results = await runSession(runtime, {
-				[inputName]: new ort.Tensor('float32', input, [1, 1, config.inputSize, config.inputSize])
-			});
-			const angle = outputTensor(results, ['angle'], 1).data as Float32Array;
-			angles.set(entry.id, angleDegFromRow(angle, 0));
-		} catch (error) {
-			debugLog(config, 'canonical angle failed', { id: entry.id, error: describeError(error) });
-		}
+	const inputs: Float32Array[] = [];
+	for (const item of rendered) {
+		inputs.push(...renderRotations(item.candidate, config));
 	}
+	const rows = await inferRows(inputs, runtime, config);
+	if (!rows) {
+		return angles;
+	}
+
+	// The canonical set spans every glyph, so it is the most reliable place to
+	// vote on the model's equivariance sign once and reuse it for candidates.
+	const stride = POSE_TTA_ROTATIONS_DEG.length;
+	const outsPerEntry = rendered.map((_, index) =>
+		rows.slice(index * stride, index * stride + stride).map((row) => row.angleDeg)
+	);
+	let concentrationPlus = 0;
+	let concentrationMinus = 0;
+	for (const outs of outsPerEntry) {
+		concentrationPlus += circularConcentration(deRotate(outs, POSE_TTA_ROTATIONS_DEG, 1));
+		concentrationMinus += circularConcentration(deRotate(outs, POSE_TTA_ROTATIONS_DEG, -1));
+	}
+	const sign: 1 | -1 = concentrationPlus >= concentrationMinus ? 1 : -1;
+	runtime.poseRotationSign = sign;
+
+	rendered.forEach((item, index) => {
+		angles.set(
+			item.entry.id,
+			aggregatePoseAngle(outsPerEntry[index], POSE_TTA_ROTATIONS_DEG, sign)
+		);
+	});
 	return angles;
 }
 
-/** Computes canonical glyph pose offsets once per loaded runtime, batched in one inference. */
+/** Computes canonical glyph pose offsets once per loaded runtime. */
 export function ensureCanonicalAngles(
 	dictionary: Dictionary,
 	runtime: MlRuntime,
@@ -192,15 +325,15 @@ export function ensureCanonicalAngles(
 ): Promise<Map<string, number>> {
 	if (!runtime.canonicalAnglesPromise) {
 		runtime.canonicalAnglesPromise = (async () => {
-			const rendered = renderCanonicalEntries([...dictionary.sigils, ...dictionary.signs], config);
+			const rendered = renderCanonicalEntries([...dictionary.sigils, ...dictionary.signs]);
 			let angles: Map<string, number>;
 			try {
-				angles = await canonicalAnglesBatched(rendered, runtime, config);
+				angles = await canonicalAnglesTta(rendered, runtime, config);
 			} catch (error) {
-				debugLog(config, 'batched canonical angles failed; using per-entry', {
+				debugLog(config, 'canonical angle calibration failed', {
 					error: describeError(error)
 				});
-				angles = await canonicalAnglesPerEntry(rendered, runtime, config);
+				angles = new Map();
 			}
 			runtime.canonicalAngles = angles;
 			debugLog(config, 'canonical angles ready', { count: angles.size });
@@ -208,52 +341,6 @@ export function ensureCanonicalAngles(
 		})();
 	}
 	return runtime.canonicalAnglesPromise;
-}
-
-async function predictCandidateBatch(
-	candidates: SymbolCandidate[],
-	dictionary: Dictionary,
-	runtime: MlRuntime,
-	config: MlConfig,
-	shouldContinue?: ShouldContinue
-): Promise<MlPrediction[] | null> {
-	if (shouldContinue && !shouldContinue()) {
-		return null;
-	}
-	if (runtime.warmupPromise) {
-		await runtime.warmupPromise;
-	}
-
-	const input = renderCandidatesTensor(candidates, config);
-	const inputName = runtime.session.inputNames[0];
-	const feeds: OrtFeeds = {
-		[inputName]: new ort.Tensor('float32', input, [
-			candidates.length,
-			1,
-			config.inputSize,
-			config.inputSize
-		])
-	};
-	const results = await runSession(runtime, feeds);
-	if (shouldContinue && !shouldContinue()) {
-		return null;
-	}
-	const outputs = predictionOutputs(results);
-	const cache = predictionCacheFor(dictionary, config);
-
-	return candidates.map((candidate, index) => {
-		const prediction = predictionFromOutputs(
-			runtime,
-			dictionary,
-			outputs.logitsTensor,
-			outputs.angleTensor,
-			outputs.scaleTensor,
-			outputs.centerTensor,
-			index
-		);
-		cache.set(candidateContentKey(candidate), prediction);
-		return prediction;
-	});
 }
 
 function predictionCacheFor(dictionary: Dictionary, config: MlConfig) {
@@ -264,7 +351,7 @@ function predictionCacheFor(dictionary: Dictionary, config: MlConfig) {
 	);
 }
 
-/** Predicts one candidate, using the per-dictionary ML prediction cache. */
+/** Predicts one candidate with pose TTA, using the per-dictionary prediction cache. */
 export async function predictCandidateSingle(
 	candidate: SymbolCandidate,
 	dictionary: Dictionary,
@@ -280,47 +367,16 @@ export async function predictCandidateSingle(
 	if (runtime.warmupPromise) {
 		await runtime.warmupPromise;
 	}
-	const input = renderCandidateTensor(candidate, config);
-	const inputName = runtime.session.inputNames[0];
-	const feeds: OrtFeeds = {
-		[inputName]: new ort.Tensor('float32', input, [1, 1, config.inputSize, config.inputSize])
-	};
-	const results = await runSession(runtime, feeds);
-	const outputs = predictionOutputs(results);
-	const prediction = predictionFromOutputs(
-		runtime,
-		dictionary,
-		outputs.logitsTensor,
-		outputs.angleTensor,
-		outputs.scaleTensor,
-		outputs.centerTensor,
-		0
-	);
+	const rows = await inferRows(renderRotations(candidate, config), runtime, config);
+	if (!rows) {
+		throw new Error('ML inference returned no rows');
+	}
+	const prediction = aggregatePrediction(rows, runtime, dictionary);
 	cache.set(cacheKey, prediction);
 	return prediction;
 }
 
-async function predictCandidateSingles(
-	candidates: SymbolCandidate[],
-	dictionary: Dictionary,
-	runtime: MlRuntime,
-	config: MlConfig,
-	shouldContinue?: ShouldContinue
-): Promise<MlPrediction[] | null> {
-	const predictions: MlPrediction[] = [];
-	for (const candidate of candidates) {
-		if (shouldContinue && !shouldContinue()) {
-			return null;
-		}
-		predictions.push(await predictCandidateSingle(candidate, dictionary, runtime, config));
-		if (shouldContinue && !shouldContinue()) {
-			return null;
-		}
-	}
-	return predictions;
-}
-
-/** Predicts a candidate set, falling back from batch inference to singles if needed. */
+/** Predicts a candidate set with pose TTA, batching all renders into one pass. */
 export async function predictCandidates(
 	candidates: SymbolCandidate[],
 	dictionary: Dictionary,
@@ -331,19 +387,31 @@ export async function predictCandidates(
 	if (!candidates.length) {
 		return [];
 	}
-
-	if (candidates.length === 1 || !runtime.batchSupported) {
-		return predictCandidateSingles(candidates, dictionary, runtime, config, shouldContinue);
+	if (shouldContinue && !shouldContinue()) {
+		return null;
+	}
+	if (runtime.warmupPromise) {
+		await runtime.warmupPromise;
 	}
 
-	try {
-		return await predictCandidateBatch(candidates, dictionary, runtime, config, shouldContinue);
-	} catch (error) {
-		runtime.batchSupported = false;
-		debugLog(config, 'batched inference unavailable; retrying single-candidate inference', {
-			candidates: candidates.length,
-			error: describeError(error)
-		});
-		return predictCandidateSingles(candidates, dictionary, runtime, config, shouldContinue);
+	const inputs: Float32Array[] = [];
+	for (const candidate of candidates) {
+		inputs.push(...renderRotations(candidate, config));
 	}
+	if (shouldContinue && !shouldContinue()) {
+		return null;
+	}
+	const rows = await inferRows(inputs, runtime, config, shouldContinue);
+	if (!rows) {
+		return null;
+	}
+
+	const stride = POSE_TTA_ROTATIONS_DEG.length;
+	const cache = predictionCacheFor(dictionary, config);
+	return candidates.map((candidate, index) => {
+		const slice = rows.slice(index * stride, index * stride + stride);
+		const prediction = aggregatePrediction(slice, runtime, dictionary);
+		cache.set(candidateContentKey(candidate), prediction);
+		return prediction;
+	});
 }

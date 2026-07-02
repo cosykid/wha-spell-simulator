@@ -58,10 +58,10 @@ function signedAngleDifferenceDeg(fromDeg: number, toDeg: number): number {
  * pose, which canon defines as facing inward.
  */
 export function facingTwistDeg(sign: Recognition): number {
-	if (!sign.diagnostics?.ml?.accepted) {
+	if (!sign.diagnostics?.ml?.accepted || sign.rotationOffsetDeg == null) {
 		return 0;
 	}
-	return signedAngleDifferenceDeg(0, -((sign.rotationOffsetDeg ?? 0) + (sign.angleDeg ?? 0) + 90));
+	return signedAngleDifferenceDeg(0, -(sign.rotationOffsetDeg + (sign.angleDeg ?? 0) + 90));
 }
 
 /** Unit vector of the sign's resolved facing: inward rotated by its twist. */
@@ -221,6 +221,7 @@ export function buildSpellField(signs: Recognition[]): SpellField {
 				sources.push({
 					kind: 'buoyancy',
 					sign: sign.id ?? 'levitation',
+					at: sealPosition(sign),
 					strength: signInfluence(sign)
 				});
 				break;
@@ -259,7 +260,7 @@ export function spellFieldSignature(field: SpellField): string {
 				case 'directed':
 					return `d${Math.round(source.at.x * 20)},${Math.round(source.at.y * 20)}>${Math.round(source.direction.x * 10)},${Math.round(source.direction.y * 10)}.${Math.round(source.strength * 100)}`;
 				case 'buoyancy':
-					return `b${Math.round(source.strength * 100)}`;
+					return `b${Math.round(source.at.x * 20)},${Math.round(source.at.y * 20)}.${Math.round(source.strength * 100)}`;
 			}
 		})
 		.sort()

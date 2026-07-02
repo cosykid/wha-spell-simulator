@@ -20,16 +20,27 @@ const FIELD_TUNING = {
 	// Distance over which a region's directed jet fades to half strength.
 	directedReach: 0.6,
 	// Lift per unit of tangential flow: swirl about the seal pumps magic up the
-	// out-axis like a tornado updraft, regardless of spin direction.
-	swirlLift: 0.35,
+	// out-axis like a tornado updraft, regardless of spin direction. Sized so a
+	// multi-sign vortex out-lifts gravity while a lone weak swirl stays a flat
+	// whirlpool on the seal.
+	swirlLift: 0.85,
+	// Radius of the calm core a full vortex hollows out, in ring radii. The
+	// radial part of an angled pull attracts toward this eye ring (scaled by
+	// how tangential the twist is) instead of the center point, so angled
+	// pulls orbit wide like canon's Grasping Wind spiral instead of clumping
+	// into a false orb. A straight pull's eye closes to the center point.
+	vortexEye: 0.45,
 	// Height (in ring radii) where levitation lift fades to zero, so held
 	// magic settles into a hovering mass instead of climbing forever.
 	hoverCeiling: 0.85,
-	// How strongly levitation gathers its held magic toward the seal axis.
-	hoverGather: 0.5,
-	// The gather goes slack inside this radius so the held mass keeps volume
-	// as a blob instead of collapsing to a point.
-	hoverBlobRadius: 0.26,
+	// Pressure each levitation sign blows inward along its own axis. Signs on
+	// opposing sides trap the magic between them into a hovering orb; a
+	// one-sided arrangement has nothing pushing back, so the magic is blown
+	// across the seal and away instead of cohering.
+	hoverPress: 1,
+	// Distance from the sign where its pressure fades to half. Must reach past
+	// the seal center so a lone sign keeps pushing the magic out the far side.
+	hoverPressReach: 0.8,
 	minimumDistance: 1e-4
 };
 
@@ -42,17 +53,6 @@ const SPAWN_RADII = {
 };
 
 const SECTOR_HALF_ANGLE_DEG = 55;
-
-/** Rotates a seal-space vector by degrees, matching vectorFromAngleDeg's convention. */
-function rotateByDeg(vector: Vector, deg: number): Vector {
-	const radians = degreesToRadians(deg);
-	const cos = Math.cos(radians);
-	const sin = Math.sin(radians);
-	return {
-		x: vector.x * cos + vector.y * sin,
-		y: vector.y * cos - vector.x * sin
-	};
-}
 
 function bearingDeg(vector: Vector): number {
 	return normalizeAngleDeg(radiansToDegrees(Math.atan2(-vector.y, vector.x)));
@@ -113,15 +113,21 @@ export function sampleFieldForce(field: SpellField, p: Vector, height: number = 
 					break;
 				}
 				const inward = { x: -dx / distance, y: -dy / distance };
-				const direction = rotateByDeg(inward, source.twistDeg);
-				const magnitude = radialMagnitude(distance, source.strength);
-				force.x += direction.x * magnitude;
-				force.y += direction.y * magnitude;
+				const twist = degreesToRadians(source.twistDeg);
+				const swirl = Math.sin(twist);
+				// The twist splits the flow into a pull along the arm and a swirl
+				// around it. The swirl's share of the pull attracts toward the
+				// vortex eye ring rather than the center, so a twisted field holds
+				// a wide rotating funnel instead of collapsing to a point.
+				const eye = FIELD_TUNING.vortexEye * Math.abs(swirl);
+				const radialPart =
+					Math.cos(twist) * radialMagnitude(distance, source.strength) +
+					Math.abs(swirl) * radialMagnitude(distance - eye, source.strength);
+				const tangentialPart = swirl * radialMagnitude(distance, source.strength);
+				force.x += inward.x * radialPart + inward.y * tangentialPart;
+				force.y += inward.y * radialPart - inward.x * tangentialPart;
 				// The tangential fraction of the flow pumps lift up the seal axis.
-				force.z +=
-					magnitude *
-					Math.abs(Math.sin(degreesToRadians(source.twistDeg))) *
-					FIELD_TUNING.swirlLift;
+				force.z += Math.abs(tangentialPart) * FIELD_TUNING.swirlLift;
 				break;
 			}
 			case 'directed': {
@@ -137,16 +143,24 @@ export function sampleFieldForce(field: SpellField, p: Vector, height: number = 
 			}
 			case 'buoyancy': {
 				// Lift fades with altitude so held magic hovers at equilibrium
-				// instead of climbing away; a gentle draft gathers it into one
-				// mass over the seal.
+				// instead of climbing away.
 				force.z += source.strength * Math.max(0, 1 - height / FIELD_TUNING.hoverCeiling);
-				const distance = Math.hypot(p.x, p.y);
-				const slack = Math.max(0, distance - FIELD_TUNING.hoverBlobRadius);
-				if (distance >= FIELD_TUNING.minimumDistance && slack > 0) {
-					const gather = radialMagnitude(slack, source.strength) * FIELD_TUNING.hoverGather;
-					force.x += (-p.x / distance) * gather;
-					force.y += (-p.y / distance) * gather;
+				// Pressure blown inward along the sign's own axis, strongest near
+				// the sign. The orb is not a baked-in gather: displaced magic is
+				// pushed back by whichever sign it drifts toward, so the held
+				// mass exists only between opposing signs. A one-sided
+				// arrangement blows the magic across the seal and away.
+				const arm = Math.hypot(source.at.x, source.at.y);
+				if (arm < FIELD_TUNING.minimumDistance) {
+					break;
 				}
+				const dx = p.x - source.at.x;
+				const dy = p.y - source.at.y;
+				const reach = FIELD_TUNING.hoverPressReach;
+				const falloff = 1 / (1 + (dx * dx + dy * dy) / (reach * reach));
+				const press = source.strength * FIELD_TUNING.hoverPress * falloff;
+				force.x += (-source.at.x / arm) * press;
+				force.y += (-source.at.y / arm) * press;
 				break;
 			}
 		}
