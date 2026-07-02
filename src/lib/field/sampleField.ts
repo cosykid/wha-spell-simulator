@@ -3,7 +3,7 @@
 // the renderer projects results onto the tilted portal.
 
 import { degreesToRadians, normalizeAngleDeg, radiansToDegrees } from '../utils/geometry.js';
-import type { FieldVector, SpawnDomain, SpellField, Vector } from '../types.js';
+import type { DirectedSource, FieldVector, SpawnDomain, SpellField, Vector } from '../types.js';
 
 const FIELD_TUNING = {
 	// How strongly a column's off-center position leans the beam sideways.
@@ -13,6 +13,9 @@ const FIELD_TUNING = {
 	radialCore: 0.4,
 	// Distance over which a region's directed jet fades to half strength.
 	directedReach: 0.6,
+	// Lift per unit of tangential flow: swirl about the seal pumps magic up the
+	// out-axis like a tornado updraft, regardless of spin direction.
+	swirlLift: 0.35,
 	minimumDistance: 1e-4
 };
 
@@ -48,6 +51,17 @@ function radialMagnitude(distance: number, strength: number): number {
 	return (strength * 2 * core * distance) / (core * core + distance * distance);
 }
 
+// How tangential a jet is about the seal center: |at x direction| / |at|.
+// 1 when the jet is perpendicular to its radial arm, 0 when aimed along it
+// or placed at the center, where there is no arm to swirl around.
+function directedTangentialness(source: DirectedSource): number {
+	const arm = Math.hypot(source.at.x, source.at.y);
+	if (arm < FIELD_TUNING.minimumDistance) {
+		return 0;
+	}
+	return Math.abs(source.at.x * source.direction.y - source.at.y * source.direction.x) / arm;
+}
+
 /**
  * The net force on unit-mass magic at seal-space point `p`: every source's
  * contribution summed. Behaviors emerge from this sum alone — balanced columns
@@ -76,6 +90,11 @@ export function sampleFieldForce(field: SpellField, p: Vector): FieldVector {
 				const magnitude = radialMagnitude(distance, source.strength);
 				force.x += direction.x * magnitude;
 				force.y += direction.y * magnitude;
+				// The tangential fraction of the flow pumps lift up the seal axis.
+				force.z +=
+					magnitude *
+					Math.abs(Math.sin(degreesToRadians(source.twistDeg))) *
+					FIELD_TUNING.swirlLift;
 				break;
 			}
 			case 'directed': {
@@ -85,6 +104,8 @@ export function sampleFieldForce(field: SpellField, p: Vector): FieldVector {
 				const falloff = 1 / (1 + (dx * dx + dy * dy) / (reach * reach));
 				force.x += source.direction.x * source.strength * falloff;
 				force.y += source.direction.y * source.strength * falloff;
+				force.z +=
+					source.strength * falloff * directedTangentialness(source) * FIELD_TUNING.swirlLift;
 				break;
 			}
 			case 'buoyancy': {
