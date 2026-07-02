@@ -30,6 +30,8 @@ export interface MlRuntime {
 	canonicalAnglesPromise?: Promise<Map<string, number>>;
 	/** Calibrated canonical angles once ready. Read non-blocking; empty until then. */
 	canonicalAngles?: Map<string, number>;
+	/** Pose-head rotation-equivariance sign, voted during canonical calibration. */
+	poseRotationSign?: 1 | -1;
 	/** Serializes session.run calls so they never overlap. See sessionQueue.ts. */
 	runChain?: Promise<unknown>;
 }

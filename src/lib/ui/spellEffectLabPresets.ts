@@ -115,7 +115,8 @@ export const FIELD_PRESETS: FieldPreset[] = [
 	{
 		id: 'pull-vortex',
 		label: 'Pulls ×3 — angled vortex',
-		description: 'Pulls rotated 90° from inward: pure twist without pulling (canon).',
+		description:
+			'Pulls rotated 90° from inward swirl around a hollow eye and climb (Grasping Wind).',
 		signs: signsAt([0, 120, 240], (angleDeg) => ({
 			id: 'pull',
 			manifestation: 'pull',

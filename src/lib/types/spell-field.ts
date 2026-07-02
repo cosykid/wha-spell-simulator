@@ -52,10 +52,18 @@ export interface DirectedSource {
 	strength: number;
 }
 
-/** Levitation and float: a uniform body force opposing gravity. */
+/**
+ * Levitation and float: lift opposing gravity plus pressure blown inward
+ * along the sign's own axis, strongest near the sign. The hovering orb is
+ * emergent, not baked in: it forms only where opposing signs press the magic
+ * from both sides. A lone or one-sided sign has nothing pushing back, so the
+ * magic blows across the seal and away — canon's unbalanced spell.
+ */
 export interface BuoyancySource {
 	kind: 'buoyancy';
 	sign: string;
+	/** Seal-space position the pressure blows inward from. */
+	at: Vector;
 	strength: number;
 }
 

@@ -15,6 +15,7 @@ import { recognizeCandidates } from '../src/lib/parser/recognition/index.js';
 import { readRealDictionary } from './dictionaryFixtures.js';
 import type {
 	Point,
+	Recognition,
 	Stroke,
 	SymbolCandidate,
 	SigilEntry,
@@ -602,4 +603,26 @@ test('keeps a bolded fire sigil classified as fire', () => {
 	assert.equal(recognition.id, 'fire');
 	assert.equal(recognition.recognitionStatus, 'valid_messy');
 	assert.equal(recognition.diagnostics.topMatches[0].id, 'fire');
+});
+
+test('AST stripping keeps the ML pose verdict that facing relies on', async () => {
+	const { stripRecognitionDiagnostics } = await import('../src/lib/parser/classifier/format.js');
+	const recognition = {
+		id: 'pull',
+		kind: 'sign',
+		rotationOffsetDeg: 240,
+		diagnostics: {
+			recognitionRotationDeg: 0,
+			template: { shapeScore: 0.9 },
+			structure: { size: 0.2 },
+			topMatches: [{ kind: 'sign', id: 'pull', confidence: 0.97 }],
+			ml: { accepted: true, id: 'pull', kind: 'sign', confidence: 0.97 }
+		}
+	} as never;
+
+	const stripped = stripRecognitionDiagnostics(recognition)! as Recognition;
+
+	assert.equal(stripped.diagnostics?.ml?.accepted, true, 'ML verdict survives the strip');
+	assert.deepEqual(stripped.diagnostics?.topMatches, [], 'heavy match lists are dropped');
+	assert.deepEqual(stripped.diagnostics?.template, {}, 'template internals are dropped');
 });

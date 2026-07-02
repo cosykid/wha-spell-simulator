@@ -10,13 +10,13 @@
 
 ## State Fields
 
-| Field         | Meaning                                                                                                     |
-| ------------- | ----------------------------------------------------------------------------------------------------------- |
-| `valid`       | The glyph has a usable ring and primary sigil, and passes compiler confidence checks.                       |
-| `active`      | The spell is valid and the ring is complete. Active spells render full effects.                             |
-| `prepared`    | The spell is valid and the ring is incomplete. Prepared spells can show diagnostics and soft guide effects. |
-| `activatedAt` | A `performance.now()` timestamp when an active spell is compiled, otherwise `null`.                         |
-| `status`      | User-facing summary text for the spell state.                                                               |
+| Field         | Meaning                                                                                                                                                                                                                                                                           |
+| ------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `valid`       | The glyph has a usable ring and primary sigil, and passes compiler confidence checks.                                                                                                                                                                                             |
+| `active`      | The spell is valid and the ring is complete. Active spells render full effects.                                                                                                                                                                                                   |
+| `prepared`    | The spell is valid and the ring is incomplete. Prepared spells can show diagnostics and soft guide effects.                                                                                                                                                                       |
+| `activatedAt` | A `performance.now()` timestamp when an active spell is compiled, otherwise `null`. The recognition pipeline carries the first active timestamp across ML refinement recompiles (`carrySpellActivation`) so the effect timeline stays anchored to the moment the ring was sealed. |
+| `status`      | User-facing summary text for the spell state.                                                                                                                                                                                                                                     |
 
 State combinations:
 
@@ -92,12 +92,12 @@ The compiler derives the surface lean from sign direction. Force increases the t
 
 The field is built in seal space: origin at the ring center, unit length one ring radius, `y` positive toward the screen bottom, `z` out of the paper. `field.sources` is an array of `FieldSource`, and `field.domain` gates where particles spawn.
 
-| Source `kind` | From signs                                | Behavior                                                                                                                                                                                                                           |
-| ------------- | ----------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `axial`       | column                                    | A beam rising out of the seal at an axis leaned toward the sign's position. Draft gathers magic toward the axis; balanced columns cancel their lean into one straight pillar. Inverted columns become an outward `radial` instead. |
-| `radial`      | pull, dispersion, collection, convergence | The inward unit field rotated by `twistDeg`. `0` pulls toward `center`, `±90` is a pure vortex, `180` pushes outward. Convergence sets `center` to the signs' weighted focus point.                                                |
-| `directed`    | region                                    | A local jet at `at` along `direction`; falls off with distance. Region signs also set the spawn domain.                                                                                                                            |
-| `buoyancy`    | levitation, float                         | Lift opposing gravity that fades with altitude, so held magic settles into a hovering mass instead of climbing away.                                                                                                               |
+| Source `kind` | From signs                                | Behavior                                                                                                                                                                                                                                                                                                                                                                      |
+| ------------- | ----------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `axial`       | column                                    | A beam rising out of the seal at an axis leaned toward the sign's position. Draft gathers magic toward the axis; balanced columns cancel their lean into one straight pillar. Inverted columns become an outward `radial` instead.                                                                                                                                            |
+| `radial`      | pull, dispersion, collection, convergence | The inward unit field rotated by `twistDeg`. `0` pulls toward `center`, `180` pushes outward. Twisted flow hollows out a vortex eye: the swirl's share of the pull attracts toward a ring around `center` (radius grows with the twist), so angled pulls orbit a wide funnel instead of clumping at the center. Convergence sets `center` to the signs' weighted focus point. |
+| `directed`    | region                                    | A local jet at `at` along `direction`; falls off with distance. Region signs also set the spawn domain.                                                                                                                                                                                                                                                                       |
+| `buoyancy`    | levitation, float                         | Lift opposing gravity that fades with altitude, plus pressure blown inward along the sign's own axis (from `at`). The hovering orb is emergent: opposing signs trap the magic between them; a lone or one-sided sign blows it across the seal and away.                                                                                                                       |
 
 Facing (`twistDeg`, region `direction`) comes only from the ML pose head (`rotationOffsetDeg` when `diagnostics.ml.accepted`). Template-matched signs are pre-rotated into a canonical frame before matching, so their `directedOrientationDeg` and `radialFacing` carry no facing information; those signs default to canon inward facing.
 
@@ -111,7 +111,7 @@ Facing (`twistDeg`, region `direction`) comes only from the ML pose head (`rotat
 | `ring`        | opposed inward and outward      | On the ring itself (Floating Drops).         |
 | `sector`      | one-sided, coherent facing      | A sector toward the shared facing direction. |
 
-The tangential fraction of any swirl (angled pulls, tangential region jets) also pumps lift up the seal axis, so a vortex climbs like a tornado. The field is keyed into `signature`, so changing a sign's type, position, or twist resets renderer state.
+The tangential fraction of any swirl (angled pulls, tangential region jets) also pumps lift up the seal axis, so a strong vortex climbs like a tornado (Grasping Wind) while a weak lone swirl stays a flat whirlpool that gravity pins to the seal. The field is keyed into `signature`, so changing a sign's type, position, or twist resets renderer state.
 
 ## Invalid Spell Defaults
 

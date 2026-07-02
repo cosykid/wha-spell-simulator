@@ -362,3 +362,21 @@ test('super-confident ML can still accept region-shaped bent ink', () => {
 	assert.equal(decision.accept, true);
 	assert.equal(decision.reason, 'super_confident_accept');
 });
+
+test('accepted ML leaves facing unset until canonical angles are calibrated', async () => {
+	const { applyMlResult } = await import('../src/lib/parser/ml/acceptance.js');
+	const prediction = { ...mlPrediction(fireEntry, 0.96, 0.58), angleDeg: 126 };
+
+	const cold = applyMlResult(recognition(), prediction, mlConfig, candidate, new Map());
+	assert.equal(cold.diagnostics.ml?.accepted, true);
+	assert.equal(cold.rotationOffsetDeg, undefined, 'no facing fabricated from a raw pose angle');
+
+	const calibrated = applyMlResult(
+		recognition(),
+		prediction,
+		mlConfig,
+		candidate,
+		new Map([[fireEntry.id, 122]])
+	);
+	assert.equal(calibrated.rotationOffsetDeg, 4, 'calibrated offset is pose minus canonical');
+});

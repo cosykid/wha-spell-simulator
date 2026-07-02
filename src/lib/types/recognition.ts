@@ -107,10 +107,12 @@ export interface Recognition {
 	 * Degrees the drawn glyph is rotated relative to its canonical example
 	 * (counter-clockwise positive; 0 means drawn in the example's orientation).
 	 * Sourced from the ML pose head when ML recognizes the glyph, otherwise from
-	 * the template matcher's winning rotation. Distinct from `angleDeg`
-	 * (ring position) and `orientationDeg` (dominant-axis orientation).
+	 * the template matcher's winning rotation. Absent when the pose head ran
+	 * before its canonical-angle calibration, so no facing gets fabricated from
+	 * an uncorrected angle. Distinct from `angleDeg` (ring position) and
+	 * `orientationDeg` (dominant-axis orientation).
 	 */
-	rotationOffsetDeg: number;
+	rotationOffsetDeg?: number;
 	overdrawAmount: number;
 	neatness: number;
 	recognized: boolean;

@@ -44,15 +44,18 @@ export async function recognizeCandidatesHybridMl(
 		);
 	}
 
-	// Calibration only adjusts rendered rotation, so it must not block prediction.
-	// Use whatever angles are ready (empty on a cold start) and kick off the
-	// background calibration below, after this pass's predictions are queued.
+	// Calibration only adjusts rotation offsets, so it must not block prediction.
+	// Use whatever angles are ready (empty on a cold start); progress results go
+	// out immediately and a cold pass re-applies once calibration lands, before
+	// returning its final result.
 	const canonicalAngles = runtime.canonicalAngles ?? EMPTY_CANONICAL_ANGLES;
 
 	try {
+		let predictions: MlPrediction[];
+		let results: RecognizedSymbol[];
 		if (candidates.length === 1 || !runtime.batchSupported) {
-			const results = [...templateResults];
-			const predictions: MlPrediction[] = [];
+			results = [...templateResults];
+			predictions = [];
 			for (let index = 0; index < candidates.length; index += 1) {
 				if (shouldContinue && !shouldContinue()) {
 					debugLog(cfg, 'template-only result returned; request superseded during inference');
@@ -78,33 +81,16 @@ export async function recognizeCandidatesHybridMl(
 				);
 				onProgress?.([...results]);
 			}
-			debugLog(
-				cfg,
-				'predictions ready',
-				predictions.map((prediction, index) => ({
-					candidate: candidates[index]?.candidateId,
-					id: prediction.id,
-					kind: prediction.kind,
-					confidence: Number(prediction.confidence.toFixed(3)),
-					topMatches: prediction.topMatches.map((match) => ({
-						id: match.id,
-						confidence: Number(match.confidence.toFixed(3))
-					}))
-				}))
+		} else {
+			const batch = await predictCandidates(candidates, dictionary, runtime, cfg, shouldContinue);
+			if (!batch) {
+				debugLog(cfg, 'template-only result returned; request superseded during inference');
+				return templateResults;
+			}
+			predictions = batch;
+			results = templateResults.map((template, index) =>
+				applyMlResult(template, predictions[index], cfg, candidates[index], canonicalAngles)
 			);
-			return results;
-		}
-
-		const predictions = await predictCandidates(
-			candidates,
-			dictionary,
-			runtime,
-			cfg,
-			shouldContinue
-		);
-		if (!predictions) {
-			debugLog(cfg, 'template-only result returned; request superseded during inference');
-			return templateResults;
 		}
 		debugLog(
 			cfg,
@@ -120,9 +106,23 @@ export async function recognizeCandidatesHybridMl(
 				}))
 			}))
 		);
-		return templateResults.map((template, index) =>
-			applyMlResult(template, predictions[index], cfg, candidates[index], canonicalAngles)
-		);
+
+		// Cold start: predictions above ran before the canonical-angle
+		// calibration, so their facing offsets are unset. Wait for calibration
+		// and re-apply, so the final result carries real facings and a sign is
+		// never left acting as if its rotation were ignored.
+		if (!canonicalAngles.size && predictions.length) {
+			const calibrated = await ensureCanonicalAngles(dictionary, runtime, cfg);
+			if (calibrated.size && (!shouldContinue || shouldContinue())) {
+				debugLog(cfg, 'reapplying predictions with calibrated canonical angles', {
+					angles: calibrated.size
+				});
+				results = templateResults.map((template, index) =>
+					applyMlResult(template, predictions[index], cfg, candidates[index], calibrated)
+				);
+			}
+		}
+		return results;
 	} catch (error) {
 		debugLog(cfg, 'failed during inference; using template recognizer only', error, 'warn');
 		return templateResults.map((result) =>

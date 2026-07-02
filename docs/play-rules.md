@@ -17,7 +17,7 @@ This file is the compact contract for parser, compiler, and renderer behavior. U
 - Sign stroke orientation can contribute direction when `semantic.directionMode` is `orientation`.
 - Directional effects use a paper-local 3D direction. `z` points out of the paper, while `x` and `y` lean across the paper surface.
 - Force can increase the tilt away from paper `z` when a directional sign exists, making stronger directional effects travel closer to the paper plane.
-- Levitation signs reduce compiled gravity. Balanced levitation signs can cancel sideways motion while suspending the effect above the paper.
+- Levitation signs reduce compiled gravity. The hovering orb only forms when levitation signs oppose each other and trap the magic between their pressure; an unbalanced (one-sided) levitation sign blows the magic across the seal instead of holding it.
 - Convergence signs add a manifestation that compresses the effect's sideways spread toward a tighter centerline. It can coexist with levitation, column, or other manifestations.
 - Sign elongation and dominant stroke shape can strengthen direction, force, and focus. This is built into compiler shape rules, not stored as per-sign tuning data.
 - Neatness matters at every level: ring, sigil, signs, and overall spell quality.

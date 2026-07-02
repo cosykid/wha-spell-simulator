@@ -47,10 +47,13 @@ export const CONFIG = {
 
 		// 0..1 value subtracted per group when decomposition scores a tree cut. This
 		// biases toward keeping a node whole; a split only wins when the child groups
-		// clearly outscore the whole. Tuned so complex multi-stroke sigils and signs
-		// (water, wind, light, levitation) stay whole while genuinely separate symbols
-		// (a center sigil beside a ring sign, two adjacent signs) still split apart.
-		groupPenalty: 0.75,
+		// clearly outscore the whole. Must sit below the shape-match confidence that
+		// real hand-drawn symbols reach (roughly 0.55-0.75); a higher value zeroes
+		// every group and the cut degenerates to touch-based merging, which fuses
+		// adjacent symbols. Tuned so complex multi-stroke sigils and signs (water,
+		// wind, light, levitation) stay whole while genuinely separate symbols
+		// (a center sigil beside a ring sign, two adjacent signs) split apart.
+		groupPenalty: 0.55,
 
 		// 0..1 allowed extra ink before a match is considered contaminated.
 		contaminationThreshold: 0.5,

@@ -143,6 +143,23 @@ function calculateSpellDuration({
 	);
 }
 
+/**
+ * Keeps the original activation timestamp when a recompile refines an already
+ * active spell.
+ *
+ * Recognition emits a fast template result and then one or more ML refinement
+ * results for the same drawing. Each pass recompiles the spell, and a fresh
+ * `activatedAt` would restart the portal-tilt hold and the effect timeline, so
+ * the effect would only start after the last refinement instead of when the
+ * ring was sealed.
+ */
+export function carrySpellActivation(previous: SpellIR | null, next: SpellIR): SpellIR {
+	if (!next.active || !previous?.active || typeof previous.activatedAt !== 'number') {
+		return next;
+	}
+	return { ...next, activatedAt: previous.activatedAt };
+}
+
 export function compileSpell({
 	glyphAST,
 	config

@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
+import { carrySpellActivation } from '../src/lib/compiler/spellBuilder.js';
 import { spellEmission } from '../src/lib/renderer/spellEffectRenderer.js';
 import type { SpellIR } from '../src/lib/types.js';
 
@@ -40,6 +41,25 @@ test('spell duration is measured from after the tilt, then fades out', () => {
 	const midFade = spellEmission(spell, 1000 + TILT_MS + durationMs + 210, TILT_MS);
 	assert.ok(midFade > 0 && midFade < 1, `expected partial emission during fade, got ${midFade}`);
 	assert.equal(spellEmission(spell, 1000 + TILT_MS + durationMs + 1000, TILT_MS), 0);
+});
+
+test('ML refinement recompiles keep the original activation timestamp', () => {
+	const templatePass = activeSpell(1000, 3);
+	const mlPass = activeSpell(1900, 3);
+	const carried = carrySpellActivation(templatePass, mlPass);
+
+	assert.equal(carried.activatedAt, 1000);
+	// The effect timeline stays anchored to the ring seal, not the refinement.
+	assert.equal(spellEmission(carried, 1000 + TILT_MS, TILT_MS), 1);
+});
+
+test('activation timestamp is not carried across inactive spells', () => {
+	const inactive = { active: false, activatedAt: null } as unknown as SpellIR;
+	const activated = activeSpell(2000, 3);
+
+	assert.equal(carrySpellActivation(inactive, activated).activatedAt, 2000);
+	assert.equal(carrySpellActivation(null, activated).activatedAt, 2000);
+	assert.equal(carrySpellActivation(activated, inactive).activatedAt, null);
 });
 
 test('inactive or zero-duration spells never emit', () => {

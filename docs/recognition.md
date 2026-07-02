@@ -15,7 +15,19 @@ As of June 16, 2026, the ML training dataset contains more than 8,000 hand-drawn
 `classifyDrawing(...)` performs these steps:
 
 1. Clean strokes with the configured input thresholds.
-2. Detect the spell ring and remove ring strokes from symbol recognition.
+2. Detect the spell ring and remove ring strokes from symbol recognition. Ring
+   detection rejects closed circles that read as glyph ink rather than a ring:
+   several glyphs (billowing, repetition, water and light loops) contain a
+   near-circular loop that topological closure would otherwise report as a
+   spell ring. A candidate is vetoed when its ring strokes carry tails that
+   leave a wide circle band, when sibling strokes cross the circle line, when
+   a long curl is attached to the loop, when the loop is a lobed cloud
+   outline whose radius oscillates like a hand-drawn billowing, or when the
+   main stroke starts and ends off the circle line like weave's corner ticks
+   (`rings/glyphCircle.ts`). A
+   complete circle well inside an established larger ring is also treated as
+   glyph ink so it cannot steal the ring or invalidate the spell as a second
+   ring.
 3. When no ring is found, build diagnostics-only preview candidates. If canvas guide geometry is available, use guide-relative layers so center sigils and sign-like marks can be labeled separately; otherwise build one synthetic standalone sigil preview candidate.
 4. When a ring is found, classify strokes by ring-relative layer and boundary position.
 5. Build symbol candidates from non-ring strokes. In-progress drawings use fast layer-aware proximity grouping; complete rings can use recognition-guided tree cuts to separate close symbols.
@@ -41,11 +53,11 @@ Candidate building has two refinement modes:
 - Fast layer-aware grouping is used for no-ring guide preview and incomplete or prepared rings. It keeps editing responsive, respects ring-relative layers, and rejoins touching same-layer fragments that belong to one rough multi-stroke sign.
 - Recognition-guided decomposition is used for complete rings when `CONFIG.recognition.recognitionGuidedDecomposition` is on. It handles close or bridged symbols that proximity alone cannot separate, for example a center sigil drawn next to a ring sign.
 
-In recognition-guided mode, each component is clustered into a single-linkage merge forest with union-find, every viable whole-symbol tree node is scored, and the parser chooses between keeping a node whole or taking its child groups. Each group in a cut pays `CONFIG.recognition.groupPenalty`, currently `0.75`, so a split only wins when the child groups clearly outscore the whole.
+In recognition-guided mode, each component is clustered into a single-linkage merge forest with union-find, every viable whole-symbol tree node is scored, and the parser chooses between keeping a node whole or taking its child groups. Each group in a cut pays `CONFIG.recognition.groupPenalty`, currently `0.55`, so a split only wins when the child groups clearly outscore the whole. A node whose whole-shape score is near-perfect (`TREE_KEEP_WHOLE_SCORE`) is kept whole without weighing child cuts, because dense sub-groups of a complex glyph can partially match other templates and win the cut numerically.
 
 Node scoring during the tree cut is deliberately lightweight. It runs only the `$P` + chamfer shape match, not the full structural blend or ONNX inference, and it stops scoring signs for a node once a sigil clears a dominant threshold. The full hybrid recognizer runs once afterward on the chosen groups, so the expensive pass is not repeated per tree node. The union-find clustering also replaces an earlier all-pairs rescan, keeping the path fast.
 
-The `groupPenalty` is tuned so complex multi-stroke sigils (water, wind, light) and multi-stroke signs (levitation, column) stay whole, while genuinely separate symbols split apart. Setting `recognitionGuidedDecomposition` to false keeps candidate building on the cheaper proximity path, which is responsive but cannot separate every bridged symbol.
+The `groupPenalty` is tuned so complex multi-stroke sigils (water, wind, light) and multi-stroke signs (levitation, column) stay whole, while genuinely separate symbols split apart. It must sit below the shape-match confidence real hand-drawn symbols reach (roughly `0.55`–`0.75`); a higher value zeroes every group so the cut degenerates to touch-based fragment merging, which fuses adjacent symbols. Setting `recognitionGuidedDecomposition` to false keeps candidate building on the cheaper proximity path, which is responsive but cannot separate every bridged symbol.
 
 The boxes shown by glyph diagnostics are candidate bounds, not every internal grouping possibility. A box around a tentative symbol means "these strokes were selected as one candidate for this parse." It does not mean the recognizer only sees square pixels.
 
