@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<title>WHA Spell Simulator</title>
+		<style>
+			html,
+			body {
+				margin: 0;
+				height: 100%;
+				background: #101014;
+				color: #d8d2c4;
+				font-family: ui-monospace, 'Cascadia Code', Consolas, monospace;
+			}
+			#app {
+				position: fixed;
+				inset: 0;
+			}
+			#panel {
+				position: fixed;
+				top: 12px;
+				left: 12px;
+				z-index: 10;
+				background: rgba(16, 16, 22, 0.82);
+				border: 1px solid #3a3a46;
+				border-radius: 8px;
+				padding: 12px 14px;
+				max-width: 340px;
+				font-size: 12px;
+				line-height: 1.45;
+				backdrop-filter: blur(4px);
+			}
+			#panel h1 {
+				font-size: 13px;
+				margin: 0 0 8px;
+				letter-spacing: 0.06em;
+				color: #e8ddc0;
+			}
+			select {
+				width: 100%;
+				background: #1c1c26;
+				color: #e6e0d2;
+				border: 1px solid #4a4a58;
+				border-radius: 4px;
+				padding: 5px 6px;
+				font: inherit;
+			}
+			label.chk {
+				display: flex;
+				gap: 6px;
+				align-items: center;
+				margin-top: 8px;
+				cursor: pointer;
+				user-select: none;
+			}
+			#desc {
+				margin-top: 8px;
+				color: #a8a294;
+			}
+			#readout {
+				margin-top: 8px;
+				padding-top: 8px;
+				border-top: 1px dashed #3a3a46;
+				white-space: pre;
+				color: #8fb8a8;
+			}
+			#hint {
+				position: fixed;
+				bottom: 10px;
+				right: 14px;
+				color: #55545e;
+				font-size: 11px;
+				z-index: 10;
+			}
+		</style>
+	</head>
+	<body>
+		<div id="app"></div>
+		<div id="panel">
+			<h1>WHA SPELL SIMULATOR</h1>
+			<select id="spell"></select>
+			<label class="chk"
+				><input type="checkbox" id="mask" checked /> show manifestation region</label
+			>
+			<label class="chk"
+				><input type="checkbox" id="effect" checked /> full effect (shaded volume)</label
+			>
+			<div id="desc"></div>
+			<div id="readout"></div>
+		</div>
+		<div id="hint">drag to orbit · scroll to zoom</div>
+		<script type="module" src="/src/main.ts"></script>
+	</body>
+</html>

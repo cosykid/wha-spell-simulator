@@ -1,0 +1,22 @@
+{
+	"name": "wha-spell-sim",
+	"private": true,
+	"version": "0.1.0",
+	"type": "module",
+	"scripts": {
+		"dev": "vite --host",
+		"build": "vite build",
+		"preview": "vite preview",
+		"typecheck": "tsc --noEmit",
+		"test": "esbuild test/run.ts --bundle --platform=node --packages=external --format=esm --outfile=test/.build/run.mjs --log-level=warning && node test/.build/run.mjs"
+	},
+	"dependencies": {
+		"three": "^0.166.1"
+	},
+	"devDependencies": {
+		"@types/node": "^26.1.0",
+		"@types/three": "^0.166.0",
+		"typescript": "~5.5.4",
+		"vite": "^5.4.0"
+	}
+}

@@ -1,0 +1,5 @@
+sim/dist
+sim/node_modules
+sim/test/out
+sim/test/.build
+.claude
