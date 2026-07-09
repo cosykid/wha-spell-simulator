@@ -131,6 +131,13 @@ instead of forcing a trip to a far corner.
 		pointer-events: auto;
 	}
 
+	/* The panel is focused programmatically on open so keyboard users land inside
+	   it. It is tabindex="-1" (not Tab-reachable), so this managed focus is the only
+	   way it lights up, and a ring on the whole container reads as stray highlight. */
+	.drawer:focus {
+		outline: none;
+	}
+
 	/*
 	 * Close tab that extends out from the panel's inner edge (the one facing the
 	 * canvas) so it claims no space inside the drawer. Centred vertically so it sits
