@@ -6,7 +6,8 @@
  */
 import { clamp } from '../utils/geometry.js';
 import { directionFromTiltAngles } from '../compiler/spellDirection.js';
-import type { SpellIR, Manifestation, ElementId, AppConfig } from '../types.js';
+import { emptySpellField, spellFieldSignature } from '../field/buildSpellField.js';
+import type { SpellIR, Manifestation, ElementId, AppConfig, SpellField } from '../types.js';
 
 /** A single slider control definition. */
 interface ControlDef {
@@ -268,13 +269,16 @@ export function buildSpellIR({
 	element,
 	sigil,
 	activatedAt,
-	config
+	config,
+	field
 }: {
 	values: ControlValues;
 	element: ElementId;
 	sigil?: string;
 	activatedAt: number | null;
 	config: AppConfig;
+	/** Optional sign force field, synthesized by the lab's sign presets. */
+	field?: SpellField;
 }): SpellIR {
 	const { effectScale, force, spread, focus, gravity, duration, stability } =
 		values as Required<ControlValues>;
@@ -289,6 +293,7 @@ export function buildSpellIR({
 		values.yTiltDeg!
 	) as SpellIR['direction'];
 	const { primaryManifestation, manifestations } = buildManifestations(values);
+	const spellField = field ?? emptySpellField();
 
 	return {
 		type: 'SpellIR',
@@ -306,6 +311,7 @@ export function buildSpellIR({
 		effectScale,
 		primaryManifestation,
 		manifestations,
+		field: spellField,
 		direction,
 		directionCoherence: clamp(Math.hypot(direction.x, direction.y), 0, 1),
 		gravity,
@@ -322,6 +328,7 @@ export function buildSpellIR({
 			'lab',
 			element,
 			sigil ?? element,
+			spellFieldSignature(spellField),
 			Math.round(effectScale * 100),
 			Math.round(force * 100),
 			Math.round(spread * 100),

@@ -318,6 +318,8 @@ export class SimulatorRuntime {
 			selectTool: (mode) => this.setCanvasMode(mode),
 			commitSelected: actions.commitSelected,
 			deleteSelected: actions.removeSelectedShape,
+			copySelected: actions.copySelected,
+			paste: actions.paste,
 			undo: actions.undo,
 			redo: actions.redo
 		});

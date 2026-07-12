@@ -1,6 +1,6 @@
 import { createPlacementStore } from '$lib/input/placementStore.js';
 import { bakePlacementToStrokes, placementHandles } from '$lib/input/shapeBaker.js';
-import { defaultTransformForShape } from '$lib/input/shapeLibrary.js';
+import { defaultTransformForShape, offsetTransformForPaste } from '$lib/input/shapeLibrary.js';
 import { createStrokeStore } from '$lib/input/strokeStore.js';
 import {
 	makePlacementEntity,
@@ -10,6 +10,7 @@ import type { Placement, PlacementTransform, ShapeItem, Stroke, Vector } from '$
 import { SvelteMap } from 'svelte/reactivity';
 import { clonePlacementSnapshot, createDrawingHistory, type DrawingSnapshot } from './history.js';
 import type { CanvasTool } from './mode.js';
+import { visibleCanvasShortAxis } from './layout.js';
 import { placementsInRenderOrder } from './placement-order.js';
 import type { SelectedShape } from './types.js';
 
@@ -31,6 +32,8 @@ export class SimulatorDrawingState {
 	/** Snapshot consumed by the shape inspector in the sidebar. */
 	selected = $state<SelectedShape | null>(null);
 	#selectedPlacementId: string | null = null;
+	/** Last copied placement (shape, source, and a cloned transform), ready to paste. */
+	#clipboard: Omit<Placement, 'id'> | null = null;
 	#bakedPlacementCache = new SvelteMap<string, { key: string; strokes: Stroke[] }>();
 	#placementEntityCache = new SvelteMap<string, { key: string; entity: PlacementEntity }>();
 
@@ -157,7 +160,7 @@ export class SimulatorDrawingState {
 			kind: item.kind,
 			sourceId: item.sourceId,
 			baseStrokes: item.baseStrokes,
-			transform: defaultTransformForShape(item, point, canvas)
+			transform: defaultTransformForShape(item, point, visibleCanvasShortAxis(canvas))
 		});
 		this.setSelected(placement.id);
 		return placement.id;
@@ -194,6 +197,52 @@ export class SimulatorDrawingState {
 			this.setSelected(null);
 		}
 		return true;
+	}
+
+	/**
+	 * Copies the selected placement into the paste clipboard, preserving its
+	 * shape, source, and transform.
+	 *
+	 * @returns `true` when a placement was copied.
+	 */
+	copySelectedPlacement() {
+		if (!this.#selectedPlacementId) {
+			return false;
+		}
+		const placement = this.placements.get(this.#selectedPlacementId);
+		if (!placement) {
+			return false;
+		}
+		this.#clipboard = {
+			kind: placement.kind,
+			sourceId: placement.sourceId,
+			baseStrokes: placement.baseStrokes,
+			transform: { ...placement.transform }
+		};
+		return true;
+	}
+
+	/**
+	 * Pastes the copied placement as a new placement nudged off the last position,
+	 * then selects it. Repeated pastes cascade so copies do not stack.
+	 *
+	 * @returns The new placement id, or `null` when nothing has been copied.
+	 */
+	pastePlacement() {
+		if (!this.#clipboard) {
+			return null;
+		}
+		const transform = offsetTransformForPaste(this.#clipboard.transform);
+		const placement = this.placements.add({
+			kind: this.#clipboard.kind,
+			sourceId: this.#clipboard.sourceId,
+			baseStrokes: this.#clipboard.baseStrokes,
+			transform
+		});
+		// Cascade: the next paste offsets from this copy, not the original.
+		this.#clipboard = { ...this.#clipboard, transform };
+		this.setSelected(placement.id);
+		return placement.id;
 	}
 
 	/**

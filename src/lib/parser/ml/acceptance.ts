@@ -223,6 +223,11 @@ export function applyMlResult(
 		return attachMlDiagnostics(template, ml, false, decision.reason, decision);
 	}
 
+	// The pose head reports an absolute angle; only the calibrated canonical
+	// angle turns it into a facing offset. Before calibration lands, leave the
+	// offset unset so downstream facing falls back to canon inward instead of
+	// reading a raw pose angle as a twist.
+	const canonicalAngle = canonicalAngles.get(ml.entry.id);
 	return attachMlDiagnostics(
 		{
 			...template,
@@ -235,7 +240,8 @@ export function applyMlResult(
 			semantic: ml.entry.semantic ?? null,
 			referenceSizeNorm: ml.entry.referenceSizeNorm ?? null,
 			confidence: ml.confidence,
-			rotationOffsetDeg: normalizeAngleDeg(ml.angleDeg - (canonicalAngles.get(ml.entry.id) ?? 0)),
+			rotationOffsetDeg:
+				canonicalAngle == null ? undefined : normalizeAngleDeg(ml.angleDeg - canonicalAngle),
 			diagnostics: {
 				...template.diagnostics,
 				bestGuess: null,

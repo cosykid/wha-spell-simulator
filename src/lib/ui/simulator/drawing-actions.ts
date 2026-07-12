@@ -83,6 +83,29 @@ export class SimulatorDrawingActions {
 		void this.#recognition.recompute();
 	};
 
+	/**
+	 * Copies the selected placement so it can be pasted as a new shape.
+	 *
+	 * Copying does not change the drawing, so it neither records history nor
+	 * reruns recognition.
+	 */
+	copySelected = () => this.#drawing.copySelectedPlacement();
+
+	/**
+	 * Pastes the last copied placement as a new selected shape and reruns
+	 * recognition.
+	 *
+	 * @returns `true` when a copy was pasted.
+	 */
+	paste = () => {
+		if (this.#drawing.pastePlacement() === null) {
+			return false;
+		}
+		this.pushHistory();
+		void this.#recognition.recompute();
+		return true;
+	};
+
 	/** Records the current drawing state in undo history. */
 	pushHistory = () => {
 		this.#drawing.pushHistory();

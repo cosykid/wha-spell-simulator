@@ -8,6 +8,7 @@ import {
 } from './semanticRules.js';
 import { directionFromSurfaceVector } from './spellDirection.js';
 import { calculateSpellQuality, calculateSpellStability } from './spellQuality.js';
+import { buildSpellField, emptySpellField, spellFieldSignature } from '../field/buildSpellField.js';
 import type {
 	AppConfig,
 	GlobalMetrics,
@@ -78,6 +79,7 @@ function invalidSpell(status: string, glyphAST: GlyphASTLike, warnings: string[]
 		effectScale: 1,
 		primaryManifestation: 'none',
 		manifestations: {},
+		field: emptySpellField(),
 		direction: { x: 0, y: 0, z: 1, xTiltDeg: 0, yTiltDeg: 0, tiltFromZDeg: 0 },
 		directionCoherence: 0,
 		gravity: 1,
@@ -141,6 +143,23 @@ function calculateSpellDuration({
 	);
 }
 
+/**
+ * Keeps the original activation timestamp when a recompile refines an already
+ * active spell.
+ *
+ * Recognition emits a fast template result and then one or more ML refinement
+ * results for the same drawing. Each pass recompiles the spell, and a fresh
+ * `activatedAt` would restart the portal-tilt hold and the effect timeline, so
+ * the effect would only start after the last refinement instead of when the
+ * ring was sealed.
+ */
+export function carrySpellActivation(previous: SpellIR | null, next: SpellIR): SpellIR {
+	if (!next.active || !previous?.active || typeof previous.activatedAt !== 'number') {
+		return next;
+	}
+	return { ...next, activatedAt: previous.activatedAt };
+}
+
 export function compileSpell({
 	glyphAST,
 	config
@@ -194,6 +213,7 @@ export function compileSpell({
 	const neatness = glyphAST.globalMetrics?.neatness ?? quality;
 	const { primaryManifestation, manifestations, manifestationInfluence } =
 		aggregateManifestations(signs);
+	const field = buildSpellField(signs);
 	const deltas = aggregateSemanticDeltas(signs);
 	const surfaceDirection = signs.length ? combineSignDirection(signs) : { x: 0, y: 0, strength: 0 };
 	const directionCoherence = surfaceDirection.strength ?? 0;
@@ -260,6 +280,7 @@ export function compileSpell({
 		effectScale,
 		primaryManifestation,
 		manifestations,
+		field,
 		direction,
 		directionCoherence,
 		gravity,
@@ -272,7 +293,7 @@ export function compileSpell({
 		quality,
 		neatness,
 		warnings: glyphAST.warnings ?? [],
-		signature: `${primary.id}:${primary.element}:${manifestationSignature(manifestations)}:${active}:${Math.round(effectScale * 100)}:${Math.round(strength * 100)}:${Math.round(
+		signature: `${primary.id}:${primary.element}:${manifestationSignature(manifestations)}:${spellFieldSignature(field)}:${active}:${Math.round(effectScale * 100)}:${Math.round(strength * 100)}:${Math.round(
 			force * 100
 		)}:${Math.round(spread * 100)}:${Math.round(duration * 100)}:${Math.round(direction.xTiltDeg)}:${Math.round(
 			direction.yTiltDeg

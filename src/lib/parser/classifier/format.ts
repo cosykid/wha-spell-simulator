@@ -23,11 +23,28 @@ export function stripCandidate(candidate: SymbolCandidate) {
 	return publicCandidate;
 }
 
-/** Removes heavy diagnostics from public AST recognition entries. */
+/**
+ * Removes heavy diagnostics from public AST recognition entries. The compact
+ * ML verdict stays: facing (facingTwistDeg) only trusts rotationOffsetDeg
+ * when the ML pose head accepted the sign, so dropping it would silently
+ * reset every sign to canon inward facing.
+ */
 export function stripRecognitionDiagnostics(recognition: Recognition | null) {
 	if (!recognition) {
 		return null;
 	}
-	const { diagnostics: _diagnostics, ...publicRecognition } = recognition;
+	const { diagnostics, ...publicRecognition } = recognition;
+	if (diagnostics?.ml) {
+		return {
+			...publicRecognition,
+			diagnostics: {
+				recognitionRotationDeg: diagnostics.recognitionRotationDeg,
+				template: {},
+				structure: {},
+				topMatches: [],
+				ml: diagnostics.ml
+			}
+		};
+	}
 	return publicRecognition;
 }

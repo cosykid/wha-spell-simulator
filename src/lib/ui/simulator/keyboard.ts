@@ -26,6 +26,10 @@ interface SimulatorKeyboardOptions {
 	commitSelected: () => void;
 	/** Deletes the selected placement. */
 	deleteSelected: () => void;
+	/** Copies the selected placement to the shape clipboard. */
+	copySelected: () => void;
+	/** Pastes the last copied placement. Returns `true` when a copy was pasted. */
+	paste: () => boolean;
 	/** Runs undo. */
 	undo: () => void;
 	/** Runs redo. */
@@ -45,28 +49,46 @@ export function createSimulatorKeyboardHandler(options: SimulatorKeyboardOptions
 			target?.tagName === 'INPUT' ||
 			target?.tagName === 'TEXTAREA' ||
 			target?.isContentEditable === true;
-		const selectedPlacementId = options.selectedPlacementId();
-
-		if (options.activeTool() === 'arrange' && selectedPlacementId && !typing) {
-			if (event.key === 'Enter') {
-				event.preventDefault();
-				options.commitSelected();
-				return;
-			}
-			if (event.key === 'Delete' || event.key === 'Backspace') {
-				event.preventDefault();
-				options.deleteSelected();
-				return;
-			}
-		}
 
 		const isMac = navigator.platform.toUpperCase().includes('MAC');
 		const ctrl = isMac ? event.metaKey : event.ctrlKey;
+		const key = event.key.toLowerCase();
+		const selectedPlacementId = options.selectedPlacementId();
+
+		// Shape editing shortcuts, active only while arranging placements.
+		if (options.activeTool() === 'arrange' && !typing) {
+			// Copy the selected shape, unless the user is copying selected page text.
+			if (ctrl && key === 'c' && selectedPlacementId && !hasTextSelection()) {
+				event.preventDefault();
+				options.copySelected();
+				return;
+			}
+			// Paste the copied shape, but only when there is one, so an empty
+			// clipboard still falls through to the browser's own paste.
+			if (ctrl && key === 'v') {
+				if (options.paste()) {
+					event.preventDefault();
+				}
+				return;
+			}
+			if (selectedPlacementId) {
+				if (event.key === 'Enter') {
+					event.preventDefault();
+					options.commitSelected();
+					return;
+				}
+				if (event.key === 'Delete' || event.key === 'Backspace') {
+					event.preventDefault();
+					options.deleteSelected();
+					return;
+				}
+			}
+		}
 
 		// Bare letter keys switch tools, the way drawing apps do. Skip when a
 		// modifier is held (so Cmd+P, Ctrl+E, etc. stay native) or while typing.
 		if (!typing && !event.metaKey && !event.ctrlKey && !event.altKey) {
-			const tool = TOOL_SHORTCUTS[event.key.toLowerCase()];
+			const tool = TOOL_SHORTCUTS[key];
 			if (tool) {
 				event.preventDefault();
 				options.selectTool(tool);
@@ -75,7 +97,6 @@ export function createSimulatorKeyboardHandler(options: SimulatorKeyboardOptions
 		}
 
 		if (!ctrl) return;
-		const key = event.key.toLowerCase();
 
 		if (key === 'z' && !event.shiftKey) {
 			event.preventDefault();
@@ -88,4 +109,9 @@ export function createSimulatorKeyboardHandler(options: SimulatorKeyboardOptions
 			options.redo();
 		}
 	};
+}
+
+/** True when the user has a non-empty text selection the browser should copy. */
+function hasTextSelection() {
+	return (window.getSelection()?.toString().trim().length ?? 0) > 0;
 }

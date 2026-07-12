@@ -2,6 +2,7 @@
 
 import type { Vector } from './geometry.js';
 import type { ElementId } from './dictionary.js';
+import type { SpellField } from './spell-field.js';
 
 export interface SpellDirection {
 	x: number;
@@ -46,6 +47,8 @@ export interface SpellIR {
 	effectScale: number;
 	primaryManifestation: string;
 	manifestations: Record<string, Manifestation>;
+	/** Per-sign force operators; drives the field particle effect when non-empty. */
+	field: SpellField;
 	direction: SpellDirection;
 	directionCoherence: number;
 	gravity: number;

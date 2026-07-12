@@ -2,9 +2,34 @@ import { boundsForStrokes } from '../../utils/geometry.js';
 import type { DictionaryEntry, Point, SymbolCandidate } from '../../types.js';
 import type { MlConfig } from './types.js';
 
-interface RenderableCandidate {
+export interface RenderableCandidate {
 	bounds: SymbolCandidate['bounds'];
 	strokes: Array<{ points: Point[] }>;
+}
+
+// Rotates a candidate's ink about its own center. Used for pose test-time
+// augmentation: the rasterizer reframes from the rotated bounds, so the glyph
+// stays centered and the model sees the same shape at a known rotation.
+function rotatedRenderable(
+	candidate: RenderableCandidate,
+	rotationDeg: number
+): RenderableCandidate {
+	if (!rotationDeg) {
+		return candidate;
+	}
+	const radians = (rotationDeg * Math.PI) / 180;
+	const cos = Math.cos(radians);
+	const sin = Math.sin(radians);
+	const cx = candidate.bounds.minX + candidate.bounds.width / 2;
+	const cy = candidate.bounds.minY + candidate.bounds.height / 2;
+	const strokes = candidate.strokes.map((stroke) => ({
+		points: stroke.points.map((point) => {
+			const dx = point.x - cx;
+			const dy = point.y - cy;
+			return { x: cx + dx * cos - dy * sin, y: cy + dx * sin + dy * cos };
+		})
+	}));
+	return { strokes, bounds: boundsForStrokes(strokes) };
 }
 
 function makeCanvas(size: number): HTMLCanvasElement | OffscreenCanvas {
@@ -19,9 +44,11 @@ function makeCanvas(size: number): HTMLCanvasElement | OffscreenCanvas {
 
 /** Rasterizes a symbol candidate into the normalized tensor expected by the ONNX model. */
 export function renderCandidateTensor(
-	candidate: RenderableCandidate,
-	config: MlConfig
+	source: RenderableCandidate,
+	config: MlConfig,
+	rotationDeg = 0
 ): Float32Array {
+	const candidate = rotatedRenderable(source, rotationDeg);
 	const renderScale = 2;
 	const size = config.inputSize;
 	const canvasSize = size * renderScale;
@@ -90,19 +117,6 @@ export function renderCandidateTensor(
 	}
 
 	return tensor;
-}
-
-/** Packs multiple candidate tensors into one batch buffer. */
-export function renderCandidatesTensor(
-	candidates: SymbolCandidate[],
-	config: MlConfig
-): Float32Array {
-	const pixelsPerCandidate = config.inputSize * config.inputSize;
-	const batch = new Float32Array(candidates.length * pixelsPerCandidate);
-	for (let index = 0; index < candidates.length; index += 1) {
-		batch.set(renderCandidateTensor(candidates[index], config), index * pixelsPerCandidate);
-	}
-	return batch;
 }
 
 const CANONICAL_TEMPLATE_SCALE = 256;

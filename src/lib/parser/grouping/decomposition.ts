@@ -6,6 +6,7 @@ import {
 	MERGE_SCORE_FLOOR,
 	SEGMENT_ALLPAIRS_CAP,
 	SEGMENT_PRUNE_GAP_NORM,
+	TREE_KEEP_WHOLE_SCORE,
 	TREE_WHOLE_EPSILON
 } from './constants.js';
 import { buildCandidate, maxTemplateStrokeCount } from './candidate.js';
@@ -163,9 +164,13 @@ export function selectTreeCut(
 	const groupPenalty = config.recognition.groupPenalty ?? 0.45;
 	const wholeCandidate = buildCandidate(node.strokes, 0, ring, config);
 	const canScoreWhole = canScoreWholeNode(node, ring, config, maxStrokeCount);
-	const wholeValue = canScoreWhole ? Math.max(scoreCut(wholeCandidate) - groupPenalty, 0) : 0;
+	const wholeScore = canScoreWhole ? scoreCut(wholeCandidate) : 0;
+	const wholeValue = Math.max(wholeScore - groupPenalty, 0);
 
-	if (!node.children.length) {
+	// A near-perfect whole match is one intended symbol. Cutting it can still
+	// "win" numerically because dense sub-groups of a complex glyph (for example
+	// aeroform's curls) partially match other templates, so skip child cuts.
+	if (!node.children.length || wholeScore >= TREE_KEEP_WHOLE_SCORE) {
 		return {
 			value: wholeValue,
 			groups: [node.strokes]

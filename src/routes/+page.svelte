@@ -6,7 +6,12 @@
 
 	const simulator = new SimulatorSession();
 
-	onMount(() => simulator.mount());
+	onMount(() => {
+		if (import.meta.env.DEV) {
+			(window as unknown as Record<string, unknown>).__simulator = simulator;
+		}
+		return simulator.mount();
+	});
 </script>
 
 <svelte:head>

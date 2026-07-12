@@ -18,13 +18,14 @@ _Witch Hat Atelier_ and related names, artwork, symbols, and trademarks belong t
 The app lets users draw or arrange spell circles on a canvas, then converts those diagrams into structured parser output, compiled effect parameters, and animated canvas effects.
 
 - Lets you draw spell diagrams on a paper-like canvas.
-- Lets you place ring, sigil, and sign shapes from a palette, then move, scale, elongate, and rotate them instead of drawing each one by hand.
+- Lets you place ring, sigil, and sign shapes from a palette, then move, scale, elongate, rotate, and duplicate them instead of drawing each one by hand.
 - Detects one enclosing ring and distinguishes prepared versus active spells.
 - Recognizes glyphs with a hybrid browser pipeline: a template matcher provides geometric verification, while a 96px FP16 ONNX-exported multi-head ResNet18 model classifies symbols and estimates angle, scale, and position.
 - Trains the ResNet18 recognizer from more than 8,000 hand-drawn labelled samples collected with the Sample Maker tool and stored in Postgres (accurate as of June 16, 2026).
 - Recognizes signs that modify direction, levitation, convergence, force, spread, focus, range, duration, and stability.
 - Produces parser diagnostics, `GlyphAST`, and `SpellIR` output for inspection, including tentative glyph labels while symbols are still being drawn.
 - Renders animated element effects from the compiled spell behavior.
+- Compiles signs into a typed force field (`SpellField`): columns beam and lean, pulls twist by their facing angle, regions gate where magic spawns, and levitation lifts. Spells with signs render as particles advected through the summed field, so behaviors like vortices from angled pulls emerge from the physics.
 - Shows sample spell layouts in the Dictionary panel as drawing references.
 - Includes reference tools for making, viewing, and testing stroke templates, plus a spell effect lab for visual and animation tuning.
 
@@ -34,7 +35,7 @@ If a symbol is hard to draw by hand, you can stamp it from a palette and adjust 
 
 1. Open the **Shapes** tab, or enable **Arrange Shapes** in the left control panel. Picking a shape from the palette enables Arrange Shapes automatically.
 2. Pick a **Ring**, **Sigil**, or **Sign**, then click the canvas to place it.
-3. Click a placed shape to select it, then drag its handles to move, scale, elongate, or rotate it. Press **Delete** to remove it.
+3. Click a placed shape to select it, then drag its handles to move, scale, elongate, or rotate it. Copy it with **Cmd/Ctrl+C** and paste with **Cmd/Ctrl+V** to get a duplicate that keeps its shape, size, elongation, and rotation. Press **Delete** to remove it.
 4. Turn **Arrange Shapes** off to bake the shapes into the drawing as ink. Locked shapes can no longer be edited, but you can draw over them.
 
 The placed ring is stamped open with a small gap, so the spell stays prepared rather than activating immediately. Draw across the gap by hand to seal the ring and awaken the spell.

@@ -6,8 +6,9 @@ import {
 } from '$lib/renderer/effects/effectUtils.js';
 import { drawGlowingStrokes } from '$lib/renderer/glyphOverlayRenderer.js';
 import { SpellEffectRenderer } from '$lib/renderer/spellEffectRenderer.js';
-import type { ElementId, RingInfo } from '$lib/types.js';
+import type { ElementId, Recognition, RingInfo, SpellField } from '$lib/types.js';
 import { buildSpellIR } from '$lib/ui/spellEffectLab.js';
+import { vectorFromAngleDeg } from '$lib/utils/geometry.js';
 import { renderPaper } from '$canvas/entities/paperEntity.js';
 import { drawGuides } from '$canvas/guideRenderer.js';
 
@@ -17,6 +18,10 @@ export interface LabState {
 	element: ElementId;
 	sigil: string;
 	activatedAt: number;
+	/** Force field synthesized from the selected sign preset. */
+	field: SpellField;
+	/** The preset's signs, drawn as position/facing markers on the glyph. */
+	presetSigns: Recognition[];
 }
 
 type SpellIR = ReturnType<typeof buildSpellIR>;
@@ -144,6 +149,48 @@ export class LabPreview {
 			state.values.duration * 1000,
 			timestamp
 		);
+
+		this.#drawSignMarkers(ring, state.presetSigns);
+	}
+
+	// Preset signs are not drawn as glyphs; mark each one's ring position and
+	// facing with a dot and arrow so the field's inputs stay visible.
+	#drawSignMarkers(ring: RingInfo, signs: Recognition[]) {
+		if (!signs.length) {
+			return;
+		}
+
+		const ctx = this.#glyphCtx;
+		ctx.save();
+		ctx.strokeStyle = 'rgba(19, 118, 166, 0.85)';
+		ctx.fillStyle = 'rgba(19, 118, 166, 0.85)';
+		ctx.lineWidth = 2.4;
+		ctx.lineCap = 'round';
+
+		for (const sign of signs) {
+			const radial = vectorFromAngleDeg(sign.angleDeg);
+			const at = {
+				x: ring.center.x + radial.x * sign.radiusNorm * ring.radius,
+				y: ring.center.y + radial.y * sign.radiusNorm * ring.radius
+			};
+			const facing = vectorFromAngleDeg(sign.directedOrientationDeg);
+			const tip = { x: at.x + facing.x * 26, y: at.y + facing.y * 26 };
+			const left = { x: -facing.y, y: facing.x };
+
+			ctx.beginPath();
+			ctx.arc(at.x, at.y, 4.4, 0, Math.PI * 2);
+			ctx.fill();
+			ctx.beginPath();
+			ctx.moveTo(at.x, at.y);
+			ctx.lineTo(tip.x, tip.y);
+			ctx.moveTo(tip.x, tip.y);
+			ctx.lineTo(tip.x - facing.x * 8 + left.x * 5, tip.y - facing.y * 8 + left.y * 5);
+			ctx.moveTo(tip.x, tip.y);
+			ctx.lineTo(tip.x - facing.x * 8 - left.x * 5, tip.y - facing.y * 8 - left.y * 5);
+			ctx.stroke();
+		}
+
+		ctx.restore();
 	}
 
 	#drawConvergencePathGuide(spellIR: SpellIR, ring: RingInfo) {
@@ -209,7 +256,8 @@ export class LabPreview {
 			element: state.element,
 			sigil: state.sigil,
 			activatedAt: state.activatedAt,
-			config: CONFIG
+			config: CONFIG,
+			field: state.field
 		});
 		this.#drawSyntheticGlyph(ring, timestamp, state);
 		this.#renderer.render(spellIR, ring, timestamp, { showGuides: false });

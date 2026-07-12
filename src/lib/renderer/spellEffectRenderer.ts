@@ -3,6 +3,7 @@ import { drawWaterEffect } from './effects/waterEffect.js';
 import { drawWindEffect } from './effects/windEffect.js';
 import { drawEarthEffect } from './effects/earthEffect.js';
 import { drawLightEffect } from './effects/lightEffect.js';
+import { drawFieldEffect } from './effects/fieldEffect.js';
 import { portalScaledRing, resetParticleState } from './effects/effectUtils.js';
 import type { EffectState, RenderSpellIR } from './effects/effectUtils.js';
 import { clamp } from '../utils/geometry.js';
@@ -145,7 +146,14 @@ export class SpellEffectRenderer {
 			return;
 		}
 
-		const drawEffect = spellIR.element ? EFFECTS[spellIR.element] : null;
+		// Signs compile into field sources; when any exist the field simulation
+		// drives the effect. Sigil-only spells keep the per-element renderers.
+		const fieldActive = (spellIR.field?.sources.length ?? 0) > 0;
+		const drawEffect = fieldActive
+			? drawFieldEffect
+			: spellIR.element
+				? EFFECTS[spellIR.element]
+				: null;
 		if (!drawEffect) {
 			return;
 		}

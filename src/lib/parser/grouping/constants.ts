@@ -10,6 +10,8 @@ export const MAX_SYMBOL_SIZE_NORM = 0.58;
 export const MERGE_SCORE_FLOOR = 0.42;
 /** Tie tolerance that favors a whole node over its children. */
 export const TREE_WHOLE_EPSILON = 0.015;
+/** Raw shape score above which a whole node is kept without weighing child cuts. */
+export const TREE_KEEP_WHOLE_SCORE = 0.82;
 /** Stroke count above which expensive all-pairs proximity gets bbox pruning. */
 export const SEGMENT_ALLPAIRS_CAP = 48;
 /** Bbox gap, normalized by ring radius, above which pair scoring can be skipped. */

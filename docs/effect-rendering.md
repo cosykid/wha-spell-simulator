@@ -4,6 +4,24 @@ Note: The current renderer code is messy and implementation-heavy. It can be rep
 
 The effect renderer turns `SpellIR` into particles on the effect canvas. It is visual-only code: gameplay meaning belongs in the compiler, while these files decide how a compiled spell should look.
 
+## Two Renderers
+
+`SpellEffectRenderer` dispatches on `spellIR.field`:
+
+- Signs present (`field.sources` non-empty): the field renderer (`fieldEffect.ts`) advects particles through the compiled force field. One renderer for every element; behavior comes from the field, not the element.
+- No signs (sigil only): the per-element renderers below (`fire`, `water`, `wind`, `earth`, `light`), driven by the global scalars.
+
+## Field Renderer
+
+Particles live in seal space and are advected through `sampleFieldForce(field, position, height)`:
+
+- Spawn positions come from `spawnDomainPosition(field.domain)`, so region signs decide where particles appear (inside, outside, on the ring, a sector, or anywhere).
+- Each frame, `sampleFieldForce` returns the summed `x`/`y`/`z` force at the particle. In-plane force accelerates it; `z` lifts it up the seal axis; a constant gravity pulls it back. `buoyancy` lift fades with `height`, so held magic settles into a hovering mass instead of climbing forever.
+- Particles are projected onto the tilted portal (`z` shifts them up-screen) and tinted by an element palette.
+- Particles live for `spellLifetimeFrames` and fade with `emission` (`steadyParticleAlpha`), so held forms persist steadily and the whole effect fades out together. This is why the field renderer reads as a held beam or blob, not a repeating spray.
+
+Emergent behaviors (from summing sources alone): balanced columns cancel their lean into one straight beam; angled pulls swirl around a hollow vortex eye, and a strong pinwheel of them climbs into a tornado (Grasping Wind) while a weak lone swirl stays a flat whirlpool pinned by gravity; opposed region pushes cancel; opposing levitation signs squeeze a hovering orb into being between them, while a lone levitation sign has nothing pushing back and blows the magic away without ever forming an orb.
+
 ## Shared Model
 
 All active element effects start from the same renderer model:

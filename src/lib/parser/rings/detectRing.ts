@@ -2,9 +2,11 @@ import { distance } from '../../utils/geometry.js';
 import type { AppConfig, RingInfo, Stroke, UnsupportedRing } from '../../types.js';
 import {
 	ACTIVATION_COMPLETENESS_FLOOR,
+	MIN_COMPLETE_RADIUS_VS_REFERENCE_RATIO,
 	SAME_RING_CENTER_DISTANCE_RATIO,
 	SAME_RING_RADIUS_RATIO
 } from './constants.js';
+import { looksLikeGlyphCircle } from './glyphCircle.js';
 import {
 	addReferenceFilteredClosureCandidate,
 	addTopologicalCandidate,
@@ -23,7 +25,12 @@ function closureReferenceRing(
 	return bestOpenRingCandidate(openCandidates);
 }
 
-function isSamePhysicalRing(a: RingCandidate, b: RingCandidate): boolean {
+interface RingGeometry {
+	center: RingCandidate['center'];
+	radius: number;
+}
+
+function isSamePhysicalRing(a: RingGeometry, b: RingGeometry): boolean {
 	const averageRadius = Math.max(1, (a.radius + b.radius) / 2);
 	const centerDistance = distance(a.center, b.center);
 	const radiusRatio = Math.abs(a.radius - b.radius) / averageRadius;
@@ -58,7 +65,9 @@ function summarizeUnsupportedRing(candidate: RingCandidate): UnsupportedRing {
  *
  * The detector combines open-ring circle fitting with topological closure:
  * first it finds prepared rings, then it performs flood-fill closure with a
- * filtered retry when a previous/open ring gives a good reference.
+ * filtered retry when a previous/open ring gives a good reference. Candidates
+ * whose ink reads as a circular glyph, and complete circles well inside an
+ * established larger ring, are rejected so glyph loops cannot steal the ring.
  */
 export function detectRing(
 	strokes: Stroke[],
@@ -81,7 +90,24 @@ export function detectRing(
 	}
 	candidates.push(...openCandidates);
 
-	if (!candidates.length) {
+	// A circular glyph (billowing, repetition, a water/light loop) closes just
+	// like a spell ring. Drop candidates whose ink reads as glyph rather than
+	// ring so they classify as symbol strokes instead of stealing the ring.
+	let plausible = candidates.filter((candidate) => !looksLikeGlyphCircle(candidate, strokes));
+
+	// A closed circle well inside an established larger ring is glyph ink even
+	// when it is bare; the reference ring keeps its identity.
+	const sizeReference = previousRing?.found ? previousRing : bestOpenRingCandidate(openCandidates);
+	if (sizeReference?.radius) {
+		plausible = plausible.filter(
+			(candidate) =>
+				!candidate.complete ||
+				candidate.radius >= sizeReference.radius * MIN_COMPLETE_RADIUS_VS_REFERENCE_RATIO ||
+				isSamePhysicalRing(candidate, sizeReference)
+		);
+	}
+
+	if (!plausible.length) {
 		return {
 			found: false,
 			complete: false,
@@ -94,12 +120,12 @@ export function detectRing(
 		};
 	}
 
-	candidates.sort(
+	plausible.sort(
 		(a, b) =>
 			Number(b.complete) - Number(a.complete) ||
 			b.score + b.radius * 0.001 - (a.score + a.radius * 0.001)
 	);
-	const distinctRings = distinctRingCandidates(candidates);
+	const distinctRings = distinctRingCandidates(plausible);
 	const ring = distinctRings[0];
 	const unsupportedMultipleRings = distinctRings.slice(1).map(summarizeUnsupportedRing);
 	const unsupportedNestedRings = distinctRings
