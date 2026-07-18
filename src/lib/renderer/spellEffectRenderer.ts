@@ -79,6 +79,8 @@ interface RenderOptions {
 	showGuides?: boolean;
 	/** Fraction of canvas height on screen; scales the portal tilt to match the CSS. Defaults to 1. */
 	portalFit?: number;
+	/** The three.js layer owns this frame's field effect; skip the 2D fallback. */
+	fieldHandledExternally?: boolean;
 }
 
 export class SpellEffectRenderer {
@@ -149,6 +151,9 @@ export class SpellEffectRenderer {
 		// Signs compile into field sources; when any exist the field simulation
 		// drives the effect. Sigil-only spells keep the per-element renderers.
 		const fieldActive = (spellIR.field?.sources.length ?? 0) > 0;
+		if (fieldActive && options.fieldHandledExternally) {
+			return;
+		}
 		const drawEffect = fieldActive
 			? drawFieldEffect
 			: spellIR.element

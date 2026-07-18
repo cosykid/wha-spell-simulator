@@ -1,6 +1,10 @@
 import { createPlacementStore } from '$lib/input/placementStore.js';
 import { bakePlacementToStrokes, placementHandles } from '$lib/input/shapeBaker.js';
-import { defaultTransformForShape, offsetTransformForPaste } from '$lib/input/shapeLibrary.js';
+import {
+	defaultTransformForShape,
+	offsetTransformForPaste,
+	signStampRotationDeg
+} from '$lib/input/shapeLibrary.js';
 import { createStrokeStore } from '$lib/input/strokeStore.js';
 import {
 	makePlacementEntity,
@@ -153,14 +157,19 @@ export class SimulatorDrawingState {
 	/**
 	 * Adds a palette item as an editable placement at a canvas point.
 	 *
+	 * Signs stamp in their ring-relative canonical pose (facing `ringCenter`),
+	 * because orientation is part of a sign's meaning.
+	 *
 	 * @returns The id of the newly created placement.
 	 */
-	placeShape(item: ShapeItem, point: Vector, canvas: HTMLCanvasElement) {
+	placeShape(item: ShapeItem, point: Vector, canvas: HTMLCanvasElement, ringCenter?: Vector) {
+		const rotationDeg =
+			item.kind === 'sign' && ringCenter ? signStampRotationDeg(point, ringCenter) : 0;
 		const placement = this.placements.add({
 			kind: item.kind,
 			sourceId: item.sourceId,
 			baseStrokes: item.baseStrokes,
-			transform: defaultTransformForShape(item, point, visibleCanvasShortAxis(canvas))
+			transform: defaultTransformForShape(item, point, visibleCanvasShortAxis(canvas), rotationDeg)
 		});
 		this.setSelected(placement.id);
 		return placement.id;

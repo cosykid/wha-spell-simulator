@@ -10,6 +10,8 @@ interface CanvasSizingElements {
 	canvasShell: HTMLElement;
 	glyphCanvas: HTMLCanvasElement;
 	effectCanvas: HTMLCanvasElement;
+	/** Optional WebGL effect canvas kept at the same backing resolution. */
+	fieldCanvas3d?: HTMLCanvasElement | null;
 }
 
 export interface CanvasResizeInfo {
@@ -52,6 +54,10 @@ export function setupCanvasSizing({
 		elements.glyphCanvas.height = height;
 		elements.effectCanvas.width = width;
 		elements.effectCanvas.height = height;
+		if (elements.fieldCanvas3d) {
+			elements.fieldCanvas3d.width = width;
+			elements.fieldCanvas3d.height = height;
+		}
 
 		if (hadInk && previousWidth > 0 && previousHeight > 0) {
 			store.scale(scale, scale);

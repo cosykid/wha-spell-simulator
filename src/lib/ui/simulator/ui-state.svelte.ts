@@ -58,6 +58,8 @@ export class SimulatorUiState {
 	glyphCanvas = $state<HTMLCanvasElement>(null!);
 	/** Bound spell-effect canvas element. */
 	effectCanvas = $state<HTMLCanvasElement>(null!);
+	/** Bound WebGL canvas for the three.js field effect, under the 2D effects. */
+	fieldCanvas3d = $state<HTMLCanvasElement>(null!);
 	/** Bound canvas shell element. */
 	canvasShell = $state<HTMLDivElement>(null!);
 	/** Bound workspace element. */

@@ -54,10 +54,25 @@ function rotatePoint(point: Point, center: Vector, transform: RotationTransform 
 	};
 }
 
+// Every sign entry asks for the same ring-relative rotation of a candidate, so
+// the rotated copy is memoized. Reusing one object also keeps its stroke-array
+// identity stable, which the shape matcher uses as its raster cache key.
+const rotatedCandidateCache = new WeakMap<SymbolCandidate, Map<number, SymbolCandidate>>();
+
 function rotateCandidate(candidate: SymbolCandidate, rotationDeg: number): SymbolCandidate {
 	const transform = rotationTransform(rotationDeg);
 	if (!transform) {
 		return candidate;
+	}
+
+	let byRotation = rotatedCandidateCache.get(candidate);
+	if (!byRotation) {
+		byRotation = new Map();
+		rotatedCandidateCache.set(candidate, byRotation);
+	}
+	const cached = byRotation.get(rotationDeg);
+	if (cached) {
+		return cached;
 	}
 
 	// Rotate only the recognition copy. The public candidate keeps its original
@@ -69,7 +84,7 @@ function rotateCandidate(candidate: SymbolCandidate, rotationDeg: number): Symbo
 	}));
 	const bounds = boundsForStrokes(strokes);
 
-	return {
+	const rotated = {
 		...candidate,
 		bounds,
 		center: centerOfBounds(bounds),
@@ -79,6 +94,8 @@ function rotateCandidate(candidate: SymbolCandidate, rotationDeg: number): Symbo
 		),
 		strokes
 	};
+	byRotation.set(rotationDeg, rotated);
+	return rotated;
 }
 
 export function recognitionPlanForSymbol(

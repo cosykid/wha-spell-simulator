@@ -171,13 +171,17 @@ export const CHECKS: Record<string, (t: Ctx) => void> = {
 			Math.abs(t.n.C) < 0.05 && Math.hypot(t.n.P.x, t.n.P.y) < 0.05,
 			`pure swirl: C=${f(t.n.C)}, |P|=${f(Math.hypot(t.n.P.x, t.n.P.y))}`
 		);
+		// the vortex is a column with a secondary cell (twist ruling), so the
+		// floor point spins ccw AND feeds the foot
 		const e = t.u(0.7, 0.1, 0);
-		t.expect(
-			e.z > 1 && e.z > 3 * Math.abs(e.x),
-			`ccw tangential east: u(0.7,0.1,0)=(${f(e.x)},${f(e.y)},${f(e.z)})`
-		);
+		t.expect(e.z > 1, `ccw tangential east: u(0.7,0.1,0)=(${f(e.x)},${f(e.y)},${f(e.z)})`);
+		t.expect(e.x < -0.2, `boundary layer feeds the foot: u_x(0.7,0.1,0)=${f(e.x)}`);
 		const w = t.u(-0.7, 0.1, 0);
 		t.expect(w.z < -1, `ccw tangential west: u_z(-0.7,0.1,0)=${f(w.z)}`);
+		// funnel wall at mid height: the column climbs while it spins
+		const wall = t.u(0.27, 1.3, 0);
+		t.expect(wall.y > 0.3, `wall updraft: u_y(0.27,1.3,0)=${f(wall.y)}, want >0.3`);
+		t.expect(Math.abs(wall.z) > 0.5, `…still whirling: |u_t|=${f(Math.abs(wall.z))}`);
 	},
 
 	'Region: all inward — collimator': (t) => {
@@ -506,13 +510,24 @@ export const CHECKS: Record<string, (t: Ctx) => void> = {
 			Math.hypot(own.x, own.y, own.z) < 1e-9,
 			`own field silent: |u(0.7,0.1,0)|=${f(Math.hypot(own.x, own.y, own.z))}`
 		);
+		// the twist vortex ruling: a Rankine column with a secondary cell — the
+		// eye stays calm while the funnel wall climbs…
 		const axis = t.uAmb(0, 1.0, 0);
-		t.expect(Math.abs(axis.y) < 0.05, `zero net inflow on axis: u_amb.y(0,1,0)=${f(axis.y)}`);
-		const e = t.uAmb(0.7, 0.15, 0);
-		t.expect(e.z > 0.3, `flat swirl (ccw): u_amb.z(0.7,0.15,0)=${f(e.z)}, want >0.3`);
+		const wall = t.uAmb(0.27, 1.3, 0);
+		t.expect(wall.y > 0.3, `wall updraft: u_amb.y(0.27,1.3,0)=${f(wall.y)}, want >0.3`);
 		t.expect(
-			Math.abs(e.x) < 0.15 * Math.abs(e.z),
-			`…with no radial creep: |u_r|/|u_t|=${f(Math.abs(e.x) / Math.abs(e.z))}`
+			axis.y >= 0 && axis.y < 0.4 * wall.y,
+			`calm eye, climbing wall: axis u_y=${f(axis.y)} vs wall u_y=${f(wall.y)}`
+		);
+		// …the floor spirals in (tangential + boundary-layer feed)…
+		const e = t.uAmb(0.7, 0.15, 0);
+		t.expect(e.z > 0.3, `swirl (ccw): u_amb.z(0.7,0.15,0)=${f(e.z)}, want >0.3`);
+		t.expect(e.x < -0.1, `…spiralling in along the floor: u_amb.x=${f(e.x)}`);
+		// …and the crown sheds out-and-down, closing the cell
+		const crown = t.uAmb(0.48, 2.75, 0);
+		t.expect(
+			crown.x > 0.05 && crown.y < -0.05,
+			`crown spill out+down: u_amb(0.48,2.75,0)=(${f(crown.x)},${f(crown.y)},${f(crown.z)})`
 		);
 	},
 

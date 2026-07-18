@@ -18,7 +18,18 @@ export const CONFIG = {
 	JET_BACK: 0.45, //  jet fade-in distance behind the seal center (upstream edge softness)
 	FAN_H: 0.45, //     divergence-fan slab thickness
 	FAN_RANGE: 1.4, //  divergence-fan radial fall-off
-	SWIRL_H: 1.3, //    swirl envelope height
+
+	// twist vortex (§7 helical-inflow canon, §13 pinwheel prediction): the
+	// structure both twist channels share — see vortex.ts
+	TWIST_H: 2.6, //    crown height at full circulation
+	TWIST_FULL: 0.9, // |Γ| at which the column reaches full height
+	TWIST_R0: 0.2, //   funnel core radius at the foot (÷ F)
+	TWIST_R1: 0.48, //  funnel core radius at the crown (÷ F)
+	TWIST_LIFT: 0.55, //wall updraft speed per unit |Γ| (× channel U)
+	TWIST_FEED: 0.7, // floor boundary-layer inflow gain per unit |Γ|
+	TWIST_BL: 0.2, //   boundary-layer height the inflow hugs
+	TWIST_SPILL: 0.5, //crown out-and-down shed gain per unit |Γ|
+	TWIST_OMEGA_MAX: 5, // clamp on a renderer's whirl phase rate, rad/s
 
 	// §6 levitation force pair
 	H_LEV: 1.6, //      hover rest height per unit mean stem length (h₀ = H_LEV · λ̄)

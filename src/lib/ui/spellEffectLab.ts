@@ -312,6 +312,7 @@ export function buildSpellIR({
 		primaryManifestation,
 		manifestations,
 		field: spellField,
+		seal: null,
 		direction,
 		directionCoherence: clamp(Math.hypot(direction.x, direction.y), 0, 1),
 		gravity,

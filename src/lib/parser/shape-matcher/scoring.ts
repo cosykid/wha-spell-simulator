@@ -16,6 +16,30 @@ interface ExampleCacheEntry {
 
 const exampleCache = new WeakMap<RecognitionExample, ExampleCacheEntry>();
 
+// Normalizing and rasterizing a candidate is the expensive half of a match and
+// depends only on the stroke array and rotation, not the example. Recognition
+// scores one candidate against every dictionary entry and example, so keying by
+// the stroke array reuses the rasters across that whole sweep.
+const candidateCache = new WeakMap<object, Map<number, ExampleCacheEntry>>();
+
+function cachedCandidate(
+	candidateStrokes: Array<Point[] | Stroke>,
+	rotationDeg: number
+): ExampleCacheEntry {
+	let byRotation = candidateCache.get(candidateStrokes);
+	if (!byRotation) {
+		byRotation = new Map();
+		candidateCache.set(candidateStrokes, byRotation);
+	}
+	let entry = byRotation.get(rotationDeg);
+	if (!entry) {
+		const shape = normalizeStrokesForShape(candidateStrokes, { rotationDeg });
+		entry = { shape, ink: renderNormalizedInk(shape.strokes) };
+		byRotation.set(rotationDeg, entry);
+	}
+	return entry;
+}
+
 function emptyMatcherResult(): ShapeMatcherResult {
 	return {
 		available: false,
@@ -87,8 +111,10 @@ export function scoreRecognitionExample(
 	let best = emptyMatcherResult();
 
 	for (const rotationDeg of rotations) {
-		const candidateShape = normalizeStrokesForShape(candidateStrokes, { rotationDeg });
-		const candidateInk = renderNormalizedInk(candidateShape.strokes);
+		const { shape: candidateShape, ink: candidateInk } = cachedCandidate(
+			candidateStrokes,
+			rotationDeg
+		);
 		const $pDistance = pointCloudDistance(candidateShape.pointCloud, exampleShape.shape.pointCloud);
 		const pScore = clamp(1 - $pDistance);
 		const chamfer = scoreChamferDistance(candidateInk, exampleShape.ink);

@@ -33,7 +33,7 @@ export function emptySpellField(): SpellField {
 }
 
 /** The sign's position in seal space (ring center origin, ring radius 1). */
-function sealPosition(sign: Recognition): Vector {
+export function sealPosition(sign: Recognition): Vector {
 	const radial = vectorFromAngleDeg(sign.angleDeg ?? 0);
 	const radius = clamp(sign.radiusNorm ?? 0, 0, 1.2);
 	return { x: radial.x * radius, y: radial.y * radius };
@@ -65,7 +65,7 @@ export function facingTwistDeg(sign: Recognition): number {
 }
 
 /** Unit vector of the sign's resolved facing: inward rotated by its twist. */
-function facingDirection(sign: Recognition): Vector {
+export function facingDirection(sign: Recognition): Vector {
 	return vectorFromAngleDeg((sign.angleDeg ?? 0) + INWARD_OFFSET_DEG + facingTwistDeg(sign));
 }
 

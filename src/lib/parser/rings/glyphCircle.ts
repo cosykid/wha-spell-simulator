@@ -65,8 +65,20 @@ function sampledPoints(stroke: Stroke, maxSamples = 40): Point[] {
 	);
 }
 
-function strokeTouchesInk(stroke: Stroke, inkPoints: Point[], tolerance: number): boolean {
-	for (const point of sampledPoints(stroke)) {
+/**
+ * Tests whether the stroke's pen-down or pen-up point rests on the ring ink.
+ *
+ * Glyph decoration hangs off the loop it belongs to, so a curl starts or ends
+ * on the circle. A neighbouring glyph drawn close to the ring only grazes the
+ * band mid-stroke; treating that graze as attachment would reject an honest
+ * ring for having a large glyph near its line.
+ */
+function strokeEndTouchesInk(stroke: Stroke, inkPoints: Point[], tolerance: number): boolean {
+	const points = stroke.points ?? [];
+	if (!points.length) {
+		return false;
+	}
+	for (const point of [points[0], points[points.length - 1]]) {
 		for (const inkPoint of inkPoints) {
 			if (distance(point, inkPoint) <= tolerance) {
 				return true;
@@ -193,7 +205,7 @@ export function looksLikeGlyphCircle(candidate: RingCandidate, strokes: Stroke[]
 		}
 		if (
 			strokeLength(stroke) >= circumference * GLYPH_CIRCLE_ATTACHED_MIN_LENGTH_RATIO &&
-			strokeTouchesInk(stroke, ringInkPoints, touchTolerance)
+			strokeEndTouchesInk(stroke, ringInkPoints, touchTolerance)
 		) {
 			attachedCurls += 1;
 		}

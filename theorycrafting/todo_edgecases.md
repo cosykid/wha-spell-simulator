@@ -67,17 +67,17 @@ probe: `RegionSign` has no size field at all.
 
 ## 4. Lev pinwheel — rotor? (§6 spec vs implementation, snapshot 27)
 
-Four tangential lev arrows, fire: C_lev = 0, Γ_lev = 1.8. GROUND_TRUTH §6
-_predicts_ "a levitation pinwheel is a rotor", and §7's formula adds the spin
+Four tangential lev arrows, fire: C*lev = 0, Γ_lev = 1.8. GROUND_TRUTH §6
+\_predicts* "a levitation pinwheel is a rotor", and §7's formula adds the spin
 term unconditionally — but `field.ts` nests spin inside `C_lev > 0`, so this
 seal is a **dud**: the snapshot is a bare isotropic burst, zero swirl (the
 check pins u_t = 0). The spec and the sim disagree; one of them must move.
 
-Physics of each option: (a) _§7 as written_ — Γ_lev torques the zone mass
+Physics of each option: (a) _§7 as written_ — Γ*lev torques the zone mass
 whether or not anything is held; a fire pinwheel swirls its own manifestation
 aloft (a lazy fire-tornado, distinct from the column pinwheel's driven
 vortex), and the wind version needs a Γ term in the wash branch (currently
-absent — the wind rotor prediction is also unrealizable). (b) _Grip-required_
+absent — the wind rotor prediction is also unrealizable). (b) \_Grip-required*
 — torque needs a held mass to act on; pure pinwheel is a dud and §6's rotor
 prediction gets amended to "pinwheel **+ hold** (slanted arrows) is a rotor".
 Note (b) has an awkward edge: an _infinitesimal_ inward slant would summon
@@ -107,9 +107,9 @@ Candidate laws if canon ever shows one:
 
 - **Dud (current)**: the hold channel is one-sided; negative convergence
   simply fails to grip. Cheapest, consistent with "waste, don't crash".
-- **Press**: read the spring as _signed_ — C_lev < 0 anchors the locus at
+- **Press**: read the spring as _signed_ — C*lev < 0 anchors the locus at
   −h₀, i.e. the pair pins zone mass **down onto the substrate** (anti-hover:
-  a paperweight / clamp seal). The reaction would push the substrate _up_,
+  a paperweight / clamp seal). The reaction would push the substrate \_up*,
   which flirts with a self-lifting seal — probably why canon avoids it.
 - **Repulsor**: the time-reverse of recapture — bodies flung radially out of
   the zone. This overlaps heavily with what the _pull_ sign's inverted mode

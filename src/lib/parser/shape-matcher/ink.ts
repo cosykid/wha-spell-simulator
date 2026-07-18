@@ -41,6 +41,42 @@ function drawSegment(mask: Uint8Array, size: number, start: Vector, end: Vector)
 	}
 }
 
+const EDT_INFINITY = 1e20;
+
+// One column/row of Felzenszwalb's exact squared Euclidean distance transform.
+// Reads n values from f, writes n results into d, with v and z as scratch.
+function edt1d(f: Float64Array, d: Float64Array, v: Int32Array, z: Float64Array, n: number): void {
+	let k = 0;
+	v[0] = 0;
+	z[0] = -EDT_INFINITY;
+	z[1] = EDT_INFINITY;
+
+	for (let q = 1; q < n; q += 1) {
+		let s = (f[q] + q * q - (f[v[k]] + v[k] * v[k])) / (2 * q - 2 * v[k]);
+		while (s <= z[k]) {
+			k -= 1;
+			s = (f[q] + q * q - (f[v[k]] + v[k] * v[k])) / (2 * q - 2 * v[k]);
+		}
+		k += 1;
+		v[k] = q;
+		z[k] = s;
+		z[k + 1] = EDT_INFINITY;
+	}
+
+	k = 0;
+	for (let q = 0; q < n; q += 1) {
+		while (z[k + 1] < q) {
+			k += 1;
+		}
+		const dx = q - v[k];
+		d[q] = dx * dx + f[v[k]];
+	}
+}
+
+// Exact Euclidean distance transform in two 1D passes. Produces the same map
+// as scanning every ink pixel per output pixel but in O(size^2) instead of
+// O(size^2 * ink), which matters because recognition builds one map per
+// candidate rotation per template comparison.
 function distanceMapForMask(mask: Uint8Array, size: number, inkPixels: number[]): Float32Array {
 	const result = new Float32Array(size * size);
 	if (!inkPixels.length) {
@@ -48,23 +84,35 @@ function distanceMapForMask(mask: Uint8Array, size: number, inkPixels: number[])
 		return result;
 	}
 
-	for (let index = 0; index < result.length; index += 1) {
-		if (mask[index]) {
-			result[index] = 0;
-			continue;
-		}
+	const squared = new Float64Array(size * size);
+	for (let index = 0; index < squared.length; index += 1) {
+		squared[index] = mask[index] ? 0 : EDT_INFINITY;
+	}
 
-		const x = index % size;
-		const y = Math.floor(index / size);
-		let bestSq = Infinity;
-		for (const inkIndex of inkPixels) {
-			const inkX = inkIndex % size;
-			const inkY = Math.floor(inkIndex / size);
-			const dx = x - inkX;
-			const dy = y - inkY;
-			bestSq = Math.min(bestSq, dx * dx + dy * dy);
+	const f = new Float64Array(size);
+	const d = new Float64Array(size);
+	const v = new Int32Array(size);
+	const z = new Float64Array(size + 1);
+
+	for (let x = 0; x < size; x += 1) {
+		for (let y = 0; y < size; y += 1) {
+			f[y] = squared[y * size + x];
 		}
-		result[index] = Math.min(1, Math.sqrt(bestSq) / size);
+		edt1d(f, d, v, z, size);
+		for (let y = 0; y < size; y += 1) {
+			squared[y * size + x] = d[y];
+		}
+	}
+
+	for (let y = 0; y < size; y += 1) {
+		const row = y * size;
+		for (let x = 0; x < size; x += 1) {
+			f[x] = squared[row + x];
+		}
+		edt1d(f, d, v, z, size);
+		for (let x = 0; x < size; x += 1) {
+			result[row + x] = Math.min(1, Math.sqrt(d[x]) / size);
+		}
 	}
 
 	return result;

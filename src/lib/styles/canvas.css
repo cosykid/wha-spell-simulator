@@ -85,7 +85,15 @@
 	mix-blend-mode: normal;
 }
 
-#effectCanvas {
+/* The three.js field effect sits between the paper and the 2D effect canvas:
+   the 2D layer keeps ring glow and failure flicker on top of it. */
+#fieldCanvas3d {
+	z-index: 2;
+	pointer-events: none;
+}
+
+#effectCanvas,
+#fieldCanvas3d {
 	transform-origin: center center;
 	transition: transform 0.22s cubic-bezier(0.25, 1, 0.5, 1);
 	will-change: transform;

@@ -110,16 +110,34 @@ export function buildShapeLibrary(dictionary: Dictionary): ShapeLibrary {
 	};
 }
 
+// Sign templates are authored in the bottom-of-ring pose (canonical angle 270,
+// facing inward = up). See signRotation.ts, which pre-rotates drawn candidates
+// into that same frame before template matching.
+const CANONICAL_SIGN_ANGLE_DEG = 270;
+
+/**
+ * Rotation that stamps a sign at `point` in its ring-relative canonical pose,
+ * so it faces the ring center the way a hand-drawn sign would. Orientation is
+ * part of a sign's meaning; an unrotated stamp would read as whatever absolute
+ * direction the template artwork happens to face.
+ */
+export function signStampRotationDeg(point: Vector, ringCenter: Vector): number {
+	const angleDeg = (Math.atan2(-(point.y - ringCenter.y), point.x - ringCenter.x) * 180) / Math.PI;
+	return CANONICAL_SIGN_ANGLE_DEG - angleDeg;
+}
+
 /**
  * Default transform for a shape dropped from the palette at `point`.
  *
  * @param referenceSize - Logical paper size (the visible drawing area's short
  *   axis) that the ring diameter and glyph footprints are measured against.
+ * @param rotationDeg - Stamp rotation; signs pass their ring-relative pose.
  */
 export function defaultTransformForShape(
 	item: ShapeItem,
 	point: Vector,
-	referenceSize: number
+	referenceSize: number,
+	rotationDeg = 0
 ): PlacementTransform {
 	const ringDiameter = Math.max(1, referenceSize) * RING_SIZE_RATIO;
 	const size = ringDiameter * item.regularRingFraction;
@@ -128,7 +146,7 @@ export function defaultTransformForShape(
 		cy: point.y,
 		scaleX: size,
 		scaleY: size,
-		rotationDeg: 0
+		rotationDeg
 	};
 }
 

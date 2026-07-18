@@ -114,11 +114,17 @@ export class SimulatorDrawingActions {
 	/**
 	 * Places a palette item as an editable shape and reruns recognition.
 	 *
+	 * Signs stamp facing the ring: the detected ring when one is drawn, else
+	 * the canvas center where the guide ring sits.
+	 *
 	 * @returns The new placement id.
 	 */
 	placeShape(item: ShapeItem, point: Vector) {
 		this.dismissCanvasHint();
-		const id = this.#drawing.placeShape(item, point, this.#ui.glyphCanvas);
+		const canvas = this.#ui.glyphCanvas;
+		const ring = this.#recognition.ring;
+		const ringCenter = ring?.found ? ring.center : { x: canvas.width / 2, y: canvas.height / 2 };
+		const id = this.#drawing.placeShape(item, point, canvas, ringCenter);
 		this.pushHistory();
 		void this.#recognition.recompute();
 		return id;

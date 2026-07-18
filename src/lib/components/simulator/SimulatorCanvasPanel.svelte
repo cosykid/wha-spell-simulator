@@ -58,6 +58,14 @@ square; the stage centres it on the parchment.
 		/>
 	</div>
 	<canvas
+		id="fieldCanvas3d"
+		data-testid="field-canvas-3d"
+		bind:this={ui.fieldCanvas3d}
+		width="1000"
+		height="1000"
+		style="transform: scale({ui.zoomLevel});"
+	></canvas>
+	<canvas
 		id="effectCanvas"
 		data-testid="effect-canvas"
 		bind:this={ui.effectCanvas}

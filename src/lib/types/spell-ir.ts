@@ -3,6 +3,7 @@
 import type { Vector } from './geometry.js';
 import type { ElementId } from './dictionary.js';
 import type { SpellField } from './spell-field.js';
+import type { SimSeal } from '../sim3d/core/model.js';
 
 export interface SpellDirection {
 	x: number;
@@ -49,6 +50,8 @@ export interface SpellIR {
 	manifestations: Record<string, Manifestation>;
 	/** Per-sign force operators; drives the field particle effect when non-empty. */
 	field: SpellField;
+	/** Physical seal for the 3D effect; null when no sign maps into the model. */
+	seal: SimSeal | null;
 	direction: SpellDirection;
 	directionCoherence: number;
 	gravity: number;

@@ -5,11 +5,10 @@
  * burst/kernel directions pinched toward the emission axis.
  * World frame: seal plane = xz, up = +y. Seal 2D (x, y) ↦ world (x, z).
  */
-import * as THREE from 'three';
-import { CONFIG } from './config';
-import { smoothstep, v2 } from './math2';
-import { governing, maskAt, type GateUnit, type Nozzle } from './nozzle';
-import { addVortex } from './vortex';
+import { lenV3, scaleV3, setV3, smoothstep, v2, type Vec3 } from './math2.js';
+import { CONFIG } from './config.js';
+import { governing, maskAt, type GateUnit, type Nozzle } from './nozzle.js';
+import { addVortex } from './vortex.js';
 
 const scratchGov: GateUnit[] = [];
 const p2 = v2(0, 0);
@@ -19,13 +18,13 @@ const p2 = v2(0, 0);
  * Returns the manifestation mask at the point (used by callers to absorb
  * particles that stray behind a fence).
  */
-export function sampleVelocity(n: Nozzle, pos: THREE.Vector3, out: THREE.Vector3): number {
+export function sampleVelocity(n: Nozzle, pos: Vec3, out: Vec3): number {
 	const px = pos.x;
 	const h = pos.y;
 	const pz = pos.z;
 	const rho = Math.hypot(px, pz);
 	const F = n.focus; // the lens (§8): widths ÷ F, speeds × F
-	out.set(0, 0, 0);
+	setV3(out, 0, 0, 0);
 
 	// ---- burst: the ring's emission — one budget, steered by the columns ----
 	// §7 manifestation ruling: a pull-only seal emits no own magic at all —
@@ -207,7 +206,7 @@ export function sampleVelocity(n: Nozzle, pos: THREE.Vector3, out: THREE.Vector3
 		// fences attenuate whatever sits behind them
 		mask = maskAt(n, p2);
 		const att = CONFIG.MASK_FLOOR + (1 - CONFIG.MASK_FLOOR) * mask;
-		out.multiplyScalar(att);
+		scaleV3(out, att);
 	}
 
 	// ---- disk wall: no flow through the seal from above ----------------------
@@ -222,8 +221,8 @@ export function sampleVelocity(n: Nozzle, pos: THREE.Vector3, out: THREE.Vector3
  * including its long arm on ambient matter (§7 ruling). Mask attenuation is
  * NOT part of this — masks never apply to foreign matter.
  */
-function applyExhaust(n: Nozzle, px: number, pz: number, rho: number, out: THREE.Vector3): void {
-	const speed0 = out.length();
+function applyExhaust(n: Nozzle, px: number, pz: number, rho: number, out: Vec3): void {
+	const speed0 = lenV3(out);
 	if (speed0 <= 1e-6) return;
 	p2.x = px;
 	p2.y = pz;
@@ -263,10 +262,10 @@ function applyExhaust(n: Nozzle, px: number, pz: number, rho: number, out: THREE
 		out.z += bz;
 	}
 	// 3. conservation: blocked budget re-exits through what is open
-	const l = out.length();
+	const l = lenV3(out);
 	if (l < 1e-5)
-		out.set(0, speed0, 0); // fully blocked → vertical exhaust
-	else out.multiplyScalar(speed0 / l);
+		setV3(out, 0, speed0, 0); // fully blocked → vertical exhaust
+	else scaleV3(out, speed0 / l);
 }
 
 /**
@@ -275,13 +274,8 @@ function applyExhaust(n: Nozzle, px: number, pz: number, rho: number, out: THREE
  * `throttle` is the grasp capacitor state, 1 (empty) → 0 (charged), owned by
  * the population that carries the grasped count.
  */
-export function sampleAmbientVelocity(
-	n: Nozzle,
-	pos: THREE.Vector3,
-	out: THREE.Vector3,
-	throttle = 1
-): void {
-	out.set(0, 0, 0);
+export function sampleAmbientVelocity(n: Nozzle, pos: Vec3, out: Vec3, throttle = 1): void {
+	setV3(out, 0, 0, 0);
 	const pull = n.pull;
 	if (!pull) return;
 	const px = pos.x;
@@ -359,7 +353,7 @@ export function sampleAmbientVelocity(
 
 	// ---- twist: ambient swirl Γ_p — the same vortex column, third target -----
 	// (§7 helical inflow: tangential pulls raise a tornado of ambient matter)
-	addVortex(out, px, h, pz, rho, pull.gamma, F, CONFIG.U_PULL);
+	addVortex(out, px, h, pz, rho, pull.gamma, F, CONFIG.U_PULL * CONFIG.PULL_TWIST_GAIN);
 
 	// ---- region gates the field, not the matter (§7 ruling): exhaust only ----
 	if (n.gates.length > 0) applyExhaust(n, px, pz, rho, out);

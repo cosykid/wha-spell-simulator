@@ -191,24 +191,38 @@ function greedyCloudDistance(a: Vector[], b: Vector[]): number {
 		return 1;
 	}
 
+	// Flat coordinate arrays and squared-distance comparisons keep this hot
+	// n^2 loop cheap: square root is monotonic, so ranking by squared distance
+	// picks the same match and only the winner needs the root.
+	const bx = new Float64Array(b.length);
+	const by = new Float64Array(b.length);
+	for (let index = 0; index < b.length; index += 1) {
+		bx[index] = b[index].x;
+		by[index] = b[index].y;
+	}
+
 	const used = new Uint8Array(b.length);
 	let total = 0;
 	for (const point of a) {
+		const px = point.x;
+		const py = point.y;
 		let bestIndex = -1;
-		let bestDistance = Infinity;
+		let bestSquared = Infinity;
 		for (let index = 0; index < b.length; index += 1) {
 			if (used[index]) {
 				continue;
 			}
-			const itemDistance = distance(point, b[index]);
-			if (itemDistance < bestDistance) {
-				bestDistance = itemDistance;
+			const dx = px - bx[index];
+			const dy = py - by[index];
+			const squared = dx * dx + dy * dy;
+			if (squared < bestSquared) {
+				bestSquared = squared;
 				bestIndex = index;
 			}
 		}
 		if (bestIndex >= 0) {
 			used[bestIndex] = 1;
-			total += bestDistance;
+			total += Math.sqrt(bestSquared);
 		}
 	}
 

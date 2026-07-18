@@ -11,6 +11,8 @@ interface CanvasSizingControllerOptions {
 	glyphCanvas: () => HTMLCanvasElement;
 	/** Effect canvas kept in sync with the glyph canvas. */
 	effectCanvas: () => HTMLCanvasElement;
+	/** WebGL field-effect canvas kept in sync with the glyph canvas. */
+	fieldCanvas3d: () => HTMLCanvasElement | null;
 	/** Workspace element used to decide desktop canvas-height matching. */
 	workspace: () => HTMLElement;
 	/** Freehand stroke store scaled when the canvas backing store changes. */
@@ -40,7 +42,8 @@ export class CanvasSizingController {
 			elements: {
 				canvasShell: this.#options.canvasShell(),
 				glyphCanvas: this.#options.glyphCanvas(),
-				effectCanvas: this.#options.effectCanvas()
+				effectCanvas: this.#options.effectCanvas(),
+				fieldCanvas3d: this.#options.fieldCanvas3d()
 			},
 			store: this.#options.store,
 			onCanvasResized: ({ scale }) => this.#options.onCanvasScale(scale)

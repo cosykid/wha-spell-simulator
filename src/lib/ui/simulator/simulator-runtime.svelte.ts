@@ -1,6 +1,7 @@
 import { CONFIG } from '$lib/config.js';
 import { emitMlDebug, ML_DEBUG_BUILD_ID } from '$lib/debug/mlDebug.js';
 import { SpellEffectRenderer } from '$lib/renderer/spellEffectRenderer.js';
+import type { FieldEffect3D } from '$lib/sim3d/renderer/fieldEffect3d.js';
 import type { CanvasBehavior } from '$lib/ui/canvas/canvasBehavior.js';
 import type { Scene } from '$lib/ui/canvas/scene.svelte.js';
 import type { Attachment } from 'svelte/attachments';
@@ -40,6 +41,13 @@ export class SimulatorRuntime {
 	#sizing: CanvasSizingController | null = null;
 	#effectRenderer: SpellEffectRenderer | null = null;
 	#rendererEffectCanvas: HTMLCanvasElement | null = null;
+	#fieldEffect3d: FieldEffect3D | null = null;
+	#fieldEffect3dCanvas: HTMLCanvasElement | null = null;
+	#fieldEffect3dLoading = false;
+	#fieldEffect3dFailed = false;
+	// a render crash silences 3D for THAT cast only; the next signature retries,
+	// so a transient (HMR swap, GL hiccup) doesn't blank spells until reload
+	#fieldEffect3dCrashedSignature: string | null = null;
 	#keyboardHandler: ((event: KeyboardEvent) => void) | null = null;
 	#attachedGlyphCanvas: HTMLCanvasElement | null = null;
 	#pendingGlyphDetach: object | null = null;
@@ -169,7 +177,7 @@ export class SimulatorRuntime {
 		this.#input?.setCaptureLocked(locked);
 	}
 
-	/** Draws one frame for the separate spell-effect canvas. */
+	/** Draws one frame for the separate spell-effect canvases (WebGL + 2D). */
 	renderCanvasFrame = (_ctx: CanvasRenderingContext2D, timestamp: number) => {
 		const { recognition, ui } = this.#options;
 		if (!ui.effectCanvas) {
@@ -181,11 +189,74 @@ export class SimulatorRuntime {
 			this.#rendererEffectCanvas = ui.effectCanvas;
 		}
 
+		const fieldHandled3d = this.#renderFieldEffect3d(timestamp);
+
 		this.#effectRenderer.render(recognition.spellIR, recognition.ring, timestamp, {
 			showGuides: ui.showGuides,
-			portalFit: ui.portalFit
+			portalFit: ui.portalFit,
+			fieldHandledExternally: fieldHandled3d
 		});
 	};
+
+	/**
+	 * Drives the three.js field effect when the compiled spell carries a
+	 * physical seal. three.js is loaded on the first such spell so drawing-only
+	 * sessions never pay for it; until it arrives (or if WebGL fails) the 2D
+	 * field renderer keeps covering the spell.
+	 */
+	#renderFieldEffect3d(timestamp: number): boolean {
+		const { recognition, ui } = this.#options;
+		const canvas = ui.fieldCanvas3d;
+		if (!canvas || this.#fieldEffect3dFailed) {
+			return false;
+		}
+		if (!recognition.spellIR?.seal) {
+			this.#fieldEffect3d?.render(null, null, timestamp, ui.portalFit);
+			return false;
+		}
+		if (this.#fieldEffect3dCrashedSignature === recognition.spellIR.signature) {
+			return false;
+		}
+
+		if (!this.#fieldEffect3d || this.#fieldEffect3dCanvas !== canvas) {
+			if (!this.#fieldEffect3dLoading) {
+				this.#fieldEffect3dLoading = true;
+				void import('$lib/sim3d/renderer/fieldEffect3d.js')
+					.then(({ FieldEffect3D }) => {
+						this.#fieldEffect3d?.dispose();
+						this.#fieldEffect3d = new FieldEffect3D(canvas, CONFIG.renderer.portalTiltMs);
+						this.#fieldEffect3dCanvas = canvas;
+					})
+					.catch((error) => {
+						console.warn('3D field effect unavailable, keeping 2D renderer', error);
+						this.#fieldEffect3dFailed = true;
+					})
+					.finally(() => {
+						this.#fieldEffect3dLoading = false;
+					});
+			}
+			return false;
+		}
+
+		try {
+			return this.#fieldEffect3d.render(
+				recognition.spellIR,
+				recognition.ring,
+				timestamp,
+				ui.portalFit
+			);
+		} catch (error) {
+			console.warn('3D field effect crashed, retrying on the next spell', error);
+			this.#fieldEffect3dCrashedSignature = recognition.spellIR.signature;
+			try {
+				// wipe the layer so the crashed cast's last frame doesn't linger
+				this.#fieldEffect3d.render(null, null, timestamp, ui.portalFit);
+			} catch {
+				this.#fieldEffect3dFailed = true;
+			}
+			return false;
+		}
+	}
 
 	#emitMountedDebugEvent() {
 		emitMlDebug(
@@ -253,6 +324,9 @@ export class SimulatorRuntime {
 		this.#attachedGlyphCanvas = null;
 		this.#effectRenderer = null;
 		this.#rendererEffectCanvas = null;
+		this.#fieldEffect3d?.dispose();
+		this.#fieldEffect3d = null;
+		this.#fieldEffect3dCanvas = null;
 	}
 
 	#setupInputControllers() {
@@ -293,6 +367,7 @@ export class SimulatorRuntime {
 			canvasShell: () => ui.canvasShell,
 			glyphCanvas: () => ui.glyphCanvas,
 			effectCanvas: () => ui.effectCanvas,
+			fieldCanvas3d: () => ui.fieldCanvas3d,
 			workspace: () => ui.workspace,
 			store: drawing.store,
 			onCanvasScale: (scale) => {

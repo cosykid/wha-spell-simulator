@@ -354,6 +354,19 @@ $$
   margin notes are the flux law verbatim: pull weakens as the cosine of the slant,
   twist grows as the sine, effects turn the way the arrows point, 90° = pure twist.
 
+**Twist is a vortex column, not a flat stir [agreed — ruling].** $\phi_{\text{swirl}}$
+is a Rankine column with the secondary cell every real vortex carries: tangential
+flow solid-body inside a narrow core that flares with height, boundary-layer inflow
+along the floor feeding a rising updraft on the funnel wall, and an out-and-down
+spill at the crown that closes the cell — matter cycles through the whirl instead of
+riding a merry-go-round. Crown height grows with $|\Gamma_p|$ (saturating), core
+widths ÷ $F$, speeds × $F$ (§8). This is what makes the apple-plucking vortex lift
+(canon: slanted pulls raise fruit through the air, not around it) and a tangential
+pinwheel a standing tornado of ambient matter — while storing nothing: the grasp
+capacitor still charges only through the sink (stirred-cup unchanged). The own-magic
+swirl channel (§4) shares the same structure — §13's pinwheel row manifests a vortex,
+not a spinning disk. Heights, radii, cell gains **[tunable]** (`TWIST_*`, vortex.ts).
+
 **Region gates the field, not the matter [agreed — ruling].** $u_{\text{amb}}$ is the
 spell's own magic acting at a distance, so it passes the §5 exhaust pipeline
 (clip → bias → conserve) like any own-magic velocity; the **mask never applies to
@@ -367,11 +380,14 @@ like column + region — a chevron barrel on a pull ring is a **directional inta
 against the disk wall into a pooled cushion (emergent: sink kernel + wall; the one
 legislated bit is that grasped matter stops aging). The grasp is a **capacitor**:
 grasped mass counts against a capacity $G_{max} \propto \eta R^2\, C_{p,+}$ and the
-whole pull field throttles by the remaining fraction — it charges fast, then the
-pull dies away as material gathers. Self-limiting; mirror of §6's fill-to-capacity.
-Push mode gathers nothing and never self-limits; a pure lateral conveyor passes
-matter through without pooling and also runs indefinitely. $U_P$, envelopes,
-capacity per unit $C_{p,+}$ **[tunable]**.
+**sink channel** throttles by the remaining fraction — it charges fast, then the
+intake dies away as material gathers. Self-limiting; mirror of §6's fill-to-capacity.
+Only the sink throttles: it is the channel that stores. The twist and the conveyor
+move matter without storing it and keep acting on a charged grasp (the stirred-cup
+keeps stirring; a near-tangential pinwheel's sliver of capacity would otherwise
+charge instantly and silence its own swirl). Push mode gathers nothing and never
+self-limits; a pure lateral conveyor passes matter through without pooling and also
+runs indefinitely. $U_P$, envelopes, capacity per unit $C_{p,+}$ **[tunable]**.
 
 **Reaction [agreed — ruling].** The pair is real: the substrate is yanked toward the
 grasped matter (an oversized grasping wind exerts tree-uprooting force, braced by the

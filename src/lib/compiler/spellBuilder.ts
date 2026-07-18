@@ -9,6 +9,7 @@ import {
 import { directionFromSurfaceVector } from './spellDirection.js';
 import { calculateSpellQuality, calculateSpellStability } from './spellQuality.js';
 import { buildSpellField, emptySpellField, spellFieldSignature } from '../field/buildSpellField.js';
+import { buildSimSeal, simSealSignature } from '../sim3d/adapter.js';
 import type {
 	AppConfig,
 	GlobalMetrics,
@@ -80,6 +81,7 @@ function invalidSpell(status: string, glyphAST: GlyphASTLike, warnings: string[]
 		primaryManifestation: 'none',
 		manifestations: {},
 		field: emptySpellField(),
+		seal: null,
 		direction: { x: 0, y: 0, z: 1, xTiltDeg: 0, yTiltDeg: 0, tiltFromZDeg: 0 },
 		directionCoherence: 0,
 		gravity: 1,
@@ -214,6 +216,7 @@ export function compileSpell({
 	const { primaryManifestation, manifestations, manifestationInfluence } =
 		aggregateManifestations(signs);
 	const field = buildSpellField(signs);
+	const seal = buildSimSeal(signs, primary.element, primary.id);
 	const deltas = aggregateSemanticDeltas(signs);
 	const surfaceDirection = signs.length ? combineSignDirection(signs) : { x: 0, y: 0, strength: 0 };
 	const directionCoherence = surfaceDirection.strength ?? 0;
@@ -281,6 +284,7 @@ export function compileSpell({
 		primaryManifestation,
 		manifestations,
 		field,
+		seal,
 		direction,
 		directionCoherence,
 		gravity,
@@ -293,7 +297,7 @@ export function compileSpell({
 		quality,
 		neatness,
 		warnings: glyphAST.warnings ?? [],
-		signature: `${primary.id}:${primary.element}:${manifestationSignature(manifestations)}:${spellFieldSignature(field)}:${active}:${Math.round(effectScale * 100)}:${Math.round(strength * 100)}:${Math.round(
+		signature: `${primary.id}:${primary.element}:${manifestationSignature(manifestations)}:${spellFieldSignature(field)}:${simSealSignature(seal)}:${active}:${Math.round(effectScale * 100)}:${Math.round(strength * 100)}:${Math.round(
 			force * 100
 		)}:${Math.round(spread * 100)}:${Math.round(duration * 100)}:${Math.round(direction.xTiltDeg)}:${Math.round(
 			direction.yTiltDeg

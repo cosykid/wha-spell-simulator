@@ -5,6 +5,7 @@ import { CONFIG } from '../src/lib/config.js';
 import { classifyDrawing } from '../src/lib/parser/classifier/index.js';
 import { detectRing } from '../src/lib/parser/rings/index.js';
 import { degreesToRadians } from '../src/lib/utils/geometry.js';
+import repetitionNearRing from './fixtures/repetition-near-ring.json' with { type: 'json' };
 import type { Point, Stroke, SignEntry, StrokeTemplate } from '../src/lib/types.js';
 
 function arcStroke(
@@ -247,6 +248,19 @@ test('does not treat a circle with crossing strokes as a ring', () => {
 	const detected = detectRing([circle, ...crossingRays(400, 300, 90)], null, CONFIG);
 
 	assert.equal(detected.found, false);
+});
+
+test('keeps a drawn ring when a placed repetition glyph grazes its band', () => {
+	// Captured from the simulator: fire sigil + repetition sign placed inside a
+	// freehand ring whose line passes within touch tolerance of the repetition
+	// loop. The loop is long enough to read as an attached curl by length, but
+	// its ends rest on its own glyph, not on the ring, so the ring must stand.
+	const strokes = repetitionNearRing as Stroke[];
+	const detected = detectRing(strokes, null, CONFIG);
+
+	assert.equal(detected.found, true);
+	assert.equal(detected.complete, true);
+	assert.ok(detected.radius > 300, `expected the drawn ring, got radius ${detected.radius}`);
 });
 
 test('keeps the prepared ring when a circular glyph closes inside it', () => {
