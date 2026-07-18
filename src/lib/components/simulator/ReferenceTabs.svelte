@@ -6,6 +6,7 @@ so there is exactly one "Shapes" button (the E2E entry point).
 -->
 <script lang="ts">
 	import BarChart3 from 'lucide-svelte/icons/bar-chart-3';
+	import BookMarked from 'lucide-svelte/icons/book-marked';
 	import BookOpen from 'lucide-svelte/icons/book-open';
 	import Shapes from 'lucide-svelte/icons/shapes';
 	import type { RootTab } from '$lib/ui/simulator/types.js';
@@ -22,6 +23,7 @@ so there is exactly one "Shapes" button (the E2E entry point).
 	const tabs: { id: RootTab; label: string; icon: typeof BookOpen }[] = [
 		{ id: 'dictionary', label: 'Dictionary', icon: BookOpen },
 		{ id: 'shapes', label: 'Shapes', icon: Shapes },
+		{ id: 'spells', label: 'My Spells', icon: BookMarked },
 		{ id: 'diagnostic', label: 'Diagnostics', icon: BarChart3 }
 	];
 </script>

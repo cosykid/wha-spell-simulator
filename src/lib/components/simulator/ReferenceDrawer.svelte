@@ -9,6 +9,7 @@ panel shows is driven by the reference tab triggers on the canvas edge.
 	import DictionaryReference from '$lib/components/DictionaryReference.svelte';
 	import ShapePalette from '$lib/components/ShapePalette.svelte';
 	import Drawer from './Drawer.svelte';
+	import MySpellsPanel from './MySpellsPanel.svelte';
 	import type { RootTab } from '$lib/ui/simulator/types.js';
 	import type { SimulatorSession } from '$lib/ui/simulator/simulator-session.svelte.js';
 
@@ -26,6 +27,7 @@ panel shows is driven by the reference tab triggers on the canvas edge.
 	const TITLES: Record<RootTab, string> = {
 		dictionary: 'Dictionary',
 		shapes: 'Shapes',
+		spells: 'My Spells',
 		diagnostic: 'Diagnostics'
 	};
 </script>
@@ -50,6 +52,10 @@ panel shows is driven by the reference tab triggers on the canvas edge.
 		/>
 	</section>
 
+	<section id="spellsRootPanel" hidden={ui.rootTab !== 'spells'}>
+		<MySpellsPanel {simulator} active={ui.referenceOpen && ui.rootTab === 'spells'} />
+	</section>
+
 	<section id="diagnosticRootPanel" hidden={ui.rootTab !== 'diagnostic'}>
 		<Diagnostics diagnostics={recognition.diagnostics} />
 	</section>
@@ -66,7 +72,8 @@ panel shows is driven by the reference tab triggers on the canvas edge.
 
 	#dictionaryRootPanel[hidden],
 	#diagnosticRootPanel[hidden],
-	#shapesRootPanel[hidden] {
+	#shapesRootPanel[hidden],
+	#spellsRootPanel[hidden] {
 		display: none;
 	}
 </style>

@@ -14,6 +14,8 @@ import type {
 	SampleMeta,
 	Stroke as SampleStroke
 } from '$lib/structures/labelledSample.js';
+import type { SpellPresetData } from '$lib/structures/spellPreset.js';
+import type { SpellIR } from '$lib/types.js';
 import { normalizePostgresConnectionString, sslFor } from './postgresConnection.js';
 
 /**
@@ -43,8 +45,49 @@ interface LabelledSamplesTable {
 	discord_username: ColumnType<string | null, string | null, string | null>;
 }
 
+interface UsersTable {
+	id: string;
+	username: string;
+	password_hash: string;
+	created_at: Generated<string>;
+}
+
+interface SessionsTable {
+	/** SHA-256 hex of the bearer token. The raw token only ever lives in the cookie. */
+	token_hash: string;
+	user_id: string;
+	expires_at: ColumnType<string, string, string>;
+	created_at: Generated<string>;
+}
+
+interface SpellsTable {
+	id: string;
+	user_id: string;
+	name: string;
+	data: JsonColumn<SpellPresetData>;
+	/** Compiled SpellIR captured at save time, for library previews. Null when invalid. */
+	preview_ir: ColumnType<SpellIR | null, string | null, string | null>;
+	element: ColumnType<string | null, string | null, string | null>;
+	/** Null while private. Set when the owner publishes to the shared library. */
+	published_at: ColumnType<string | null, string | null, string | null>;
+	/** Denormalized tally, updated in the same transaction as spell_upvotes rows. */
+	upvote_count: Generated<number>;
+	created_at: Generated<string>;
+	updated_at: ColumnType<string, string | undefined, string>;
+}
+
+interface SpellUpvotesTable {
+	spell_id: string;
+	user_id: string;
+	created_at: Generated<string>;
+}
+
 export interface Database {
 	labelled_samples: LabelledSamplesTable;
+	users: UsersTable;
+	sessions: SessionsTable;
+	spells: SpellsTable;
+	spell_upvotes: SpellUpvotesTable;
 }
 
 export type Db = Kysely<Database>;

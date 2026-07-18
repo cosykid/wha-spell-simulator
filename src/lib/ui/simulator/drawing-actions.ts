@@ -1,3 +1,4 @@
+import { deserializeSpellPreset, type SpellPresetData } from '$lib/structures/spellPreset.js';
 import type { PlacementTransform, ShapeItem, Vector } from '$lib/types.js';
 import type { SimulatorDrawingState } from './drawing-state.svelte.js';
 import type { RecognitionPipeline } from './recognition-pipeline.svelte.js';
@@ -109,6 +110,28 @@ export class SimulatorDrawingActions {
 	/** Records the current drawing state in undo history. */
 	pushHistory = () => {
 		this.#drawing.pushHistory();
+	};
+
+	/**
+	 * Replaces the canvas with a saved spell preset and reruns recognition. The
+	 * previous drawing stays one undo away. Presets store an open ring, so the
+	 * restored spell reads as prepared until the user seals it by hand.
+	 *
+	 * @returns `false` when the glyph canvas is not ready yet.
+	 */
+	loadPreset = (data: SpellPresetData): boolean => {
+		const canvas = this.#ui.glyphCanvas;
+		if (!canvas?.width) {
+			return false;
+		}
+		const drawing = deserializeSpellPreset(data, canvas.width);
+		this.#recognition.cancelActiveRecognition();
+		this.#drawing.restore(drawing);
+		this.#recognition.clearPreviousRing();
+		this.pushHistory();
+		void this.#recognition.recompute();
+		this.dismissCanvasHint();
+		return true;
 	};
 
 	/**

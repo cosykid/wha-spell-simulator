@@ -6,6 +6,8 @@
 	import '$lib/styles/reference-cards.css';
 	import '$lib/styles/tabs.css';
 	import '$lib/styles/content.css';
+	import AuthDialog from '$lib/components/auth/AuthDialog.svelte';
+	import { AuthState, setAuthState } from '$lib/ui/auth/auth-state.svelte.js';
 	import { isApplePlatform, setPlatformContext } from '$lib/ui/keybindings.js';
 	import { SvelteToast } from '@zerodevx/svelte-toast';
 	import { onMount, type Snippet } from 'svelte';
@@ -15,6 +17,13 @@
 	}
 
 	let { children }: Props = $props();
+
+	// One auth state for the whole app, hydrated from the session cookie after
+	// mount so the prerendered markup stays identical for guests and users.
+	const auth = setAuthState(new AuthState());
+	onMount(() => {
+		void auth.refresh();
+	});
 
 	// Display ⌘ on macOS, Ctrl elsewhere. Detected after mount so the prerendered
 	// markup (which always renders "Ctrl") hydrates without a mismatch. Shared via
@@ -37,6 +46,9 @@
 
 <!-- Global toast host: fixed-positioned, so it stays visible above any panel overflow. -->
 <SvelteToast options={{ duration: 4000, pausable: true }} />
+
+<!-- Shared sign-in modal, opened from anywhere via the auth context. -->
+<AuthDialog />
 
 <style>
 	.app-background {
