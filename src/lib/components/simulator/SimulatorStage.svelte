@@ -17,6 +17,7 @@ and the drawers each live one named click away.
 	import MenuDrawer from './MenuDrawer.svelte';
 	import ReferenceDrawer from './ReferenceDrawer.svelte';
 	import ReferenceTabs from './ReferenceTabs.svelte';
+	import SaveSpellDialog from './SaveSpellDialog.svelte';
 	import SimulatorCanvasPanel from './SimulatorCanvasPanel.svelte';
 	import SpellMeters from './SpellMeters.svelte';
 	import StatusReadout from './StatusReadout.svelte';
@@ -102,6 +103,7 @@ and the drawers each live one named click away.
 
 	<MenuDrawer {simulator} />
 	<ReferenceDrawer {simulator} />
+	<SaveSpellDialog {simulator} />
 </div>
 
 <style>

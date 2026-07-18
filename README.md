@@ -27,6 +27,8 @@ The app lets users draw or arrange spell circles on a canvas, then converts thos
 - Renders animated element effects from the compiled spell behavior.
 - Compiles signs into a typed force field (`SpellField`): columns beam and lean, pulls twist by their facing angle, regions gate where magic spawns, and levitation lifts. Spells with signs render as particles advected through the summed field, so behaviors like vortices from angled pulls emerge from the physics.
 - Shows sample spell layouts in the Dictionary panel as drawing references.
+- Saves spells as per-account presets (username + password accounts), recalled from the My Spells tab. Presets always store the ring open, so a recalled spell is prepared, never instantly active.
+- Shares spells to a communal Spell Library styled as a page-turning book, with upvotes, popularity/recency sorting, and in-place animated previews. Guests can browse and cast; saving, publishing, and voting need an account.
 - Includes reference tools for making, viewing, and testing stroke templates, plus a spell effect lab for visual and animation tuning.
 
 ## Placing Shapes
@@ -141,6 +143,12 @@ Neon Postgres is used to persist the by-eye **labelled handwriting samples**
 collected by the Sample Maker tool (see the Labelled Samples API below). Those
 samples feed the PyTorch training pipeline that exports the browser recognizer.
 
+The same database backs **accounts and saved spells**: `users` and `sessions`
+(username + password sign-in, scrypt-hashed, DB-backed session cookies) plus
+`spells` and `spell_upvotes` (per-user presets, the published Spell Library,
+and its vote tallies). The simulator itself stays fully usable without a
+database; saving, publishing, and voting are the only gated features.
+
 As of June 16, 2026, the labelled dataset contains more than 8,000 hand-drawn
 glyph samples.
 
@@ -197,6 +205,24 @@ curl -X POST \
   -d '{"data":[[{"x":0,"y":0,"t":0}]],"label":{"signId":"fire","directionality":"directional","scale_x":1,"scale_y":1,"angle":0},"meta":{"schemaVersion":1,"referenceSize":240,"canvasWidth":800,"canvasHeight":800,"devicePixelRatio":1,"pointerType":"pen"}}' \
   "https://wha-spell-simulator.vercel.app/api/samples"
 ```
+
+### Accounts and the Spell Library
+
+Registration is username + password only (no email). Sessions are random
+bearer tokens in an `httpOnly` cookie; the database stores only their SHA-256
+hash. Spell mutations (save, delete, publish, upvote) go through SvelteKit
+remote functions and require a signed-in session. Reads are plain endpoints so
+guests can browse:
+
+| Method | Path                                     | Purpose                                                                   |
+| ------ | ---------------------------------------- | ------------------------------------------------------------------------- |
+| `GET`  | `/api/me`                                | The session's account, or `null` for guests.                              |
+| `GET`  | `/api/spells?scope=mine`                 | The signed-in user's saved spells.                                        |
+| `GET`  | `/api/spells?scope=library&sort=top∣new` | Published spells with author and vote counts. Keyset `cursor` pagination. |
+
+Saved spells store the drawing normalized to the canvas (`v1` preset schema in
+`src/lib/structures/spellPreset.ts`). A sealed ring is stored with a 45° gap
+cut out, so a recalled spell always arrives prepared and is sealed by hand.
 
 ## Documentation
 

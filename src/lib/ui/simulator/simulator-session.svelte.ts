@@ -1,3 +1,4 @@
+import { GrimoireState } from '$lib/ui/spells/grimoire-state.svelte.js';
 import { SimulatorDrawingActions } from './drawing-actions.js';
 import { SimulatorDrawingState } from './drawing-state.svelte.js';
 import { PanController } from './pan-controller.svelte.js';
@@ -39,6 +40,8 @@ export class SimulatorSession {
 	});
 	/** Canvas pan gesture state. */
 	readonly pan = new PanController(() => this.ui.panEnabled);
+	/** The user's saved spells, backing the My Spells tab and save dialog. */
+	readonly grimoire = new GrimoireState();
 	/** Palette drag and armed-shape state. */
 	readonly shapeDrag = new ShapeDragController({
 		activeTool: () => this.ui.activeTool,

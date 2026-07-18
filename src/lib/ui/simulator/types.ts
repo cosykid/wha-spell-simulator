@@ -9,7 +9,7 @@
  */
 import type { PlacementTransform } from '$lib/types.js';
 
-export type RootTab = 'dictionary' | 'shapes' | 'diagnostic';
+export type RootTab = 'dictionary' | 'shapes' | 'spells' | 'diagnostic';
 
 /** Which slide-out drawer is currently open, if any. */
 export type DrawerId = 'menu' | 'reference';
