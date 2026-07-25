@@ -41,7 +41,7 @@ test.describe('spell library', () => {
 		await expect(card.getByTestId('spell-preview-stage')).toBeVisible();
 
 		await card.getByTestId('spell-upvote-button').click();
-		await expect(card.getByTestId('spell-upvote-button')).toHaveText(/▲\s*1/);
+		await expect(card.getByTestId('spell-upvote-button')).toHaveText(/^1$/);
 
 		// Cast hands the spell to the simulator, restored prepared.
 		await card.getByTestId('spell-cast-button').click();

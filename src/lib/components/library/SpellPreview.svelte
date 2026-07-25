@@ -47,11 +47,15 @@ only while its card's preview is toggled on.
 	bind:this={shell}
 	onclick={() => driver?.restart()}
 >
-	<canvas bind:this={glyphCanvas}></canvas>
-	<canvas bind:this={effectCanvas}></canvas>
+	<canvas class="glyph" bind:this={glyphCanvas}></canvas>
+	<canvas class="effect" bind:this={effectCanvas}></canvas>
 </button>
 
 <style>
+	/* The preview always plays an active spell, so the stage sits in the portal
+	   state permanently: dark void behind a lit paper that tilts into depth. The
+	   tilt values mirror `.canvas-shell.portal-active` in canvas.css, which the
+	   effect renderer's portal model is also kept in sync with. */
 	.preview-stage {
 		position: relative;
 		display: block;
@@ -61,7 +65,7 @@ only while its card's preview is toggled on.
 		overflow: hidden;
 		border: 1px solid var(--ink-sepia-20);
 		border-radius: 6px;
-		background: var(--panel);
+		background: #3a332b;
 		box-shadow: none;
 		cursor: pointer;
 	}
@@ -71,5 +75,24 @@ only while its card's preview is toggled on.
 		inset: 0;
 		width: 100%;
 		height: 100%;
+	}
+
+	/* Paper tilts and shrinks into a receding trapezium. perspective() lives on the
+	   canvas itself, not a wrapper, so the 3D tilt is not flattened. */
+	.glyph {
+		z-index: 1;
+		transform-origin: 50% calc(50% + 14%);
+		transform: perspective(850px) translateY(10%) rotateX(62deg) scale(0.45);
+		transform-style: preserve-3d;
+		box-shadow:
+			0 1px 0 rgba(255, 251, 233, 0.52) inset,
+			0 28px 38px rgba(36, 27, 22, 0.3);
+		filter: drop-shadow(0 30px 24px rgba(36, 27, 22, 0.34));
+	}
+
+	/* The effect is drawn flat in canvas space, already anchored to the tilted
+	   portal by the renderer, so this layer stays untransformed above the paper. */
+	.effect {
+		z-index: 2;
 	}
 </style>

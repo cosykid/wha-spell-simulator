@@ -104,10 +104,6 @@ export class SpellCanvasPage {
 		return this.page.getByTestId('redo-button');
 	}
 
-	meter(label: 'quality' | 'stability' | 'force'): Locator {
-		return this.page.getByTestId(`meter-value-${label}`);
-	}
-
 	// --- Navigation / readiness ---------------------------------------------
 
 	/** Loads the simulator and waits until the canvas accepts strokes. */

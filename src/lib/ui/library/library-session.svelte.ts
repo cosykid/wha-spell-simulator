@@ -1,7 +1,7 @@
 /**
- * @file State for the library book page: the shared-library feed with its sort
- * and pagination, the reader's own grimoire section, which preview is playing,
- * and the page turner. Created once by the `/library` route.
+ * @file State for the library page: the shared-library feed with its sort and
+ * cursor pagination, the reader's own grimoire section, and which preview is
+ * playing. Created once by the `/library` route.
  */
 import { goto } from '$app/navigation';
 import { resolve } from '$app/paths';
@@ -9,12 +9,8 @@ import { setSpellUpvote } from '$lib/spells/spells.remote.js';
 import type { LibrarySort, LibrarySpell, SavedSpell } from '$lib/structures/savedSpell.js';
 import { stashPendingCast } from '$lib/ui/spells/castHandoff.js';
 import { GrimoireState } from '$lib/ui/spells/grimoire-state.svelte.js';
-import { PageTurner } from './page-turn.svelte.js';
 
 export type LibrarySection = 'shared' | 'grimoire';
-
-/** Spells shown per page face. A spread shows two faces. */
-export const SPELLS_PER_PAGE = 2;
 
 export class LibrarySession {
 	section = $state<LibrarySection>('shared');
@@ -26,7 +22,6 @@ export class LibrarySession {
 	playingId = $state<string | null>(null);
 
 	readonly grimoire = new GrimoireState();
-	readonly turner = new PageTurner();
 
 	/** The spells the open section shows, in page order. */
 	spells = $derived<(LibrarySpell | SavedSpell)[]>(
@@ -73,7 +68,6 @@ export class LibrarySession {
 			return;
 		}
 		this.sort = sort;
-		this.turner.reset();
 		this.playingId = null;
 		void this.refreshShared();
 	};
@@ -83,7 +77,6 @@ export class LibrarySession {
 			return;
 		}
 		this.section = section;
-		this.turner.reset();
 		this.playingId = null;
 		if (section === 'grimoire') {
 			void this.grimoire.refresh();

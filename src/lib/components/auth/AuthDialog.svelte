@@ -17,7 +17,7 @@ maker's username modal. Accounts are username and password only.
 	let busy = $state(false);
 
 	const isRegister = $derived(auth.dialogMode === 'register');
-	const title = $derived(isRegister ? 'Join the atelier' : 'Welcome back');
+	const title = $derived(isRegister ? 'Create an account' : 'Sign in');
 	const submitLabel = $derived(isRegister ? 'Create account' : 'Sign in');
 
 	$effect(() => {
@@ -39,7 +39,7 @@ maker's username modal. Accounts are username and password only.
 
 	function validate(): string | null {
 		if (!/^[A-Za-z0-9_-]{3,24}$/.test(username)) {
-			return 'Names are 3-24 characters: letters, digits, - or _.';
+			return 'Usernames are 3-24 characters: letters, digits, - or _.';
 		}
 		if (password.length < 8 || password.length > 128) {
 			return 'Passwords need at least 8 characters.';
@@ -48,8 +48,8 @@ maker's username modal. Accounts are username and password only.
 	}
 
 	function failureMessage(reason: Extract<AuthResult, { ok: false }>['reason']): string {
-		if (reason === 'username-taken') return 'That name is already taken.';
-		if (reason === 'invalid-credentials') return 'Wrong name or password.';
+		if (reason === 'username-taken') return 'That username is already taken.';
+		if (reason === 'invalid-credentials') return 'Wrong username or password.';
 		return 'Something went wrong. Try again in a moment.';
 	}
 
@@ -84,11 +84,11 @@ maker's username modal. Accounts are username and password only.
 		<h2>{title}</h2>
 		<p class="auth-note">
 			{isRegister
-				? 'A name and a password are all you need to keep your spells.'
+				? 'A username and a password are all you need to keep your spells.'
 				: 'Sign in to save spells and share them in the library.'}
 		</p>
 		<label>
-			<span>Witch name</span>
+			<span>Username</span>
 			<input
 				class="text-control"
 				data-testid="auth-username"
