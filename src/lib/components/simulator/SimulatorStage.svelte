@@ -19,7 +19,6 @@ and the drawers each live one named click away.
 	import ReferenceTabs from './ReferenceTabs.svelte';
 	import SaveSpellDialog from './SaveSpellDialog.svelte';
 	import SimulatorCanvasPanel from './SimulatorCanvasPanel.svelte';
-	import SpellMeters from './SpellMeters.svelte';
 	import StatusReadout from './StatusReadout.svelte';
 	import ToolDock from './ToolDock.svelte';
 	import type { SimulatorSession } from '$lib/ui/simulator/simulator-session.svelte.js';
@@ -73,7 +72,6 @@ and the drawers each live one named click away.
 
 	<div class="chrome chrome-left"><ToolDock {simulator} /></div>
 	<div class="chrome chrome-right"><ReferenceTabs {simulator} /></div>
-	<div class="chrome chrome-bl"><SpellMeters {simulator} /></div>
 	<div class="chrome chrome-bc"><StatusReadout {simulator} /></div>
 
 	<div class="chrome chrome-br">
@@ -241,11 +239,6 @@ and the drawers each live one named click away.
 		top: 50%;
 		right: var(--chrome-inset-x);
 		transform: translateY(-50%);
-	}
-
-	.chrome-bl {
-		bottom: var(--chrome-inset-y);
-		left: var(--chrome-inset-x);
 	}
 
 	.chrome-bc {

@@ -8,7 +8,7 @@ import { getDb, type Db } from './db.js';
 
 /** Thrown when registering a username that is already taken (case-insensitive). */
 export class DuplicateUsernameError extends Error {
-	constructor(message = 'That witch name is already taken.') {
+	constructor(message = 'That username is already taken.') {
 		super(message);
 		this.name = 'DuplicateUsernameError';
 	}

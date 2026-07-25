@@ -64,7 +64,7 @@ save button gates on that before opening this dialog.
 			});
 			if (result.ok) {
 				grimoire.saveDialogOpen = false;
-				toast.push(`“${trimmed}” inscribed in your grimoire.`);
+				toast.push(`“${trimmed}” saved to your spells.`);
 			} else if (result.reason === 'auth-required') {
 				error = 'Sign in first to save spells.';
 			} else {

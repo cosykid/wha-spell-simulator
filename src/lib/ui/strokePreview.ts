@@ -9,6 +9,9 @@
  */
 import type { Point } from '$lib/types.js';
 
+/** Half-width of the box a fitted glyph fills, centered in the preview viewBox. */
+const FIT_HALF_EXTENT = 41;
+
 /**
  * Converts a single normalized stroke into an SVG `polyline` points string.
  *
@@ -45,4 +48,56 @@ export function strokesToPreviewPolylines(strokes: Point[][] | undefined): strin
 		return [];
 	}
 	return strokes.map(strokeToPreviewPoints).filter((points) => points.length > 0);
+}
+
+/**
+ * Projects strokes into the preview viewBox scaled and centered on their own
+ * bounds, so a drawing that used a corner of its canvas still fills the frame.
+ *
+ * Unlike {@link strokesToPreviewPolylines}, the input need not be normalized:
+ * only the strokes' shape matters, not the space they were drawn in.
+ *
+ * @param strokes - Stroke point lists in any consistent coordinate space.
+ * @returns Non-empty SVG polyline point strings, one per drawable stroke.
+ *
+ * @example
+ * ```ts
+ * const polylines = fitStrokesToPreviewPolylines(strokes);
+ * // <polyline points={polylines[0]} /> inside viewBox="0 0 100 100"
+ * ```
+ */
+export function fitStrokesToPreviewPolylines(strokes: Point[][] | undefined): string[] {
+	const drawable = (strokes ?? [])
+		.map((stroke) =>
+			stroke.filter((point) => Number.isFinite(Number(point.x)) && Number.isFinite(Number(point.y)))
+		)
+		.filter((stroke) => stroke.length > 0);
+	if (!drawable.length) {
+		return [];
+	}
+
+	const points = drawable.flat();
+	const xs = points.map((point) => Number(point.x));
+	const ys = points.map((point) => Number(point.y));
+	const minX = Math.min(...xs);
+	const maxX = Math.max(...xs);
+	const minY = Math.min(...ys);
+	const maxY = Math.max(...ys);
+	const span = Math.max(maxX - minX, maxY - minY);
+	// One scale for both axes keeps the seal round; a dot-sized drawing stays put.
+	const scale = span > 1e-6 ? (FIT_HALF_EXTENT * 2) / span : 1;
+	const centerX = (minX + maxX) / 2;
+	const centerY = (minY + maxY) / 2;
+
+	return drawable
+		.map((stroke) =>
+			stroke
+				.map((point) => {
+					const x = 50 + (Number(point.x) - centerX) * scale;
+					const y = 50 + (Number(point.y) - centerY) * scale;
+					return `${Math.round(x * 10) / 10},${Math.round(y * 10) / 10}`;
+				})
+				.join(' ')
+		)
+		.filter((points) => points.length > 0);
 }

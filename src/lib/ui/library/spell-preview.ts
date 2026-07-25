@@ -10,6 +10,7 @@ import { resetParticleState } from '$lib/renderer/effects/effectUtils.js';
 import { SpellEffectRenderer } from '$lib/renderer/spellEffectRenderer.js';
 import { deserializeSpellPreset, type SpellPresetData } from '$lib/structures/spellPreset.js';
 import type { RingInfo, SpellIR, Stroke } from '$lib/types.js';
+import { renderPaper } from '$canvas/entities/paperEntity.js';
 
 /** Padding after the spell's own duration before a replay counts as finished. */
 const END_GRACE_MS = 1600;
@@ -113,7 +114,9 @@ export class SpellPreviewDriver {
 
 	#drawInk(): void {
 		const ctx = this.#glyphCtx;
-		ctx.clearRect(0, 0, this.#glyphCanvas.width, this.#glyphCanvas.height);
+		// Paint the paper first so the tilted glyph canvas reads as a lit sheet
+		// receding into the void, matching the activated simulator surface.
+		renderPaper(ctx, this.#glyphCanvas.width, this.#glyphCanvas.height);
 		ctx.save();
 		ctx.lineCap = 'round';
 		ctx.lineJoin = 'round';

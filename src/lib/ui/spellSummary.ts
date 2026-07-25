@@ -85,39 +85,6 @@ function formatManifestations(spellIR: SpellIR | null | undefined): string {
 }
 
 /**
- * Maps a normalized meter value to a semantic display level.
- *
- * @param value - Normalized 0..1 meter value. Nullish values are treated as zero.
- * @returns The level used by control-panel meter styling.
- */
-export function meterLevel(value: number | null | undefined): 'low' | 'medium' | 'high' {
-	const normalized = clamp(value ?? 0);
-	return normalized < 0.33 ? 'low' : normalized < 0.67 ? 'medium' : 'high';
-}
-
-/**
- * Formats a normalized meter value as a rounded percentage.
- *
- * @param value - Normalized 0..1 meter value. Nullish values are treated as zero.
- * @returns Percentage text for the control-panel meter readout.
- */
-export function meterPercent(value: number | null | undefined): string {
-	return `${Math.round(clamp(value ?? 0) * 100)}%`;
-}
-
-/**
- * Quantizes a normalized meter value into a count of filled pips, for the
- * diamond-pip meters in the minimal canvas chrome.
- *
- * @param value - Normalized 0..1 meter value. Nullish values are treated as zero.
- * @param total - Number of pips in the row.
- * @returns How many of the `total` pips should render filled (0..total).
- */
-export function meterPips(value: number | null | undefined, total = 10): number {
-	return Math.round(clamp(value ?? 0) * total);
-}
-
-/**
  * Derives the control-panel summary from the current drawing and spell state.
  *
  * The returned object is deliberately plain data so Svelte components can render
