@@ -21,6 +21,13 @@
 #   R2_BUCKET             Bucket name (default: wha-spell-simulator-postgres-backups)
 #   MAX_BUCKET_MB         Abort before uploading if the bucket already holds
 #                         more than this (default: 5000)
+#   DB_CONNECT_TIMEOUT_SECONDS
+#                         PostgreSQL connection timeout per attempt
+#                         (default: 15)
+#   DB_CONNECT_RETRIES    Retries for transient DB connection errors before
+#                         failing the backup (default: 5)
+#   DB_CONNECT_RETRY_DELAY_SECONDS
+#                         Seconds between retry attempts (default: 10)
 #   BACKUP_DIR            Where to write the dump (default: a temp dir)
 #   HF_TOKEN              Hugging Face write token; when set, the ML dataset is
 #                         also published to the HF Hub (skipped otherwise)
@@ -36,6 +43,9 @@ fi
 
 db_url="${DATABASE_URL_VPS:-${DATABASE_URL:-}}"
 : "${db_url:?Set DATABASE_URL_VPS (or DATABASE_URL)}"
+db_connect_timeout_seconds="${DB_CONNECT_TIMEOUT_SECONDS:-15}"
+db_connect_retries="${DB_CONNECT_RETRIES:-5}"
+db_connect_retry_delay_seconds="${DB_CONNECT_RETRY_DELAY_SECONDS:-10}"
 
 for tool in zip uv; do
 	command -v "$tool" > /dev/null || {
@@ -50,10 +60,37 @@ done
 
 detect_pg_major() {
 	# Extract server major version (e.g. 18 from 18.2, 17 from 17.1, etc.)
-	psql "$db_url" --no-psqlrc --quiet --tuples-only \
+	PGCONNECT_TIMEOUT="$db_connect_timeout_seconds" psql "$db_url" --no-psqlrc --quiet --tuples-only \
 		-c "show server_version;" \
 		| sed 's/^ *//;s/ .*//' \
 		| cut -d. -f1
+}
+
+detect_pg_major_with_retry() {
+	local attempt=1
+	local output=""
+
+	while ((attempt <= db_connect_retries)); do
+		if output="$(detect_pg_major 2>&1)"; then
+			if [[ -n "$output" ]]; then
+				echo "$output"
+				return 0
+			fi
+			echo "PostgreSQL server_version query returned empty output." >&2
+		else
+			echo "$output" >&2
+		fi
+
+		if ((attempt < db_connect_retries)); then
+			echo "Retrying PostgreSQL connection ($attempt/$db_connect_retries) in ${db_connect_retry_delay_seconds}s..." >&2
+			sleep "$db_connect_retry_delay_seconds"
+		fi
+
+		((attempt++))
+	done
+
+	echo "Failed to detect PostgreSQL version after $db_connect_retries attempts." >&2
+	return 1
 }
 
 find_pg_bin() {
@@ -75,7 +112,7 @@ find_pg_bin() {
 }
 
 echo "Detecting PostgreSQL server version..."
-server_major="$(detect_pg_major)"
+server_major="$(detect_pg_major_with_retry)"
 pg_bin="$(find_pg_bin "$server_major")"
 
 PG_DUMP="$pg_bin/pg_dump"
