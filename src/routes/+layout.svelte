@@ -9,6 +9,8 @@
 	import AuthDialog from '$lib/components/auth/AuthDialog.svelte';
 	import { AuthState, setAuthState } from '$lib/ui/auth/auth-state.svelte.js';
 	import { isApplePlatform, setPlatformContext } from '$lib/ui/keybindings.js';
+	import { dev } from '$app/environment';
+	import { injectAnalytics } from '@vercel/analytics/sveltekit';
 	import { SvelteToast } from '@zerodevx/svelte-toast';
 	import { onMount, type Snippet } from 'svelte';
 
@@ -17,6 +19,10 @@
 	}
 
 	let { children }: Props = $props();
+
+	// Vercel Web Analytics. No-ops during SSR/prerender and reports page views
+	// client-side on every navigation. In dev it only logs to the console.
+	injectAnalytics({ mode: dev ? 'development' : 'production' });
 
 	// One auth state for the whole app, hydrated from the session cookie after
 	// mount so the prerendered markup stays identical for guests and users.
