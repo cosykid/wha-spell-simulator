@@ -19,6 +19,7 @@ Load-bearing coverage, largest first:
 
 - [`symbolRecognition.test.ts`](symbolRecognition.test.ts) — `recognizeCandidates` against the real dictionary: rotation invariance, sigil-versus-sign confusion, contamination.
 - [`spellField.test.ts`](spellField.test.ts) — `buildSpellField` / `sampleFieldForce`: the emergent-behaviour canon (vortex eye, swirl lift, spawn domains).
+- [`spellPlan.test.ts`](spellPlan.test.ts) — `resolvePlan` and its rule modules. **Law tests**: every test names the ruling id it pins from [`../docs/animation-spec.md`](../docs/animation-spec.md), so re-ruling canon is a visible edit here rather than a tuning drift.
 - [`decomposition.test.ts`](decomposition.test.ts) — `classifyDrawing` end to end: stroke cleaning, fragment grouping, rotated drawings.
 - [`spellBuilder.test.ts`](spellBuilder.test.ts) — `compileSpell`: GlyphAST to SpellIR, warnings, prepared versus active.
 - [`mlRecognizer.test.ts`](mlRecognizer.test.ts) — `acceptMlResult` and the hybrid override rules, driven by fake `MlPrediction` fixtures. No ONNX runtime loads.
@@ -29,7 +30,7 @@ The rest are small and single-subject: stroke erase and preview, spell summary, 
 
 [`dictionaryFixtures.ts`](dictionaryFixtures.ts) is a helper, not a suite. Helpers carry no `.test.ts` suffix.
 
-## The motion golden tier
+## The golden tiers
 
 [`golden/`](golden/) is the renderer-independent half of the verification rig in
 [`../docs/animation-redesign.md`](../docs/animation-redesign.md) phase 0. For every
@@ -40,6 +41,11 @@ into committed PNGs, then re-renders and byte-compares.
 - [`motion.ts`](golden/motion.ts) the fixed-step simulation · [`rasterizer.ts`](golden/rasterizer.ts) two seal-space panels · [`png.ts`](golden/png.ts) and [`rng.ts`](golden/rng.ts) salvaged from the `theorycrafting` branch.
 - [`probes.ts`](golden/probes.ts) is the old scorecard as data: one row is one claim about one preset at one point and time, tagged with the ruling it pins in [`../docs/animation-spec.md`](../docs/animation-spec.md). `rulingId: 'legacy'` means current-engine behaviour no ruling covers yet.
 - [`frames.ts`](golden/frames.ts) owns which presets and timestamps a baseline exists for; [`update.ts`](golden/update.ts) rewrites them.
+
+Below it sits the **plan tier**, the cheapest of the three: [`plans.ts`](golden/plans.ts) resolves each
+lab preset to a `SpellPlan` and serializes it, [`plan.test.ts`](golden/plan.test.ts) compares the text
+against [`plans/`](golden/plans/), one committed file per preset, and the same `update.ts` rewrites
+those too. A changed canon ruling shows up as a changed line a reviewer can read.
 
 Rules that keep it a baseline instead of a coin flip:
 

@@ -102,6 +102,15 @@ function readingNotes(signs: SignReading[], symmetry: SymmetryReading | null): R
 }
 
 /**
+ * The reading of a drawing that never resolved. `invalidSpell` needs a reading
+ * shaped like a real one, the way it needs `emptySpellField()`: consumers read
+ * these fields unguarded.
+ */
+export function emptySealReading(): SealReading {
+	return { signs: [], sigil: null, element: null, quality: 0, symmetry: null, notes: [] };
+}
+
+/**
  * Gates recognition noise into the reading every later layer is allowed to see.
  * `previous` is the reading from the last pass over the same drawing, used only
  * for facing hysteresis; omit it and every facing quantizes fresh.
