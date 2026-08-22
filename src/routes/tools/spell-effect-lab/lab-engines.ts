@@ -2,10 +2,11 @@
  * @file The lab's two effect engines behind one contract, so the preview's frame
  * loop does not know which of them is drawing.
  *
- * `field` is the shipping renderer and stays the default. `cast` is the
- * redesign's replacement, lab-only until the phase 5 cutover. Both own the same
- * effect canvas and both clear it, so switching is a matter of calling the other
- * one next frame.
+ * `cast` is what the simulator ships since the phase 5 cutover. `field` is the
+ * superseded engine, kept here (and as the lab default) until its deletion lands
+ * so the two can still be compared side by side. Both own the same effect canvas
+ * and both clear it, so switching is a matter of calling the other one next
+ * frame.
  *
  * @example
  * const engines = createLabEngines(effectCanvas);
@@ -42,8 +43,7 @@ export function createLabEngines(canvas: HTMLCanvasElement): Record<LabEngine, L
 
 	return {
 		field: {
-			render: (spellIR, ring, timestamp) =>
-				field.render(spellIR, ring, timestamp, { showGuides: false }),
+			render: (spellIR, ring, timestamp) => field.render(spellIR, ring, timestamp),
 			reset: () => {
 				field.lastSignature = null;
 				field.lastTime = null;
@@ -51,8 +51,7 @@ export function createLabEngines(canvas: HTMLCanvasElement): Record<LabEngine, L
 			}
 		},
 		cast: {
-			render: (spellIR, ring, timestamp) =>
-				cast.render(spellIR, ring, timestamp, { showGuides: false }),
+			render: (spellIR, ring, timestamp) => cast.render(spellIR, ring, timestamp),
 			reset: () => cast.reset()
 		}
 	};

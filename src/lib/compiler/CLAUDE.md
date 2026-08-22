@@ -75,15 +75,16 @@ Rules for working in here:
 spells are neither active nor prepared, so the three flags describe three states.
 
 **Wrap every recompile in `carrySpellActivation(previous, next)`.** Recognition emits a fast template
-result and then one or more ML refinements for the same drawing, and each pass recompiles. A fresh
-`activatedAt` restarts the portal-tilt hold and the whole effect timeline, so the effect would begin only
-after the last refinement instead of when the ring was sealed.
+result and then one or more ML refinements for the same drawing, and each pass recompiles. `activatedAt`
+is the cast clock's origin, so a fresh one restarts the performance from the charge beat and the spell
+would begin only after the last refinement instead of when the ring was sealed.
 [`../ui/simulator/recognition-pipeline.svelte.ts`](../ui/simulator/recognition-pipeline.svelte.ts) is the
 sole production caller and should stay that way.
 
 **`SpellIR.signature` is a reset key, not a debug string.**
-[`../renderer/spellEffectRenderer.ts`](../renderer/spellEffectRenderer.ts) compares it every frame and
-drops all particle state when it changes. It folds in the sigil id, element, `manifestationSignature`,
+[`../cast/render/castRenderer.ts`](../cast/CLAUDE.md) compares it every frame and recompiles the score
+from scratch when it changes, as the field renderer does with its particles. It folds in the sigil id,
+element, `manifestationSignature`,
 `spellFieldSignature` from the field builder, `active`, and rounded scalars. Changing what goes into it
 changes when a running effect restarts, so treat any edit as a renderer behavior change.
 
@@ -94,9 +95,10 @@ at coarser rounding if it should be a hot knob, or leave it out if it should tun
 constructors of `SpellIR` and consumers read fields unguarded. `invalidSpell` uses `emptySealReading()`
 and `inertPlan()` the way it uses `emptySpellField()`, so the three states stay coherent.
 
-**`reading` and `plan` are deliberately absent from `signature`.** The field still drives rendering, so
-folding a plan change into the reset key would restart particles for a change nothing paints yet. Fold
-them in at the phase 5 cutover, together with dropping `field`.
+**`reading` and `plan` are still absent from `signature`.** The plan drives rendering now, and the
+field digest stands in for it: both are folds of the same signs, so a plan change arrives with a field
+change. Fold `plan` in and drop `spellFieldSignature` in one edit, with the rest of the `field`
+deletion — replacing the digest is a renderer behavior change and wants its own review.
 
 **`compileSpell` takes an optional `previous` SpellIR.** Only the reading uses it, for facing
 hysteresis across the template and ML passes over the same ink. It is passed at the one production

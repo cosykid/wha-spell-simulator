@@ -1,3 +1,14 @@
+/**
+ * @file The legacy field renderer. Since the phase 5 cutover the simulator casts
+ * through `cast/render/castRenderer.ts` and this engine survives only for the
+ * Spell Effect Lab's `field` option and the library's preview book. It draws
+ * active spells and nothing else: the seal guides moved to
+ * `glyphOverlayRenderer.ts`, where the ink they annotate lives.
+ *
+ * Scheduled for deletion with `renderer/effects/` and `SpellIR.field`. See
+ * `docs/animation-redesign.md`.
+ */
+
 import { drawFireEffect } from './effects/fireEffect.js';
 import { drawWaterEffect } from './effects/waterEffect.js';
 import { drawWindEffect } from './effects/windEffect.js';
@@ -14,21 +25,6 @@ const SPELL_END_FADE_MS = 420;
 const TARGET_FRAME_MS = 16.67;
 const DELTA_FRAME_MIN = 0.4;
 const DELTA_FRAME_MAX = 2.5;
-const FULL_CIRCLE_RAD = Math.PI * 2;
-const RING_GLOW_IDLE_ALPHA = 0.06;
-const RING_GLOW_PREPARED_ALPHA = 0.12;
-const RING_GLOW_LINE_WIDTH = 6;
-const PREPARED_PULSE_PERIOD_MS = 520;
-const PREPARED_GLOW_BASE_ALPHA = 0.08;
-const PREPARED_GLOW_PULSE_ALPHA = 0.05;
-const PREPARED_GLOW_RADIUS_SCALE = 0.7;
-const FAILED_FLICKER_PERIOD_MS = 70;
-const FAILED_FLICKER_BASE_ALPHA = 0.14;
-const FAILED_FLICKER_PULSE_ALPHA = 0.16;
-const FAILED_FLICKER_LINE_WIDTH = 7;
-const FAILED_FLICKER_DASH = [10, 14];
-const FAILED_FLICKER_RADIUS_SCALE = 0.92;
-const FAILED_FLICKER_RADIUS_PULSE_SCALE = 0.02;
 
 type EffectDrawFn = (
 	ctx: CanvasRenderingContext2D,
@@ -77,7 +73,6 @@ export function spellEmission(
 }
 
 interface RenderOptions {
-	showGuides?: boolean;
 	/** Fraction of canvas height on screen; scales the portal tilt to match the CSS. Defaults to 1. */
 	portalFit?: number;
 }
@@ -129,21 +124,7 @@ export class SpellEffectRenderer {
 			resetParticleState(this.state);
 		}
 
-		if (!spellIR.active && options.showGuides) {
-			this.drawRingGlow(ring, spellIR.prepared);
-		}
-
-		if (!spellIR.valid) {
-			if (options.showGuides) {
-				this.drawFailedFlicker(ring, timestamp);
-			}
-			return;
-		}
-
-		if (spellIR.prepared) {
-			if (options.showGuides) {
-				this.drawPreparedGlow(ring, timestamp);
-			}
+		if (!spellIR.valid || spellIR.prepared) {
 			return;
 		}
 
@@ -173,50 +154,5 @@ export class SpellEffectRenderer {
 		ctx.globalCompositeOperation = 'lighter';
 		drawEffect(ctx, this.state, renderSpellIR, portalRing, dt, this.config);
 		ctx.restore();
-	}
-
-	private drawRingGlow(ring: RingInfo, isPrepared: boolean): void {
-		const alpha = isPrepared ? RING_GLOW_PREPARED_ALPHA : RING_GLOW_IDLE_ALPHA;
-		this.ctx.save();
-		this.ctx.strokeStyle = `rgba(255, 217, 114, ${alpha})`;
-		this.ctx.lineWidth = RING_GLOW_LINE_WIDTH;
-		this.ctx.beginPath();
-		this.ctx.arc(ring.center.x, ring.center.y, ring.radius, 0, FULL_CIRCLE_RAD);
-		this.ctx.stroke();
-		this.ctx.restore();
-	}
-
-	private drawPreparedGlow(ring: RingInfo, timestamp: number): void {
-		const pulse = 0.5 + Math.sin(timestamp / PREPARED_PULSE_PERIOD_MS) * 0.5;
-		this.ctx.save();
-		this.ctx.fillStyle = `rgba(88, 171, 174, ${PREPARED_GLOW_BASE_ALPHA + pulse * PREPARED_GLOW_PULSE_ALPHA})`;
-		this.ctx.beginPath();
-		this.ctx.arc(
-			ring.center.x,
-			ring.center.y,
-			ring.radius * PREPARED_GLOW_RADIUS_SCALE,
-			0,
-			FULL_CIRCLE_RAD
-		);
-		this.ctx.fill();
-		this.ctx.restore();
-	}
-
-	private drawFailedFlicker(ring: RingInfo, timestamp: number): void {
-		const pulse = Math.max(0, Math.sin(timestamp / FAILED_FLICKER_PERIOD_MS));
-		this.ctx.save();
-		this.ctx.strokeStyle = `rgba(184, 69, 49, ${FAILED_FLICKER_BASE_ALPHA + pulse * FAILED_FLICKER_PULSE_ALPHA})`;
-		this.ctx.lineWidth = FAILED_FLICKER_LINE_WIDTH;
-		this.ctx.setLineDash(FAILED_FLICKER_DASH);
-		this.ctx.beginPath();
-		this.ctx.arc(
-			ring.center.x,
-			ring.center.y,
-			ring.radius * (FAILED_FLICKER_RADIUS_SCALE + pulse * FAILED_FLICKER_RADIUS_PULSE_SCALE),
-			0,
-			FULL_CIRCLE_RAD
-		);
-		this.ctx.stroke();
-		this.ctx.restore();
 	}
 }

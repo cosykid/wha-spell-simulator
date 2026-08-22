@@ -15,23 +15,23 @@ Locally the config starts `npm run dev` on 5173 and reuses an already-running se
 ## Map
 
 - [`pages/SpellCanvasPage.ts`](pages/SpellCanvasPage.ts) — the page object. Every canvas interaction goes through it.
-- [`fire-shoot.e2e.ts`](fire-shoot.e2e.ts) — the reference cast: prepared, sealed, active, plus a seal-to-active latency benchmark.
+- [`fire-shoot.e2e.ts`](fire-shoot.e2e.ts) — the reference cast: prepared, sealed, active, then the beats read off the effect canvas, plus a seal-to-active latency benchmark. It proves the production wiring; whether the fire _looks_ right is the look tier's job.
 - [`eraser.e2e.ts`](eraser.e2e.ts) — erase splits a stroke and undo restores it, read from glyph-canvas pixels.
 - [`shape-placement.e2e.ts`](shape-placement.e2e.ts) — palette drag-to-place, arrange mode, ring z-order, copy and paste.
 - [`library.e2e.ts`](library.e2e.ts), [`spell-presets.e2e.ts`](spell-presets.e2e.ts) — database backed, skipped by default.
 - [`golden-look.e2e.ts`](golden-look.e2e.ts) — the look golden tier: the Spell Effect Lab's effect canvas per lab preset at fixed timestamps, under both effect engines. A case with no baseline skips.
-- [`helpers/strokes.ts`](helpers/strokes.ts) `circleStroke`, [`helpers/account.ts`](helpers/account.ts) auth and drawer helpers, [`helpers/types.d.ts`](helpers/types.d.ts) `NormPoint` / `NormStroke` / `RingGeometry`, [`fixtures/sampleSpells.ts`](fixtures/sampleSpells.ts) `FIRE_SHOOT`.
+- [`helpers/strokes.ts`](helpers/strokes.ts) `circleStroke`, [`helpers/castProbe.ts`](helpers/castProbe.ts) the in-page half of reading a cast, [`helpers/account.ts`](helpers/account.ts) auth and drawer helpers, [`helpers/types.d.ts`](helpers/types.d.ts) `NormPoint` / `NormStroke` / `RingGeometry`, [`fixtures/sampleSpells.ts`](fixtures/sampleSpells.ts) `FIRE_SHOOT`.
 
 ## Invariants and gotchas
 
-- **Go through `SpellCanvasPage`.** `goto`, `waitForReady`, `drawStroke`, `drawOpenRing`, `sealRing`, `castSpell`, `measureActivation`, `expectActive` are the vocabulary. Add new interactions to the page object, not inline in a spec.
+- **Go through `SpellCanvasPage`.** `goto`, `waitForReady`, `drawStroke`, `drawOpenRing`, `sealRing`, `castSpell`, `armCastClock`, `measureActivation`, `sampleCast`, `waitForCastEnd`, `expectActive` are the vocabulary. Add new interactions to the page object, not inline in a spec.
 - **Wait on `data-input-ready`, not on status text.** `waitForReady()` does this. The status leaves "Loading" before drawing capture attaches its pointer listeners, so a stroke drawn on status alone is silently dropped.
 - **Seal last.** `castSpell` draws the open ring, then the symbols, then the closing arc. Closing the ring sets `canvasLocked` and every later freehand stroke is ignored. Pass `skipSeal: true` to stop at prepared.
 - **Coordinates are normalized 0..1 over the canvas box**, then inset toward the center by `drawScale` (0.85). The 1024x1024 square viewport exists so the cover-square canvas fills the window exactly and those coordinates map 1:1. Do not change the viewport, it moves every stroke.
 - **Drive input with `page.mouse`**, the way `drawStroke` does. Real pointer events flow through drawing capture, and it already emits down, moves, up, plus a settle delay.
 - **Recognition is async and debounced.** Each `drawStroke` waits `settleMs` (default 90). Raise it for a slow machine rather than sprinkling bare `waitForTimeout` into a spec.
 - **Assert on the settled status.** The values are `Loading`, `No ring detected`, `Prepared spell`, `Active spell`, plus the `Ring closed - ...` family for a sealed ring with no usable sigil. That family also shows transiently while the ML pass refines a template result, so never assert on the first status you see after sealing. `expectActive()` waits on both the text and `data-status-class="active"`.
-- **Spell effects are one-shot.** Emission is held back for the 980ms portal tilt, runs full for the spell's duration, then fades. If you sample effect-canvas pixels, do it inside one `page.evaluate` pass before the fade.
+- **A cast is a one-shot with beats, and the clock starts at activation.** R-01: `charge` spans the 980ms portal tilt and carries the ambient medium alone, `strike` is the next 320ms and brings the spell itself, `body` is elastic, then `release` and `afterglow` fade it out; past `totalMs` the effect canvas is empty. Read the beats through `sampleCast` and `waitForCastEnd` on the page object, which measure from the clock `armCastClock`/`measureActivation` stamps. Sample a whole beat sequence inside **one** `page.evaluate` pass, the way `sampleCast` does — a round trip between two samples can step the cast past a beat boundary.
 - **`reducedMotion: 'reduce'` is deliberate.** Drawer and panel slide transitions are guarded by it. Without it a drag reads a palette card's box mid-animation and lands off the moving card.
 - **`fullyParallel: false` is deliberate.** Casts contend for the recognition worker pool. Retries are 1 locally and 2 on CI to absorb timing flake.
 - **Escape closes drawers** (`closeDrawer`). The open drawer covers the tab rail, so clicking the tab a second time does nothing.

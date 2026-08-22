@@ -9,9 +9,10 @@ SpellPlan -> score/ -> SpellScore -> sim/ -> Parcel[] -> render/ -> pixels
 ```
 
 This directory is the redesign's replacement for [`../field/`](../field/CLAUDE.md)
-and [`../renderer/effects/`](../renderer/CLAUDE.md). It is lab-only until the
-phase 5 cutover: the simulator route still renders through `SpellEffectRenderer`
-and knows nothing about `cast/`. Read
+and [`../renderer/effects/`](../renderer/CLAUDE.md), and since the phase 5
+cutover it is what the simulator's effect canvas runs. The field engine survives
+only for the Spell Effect Lab's `field` option and the library preview, pending
+the deletion half of phase 5. Read
 [`../../../docs/animation-redesign.md`](../../../docs/animation-redesign.md) and
 [`../../../docs/animation-spec.md`](../../../docs/animation-spec.md) before
 changing anything here; every rule below is one of theirs.
@@ -61,8 +62,8 @@ track's kernel, moves it, then constrains it. Parcels leave when they age out or
 pass `CAST.bounds`.
 
 **Paint.** `CastRenderer.render(spellIR, ring, timestamp, options)` takes the
-same arguments as `SpellEffectRenderer.render`, so the cutover is a swap. It
-compiles the score once per `spellIR.signature`, maps wall clock to cast time
+same arguments as `SpellEffectRenderer.render`, which is what made the cutover a
+swap. It compiles the score once per `spellIR.signature`, maps wall clock to cast time
 from `activatedAt`, steps the state, and hands the parcels to `paintCast`. The
 painter projects each parcel through [`../portal/`](../portal/CLAUDE.md), sorts
 by `depth`, sizes it from the look's range and its own `fade` curve, attenuates

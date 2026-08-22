@@ -1,6 +1,6 @@
+import { CastRenderer } from '$lib/cast/render/castRenderer.js';
 import { CONFIG } from '$lib/config.js';
 import { emitMlDebug, ML_DEBUG_BUILD_ID } from '$lib/debug/mlDebug.js';
-import { SpellEffectRenderer } from '$lib/renderer/spellEffectRenderer.js';
 import type { CanvasBehavior } from '$lib/ui/canvas/canvasBehavior.js';
 import type { Scene } from '$lib/ui/canvas/scene.svelte.js';
 import type { Attachment } from 'svelte/attachments';
@@ -38,7 +38,7 @@ interface SimulatorRuntimeOptions {
 export class SimulatorRuntime {
 	#input: SimulatorInputControllers | null = null;
 	#sizing: CanvasSizingController | null = null;
-	#effectRenderer: SpellEffectRenderer | null = null;
+	#castRenderer: CastRenderer | null = null;
 	#rendererEffectCanvas: HTMLCanvasElement | null = null;
 	#keyboardHandler: ((event: KeyboardEvent) => void) | null = null;
 	#attachedGlyphCanvas: HTMLCanvasElement | null = null;
@@ -169,20 +169,24 @@ export class SimulatorRuntime {
 		this.#input?.setCaptureLocked(locked);
 	}
 
-	/** Draws one frame for the separate spell-effect canvas. */
+	/**
+	 * Draws one frame of the cast onto the separate effect canvas. An active valid
+	 * spell is a cast and nothing else: there is no ownership flag and no fallback
+	 * engine here, because R-11 makes "manifests nothing" a look the cast paints.
+	 * The seal guides are the glyph scene's (`sealGuidesEntity`).
+	 */
 	renderCanvasFrame = (_ctx: CanvasRenderingContext2D, timestamp: number) => {
 		const { recognition, ui } = this.#options;
 		if (!ui.effectCanvas) {
 			return;
 		}
 
-		if (!this.#effectRenderer || this.#rendererEffectCanvas !== ui.effectCanvas) {
-			this.#effectRenderer = new SpellEffectRenderer(ui.effectCanvas, CONFIG);
+		if (!this.#castRenderer || this.#rendererEffectCanvas !== ui.effectCanvas) {
+			this.#castRenderer = new CastRenderer(ui.effectCanvas);
 			this.#rendererEffectCanvas = ui.effectCanvas;
 		}
 
-		this.#effectRenderer.render(recognition.spellIR, recognition.ring, timestamp, {
-			showGuides: ui.showGuides,
+		this.#castRenderer.render(recognition.spellIR, recognition.ring, timestamp, {
 			portalFit: ui.portalFit
 		});
 	};
@@ -251,7 +255,7 @@ export class SimulatorRuntime {
 		this.#input?.disable();
 		this.#input = null;
 		this.#attachedGlyphCanvas = null;
-		this.#effectRenderer = null;
+		this.#castRenderer = null;
 		this.#rendererEffectCanvas = null;
 	}
 

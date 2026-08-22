@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { drawCandidateDebug } from '../src/lib/renderer/glyphOverlayRenderer.js';
+import { drawCandidateDebug } from '../src/lib/renderer/glyphDebugOverlay.js';
 import type { Recognition, SymbolCandidate } from '../src/lib/types.js';
 
 /** Minimal 2D context that records the text the overlay draws. */

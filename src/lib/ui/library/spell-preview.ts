@@ -3,6 +3,9 @@
  * book. Follows the Spell Effect Lab's preview pattern: the stored drawing is
  * inked onto a glyph canvas while the real {@link SpellEffectRenderer} plays
  * the stored IR over it, against a synthetic sealed ring. No recognition runs.
+ *
+ * Still on the field engine after the phase 5 cutover, so it moves to
+ * `CastRenderer` with the rest of the deletion. See `docs/animation-redesign.md`.
  */
 import { CONFIG } from '$lib/config.js';
 import { bakePlacementToStrokes } from '$lib/input/shapeBaker.js';
@@ -140,10 +143,7 @@ export class SpellPreviewDriver {
 		this.#effectRenderer.render(
 			{ ...this.#ir, activatedAt: this.#activatedAt },
 			this.#ring,
-			timestamp,
-			{
-				showGuides: false
-			}
+			timestamp
 		);
 		const elapsed = performance.now() - this.#activatedAt;
 		if (!this.#endedFired && elapsed > this.#ir.duration * 1000 + END_GRACE_MS) {
