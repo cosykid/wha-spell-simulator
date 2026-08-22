@@ -1,7 +1,9 @@
 # Animation System Redesign
 
-Status: draft, 2026-08-22. The plan for replacing the effect renderer and the
-`SpellField` model. The behavioral rulings it implements live in
+Status: implemented through phase 5a (the cutover), 2026-08-22. Phases 0
+through 4 and the simulator switch are on main; only the phase 5 deletions
+(`field/`, `renderer/effects/`, `SpellIR.field`, the lab engine flag) and the
+optional phase 6 remain. The plan below is kept as written for the record. The behavioral rulings it implements live in
 [`animation-spec.md`](animation-spec.md). Supersedes
 [`Plan for converting spells to animations.md`](<Plan for converting spells to animations.md>)
 and, on cutover, [`effect-rendering.md`](effect-rendering.md).
