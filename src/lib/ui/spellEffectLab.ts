@@ -6,8 +6,19 @@
  */
 import { clamp } from '../utils/geometry.js';
 import { directionFromTiltAngles } from '../compiler/spellDirection.js';
+import { emptySealReading, readSeal } from '../compiler/reading/readSeal.js';
+import { resolvePlan } from '../compiler/plan/resolvePlan.js';
 import { emptySpellField, spellFieldSignature } from '../field/buildSpellField.js';
-import type { SpellIR, Manifestation, ElementId, AppConfig, SpellField } from '../types.js';
+import type {
+	AppConfig,
+	ElementId,
+	GlyphAST,
+	Manifestation,
+	Recognition,
+	SealReading,
+	SpellField,
+	SpellIR
+} from '../types.js';
 
 /** A single slider control definition. */
 interface ControlDef {
@@ -188,6 +199,22 @@ export function elementForSigil(sigil: string): ElementId {
 	return SIGIL_OPTIONS.find((option) => option.id === sigil)?.element ?? DEFAULT_ELEMENT;
 }
 
+/**
+ * The seal a sign preset stands for, gated into a `SealReading` the Plan layer
+ * can resolve. Everything a drawing would contribute besides its signs — ring
+ * neatness, sigil confidence, symmetry — is pinned, so a preset's plan is a
+ * function of its signs alone. That is what makes the plan goldens stable.
+ */
+export function readPresetSeal(signs: Recognition[], sigil: string): SealReading {
+	return readSeal({
+		ring: { found: true, complete: true, neatness: 1 },
+		signs,
+		primarySigil: { id: sigil, element: elementForSigil(sigil), confidence: 1 },
+		globalMetrics: { neatness: 1, radialSymmetry: 1 },
+		unknowns: []
+	} as unknown as GlyphAST);
+}
+
 /** Builds the initial { key: value } map from the control definitions. */
 export function defaultControlValues(): ControlValues {
 	return Object.fromEntries(
@@ -270,7 +297,8 @@ export function buildSpellIR({
 	sigil,
 	activatedAt,
 	config,
-	field
+	field,
+	reading
 }: {
 	values: ControlValues;
 	element: ElementId;
@@ -279,6 +307,8 @@ export function buildSpellIR({
 	config: AppConfig;
 	/** Optional sign force field, synthesized by the lab's sign presets. */
 	field?: SpellField;
+	/** Optional gated reading of the same preset signs; the plan follows from it. */
+	reading?: SealReading;
 }): SpellIR {
 	const { effectScale, force, spread, focus, gravity, duration, stability } =
 		values as Required<ControlValues>;
@@ -294,6 +324,7 @@ export function buildSpellIR({
 	) as SpellIR['direction'];
 	const { primaryManifestation, manifestations } = buildManifestations(values);
 	const spellField = field ?? emptySpellField();
+	const sealReading = reading ?? emptySealReading();
 
 	return {
 		type: 'SpellIR',
@@ -312,6 +343,8 @@ export function buildSpellIR({
 		primaryManifestation,
 		manifestations,
 		field: spellField,
+		reading: sealReading,
+		plan: resolvePlan(sealReading),
 		direction,
 		directionCoherence: clamp(Math.hypot(direction.x, direction.y), 0, 1),
 		gravity,

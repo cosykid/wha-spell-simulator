@@ -1,0 +1,19 @@
+plan v1
+sigil       water
+element     water
+mode        create
+budget      0.000
+aim         (0.000, 0.000, 0.000)
+dispersion  0.000
+circulation 0.000
+focus       1.000
+quality     0.984
+aperture    disc
+exhaust     (0.000, 0.000, 0.000)
+hardness    0.000
+reach       1.000
+hold        none
+intake      budget=9.425 draw=0.000 swirl=-7.540 lateral=(0.000, 0.000)
+vessel      none
+couplings   none
+notes       intake-only

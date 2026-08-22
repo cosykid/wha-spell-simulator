@@ -9,6 +9,8 @@ import {
 import { directionFromSurfaceVector } from './spellDirection.js';
 import { calculateSpellQuality, calculateSpellStability } from './spellQuality.js';
 import { buildSpellField, emptySpellField, spellFieldSignature } from '../field/buildSpellField.js';
+import { emptySealReading, readSeal } from './reading/readSeal.js';
+import { inertPlan, resolvePlan } from './plan/resolvePlan.js';
 import type {
 	AppConfig,
 	GlobalMetrics,
@@ -80,6 +82,8 @@ function invalidSpell(status: string, glyphAST: GlyphASTLike, warnings: string[]
 		primaryManifestation: 'none',
 		manifestations: {},
 		field: emptySpellField(),
+		reading: emptySealReading(),
+		plan: inertPlan(),
 		direction: { x: 0, y: 0, z: 1, xTiltDeg: 0, yTiltDeg: 0, tiltFromZDeg: 0 },
 		directionCoherence: 0,
 		gravity: 1,
@@ -160,12 +164,21 @@ export function carrySpellActivation(previous: SpellIR | null, next: SpellIR): S
 	return { ...next, activatedAt: previous.activatedAt };
 }
 
+/**
+ * Compiles a parsed drawing into the spell the renderer animates.
+ *
+ * `previous` is the last compile of the same drawing, used only so the reading's
+ * facing hysteresis survives a recompile. Omit it and every facing quantizes
+ * fresh, which is correct but flappier across recognition passes.
+ */
 export function compileSpell({
 	glyphAST,
-	config
+	config,
+	previous = null
 }: {
 	glyphAST: GlyphAST;
 	config: AppConfig;
+	previous?: SpellIR | null;
 }): SpellIR {
 	if (!glyphAST?.ring?.found) {
 		return invalidSpell('No ring detected', glyphAST ?? { globalMetrics: {} });
@@ -214,6 +227,11 @@ export function compileSpell({
 	const { primaryManifestation, manifestations, manifestationInfluence } =
 		aggregateManifestations(signs);
 	const field = buildSpellField(signs);
+	// The Plan layer rides alongside the field until the phase 5 cutover. It is
+	// deliberately absent from `signature`: the field still drives rendering, so
+	// a plan change must not reset particles.
+	const reading = readSeal(glyphAST, previous?.reading ?? null);
+	const plan = resolvePlan(reading);
 	const deltas = aggregateSemanticDeltas(signs);
 	const surfaceDirection = signs.length ? combineSignDirection(signs) : { x: 0, y: 0, strength: 0 };
 	const directionCoherence = surfaceDirection.strength ?? 0;
@@ -281,6 +299,8 @@ export function compileSpell({
 		primaryManifestation,
 		manifestations,
 		field,
+		reading,
+		plan,
 		direction,
 		directionCoherence,
 		gravity,

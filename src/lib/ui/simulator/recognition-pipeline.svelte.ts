@@ -253,7 +253,14 @@ export class RecognitionPipeline {
 		this.#previousRing = this.#pipeline.ring;
 		this.#spellIR = carrySpellActivation(
 			this.#spellIR,
-			compileSpell({ glyphAST: this.#pipeline.glyphAST, config: CONFIG })
+			// The previous compile carries the reading the facing hysteresis needs:
+			// the template pass and the ML pass read the same ink, and a facing
+			// resting on a class boundary must not change meaning between them.
+			compileSpell({
+				glyphAST: this.#pipeline.glyphAST,
+				config: CONFIG,
+				previous: this.#spellIR
+			})
 		);
 		this.summary = this.#computeSummary();
 		this.#options.setInputLocked(this.summary.inputLocked);

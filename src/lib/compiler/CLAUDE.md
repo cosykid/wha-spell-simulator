@@ -11,6 +11,10 @@ panel all read. This is where a drawing stops being geometry and starts having m
   `aggregateManifestations`, `aggregateSemanticDeltas`, `combineSignDirection`.
 - [`spellDirection.ts`](spellDirection.ts): the paper-local 3D `direction` vector, `z` out of the paper.
 - [`spellQuality.ts`](spellQuality.ts): `calculateSpellQuality` and `calculateSpellStability`.
+- [`reading/`](reading/): `readSeal` gates recognition noise into a `SealReading`. Downstream spell
+  code never sees a raw `Recognition`.
+- [`plan/`](plan/): `resolvePlan` turns that reading into a `SpellPlan`. **The only place canon
+  rulings live** — see below.
 
 Per-sign meaning is not authored here. It lives in the `semantic` block of each dictionary entry
 ([`../dictionary/signs/`](../dictionary/signs/)). `semanticRules.ts` only decides how those authored
@@ -26,12 +30,43 @@ numbers are weighted and merged.
    `invalidSpell(status, ...)` with a warning key from [`../parser/glyphWarnings.ts`](../parser/glyphWarnings.ts).
 2. Aggregation. Signs are weighted by `signInfluence` and folded into `manifestations`, `SemanticDeltas`,
    a surface direction, and the typed `field` built by [`../field/buildSpellField.ts`](../field/buildSpellField.ts).
+   The same signs also go through `readSeal` and `resolvePlan`, which hang `reading` and `plan` on the IR
+   alongside the field. Neither drives rendering yet.
 3. Scalars. `focus`, `spread`, `force`, `range`, `duration`, `gravity`, `strength`, and `effectScale` come
    from `SPELL_PARAMETER_TUNING` plus the primary sigil's own semantic plus the sign deltas.
 4. Signature. A digest of everything the renderer animates from.
 
 Field-by-field reference: [`docs/spell-ir.md`](../../../docs/spell-ir.md). Parser side:
 [`docs/glyph-ast.md`](../../../docs/glyph-ast.md).
+
+## The Plan layer (`plan/`)
+
+`resolvePlan(reading)` is the only place canon rulings take effect. Its shape is R-13 plus PDF defect
+L in [`docs/animation-spec.md`](../../../docs/animation-spec.md): gather every family's budget, then
+resolve. Each family owns a different verb and its own budget, so nothing overrides anything.
+
+- [`columns.ts`](plan/columns.ts) — R-05's `(S, P, C, Gamma)` fold, `aimVector`, `dispersionScalar`.
+  Levitation and pull reuse `foldAggregate`: same algebra, separate budgets.
+- [`region.ts`](plan/region.ts) — R-09 as a ranked rule table, over the classes
+  [`chevrons.ts`](plan/chevrons.ts) reads (count, radial position, quantized facing). Rows match on
+  classes, never on a threshold over fused geometry.
+- [`hold.ts`](plan/hold.ts) the spring · [`intake.ts`](plan/intake.ts) the ambient coupling ·
+  [`focus.ts`](plan/focus.ts) the lens.
+- [`snap.ts`](plan/snap.ts) — the canon-snap seam, shipping empty. Its header documents the
+  fingerprint scheme.
+- [`planText.ts`](plan/planText.ts) — the golden and lab-panel text form.
+
+Rules for working in here:
+
+- **A ruling is a table row, not a branch.** Sigil class, manifestation family and the region rows are
+  data. If a change wants an `if`, it probably wants a row.
+- **Every manifestation resolves to something.** An unruled sign still pays its ink into the budget and
+  emits an `unmodeled-<manifestation>` note. Never throw, never drop (PDF defect I).
+- **Never silently answer an open canon question.** Take the least-committal default, tag it with a
+  `PlanNote`, and leave a comment citing the question number from the spec's open list.
+- **Law tests cite ruling ids.** [`tests/spellPlan.test.ts`](../../../tests/spellPlan.test.ts) names the
+  ruling each test pins, and [`tests/golden/plans/`](../../../tests/golden/plans/) holds one text
+  snapshot per lab preset. A ruling change edits both, visibly.
 
 ## Invariants and gotchas
 
@@ -56,7 +91,16 @@ changes when a running effect restarts, so treat any edit as a renderer behavior
 at coarser rounding if it should be a hot knob, or leave it out if it should tune in place.
 
 **Every field set in `compileSpell` must also be set in `invalidSpell`.** They are the only two
-constructors of `SpellIR` and consumers read fields unguarded.
+constructors of `SpellIR` and consumers read fields unguarded. `invalidSpell` uses `emptySealReading()`
+and `inertPlan()` the way it uses `emptySpellField()`, so the three states stay coherent.
+
+**`reading` and `plan` are deliberately absent from `signature`.** The field still drives rendering, so
+folding a plan change into the reset key would restart particles for a change nothing paints yet. Fold
+them in at the phase 5 cutover, together with dropping `field`.
+
+**`compileSpell` takes an optional `previous` SpellIR.** Only the reading uses it, for facing
+hysteresis across the template and ML passes over the same ink. It is passed at the one production
+callsite, beside `carrySpellActivation`; omit it and every facing quantizes fresh.
 
 **`signInfluence` is shared with the field builder.** `buildSpellField` uses it for source strengths, so
 retuning `SIGN_INFLUENCE_TUNING` moves both the scalar channel and the force field at once.
@@ -84,6 +128,8 @@ numbers at the use site.
 - **New `SpellIR` field**: declare it in [`../types/spell-ir.ts`](../types/spell-ir.ts), fill it in both
   `compileSpell` and `invalidSpell`, fold it into `signature` if the renderer animates from it, and
   document it in `docs/spell-ir.md`.
+- **New or changed canon ruling**: it belongs in `plan/`, never here and never in the renderer. A
+  ruling change is a law test edit plus a plan golden rewrite, both visible in review.
 
 ## Related
 

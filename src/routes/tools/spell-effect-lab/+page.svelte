@@ -10,14 +10,17 @@
 		defaultControlValues,
 		elementForSigil,
 		formatControlValue,
+		readPresetSeal,
 		valuesFromSpellIR
 	} from '$lib/ui/spellEffectLab.js';
 	import { FIELD_PRESETS, presetById } from '$lib/ui/spellEffectLabPresets.js';
 	import { buildSpellField } from '$lib/field/buildSpellField.js';
+	import { resolvePlan } from '$lib/compiler/plan/resolvePlan.js';
 	import { roundDeep } from '$lib/utils/json.js';
 	import { page } from '$app/state';
 	import { onMount } from 'svelte';
 	import { LabPreview } from './lab-preview.js';
+	import PlanPanel from './PlanPanel.svelte';
 	import { readGoldenFrameRequest } from './lab-goldens.js';
 
 	const controlEntries = Object.entries(EFFECT_CONTROLS);
@@ -30,6 +33,8 @@
 	let presetId = $state(goldenFrame?.presetId ?? 'none');
 	const preset = $derived(presetById(presetId));
 	const field = $derived(buildSpellField(preset.signs));
+	const reading = $derived(readPresetSeal(preset.signs, sigil));
+	const plan = $derived(resolvePlan(reading));
 	let values = $state<Record<string, number>>(defaultControlValues());
 	let irInput = $state('');
 	let activatedAt = $state(0);
@@ -41,7 +46,7 @@
 	let preview: LabPreview | null = null;
 
 	const irJson = $derived(
-		roundDeep(buildSpellIR({ values, element, sigil, activatedAt, config: CONFIG, field }))
+		roundDeep(buildSpellIR({ values, element, sigil, activatedAt, config: CONFIG, field, reading }))
 	);
 
 	$effect(() => {
@@ -78,7 +83,9 @@
 
 	async function copyIR() {
 		const json = JSON.stringify(
-			roundDeep(buildSpellIR({ values, element, sigil, activatedAt, config: CONFIG, field })),
+			roundDeep(
+				buildSpellIR({ values, element, sigil, activatedAt, config: CONFIG, field, reading })
+			),
 			null,
 			2
 		);
@@ -179,6 +186,8 @@
 				</label>
 			{/each}
 		</section>
+
+		<PlanPanel {plan} />
 
 		<section class="diagnostic-block">
 			<h2>Paste IR</h2>

@@ -1,0 +1,339 @@
+/**
+ * Law tests for the Plan layer. Every test cites the ruling it pins, by id, from
+ * `docs/animation-spec.md`. A test that pins a guess instead of a ruling is how
+ * the last two attempts froze canon by accident, so the citation is the point:
+ * re-ruling must be a visible edit here, never a tuning drift.
+ */
+
+import assert from 'node:assert/strict';
+import test from 'node:test';
+
+import { classifyTwist } from '../src/lib/compiler/reading/facing.js';
+import { FACING_TRUST_FLOOR } from '../src/lib/compiler/reading/trust.js';
+import { aimVector, dispersionScalar, foldAggregate } from '../src/lib/compiler/plan/columns.js';
+import { resolvePlan } from '../src/lib/compiler/plan/resolvePlan.js';
+import { resolveRegion } from '../src/lib/compiler/plan/region.js';
+import { planFingerprint, snapPlan } from '../src/lib/compiler/plan/snap.js';
+import { signedAngleDifferenceDeg, vectorFromAngleDeg } from '../src/lib/utils/geometry.js';
+import { readRealDictionary } from './dictionaryFixtures.js';
+import type { SealReading, SignReading, Vec3 } from '../src/lib/types.js';
+
+interface SignOptions {
+	manifestation?: string;
+	/** Ring bearing of the sign: 0 east, 90 top. */
+	atDeg?: number;
+	/** Distance from the seal center; 1 is the rim, so the radial weight is 1. */
+	radius?: number;
+	/** Bearing the sign points toward. Defaults to inward. */
+	facingDeg?: number;
+	length?: number;
+	facingTrust?: number;
+	power?: number;
+}
+
+/**
+ * A gated sign, built the way the reading builds one: the facing class follows
+ * from the twist away from inward rather than being asserted by hand.
+ */
+function sign(options: SignOptions = {}): SignReading {
+	const atDeg = options.atDeg ?? 0;
+	const radius = options.radius ?? 1;
+	const at = vectorFromAngleDeg(atDeg);
+	const facingDeg = options.facingDeg ?? atDeg + 180;
+	const manifestation = options.manifestation ?? 'column';
+	return {
+		id: manifestation,
+		manifestation,
+		at: { x: at.x * radius, y: at.y * radius },
+		length: options.length ?? 1,
+		facing: vectorFromAngleDeg(facingDeg),
+		facingClass: classifyTwist(signedAngleDifferenceDeg(atDeg + 180, facingDeg)),
+		facingSource: 'ml-pose',
+		facingTrust: options.facingTrust ?? 0.9,
+		power: options.power ?? 0.7
+	};
+}
+
+function reading(signs: SignReading[], overrides: Partial<SealReading> = {}): SealReading {
+	return {
+		signs,
+		sigil: 'water',
+		element: 'water',
+		quality: 1,
+		symmetry: null,
+		notes: [],
+		...overrides
+	};
+}
+
+function round(value: number): number {
+	const rounded = Math.round(value * 1e6) / 1e6;
+	// A rounded-away negative would otherwise fail a deep-equal against 0.
+	return rounded === 0 ? 0 : rounded;
+}
+
+function roundVec3(vector: Vec3): Vec3 {
+	return { x: round(vector.x), y: round(vector.y), z: round(vector.z) };
+}
+
+test('[R-05] two opposed inward columns clash into a purely vertical aim', () => {
+	// The PDF's worked example, with a 2D input: l = 1, w = 1 at +x and -x.
+	const aggregate = foldAggregate([sign({ atDeg: 0 }), sign({ atDeg: 180 })]);
+
+	assert.equal(round(aggregate.budget), 2, 'S sums the drawn lengths');
+	assert.equal(round(aggregate.lateral.x), 0, 'P cancels');
+	assert.equal(round(aggregate.lateral.y), 0, 'P cancels');
+	assert.equal(round(aggregate.convergence), 2, 'C is the clash, never an input');
+	assert.deepEqual(roundVec3(aimVector(aggregate)), { x: 0, y: 0, z: 2 });
+	assert.equal(dispersionScalar(aggregate), 0);
+});
+
+test('[R-05] the aim leans where the long sign points, not toward where it sits', () => {
+	// Canon's sign-length demo: the long column is drawn on the left and points
+	// right, so the jet throws right. The first field implementation shipped this
+	// lean inverted and pinned it in place with its own tests.
+	const plan = resolvePlan(
+		reading([sign({ atDeg: 180, length: 2 }), sign({ atDeg: 0, length: 1 })])
+	);
+
+	assert.ok(plan.aim.x > 0, `aim should tilt +x, got ${plan.aim.x}`);
+	assert.ok(plan.aim.z > 0, 'the inward pair still clashes upward');
+});
+
+test('[R-05] a tangential pinwheel of columns is circulation, not aim', () => {
+	// Positive circulation is counter-clockwise seen from +z, which on screen is
+	// a facing twisted -90 from inward.
+	const counterClockwise = foldAggregate(
+		[0, 120, 240].map((atDeg) => sign({ atDeg, facingDeg: atDeg + 90 }))
+	);
+	const clockwise = foldAggregate(
+		[0, 120, 240].map((atDeg) => sign({ atDeg, facingDeg: atDeg + 270 }))
+	);
+
+	assert.ok(counterClockwise.circulation > 0, 'counter-clockwise reads positive');
+	assert.ok(clockwise.circulation < 0, 'clockwise reads negative');
+	assert.equal(round(counterClockwise.convergence), 0, 'a pinwheel neither converges nor fans');
+	assert.equal(round(Math.hypot(counterClockwise.lateral.x, counterClockwise.lateral.y)), 0);
+});
+
+test('[R-06] a sign below the trust floor adds power, not direction', () => {
+	const trusted = resolvePlan(reading([sign({ atDeg: 0 })]));
+	const withSloppy = resolvePlan(
+		reading([sign({ atDeg: 0 }), sign({ atDeg: 90, facingTrust: FACING_TRUST_FLOOR - 0.01 })])
+	);
+
+	assert.equal(round(withSloppy.budget), round(trusted.budget) + 1, 'its length still counts');
+	assert.deepEqual(roundVec3(withSloppy.aim), roundVec3(trusted.aim), 'the aim is untouched');
+	assert.equal(withSloppy.dispersion, trusted.dispersion);
+	assert.equal(withSloppy.circulation, trusted.circulation);
+});
+
+test('[R-07] outward columns fan instead of aiming', () => {
+	const plan = resolvePlan(
+		reading([sign({ atDeg: 0, facingDeg: 0 }), sign({ atDeg: 180, facingDeg: 180 })])
+	);
+
+	assert.equal(plan.aim.z, 0, 'a divergent ring has no vertical clash');
+	assert.equal(round(plan.dispersion), 2, 'C < 0 becomes the plane-hugging fan');
+	assert.equal(round(Math.hypot(plan.aim.x, plan.aim.y)), 0);
+});
+
+test('[R-08] dispersion contributes the same geometry and differs only in timing', () => {
+	const arrangement = (manifestation: string) => [
+		sign({ manifestation, atDeg: 0, facingDeg: 0 }),
+		sign({ manifestation, atDeg: 180, facingDeg: 180 })
+	];
+	const columns = resolvePlan(reading(arrangement('column')));
+	const dispersions = resolvePlan(reading(arrangement('dispersion')));
+
+	assert.deepEqual(roundVec3(dispersions.aim), roundVec3(columns.aim));
+	assert.equal(dispersions.dispersion, columns.dispersion);
+	assert.equal(dispersions.budget, columns.budget);
+	assert.ok(dispersions.notes.includes('dispersion-leak'), 'the score reads the leak from here');
+	assert.ok(!columns.notes.includes('dispersion-leak'));
+});
+
+test('[R-09] rule 1: a seal with no chevrons emits from the whole disc', () => {
+	const region = resolveRegion([]);
+
+	assert.equal(region.row, 1);
+	assert.equal(region.aperture.kind, 'disc');
+	assert.deepEqual(region.exhaust, { x: 0, y: 0, z: 0 }, 'omnidirectional');
+	assert.equal(region.hardness, 0);
+	assert.equal(region.reach, 1);
+});
+
+test('[R-09] rule 2: an all-inward rim ring collimates the whole disc upward', () => {
+	const region = resolveRegion([0, 120, 240].map((atDeg) => sign({ atDeg })));
+
+	assert.equal(region.row, 2);
+	assert.equal(region.aperture.kind, 'disc');
+	assert.deepEqual(region.exhaust, { x: 0, y: 0, z: 1 });
+	assert.ok(region.hardness > 0, 'hardness grows with member count');
+	assert.ok(region.reach > 1, 'so does reach');
+});
+
+test('[R-09] rule 3: an all-outward rim ring relocates the source to a moat', () => {
+	const region = resolveRegion([0, 120, 240].map((atDeg) => sign({ atDeg, facingDeg: atDeg })));
+
+	assert.equal(region.row, 3);
+	assert.deepEqual(region.aperture, { kind: 'annulus', inner: 1, outer: 1.5 });
+	assert.ok(region.exhaust.z > 0, 'outward, plus a small rise');
+	assert.equal(round(Math.hypot(region.exhaust.x, region.exhaust.y)), 0, 'radial has no one side');
+});
+
+test('[R-09] rule 6: crossed chevrons at the center pin manifestation to a point', () => {
+	const region = resolveRegion([
+		sign({ atDeg: 0, radius: 0.1 }),
+		sign({ atDeg: 90, radius: 0.1, facingDeg: 90 })
+	]);
+
+	assert.equal(region.row, 6);
+	assert.deepEqual(region.aperture, { kind: 'point', at: { x: 0, y: 0 } });
+	assert.deepEqual(region.exhaust, { x: 0, y: 0, z: 1 });
+});
+
+test('[R-09] rule 7: a lone inward rim chevron biases the disc away from itself', () => {
+	const region = resolveRegion([sign({ atDeg: 0 })]);
+
+	assert.equal(region.row, 7);
+	assert.equal(region.aperture.kind, 'disc');
+	const bias = region.aperture.kind === 'disc' ? region.aperture.bias : undefined;
+	assert.ok(bias, 'the disc carries a bias');
+	assert.ok(bias.x < 0, 'the chevron sits at +x, so the bias goes the other way');
+});
+
+test('[R-09] no cliff: one degree of separation cannot flip a rule', () => {
+	// The table matches on classes — count, radial position, facing — so the 60
+	// degrees of azimuth that used to gate chevron fusion is not a threshold any
+	// more. Neighbouring arrangements resolve identically.
+	const ringAt = (second: number, fourth: number) =>
+		resolveRegion([0, second, 180, fourth].map((atDeg) => sign({ atDeg })));
+	const narrow = ringAt(59, 239);
+	const wide = ringAt(60, 240);
+
+	assert.equal(narrow.row, wide.row);
+	assert.deepEqual(narrow.aperture, wide.aperture);
+	assert.deepEqual(narrow.exhaust, wide.exhaust);
+});
+
+test('[R-10] the sigil class table decides create versus manipulate', () => {
+	const modeOf = (sigil: string, element: SealReading['element']) =>
+		resolvePlan(reading([], { sigil, element })).mode;
+
+	assert.equal(modeOf('fire', 'fire'), 'create');
+	assert.equal(modeOf('water', 'water'), 'create');
+	assert.equal(modeOf('light', 'light'), 'create');
+	assert.equal(modeOf('wind-directs-air', 'wind'), 'manipulate');
+	assert.equal(modeOf('earth', 'earth'), 'manipulate');
+	// The two sigils whose dictionary source notes say they create, against the
+	// default their element would give them.
+	assert.equal(modeOf('crystal', 'earth'), 'create');
+	assert.equal(modeOf('aeroform', 'wind'), 'create');
+});
+
+test('[R-11] a pull-only seal manifests nothing of its own, and says so', () => {
+	const plan = resolvePlan(
+		reading([
+			sign({ manifestation: 'pull', atDeg: 0 }),
+			sign({ manifestation: 'pull', atDeg: 180 })
+		])
+	);
+
+	assert.equal(plan.budget, 0, 'the whole output is spent on the ambient coupling');
+	assert.ok(plan.intake, 'the pull family owns its own budget');
+	assert.equal(round(plan.intake.draw), 2, 'inward pulls inhale');
+	assert.ok(plan.notes.includes('intake-only'), 'nothing is a look, never an empty canvas');
+});
+
+test('[R-13] each family owns a separate budget: levitation never moves the column aim', () => {
+	const columns = [sign({ atDeg: 0 }), sign({ atDeg: 180 })];
+	const alone = resolvePlan(reading(columns));
+	const withHold = resolvePlan(
+		reading([...columns, sign({ manifestation: 'levitation', atDeg: 90 })])
+	);
+
+	assert.deepEqual(roundVec3(withHold.aim), roundVec3(alone.aim));
+	assert.equal(withHold.budget, alone.budget, 'the levitation ink pays into its own budget');
+	assert.equal(withHold.circulation, alone.circulation);
+	assert.ok(withHold.hold, 'and resolves to a hold');
+	assert.deepEqual(
+		withHold.couplings,
+		[{ holder: 'hold', captures: ['burst', 'jet'] }],
+		'where the plan combines primitives, it declares the coupling'
+	);
+});
+
+test('[R-13] the convergence lens is one-sided and touches no other budget', () => {
+	const columns = [sign({ atDeg: 0 }), sign({ atDeg: 180 })];
+	const plain = resolvePlan(reading(columns));
+	const lensed = resolvePlan(
+		reading([...columns, sign({ manifestation: 'convergence', atDeg: 90 })])
+	);
+
+	assert.equal(plain.focus, 1, 'no convergence ink is no lens');
+	assert.ok(lensed.focus > 1);
+	assert.deepEqual(roundVec3(lensed.aim), roundVec3(plain.aim));
+	assert.equal(lensed.budget, plain.budget);
+});
+
+test('[open canon question 2] cancelled ink keeps its budget and names the case', () => {
+	// Two inward columns and two outward ones: every moment cancels. The default
+	// stays least-committal — the budget survives and the arrangement is tagged,
+	// so "your drawing did nothing" can be designed rather than rendered blank.
+	const plan = resolvePlan(
+		reading([
+			sign({ atDeg: 0 }),
+			sign({ atDeg: 180 }),
+			sign({ atDeg: 90, facingDeg: 90 }),
+			sign({ atDeg: 270, facingDeg: 270 })
+		])
+	);
+
+	assert.equal(round(plan.budget), 4);
+	assert.deepEqual(roundVec3(plan.aim), { x: 0, y: 0, z: 0 });
+	assert.equal(round(plan.dispersion), 0);
+	assert.ok(plan.notes.includes('inert-quadrupole'));
+});
+
+test('[open canon question 1] unopposed convergence keeps the flux law and is tagged', () => {
+	const plan = resolvePlan(reading([sign({ atDeg: 0 })]));
+
+	assert.ok(plan.aim.z > 0, 'the flux law R-05 lifts a lone rim sign');
+	assert.ok(plan.notes.includes('unopposed-convergence'), 'and the arrangement is visible');
+});
+
+test('[open canon questions 3, 4] levitation with no grip is a dud, tagged', () => {
+	const plan = resolvePlan(
+		reading([sign({ manifestation: 'levitation', atDeg: 0, facingDeg: 0 })])
+	);
+
+	assert.equal(plan.hold, null, 'no invented rotor, no invented repulsor');
+	assert.ok(plan.notes.includes('levitation-without-grip'));
+});
+
+test('[PDF defect I] every manifestation in the dictionary resolves to something', () => {
+	for (const entry of readRealDictionary().signs) {
+		const manifestation = entry.semantic?.manifestation;
+		assert.ok(manifestation, `${entry.id} has no manifestation`);
+		const plan = resolvePlan(reading([sign({ manifestation, atDeg: 0 })]));
+		const resolved =
+			plan.budget > 0 ||
+			plan.hold !== null ||
+			plan.intake !== null ||
+			plan.focus > 1 ||
+			plan.hardness > 0;
+		assert.ok(resolved, `${manifestation} resolved to nothing at all`);
+		if (!plan.notes.some((note) => note.startsWith('unmodeled-'))) {
+			continue;
+		}
+		assert.ok(plan.budget > 0, `unmodeled ${manifestation} must still pay into the budget`);
+	}
+});
+
+test('[PDF defect J] the canon snap seam ships as a passthrough', () => {
+	const plan = resolvePlan(reading([sign({ atDeg: 0 }), sign({ atDeg: 180 })]));
+
+	assert.deepEqual(snapPlan(planFingerprint(plan), plan), plan);
+	assert.ok(planFingerprint(plan).includes('aim:up'), 'the fingerprint reads classes, not numbers');
+});
