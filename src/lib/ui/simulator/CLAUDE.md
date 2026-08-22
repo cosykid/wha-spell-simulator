@@ -44,14 +44,17 @@ land in `#applyClassifiedDrawing`, which compiles a fresh `SpellIR` and
 recomputes the summary.
 
 Rendering splits across two stacked canvases. The glyph `Scene` is built once and
-never mutated: each entity pulls live state through closures every frame. The
-effect canvas is not in the scene. It is driven by `Canvas`'s `onFrame` hook into
-`renderCanvasFrame`, which lazily builds a `SpellEffectRenderer` over
-`ui.effectCanvas`.
+never mutated: each entity pulls live state through closures every frame. It
+carries the ink, the activated-ink glow, and the seal guides (`sealGuidesEntity`,
+gated on `ui.showGuides`). The effect canvas is not in the scene. It is driven by
+`Canvas`'s `onFrame` hook into `renderCanvasFrame`, which lazily builds a
+[`CastRenderer`](../../cast/CLAUDE.md) over `ui.effectCanvas`.
 
 ## Invariants and gotchas
 
-- **Keep `carrySpellActivation`** ([`../../compiler/spellBuilder.ts`](../../compiler/spellBuilder.ts)). `#applyClassifiedDrawing` wraps every `compileSpell` in it. The template pass activates the spell and the ML pass recompiles it moments later, so a fresh `activatedAt` would restart the portal tilt and the whole effect timeline mid-cast. Any refactor that drops the wrap breaks casting in a way no unit test here catches.
+- **An active valid spell is a cast, and that is the whole dispatch.** `renderCanvasFrame` hands the IR to `CastRenderer` unconditionally: no ownership boolean, no fallback engine, no "did it draw anything" return value. R-11 makes "manifests nothing" a look, so the empty path the old renderer needed does not exist. The superseded field engine still lives in [`../../renderer/`](../../renderer/CLAUDE.md) for the Spell Effect Lab, pending its deletion; nothing on this route may reach for it.
+- **The effect canvas draws only casts.** Ring, prepared and invalid feedback are the glyph scene's, through `drawSealGuides`. They draw on flat, non-active states only, so the portal tilt never reaches them.
+- **Keep `carrySpellActivation`** ([`../../compiler/spellBuilder.ts`](../../compiler/spellBuilder.ts)). `#applyClassifiedDrawing` wraps every `compileSpell` in it. The template pass activates the spell and the ML pass recompiles it moments later, so a fresh `activatedAt` would restart the cast clock mid-performance and replay the charge beat. Any refactor that drops the wrap breaks casting in a way no unit test here catches.
 - **Recognition is sequence-guarded.** Each `recompute` takes `++#recomputeSeq`, `#applyClassifiedDrawing` drops results from an older sequence, and `cancelActiveRecognition()` bumps the counter to invalidate work already in flight. A superseded worker request rejects with `DrawingClassifierSupersededError`. Swallow it via `isDrawingClassifierSuperseded`, never surface it as a failure.
 - **Sealing the ring locks freehand input.** `summary.canvasLocked` (in [`../spellSummary.ts`](../spellSummary.ts)) turns true once the ring is complete, or when the structure is unsupported. An active seal is a cast in progress, not an editing surface. Erase or undo is the way back, not a new unlock path.
 - **Two writers set the capture lock**: the runtime `$effect` via `locksFreehandInput(canvasMode, canvasLocked)`, and the pipeline via `summary.inputLocked` through `setInputLocked`. Change one and change the other.

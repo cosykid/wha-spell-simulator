@@ -1,6 +1,11 @@
 # Effect Rendering Notes
 
-Note: The current renderer code is messy and implementation-heavy. It can be replaced with a better renderer as long as the replacement consumes the `SpellIR` contract described in `docs/spell-ir.md`.
+**Superseded.** Since the phase 5 cutover the simulator renders spells through
+`src/lib/cast/`, described in [`animation-redesign.md`](animation-redesign.md)
+and [`animation-spec.md`](animation-spec.md). Everything below documents the
+field engine, which now runs only in the Spell Effect Lab's `field` option and
+the library preview, and which the second half of phase 5 deletes. Kept until
+then so the code that still exists still has notes.
 
 The effect renderer turns `SpellIR` into particles on the effect canvas. It is visual-only code: gameplay meaning belongs in the compiler, while these files decide how a compiled spell should look.
 

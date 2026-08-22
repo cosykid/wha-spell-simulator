@@ -1,12 +1,12 @@
 /**
- * @file The cast engine: `SpellIR` in, pixels out, with the same driving
- * contract as the field renderer it replaces at phase 5. Swapping the two is
- * meant to be a one-line change at the call site.
+ * @file The cast engine: `SpellIR` in, pixels out. Since the phase 5 cutover it
+ * is the simulator's effect canvas, and the guides it never drew now live on the
+ * glyph canvas in `renderer/glyphOverlayRenderer.ts`.
  *
  * The clock starts at activation, not at the end of the portal tilt. R-01 makes
  * `charge` content rather than dead time, so the score's first beat spans the
- * tilt on purpose. It is silent this phase, and stops being silent when the
- * ambient medium lands in phase 4.
+ * tilt on purpose and the ambient medium draws in while the paper is still
+ * turning.
  *
  * There is no ownership flag and no fallback branch. A cast either has a clock,
  * in which case it paints its parcels, or it has none and paints nothing. R-11
@@ -24,13 +24,6 @@ import { activePortalPlane, portalScaledRing } from '../../portal/portal.js';
 import type { RingInfo, SpellIR, SpellScore } from '../../types.js';
 
 export interface CastRenderOptions {
-	/**
-	 * Ring, prepared and invalid feedback. The cast engine draws none of it: the
-	 * redesign moves that to `renderer/glyphOverlayRenderer.ts`, which draws on the
-	 * glyph canvas where the ink it annotates lives. Accepted so the call site is
-	 * identical to the field renderer's.
-	 */
-	showGuides?: boolean;
 	/** Fraction of canvas height on screen; scales the portal to match the CSS. Defaults to 1. */
 	portalFit?: number;
 }

@@ -1,5 +1,6 @@
 import { expect, type Locator, type Page } from '@playwright/test';
 import { type CastableSpell } from '../fixtures/sampleSpells.js';
+import * as castProbe from '../helpers/castProbe.js';
 import { circleStroke } from '../helpers/strokes.js';
 import { NormPoint, NormStroke, RingGeometry } from '../helpers/types.js';
 
@@ -7,6 +8,8 @@ export const DEFAULT_RING: RingGeometry = {
 	center: { x: 0.497, y: 0.517 },
 	radius: 0.471
 };
+
+export type { CastSample } from '../helpers/castProbe.js';
 
 export interface DrawStrokeOptions {
 	/**
@@ -28,6 +31,8 @@ export interface CastSpellOptions extends DrawStrokeOptions {
 }
 
 const DEFAULT_SETTLE_MS = 90;
+/** Longest a sealed ring may take to compile into an active spell. */
+const ACTIVATION_TIMEOUT_MS = 15_000;
 
 // The ring gap is centered at the bottom of the circle (90 degrees in screen
 // orientation, where +y points down).
@@ -216,58 +221,29 @@ export class SpellCanvasPage {
 	}
 
 	/**
+	 * Arms the in-page cast clock, which every {@link sampleCast} timestamp is
+	 * measured from. Call it before the sealing gesture.
+	 */
+	async armCastClock(): Promise<void> {
+		await castProbe.armCastClock(this.page);
+	}
+
+	/**
 	 * Seals the ring and measures the latency from completing the circle (the
 	 * sealing stroke's `pointerup`) to the status reading "Active spell".
 	 *
-	 * Timing is captured inside the page with `performance.now()`: a one-shot
-	 * `pointerup` listener marks circle completion and a `MutationObserver` on the
-	 * status element marks activation, so the result excludes Playwright/CDP
-	 * round-trip overhead. Resolves with the elapsed milliseconds.
+	 * Timing is captured inside the page with `performance.now()`, so the result
+	 * excludes Playwright/CDP round-trip overhead. Resolves with the elapsed
+	 * milliseconds.
 	 */
 	async measureActivation(ring: RingGeometry, gapDeg = DEFAULT_GAP_DEG): Promise<number> {
-		// Arm the in-page probes *before* the sealing gesture so the next pointerup
-		// is the one that completes the circle.
-		await this.page.evaluate(() => {
-			const status = document.querySelector('[data-testid="status-value"]');
-			const probe = window as unknown as { __sealUpAt?: number; __activeAt?: number };
-			probe.__sealUpAt = undefined;
-			probe.__activeAt = undefined;
-			const isActive = () => status?.textContent?.trim() === 'Active spell';
-			const observer = new MutationObserver(() => {
-				if (probe.__activeAt === undefined && isActive()) {
-					probe.__activeAt = performance.now();
-					observer.disconnect();
-				}
-			});
-			if (status) {
-				observer.observe(status, { childList: true, characterData: true, subtree: true });
-			}
-			window.addEventListener(
-				'pointerup',
-				() => {
-					probe.__sealUpAt = performance.now();
-				},
-				{ once: true, capture: true }
-			);
-		});
+		// Arm before the sealing gesture so the next pointerup is the one that
+		// completes the circle.
+		await this.armCastClock();
 
 		await this.drawStroke(this.sealArc(ring, gapDeg), { settleMs: 0 });
 
-		const timing = await this.page
-			.waitForFunction(
-				() => {
-					const probe = window as unknown as { __sealUpAt?: number; __activeAt?: number };
-					return probe.__sealUpAt !== undefined && probe.__activeAt !== undefined
-						? { sealUpAt: probe.__sealUpAt, activeAt: probe.__activeAt }
-						: null;
-				},
-				undefined,
-				{ timeout: 15_000 }
-			)
-			.then((handle) => handle.jsonValue());
-
-		if (!timing) return Infinity;
-		return timing.activeAt - timing.sealUpAt;
+		return castProbe.readActivationLatency(this.page, ACTIVATION_TIMEOUT_MS);
 	}
 
 	// --- High-level spell casting -------------------------------------------
@@ -289,11 +265,27 @@ export class SpellCanvasPage {
 		}
 	}
 
+	// --- Reading the cast ----------------------------------------------------
+
+	/** The effect canvas at each cast-relative timestamp, sampled in one page pass. */
+	async sampleCast(atMs: number[]): Promise<castProbe.CastSample[]> {
+		return castProbe.sampleCast(this.page, atMs);
+	}
+
+	/**
+	 * Waits for the one-shot to finish: resolves with the cast-relative
+	 * millisecond at which the effect canvas came up empty, or `deadlineMs` if it
+	 * never did.
+	 */
+	async waitForCastEnd(deadlineMs: number): Promise<number> {
+		return castProbe.waitForCastEnd(this.page, deadlineMs);
+	}
+
 	// --- Assertions ----------------------------------------------------------
 
 	/** Resolves once the spell has activated (ring sealed + sigil recognized). */
 	async expectActive(): Promise<void> {
-		await expect(this.statusValue).toHaveText('Active spell', { timeout: 15_000 });
+		await expect(this.statusValue).toHaveText('Active spell', { timeout: ACTIVATION_TIMEOUT_MS });
 		await expect(this.statusValue).toHaveAttribute('data-status-class', 'active');
 	}
 }

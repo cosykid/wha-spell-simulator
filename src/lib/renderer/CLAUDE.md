@@ -1,15 +1,32 @@
 # src/lib/renderer
 
-Turns a compiled `SpellIR` into pixels on the effect canvas. Visual only. What a
-spell _means_ is decided upstream by the compiler. This directory decides how it
-looks.
+Two things live here, and after the phase 5 cutover they no longer belong
+together:
+
+1. **The glyph overlay** — what the glyph canvas draws over its own ink. This is
+   the directory's future and it is production code.
+2. **The field engine** — the superseded effect renderer, kept alive for the
+   Spell Effect Lab's `field` option and the library's preview book. **Pending
+   deletion**, with `../field/`, `renderer/effects/` and `SpellIR.field`, in the
+   second half of phase 5. Do not build on it.
+
+The production effect path is [`../cast/`](../cast/CLAUDE.md). A spell that is
+active and valid is a cast, full stop: the simulator has no ownership boolean
+and no fallback branch, because R-11 makes "manifests nothing" a look.
 
 ## File map
 
-- [`spellEffectRenderer.ts`](spellEffectRenderer.ts) — `SpellEffectRenderer`, the
-  one entry point. Dispatch, `dt`, state reset, guide shapes.
-- [`glyphOverlayRenderer.ts`](glyphOverlayRenderer.ts) — draws on the **glyph**
-  canvas, not the effect canvas: activated ink glow, ring and candidate debug.
+The overlay (drawn on `#glyphCanvas`):
+
+- [`glyphOverlayRenderer.ts`](glyphOverlayRenderer.ts) — activated-ink glow, the
+  seal guides (`drawSealGuides`), and the ring debug circle.
+- [`glyphDebugOverlay.ts`](glyphDebugOverlay.ts) — the `showDiagnostics` layer:
+  candidate boxes, recognizer verdicts, stroke ids.
+
+The field engine (drawn on an effect canvas, lab and library only):
+
+- [`spellEffectRenderer.ts`](spellEffectRenderer.ts) — `SpellEffectRenderer`.
+  Dispatch, `dt`, state reset, `spellEmission`.
 - [`effects/effectUtils.ts`](effects/effectUtils.ts) — the shared model.
   `RenderSpellIR`, particle helpers, convergence, dispersion and bolt. The
   portal itself lives in [`../portal/`](../portal/CLAUDE.md).
@@ -22,23 +39,35 @@ looks.
 
 Two canvases are stacked. `#glyphCanvas` holds the ink and owns the only rAF
 loop; `#effectCanvas` sits above it and gets its frames through that loop's
-`onFrame` hook. `SpellEffectRenderer` owns `#effectCanvas` alone and clears it
-every frame.
+`onFrame` hook. In the simulator that hook drives
+[`../cast/render/castRenderer.ts`](../cast/render/castRenderer.ts) and nothing
+else.
 
-`render(spellIR, ring, timestamp, { showGuides, portalFit })` branches in order:
+`drawSealGuides(ctx, spellIR, ring, timestamp)` reports how a seal reads
+_before_ it casts, in three states: a faint amber ring glow on any idle ring, a
+teal pulse once the ring is prepared, and a dashed red flicker when the drawing
+will not compile. An active spell draws none of them. The simulator gates the
+whole thing on `ui.showGuides` in `glyph-scene.svelte.ts`'s `sealGuidesEntity`
+(z 40, above the ink, below the ring debug).
 
-1. No `ring.found` or no `spellIR` — draw nothing.
-2. `!spellIR.valid` — dashed red flicker.
-3. `spellIR.prepared` (ring drawn but not sealed) — teal pulse.
-4. `spellIR.field.sources.length > 0` — `drawFieldEffect`.
-5. Otherwise — `EFFECTS[spellIR.element]`, the per-element renderer.
+`SpellEffectRenderer.render(spellIR, ring, timestamp, { portalFit })` now branches
+on two things only:
 
-Steps 2 and 3 are guides: they draw only when `showGuides` is set, as does the
-faint ring glow on any inactive spell. Steps 4 and 5 draw with
-`globalCompositeOperation = 'lighter'` and receive a `RenderSpellIR` (the
-`SpellIR` plus `emission` and `portalFit`) and a portal-scaled copy of the ring.
+1. No `ring.found`, no `spellIR`, invalid, or prepared — draw nothing.
+2. `spellIR.field.sources.length > 0` — `drawFieldEffect`, otherwise
+   `EFFECTS[spellIR.element]`.
+
+Both draw with `globalCompositeOperation = 'lighter'` and receive a
+`RenderSpellIR` (the `SpellIR` plus `emission` and `portalFit`) and a
+portal-scaled copy of the ring.
 
 ## Invariants and gotchas
+
+**Guides are UI feedback, not spell behavior.** That is why they live on the
+glyph canvas beside the ink they annotate rather than on the effect canvas. They
+draw only on non-active states, and the glyph canvas is flat on all of them, so
+the portal tilt never touches them. Anything that draws while a spell is active
+belongs in [`../cast/`](../cast/CLAUDE.md).
 
 **This directory owns no portal numbers.** On activation the CSS in
 [`../styles/canvas.css`](../styles/canvas.css) shrinks and tilts `#glyphCanvas`
@@ -55,11 +84,11 @@ the paper it rose from cannot fall out of perspective.
 spell-effect lab route, which imports the portal through it. New code should
 import from `../portal/portal.js` directly.
 
-**`renderer.portalTiltMs` is the portal's, not the renderer's.**
-[`../config.ts`](../config.ts) reads it from `PORTAL.tiltMs`, which also writes
-the `--portal-tilt-duration` the CSS animates on. The renderer holds all emission
-back for that long so the paper visibly tilts before the spell erupts, which is
-the spec's charge beat (R-01). Tune it in `portal/portal.ts`.
+**`spellEmission`'s portal-tilt hold is the field engine's, not the product's.**
+It holds all emission back for `PORTAL.tiltMs`, which spends R-01's charge beat
+on an idle canvas. The cast engine replaces that: its clock starts at
+`activatedAt` and the charge carries the ambient medium. Nothing new should read
+`spellEmission`.
 
 **`dt` is 60fps frame units, not seconds.** Clamped to `[0.4, 2.5]`. Tune every
 velocity, acceleration and lifetime in per-frame units and multiply by `dt`.
@@ -69,40 +98,34 @@ deletes _every_ key on `EffectState`, not just `particles`. Never stash anything
 on `state` that must outlive a recompile. The compiler folds the field digest
 into the signature, so a field edit restarts the effect, while
 `carrySpellActivation` preserves `activatedAt` across the template to ML
-recompile so a refinement does not.
-
-**`emission` gates the whole timeline.** `spellEmission()` is 0 until
-`portalTiltMs` after `activatedAt`, 1 for `duration` (seconds, not ms), then
-fades over 420ms. Effects should read it through `effectOpacity`, never
-recompute their own end-of-spell fade.
+recompile so a refinement does not. The cast engine keys on the same signature
+for the same reason.
 
 **The field renderer differentiates elements only by palette.** `fieldEffect.ts`
-ignores `elementFlow`, `convergence` and the dispersion/bolt modifiers. Anything
-that must apply to sign-bearing spells belongs in the field, not here.
+ignores `elementFlow`, `convergence` and the dispersion/bolt modifiers.
 
 ## Extending
 
-- New look for a spell with signs: tune `FIELD_MOTION` / `PARTICLE_SHAPE` /
-  `ELEMENT_PALETTES` in `fieldEffect.ts`, or reshape the forces in
-  [`../field/`](../field/CLAUDE.md).
-- New element: add the `ElementId`, a palette entry in `fieldEffect.ts`, and a
-  `drawXEffect` registered in the `EFFECTS` table.
-- New shaping shared by all element effects (as dispersion and bolt are): add a
-  helper to `effectUtils.ts` and call it from each element file.
-- Iterate without drawing: `/tools/spell-effect-lab` drives this renderer from
+- **New look for a cast spell**: it is a look-table row in
+  [`../cast/looks/`](../cast/CLAUDE.md), never a change in here.
+- **New overlay feedback**: a function in `glyphOverlayRenderer.ts` and an
+  `Entity` in
+  [`../ui/simulator/glyph-scene.svelte.ts`](../ui/simulator/CLAUDE.md).
+- **The field engine**: leave it alone. It exists so the lab can still show what
+  the cast engine replaced, and it goes away with `field/`.
+- Iterate without drawing: `/tools/spell-effect-lab` drives both engines from
   canned sign arrangements.
 
 ## Related
 
 - [`../../../docs/animation-redesign.md`](../../../docs/animation-redesign.md) —
-  the planned replacement for this directory, with
+  the redesign, including what phase 5's deletion half removes, with
   [`animation-spec.md`](../../../docs/animation-spec.md) as its behavior rulings.
 - [`../../../docs/effect-rendering.md`](../../../docs/effect-rendering.md) — per
-  element behavior notes. It explicitly sanctions replacing everything here, as
-  long as the replacement consumes `SpellIR`.
+  element behavior notes for the field engine.
 - [`../../../docs/spell-ir.md`](../../../docs/spell-ir.md) — the input contract.
+- [`../cast/CLAUDE.md`](../cast/CLAUDE.md) — the production effect path.
 - [`../portal/CLAUDE.md`](../portal/CLAUDE.md) — the tilted paper and the
   projection every effect draws through.
-- [`../field/CLAUDE.md`](../field/CLAUDE.md) — the force field being rendered.
 - [`../ui/canvas/CLAUDE.md`](../ui/canvas/CLAUDE.md),
   [`../ui/simulator/CLAUDE.md`](../ui/simulator/CLAUDE.md) — rAF loop and wiring.

@@ -5,12 +5,13 @@ import { renderStrokeInk } from '$lib/ui/canvas/entities/strokeEntity.js';
 import { drawSelection } from '$lib/ui/canvas/selectionRenderer.js';
 import type { Entity } from '$lib/ui/canvas/entity.js';
 import { createScene, type Scene } from '$lib/ui/canvas/scene.svelte.js';
+import { drawCandidateDebug, drawStrokeIdDebug } from '$lib/renderer/glyphDebugOverlay.js';
 import {
-	drawCandidateDebug,
 	drawGlowingStrokes,
 	drawRingDebug,
-	drawStrokeIdDebug
+	drawSealGuides
 } from '$lib/renderer/glyphOverlayRenderer.js';
+import { totalMsFor } from '$lib/cast/score/beats.js';
 import type { SimulatorDrawingState } from './drawing-state.svelte.js';
 import { visibleCanvasShortAxis } from './layout.js';
 import type { RecognitionPipeline } from './recognition-pipeline.svelte.js';
@@ -94,6 +95,18 @@ function currentStrokeEntity({ config, currentStroke }: SimulatorGlyphSceneOptio
 	};
 }
 
+function sealGuidesEntity({ recognition, ui }: SimulatorGlyphSceneOptions): Entity {
+	return {
+		id: 'simulator-seal-guides',
+		z: 40,
+		render(ctx, timestamp) {
+			if (ui.showGuides) {
+				drawSealGuides(ctx, recognition.spellIR, recognition.ring, timestamp);
+			}
+		}
+	};
+}
+
 function ringDebugEntity({ recognition, ui }: SimulatorGlyphSceneOptions): Entity {
 	return {
 		id: 'simulator-ring-debug',
@@ -145,11 +158,7 @@ function selectionEntity({ drawing, ui }: SimulatorGlyphSceneOptions): Entity {
 	};
 }
 
-function activatedGlyphEntity({
-	config,
-	drawing,
-	recognition
-}: SimulatorGlyphSceneOptions): Entity {
+function activatedGlyphEntity({ drawing, recognition }: SimulatorGlyphSceneOptions): Entity {
 	return {
 		id: 'simulator-activated-glyph',
 		z: 100,
@@ -159,16 +168,15 @@ function activatedGlyphEntity({
 				return;
 			}
 
-			const glowActivatedAt =
-				typeof spellIR.activatedAt === 'number'
-					? spellIR.activatedAt + config.renderer.portalTiltMs
-					: spellIR.activatedAt;
+			// R-01: the ink brightens through the charge beat, so the glow runs from
+			// activation rather than from the end of the portal tilt, and it cools on
+			// the cast's own clock so the paper is done when the spell is.
 			drawGlowingStrokes(
 				ctx,
-				glowActivatedAt,
+				spellIR.activatedAt,
 				activatedStrokeIds(recognition.pipeline),
 				drawing.mergedStrokes(),
-				Math.max(250, spellIR.duration * 1000),
+				totalMsFor(spellIR.duration),
 				timestamp
 			);
 		}
@@ -182,6 +190,7 @@ export function createSimulatorGlyphScene(options: SimulatorGlyphSceneOptions): 
 		strokeLayerEntity(options),
 		placementLayerEntity(options),
 		currentStrokeEntity(options),
+		sealGuidesEntity(options),
 		ringDebugEntity(options),
 		diagnosticsEntity(options),
 		selectionEntity(options),

@@ -45,10 +45,11 @@ there for painter-order sorting and size attenuation, which is most of why flat
   tilt and the ellipse stops matching until `scaleY` is re-fitted against a
   screenshot of the activated paper.
 - **`PORTAL.tiltMs` is the spec's charge beat (R-01).** It is both the CSS
-  animation length and the emission hold in
-  [`../renderer/spellEffectRenderer.ts`](../renderer/spellEffectRenderer.ts), so
-  the paper always finishes tilting before the spell erupts.
-  `CONFIG.renderer.portalTiltMs` reads it from here.
+  animation length and the length of the cast's first beat in
+  [`../cast/score/beats.ts`](../cast/CLAUDE.md), so the paper always finishes
+  tilting before the spell erupts — while the ambient medium draws in over it.
+  The superseded field renderer reads it as a flat emission hold through
+  `CONFIG.renderer.portalTiltMs`, which is why its charge is dead time.
 - **`portalFit` is measured, not fixed.** It is the fraction of the canvas
   height that is on screen, passed in by
   [`../ui/simulator/`](../ui/simulator/CLAUDE.md) and mirrored by the
