@@ -12,6 +12,8 @@ npx playwright test --ui
 
 Locally the config starts `npm run dev` on 5173 and reuses an already-running server. CI builds and serves `npm run preview` on 4173.
 
+**Never run the suite from a git worktree while a dev server is up on 5173.** `reuseExistingServer` makes the worktree's run silently exercise the main checkout's code — screenshots and golden baselines then pin the wrong tree. From a worktree, point a throwaway config at a free port instead.
+
 ## Map
 
 - [`pages/SpellCanvasPage.ts`](pages/SpellCanvasPage.ts) — the page object. Every canvas interaction goes through it.
