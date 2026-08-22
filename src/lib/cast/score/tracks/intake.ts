@@ -12,6 +12,11 @@
  * the arrows, and a twist whose sense follows their turn. Only the twist lifts,
  * is the swirl lift salvaged from the deleted field engine — a straight pull is a
  * flat inflow and a slanted one is canon's helical, apple-plucking vortex.
+ *
+ * The twist also sizes an eye. Canon calls the slanted case a vortex, and a
+ * vortex is hollow, so the deleted engine's vortex eye comes across on the same
+ * terms as the swirl lift: it scales with the slant's sine, which leaves a
+ * straight pull's pool exactly as it was.
  */
 
 import { aboveFloor, NEGLIGIBLE_INK, saturate } from './gain.js';
@@ -22,8 +27,12 @@ const INTAKE_TUNING = {
 	halfDraw: 5,
 	halfSwirl: 6,
 	halfDrift: 5,
-	/** Parcels per second at full strength. */
-	rate: 130,
+	/**
+	 * Parcels per second at full strength. Well above a jet's, because a jet fills
+	 * a beam and this fills the domain: at the beam's rate the hollow the twist
+	 * holds reads as gaps between parcels rather than as an eye.
+	 */
+	rate: 300,
 	/** Seal units per second at full strength, on each channel. */
 	speed: 1.5,
 	speedFloor: 0.3,
@@ -33,8 +42,25 @@ const INTAKE_TUNING = {
 	pool: 0.4,
 	/** Lift per unit of swirl, from the old swirl lift, and the height it fades over. */
 	swirlLift: 0.85,
-	ceiling: 0.7
+	ceiling: 0.7,
+	/** Seal units of hollow a pure twist holds open, from the old vortex eye. */
+	eye: 0.45
 } as const;
+
+/**
+ * The sine of the arrows' slant: 0 is a straight pull and 1 is section 7's pure
+ * twist. It is what the old engine sized its eye with, written here in the
+ * plan's own two components instead of in an angle.
+ */
+function twistShare(draw: number, swirl: number): number {
+	const slant = Math.hypot(draw, swirl);
+	// A folded plan leaves rounding dust in a cancelled swirl, and dust may not
+	// hollow a pull that canon reads as straight.
+	if (Math.abs(swirl) <= NEGLIGIBLE_INK || slant <= NEGLIGIBLE_INK) {
+		return 0;
+	}
+	return Math.abs(swirl) / slant;
+}
 
 /** Unit lateral, or nothing when the arrows have no net side. */
 function lateralUnit(lateral: Vector): Vector {
@@ -78,6 +104,7 @@ export function intakeTrack(plan: SpellPlan): Track<'intake'> | null {
 			drift: INTAKE_TUNING.speed * driftStrength,
 			lateral: lateralUnit(intake.lateral),
 			pool: INTAKE_TUNING.pool,
+			eye: INTAKE_TUNING.eye * twistShare(draw, intake.swirl),
 			rise: INTAKE_TUNING.swirlLift * Math.abs(swirl),
 			ceiling: INTAKE_TUNING.ceiling
 		},
