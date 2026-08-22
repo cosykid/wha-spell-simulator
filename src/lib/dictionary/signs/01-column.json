@@ -4,7 +4,7 @@
 	"displayName": "Column",
 	"referenceSizeNorm": 0.154,
 	"allowedLayers": ["middle", "outer"],
-	"sourceNotes": "Column is a directional sign that makes a spell manifest as a column or beam above the seal. If column signs are unbalanced, the effect leans toward the side with the most or largest signs; inverted column appears to emit outward like dispersion, but the distinction is unclear.",
+	"sourceNotes": "Column is a directional sign that makes a spell manifest as a column or beam above the seal. If column signs are unbalanced, the effect leans the way the signs point rather than toward the side carrying them: the sign-length demo puts a long column on the left and the beam tilts right, since a sign in its canonical pose faces inward across the seal. Inverted column appears to emit outward like dispersion, but the distinction is unclear.",
 	"semantic": {
 		"manifestation": "column",
 		"directionMode": "inward",
