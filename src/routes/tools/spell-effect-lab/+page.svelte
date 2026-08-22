@@ -15,14 +15,19 @@
 	import { FIELD_PRESETS, presetById } from '$lib/ui/spellEffectLabPresets.js';
 	import { buildSpellField } from '$lib/field/buildSpellField.js';
 	import { roundDeep } from '$lib/utils/json.js';
+	import { page } from '$app/state';
 	import { onMount } from 'svelte';
 	import { LabPreview } from './lab-preview.js';
+	import { readGoldenFrameRequest } from './lab-goldens.js';
 
 	const controlEntries = Object.entries(EFFECT_CONTROLS);
 
+	// Test-only: the look golden tier asks for one preset at one timestamp.
+	const goldenFrame = readGoldenFrameRequest(page.url);
+
 	let sigil = $state(DEFAULT_SIGIL);
 	const element = $derived(elementForSigil(sigil));
-	let presetId = $state('none');
+	let presetId = $state(goldenFrame?.presetId ?? 'none');
 	const preset = $derived(presetById(presetId));
 	const field = $derived(buildSpellField(preset.signs));
 	let values = $state<Record<string, number>>(defaultControlValues());
@@ -96,6 +101,10 @@
 			field,
 			presetSigns: preset.signs
 		}));
+		if (goldenFrame) {
+			preview.renderGoldenFrame(goldenFrame.frameMs);
+			return;
+		}
 		return preview.start();
 	});
 </script>
@@ -134,8 +143,20 @@
 			</button>
 		</div>
 		<div class="canvas-shell effect-lab-canvas-shell portal-active" bind:this={canvasShell}>
-			<canvas bind:this={glyphCanvas} width="900" height="700"></canvas>
-			<canvas bind:this={effectCanvas} width="900" height="700"></canvas>
+			<canvas
+				bind:this={glyphCanvas}
+				id="labGlyphCanvas"
+				width="900"
+				height="700"
+				data-testid="lab-glyph-canvas"
+			></canvas>
+			<canvas
+				bind:this={effectCanvas}
+				id="labEffectCanvas"
+				width="900"
+				height="700"
+				data-testid="lab-effect-canvas"
+			></canvas>
 		</div>
 	</section>
 

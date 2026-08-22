@@ -7,9 +7,11 @@ Unit tests for the pure core: recognition, the compiler, the spell field, preset
 ```sh
 npm run test:unit                              # node --import tsx --test tests/*.test.ts
 node --import tsx --test tests/spellField.test.ts   # a single file while iterating
+npm run test:golden                            # the motion golden tier, in tests/golden/
+npm run test:golden:update                     # rewrite its baseline PNGs
 ```
 
-The whole suite is ~167 tests in ~11s. Run it before you commit.
+The whole suite is ~176 tests in ~11s. Run it before you commit.
 
 ## Map
 
@@ -26,6 +28,25 @@ Load-bearing coverage, largest first:
 The rest are small and single-subject: stroke erase and preview, spell summary, effect timing, shape placement, grouping proximity, the chamfer matcher, sample picking, password hashing, connection strings.
 
 [`dictionaryFixtures.ts`](dictionaryFixtures.ts) is a helper, not a suite. Helpers carry no `.test.ts` suffix.
+
+## The motion golden tier
+
+[`golden/`](golden/) is the renderer-independent half of the verification rig in
+[`../docs/animation-redesign.md`](../docs/animation-redesign.md) phase 0. For every
+[lab preset](../src/lib/ui/spellEffectLabPresets.ts) it advects a seeded population of parcels
+through `buildSpellField` / `sampleFieldForce` and rasterizes their positions at fixed timestamps
+into committed PNGs, then re-renders and byte-compares.
+
+- [`motion.ts`](golden/motion.ts) the fixed-step simulation · [`rasterizer.ts`](golden/rasterizer.ts) two seal-space panels · [`png.ts`](golden/png.ts) and [`rng.ts`](golden/rng.ts) salvaged from the `theorycrafting` branch.
+- [`probes.ts`](golden/probes.ts) is the old scorecard as data: one row is one claim about one preset at one point and time, tagged with the ruling it pins in [`../docs/animation-spec.md`](../docs/animation-spec.md). `rulingId: 'legacy'` means current-engine behaviour no ruling covers yet.
+- [`frames.ts`](golden/frames.ts) owns which presets and timestamps a baseline exists for; [`update.ts`](golden/update.ts) rewrites them.
+
+Rules that keep it a baseline instead of a coin flip:
+
+- **Nothing under `golden/` may call `Math.random` or read a clock.** Seeds come from `presetSeed(preset.id)`, time advances in whole `MOTION.stepMs` steps, and `stepsFor` must land exactly on every sampled timestamp.
+- **It lives one level down on purpose.** The `test:unit` glob is one level deep, so the unit suite never depends on baseline PNGs, and `test:golden` runs the same `node --import tsx --test` toolchain.
+- **Regenerate deliberately.** A field change moves every baseline; run `npm run test:golden:update` and read the image diff before committing. Baselines are byte-compared, so an encoder or rasterizer tweak rewrites all 36.
+- **New behaviour gets a probe row, not a new closure.** Add a row citing its ruling id. If no ruling covers it, use `legacy` and say so in the row's `claim`.
 
 ## Invariants and gotchas
 
