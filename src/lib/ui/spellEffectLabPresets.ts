@@ -94,7 +94,8 @@ export const FIELD_PRESETS: FieldPreset[] = [
 	{
 		id: 'column-unbalanced',
 		label: 'Column ×1 — leaning beam',
-		description: 'One column on the east side; the beam leans toward it, as in canon.',
+		description:
+			'One column on the east side, facing inward; the beam leans west, away from it, as in canon.',
 		signs: signsAt([0], (angleDeg) => ({
 			id: 'column',
 			manifestation: 'column',

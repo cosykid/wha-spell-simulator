@@ -92,12 +92,12 @@ The compiler derives the surface lean from sign direction. Force increases the t
 
 The field is built in seal space: origin at the ring center, unit length one ring radius, `y` positive toward the screen bottom, `z` out of the paper. `field.sources` is an array of `FieldSource`, and `field.domain` gates where particles spawn.
 
-| Source `kind` | From signs                                | Behavior                                                                                                                                                                                                                                                                                                                                                                      |
-| ------------- | ----------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `axial`       | column                                    | A beam rising out of the seal at an axis leaned toward the sign's position. Draft gathers magic toward the axis; balanced columns cancel their lean into one straight pillar. Inverted columns become an outward `radial` instead.                                                                                                                                            |
-| `radial`      | pull, dispersion, collection, convergence | The inward unit field rotated by `twistDeg`. `0` pulls toward `center`, `180` pushes outward. Twisted flow hollows out a vortex eye: the swirl's share of the pull attracts toward a ring around `center` (radius grows with the twist), so angled pulls orbit a wide funnel instead of clumping at the center. Convergence sets `center` to the signs' weighted focus point. |
-| `directed`    | region                                    | A local jet at `at` along `direction`; falls off with distance. Region signs also set the spawn domain.                                                                                                                                                                                                                                                                       |
-| `buoyancy`    | levitation, float                         | Lift opposing gravity that fades with altitude, plus pressure blown inward along the sign's own axis (from `at`). The hovering orb is emergent: opposing signs trap the magic between them; a lone or one-sided sign blows it across the seal and away.                                                                                                                       |
+| Source `kind` | From signs                                | Behavior                                                                                                                                                                                                                                                                                                                                                                                       |
+| ------------- | ----------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `axial`       | column                                    | A beam rising out of the seal at an axis leaned along `direction`, the way the sign points, by a distance set by how far off center the sign sits. A canonically inward sign therefore throws the beam past the center to its far side. Draft gathers magic toward the axis; balanced columns cancel their lean into one straight pillar. Inverted columns become an outward `radial` instead. |
+| `radial`      | pull, dispersion, collection, convergence | The inward unit field rotated by `twistDeg`. `0` pulls toward `center`, `180` pushes outward. Twisted flow hollows out a vortex eye: the swirl's share of the pull attracts toward a ring around `center` (radius grows with the twist), so angled pulls orbit a wide funnel instead of clumping at the center. Convergence sets `center` to the signs' weighted focus point.                  |
+| `directed`    | region                                    | A local jet at `at` along `direction`; falls off with distance. Region signs also set the spawn domain.                                                                                                                                                                                                                                                                                        |
+| `buoyancy`    | levitation, float                         | Lift opposing gravity that fades with altitude, plus pressure blown inward along the sign's own axis (from `at`). The hovering orb is emergent: opposing signs trap the magic between them; a lone or one-sided sign blows it across the seal and away.                                                                                                                                        |
 
 Facing (`twistDeg`, region `direction`) comes only from the ML pose head (`rotationOffsetDeg` when `diagnostics.ml.accepted`). Template-matched signs are pre-rotated into a canonical frame before matching, so their `directedOrientationDeg` and `radialFacing` carry no facing information; those signs default to canon inward facing.
 
@@ -160,7 +160,13 @@ Missing or unsupported primary elements compile to invalid `SpellIR` with `statu
 	},
 	"field": {
 		"sources": [
-			{ "kind": "axial", "sign": "column", "at": { "x": 0, "y": 0.66 }, "strength": 0.82 }
+			{
+				"kind": "axial",
+				"sign": "column",
+				"at": { "x": 0, "y": 0.66 },
+				"direction": { "x": 0, "y": -1 },
+				"strength": 0.82
+			}
 		],
 		"domain": { "mode": "anywhere", "strength": 0 }
 	},

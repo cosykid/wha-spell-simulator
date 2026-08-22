@@ -15,15 +15,18 @@ export interface FieldVector {
 }
 
 /**
- * Column: a beam out of the seal. Each column also leans the beam toward its
- * own ring position, so balanced columns cancel into a straight beam and
- * unbalanced ones tilt toward the side with the most or largest signs.
+ * Column: a beam out of the seal. Each column also leans the beam along the way
+ * its sign points, so a canonically inward sign throws the beam past the center
+ * to its far side and balanced columns cancel into a straight beam. The lean
+ * grows with how far off center the sign sits; a centered column beams straight.
  */
 export interface AxialSource {
 	kind: 'axial';
 	sign: string;
-	/** Seal-space position of the sign; opposite positions cancel the lean. */
+	/** Seal-space position of the sign; its distance off center scales the lean. */
 	at: Vector;
+	/** Unit seal-plane direction the sign faces; the beam leans this way. */
+	direction: Vector;
 	strength: number;
 }
 
