@@ -7,8 +7,6 @@
  *
  * Strokes are stored RAW, along with enough metadata to fully reconstruct the sample
  * even if conventions later change.
- *
- * The schema is also versioned to allow for breaking changes in the future.
  */
 
 /**

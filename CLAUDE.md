@@ -44,3 +44,36 @@ When you finish a change, skim it against the checklist at the end of the guide.
 Witch Hat Atelier Spell Simulator — a SvelteKit app that recognizes hand-drawn
 spell glyphs and renders animated effects. See [`README.md`](README.md) for what
 it does, how to run it locally, and the recognition pipeline overview.
+
+## Directory guides
+
+Each core directory carries its own `CLAUDE.md` with its contracts, invariants,
+and extension recipes. **Read the guide for every directory you change.** The
+pipeline, in order:
+
+- [`src/lib/parser/`](src/lib/parser/CLAUDE.md) — strokes → `ClassifiedDrawing`/`GlyphAST` (recognition)
+- [`src/lib/dictionary/`](src/lib/dictionary/CLAUDE.md) — the glyph corpus: sigil/sign JSON + SVG art
+- [`src/lib/compiler/`](src/lib/compiler/CLAUDE.md) — `GlyphAST` → `SpellIR` (meaning, activation, signature)
+- [`src/lib/field/`](src/lib/field/CLAUDE.md) — signs → superposable force field in seal space
+- [`src/lib/renderer/`](src/lib/renderer/CLAUDE.md) — `SpellIR` → pixels (effects, portal projection)
+
+Around it:
+
+- [`src/lib/ui/canvas/`](src/lib/ui/canvas/CLAUDE.md) — the Entity/Command/Behavior canvas engine
+- [`src/lib/ui/simulator/`](src/lib/ui/simulator/CLAUDE.md) — the main route's session, runtime, and locks
+- [`src/lib/structures/`](src/lib/structures/CLAUDE.md) — spell presets and cross-boundary shapes
+- [`src/lib/server/`](src/lib/server/CLAUDE.md) — auth, Postgres, migrations (read its DB warning first)
+- [`tests/`](tests/CLAUDE.md) — unit-suite rules · [`tests-e2e/`](tests-e2e/CLAUDE.md) — Playwright rules
+
+The planned rework of everything below `SpellIR` is specified in
+[`docs/animation-spec.md`](docs/animation-spec.md) (behavior rulings) and
+[`docs/animation-redesign.md`](docs/animation-redesign.md) (architecture and
+migration plan). Read both before touching `field/` or `renderer/`.
+
+## Environment gotchas
+
+- A fresh git worktree needs its own `npm install`, or Vite serves 403s and the
+  app never hydrates. Run `npx svelte-kit sync` before `npm run check` there.
+- Before `npm run db:migrate` or DB-backed tests, check where `DATABASE_URL_VPS`
+  points — a local `.env` may target the production database. Details in
+  [`src/lib/server/CLAUDE.md`](src/lib/server/CLAUDE.md).
