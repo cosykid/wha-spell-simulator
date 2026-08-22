@@ -54,8 +54,8 @@ only while its card's preview is toggled on.
 <style>
 	/* The preview always plays an active spell, so the stage sits in the portal
 	   state permanently: dark void behind a lit paper that tilts into depth. The
-	   tilt values mirror `.canvas-shell.portal-active` in canvas.css, which the
-	   effect renderer's portal model is also kept in sync with. */
+	   tilt reads the same portal variables `.canvas-shell.portal-active` does, so
+	   the stage cannot drift from the simulator or from the projected effect. */
 	.preview-stage {
 		position: relative;
 		display: block;
@@ -81,8 +81,9 @@ only while its card's preview is toggled on.
 	   canvas itself, not a wrapper, so the 3D tilt is not flattened. */
 	.glyph {
 		z-index: 1;
-		transform-origin: 50% calc(50% + 14%);
-		transform: perspective(850px) translateY(10%) rotateX(62deg) scale(0.45);
+		transform-origin: 50% calc(50% + var(--portal-origin-shift));
+		transform: perspective(var(--portal-perspective)) translateY(var(--portal-lift))
+			rotateX(var(--portal-tilt)) scale(var(--portal-shrink));
 		transform-style: preserve-3d;
 		box-shadow:
 			0 1px 0 rgba(255, 251, 233, 0.52) inset,

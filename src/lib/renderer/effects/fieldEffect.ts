@@ -6,8 +6,8 @@
 
 import { clamp, randomBetween } from '../../utils/geometry.js';
 import { sampleFieldForce, spawnDomainPosition } from '../../field/sampleField.js';
+import { activePortalPlane, projectSeal } from '../../portal/portal.js';
 import {
-	activePortalPlane,
 	effectScale,
 	pruneParticles,
 	scaledParticleCount,
@@ -15,7 +15,8 @@ import {
 	steadyParticleAlpha
 } from './effectUtils.js';
 import type { AppConfig, ElementId, RingInfo, SpellField } from '../../types.js';
-import type { EffectState, Particle, Portal, RenderSpellIR } from './effectUtils.js';
+import type { Portal } from '../../portal/portal.js';
+import type { EffectState, Particle, RenderSpellIR } from './effectUtils.js';
 
 // Seal-space integration constants; dt is in 60fps frames.
 const FIELD_MOTION = {
@@ -41,8 +42,6 @@ const PARTICLE_SHAPE = {
 	maxRadius: 16,
 	minSpawnHeight: 0.02,
 	maxSpawnHeight: 0.12,
-	// Screen height of one seal-space z unit, as a fraction of the portal's x radius.
-	heightScale: 0.8,
 	// Frames of field force applied at spawn so streams read immediately.
 	warmupFrames: 9,
 	jitter: 0.004,
@@ -132,11 +131,7 @@ function drawFieldParticle(
 	palette: { inner: string; outer: string },
 	spellIR: RenderSpellIR
 ): void {
-	const x = portal.center.x + particle.sx * portal.radiusX;
-	const y =
-		portal.center.y +
-		particle.sy * portal.radiusY -
-		particle.sz * portal.radiusX * PARTICLE_SHAPE.heightScale;
+	const { x, y } = projectSeal(portal, { x: particle.sx, y: particle.sy, z: particle.sz });
 	// Emission-driven alpha: held forms persist steadily for the spell's
 	// duration and the whole effect fades out together at the end.
 	const alpha = clamp(steadyParticleAlpha(particle, spellIR, PARTICLE_SHAPE.fadeInFrames) * 1.2);
@@ -147,16 +142,16 @@ function drawFieldParticle(
 
 	// Streak tail along the recent motion, so the field's flow shows in stills.
 	const streak = PARTICLE_SHAPE.streakFrames;
-	const tailX = x - particle.svx * streak * portal.radiusX;
-	const tailY =
-		y -
-		particle.svy * streak * portal.radiusY +
-		particle.svz * streak * portal.radiusX * PARTICLE_SHAPE.heightScale;
+	const tail = projectSeal(portal, {
+		x: particle.sx - particle.svx * streak,
+		y: particle.sy - particle.svy * streak,
+		z: particle.sz - particle.svz * streak
+	});
 	ctx.strokeStyle = `rgba(${palette.outer}, ${alpha * 0.45})`;
 	ctx.lineWidth = Math.max(1.5, radius * 0.4);
 	ctx.lineCap = 'round';
 	ctx.beginPath();
-	ctx.moveTo(tailX, tailY);
+	ctx.moveTo(tail.x, tail.y);
 	ctx.lineTo(x, y);
 	ctx.stroke();
 

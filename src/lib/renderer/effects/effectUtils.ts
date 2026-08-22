@@ -1,5 +1,12 @@
 import { clamp, normalizeVector, perpendicularVector } from '../../utils/geometry.js';
-import type { AppConfig, SpellIR, RingInfo, Vector } from '../../types.js';
+import { projectSealDirection } from '../../portal/portal.js';
+import type { AppConfig, SpellIR, Vector } from '../../types.js';
+import type { Portal } from '../../portal/portal.js';
+
+// The portal model lives in `portal/portal.ts`. These two are re-exported
+// because the spell-effect lab route imports the portal through this module.
+export { activePortalPlane, portalScaledRing } from '../../portal/portal.js';
+export type { Portal } from '../../portal/portal.js';
 
 // ---------------------------------------------------------------------------
 // Render-time SpellIR extension
@@ -17,16 +24,8 @@ import type { AppConfig, SpellIR, RingInfo, Vector } from '../../types.js';
 export type RenderSpellIR = SpellIR & { emission?: number; portalFit?: number };
 
 // ---------------------------------------------------------------------------
-// Shared particle / portal types used across element effects
+// Shared particle types used across element effects
 // ---------------------------------------------------------------------------
-
-/** A screen-space elliptical portal from which effects emit. */
-export interface Portal {
-	center: Vector;
-	radiusX: number;
-	radiusY: number;
-	scaleY: number;
-}
 
 /** State produced by convergenceFlow, shared by element flow configs. */
 export interface ConvergenceFlow {
@@ -311,11 +310,6 @@ export function emissionModifier(spellIR: RenderSpellIR): EmissionModifier {
 	};
 }
 
-// Particles sprayed by dispersion sit on the same tilted portal plane the ring
-// is drawn on, so the vertical component of a random outward direction is
-// squashed to match that foreshortening.
-const PORTAL_PLANE_Y_SQUASH = 0.55;
-
 /**
  * Per-particle emission direction. With no dispersion this is the spell's
  * forward direction; dispersion blends it toward a random outward direction on
@@ -325,11 +319,10 @@ export function emissionDirection(base: Vector, mod: EmissionModifier): Vector {
 	if (mod.dispersion <= 0) {
 		return base;
 	}
+	// The spray runs along the paper, so the outward direction is projected onto
+	// the tilted plane rather than drawn flat on screen.
 	const angle = Math.random() * Math.PI * 2;
-	const radial = normalizeVector({
-		x: Math.cos(angle),
-		y: Math.sin(angle) * PORTAL_PLANE_Y_SQUASH
-	});
+	const radial = projectSealDirection({ x: Math.cos(angle), y: Math.sin(angle), z: 0 });
 	return normalizeVector({
 		x: base.x + (radial.x - base.x) * mod.dispersion,
 		y: base.y + (radial.y - base.y) * mod.dispersion
@@ -363,74 +356,10 @@ export function scaledParticleCount(
 }
 
 // ---------------------------------------------------------------------------
-// Portal geometry
-//
-// On activation the paper is shrunk and tilted back by CSS (see `.portal-active`
-// in styles/canvas.css). These constants mirror that transform so effects — drawn
-// flat and anchored to the ring in canvas space — land on the same on-screen
-// portal. Keep them in sync with canvas.css:
-//   PORTAL_SHRINK   <-> scale()                 PORTAL_SCALE_Y <-> rotateX(62deg)
-//   PORTAL_ORIGIN_Y <-> transform-origin y      PORTAL_LIFT_Y  <-> translateY
-//
-// The CSS scales its vertical metrics by `var(--portal-fit)` so the tilt stays on
-// screen on landscape. The functions below take the same `portalFit` (default 1)
-// and apply it to PORTAL_ORIGIN_Y and PORTAL_LIFT_Y to track the CSS.
+// Portal sampling and direction
 // ---------------------------------------------------------------------------
 
-export const PORTAL_SHRINK = 0.45;
-const PORTAL_SCALE_Y = 0.44;
-const PORTAL_ORIGIN_Y = 0.64;
-const PORTAL_LIFT_Y = 0.1;
-
-// The portal tilt's vertical pivot as a canvas-height fraction. Written as an
-// offset from centre scaled by portalFit so it tracks the CSS transform-origin
-// (50% + 14% * --portal-fit). portalFit 1 reproduces the fixed PORTAL_ORIGIN_Y.
-function portalOriginY(canvas: HTMLCanvasElement, portalFit: number): number {
-	return canvas.height * (0.5 + (PORTAL_ORIGIN_Y - 0.5) * portalFit);
-}
-
-/**
- * Shrinks a ring toward the portal tilt origin by {@link PORTAL_SHRINK}, mirroring
- * the CSS `scale()` on the activated paper. Effects are anchored to the ring in
- * canvas space, so feeding them the scaled ring shrinks the whole effect — base
- * ellipse and every radius-derived plume size — onto the smaller portal at once.
- */
-export function portalScaledRing(
-	ring: RingInfo,
-	canvas: HTMLCanvasElement,
-	portalFit: number = 1
-): RingInfo {
-	const originX = canvas.width / 2;
-	const originY = portalOriginY(canvas, portalFit);
-	return {
-		...ring,
-		center: {
-			x: originX + (ring.center.x - originX) * PORTAL_SHRINK,
-			y: originY + (ring.center.y - originY) * PORTAL_SHRINK
-		},
-		radius: ring.radius * PORTAL_SHRINK
-	};
-}
-
-// The activated paper is drawn as a tilted ellipse, so effects emit from that same screen-space portal.
-export function activePortalPlane(
-	canvas: HTMLCanvasElement,
-	ring: RingInfo,
-	portalFit: number = 1
-): Portal {
-	const originY = portalOriginY(canvas, portalFit);
-	const liftY = canvas.height * PORTAL_LIFT_Y * portalFit;
-	return {
-		center: {
-			x: ring.center.x,
-			y: originY + (ring.center.y - originY) * PORTAL_SCALE_Y + liftY
-		},
-		radiusX: ring.radius,
-		radiusY: ring.radius * PORTAL_SCALE_Y,
-		scaleY: PORTAL_SCALE_Y
-	};
-}
-
+/** A random point on the portal disc, area-uniform, for spawning particles. */
 export function randomPortalPoint(
 	portal: Portal,
 	radiusXScale: number = 1,
@@ -444,20 +373,13 @@ export function randomPortalPoint(
 	};
 }
 
-// ---------------------------------------------------------------------------
-// Direction helpers
-// ---------------------------------------------------------------------------
-
-// Convert paper-local x/y/z direction into screen space. Positive z points out of the paper toward the top.
+/** The spell's paper-local direction as a screen direction on the tilted portal. */
 export function portalOutDirection(spellIR: RenderSpellIR): Vector {
 	const direction = spellIR?.direction ?? ({} as RenderSpellIR['direction']);
-	const paperX = direction.x ?? 0;
-	const paperY = direction.y ?? -1;
-	const paperZ = direction.z ?? 0;
-
-	return normalizeVector({
-		x: paperX,
-		y: paperY * PORTAL_SCALE_Y - paperZ
+	return projectSealDirection({
+		x: direction.x ?? 0,
+		y: direction.y ?? -1,
+		z: direction.z ?? 0
 	});
 }
 

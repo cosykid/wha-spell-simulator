@@ -1,6 +1,6 @@
 import { clamp, perpendicularVector, randomBetween } from '../../utils/geometry.js';
+import { activePortalPlane } from '../../portal/portal.js';
 import {
-	activePortalPlane,
 	boltBurst,
 	convergenceFlow,
 	convergePoint,
@@ -18,11 +18,11 @@ import {
 	steadyParticleAlpha
 } from './effectUtils.js';
 import type { AppConfig, RingInfo, Vector } from '../../types.js';
+import type { Portal } from '../../portal/portal.js';
 import type {
 	RenderSpellIR,
 	EffectState,
 	Particle,
-	Portal,
 	ConvergenceFlow,
 	EmissionModifier
 } from './effectUtils.js';

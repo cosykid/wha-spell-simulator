@@ -5,6 +5,11 @@ export interface Vector {
 	y: number;
 }
 
+/** A point or direction in seal or world space (see `portal/portal.ts`). */
+export interface Vec3 extends Vector {
+	z: number;
+}
+
 export interface Point extends Vector {
 	t?: number;
 }

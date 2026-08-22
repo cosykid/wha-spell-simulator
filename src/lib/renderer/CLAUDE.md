@@ -10,8 +10,9 @@ looks.
   one entry point. Dispatch, `dt`, state reset, guide shapes.
 - [`glyphOverlayRenderer.ts`](glyphOverlayRenderer.ts) — draws on the **glyph**
   canvas, not the effect canvas: activated ink glow, ring and candidate debug.
-- [`effects/effectUtils.ts`](effects/effectUtils.ts) — the shared model. Portal
-  geometry, `RenderSpellIR`, particle helpers, convergence, dispersion and bolt.
+- [`effects/effectUtils.ts`](effects/effectUtils.ts) — the shared model.
+  `RenderSpellIR`, particle helpers, convergence, dispersion and bolt. The
+  portal itself lives in [`../portal/`](../portal/CLAUDE.md).
 - [`effects/fieldEffect.ts`](effects/fieldEffect.ts) — the field-driven renderer,
   used for every element once a spell has field sources.
 - `effects/{fire,water,wind,earth,light}Effect.ts` — legacy per-element
@@ -39,19 +40,26 @@ faint ring glow on any inactive spell. Steps 4 and 5 draw with
 
 ## Invariants and gotchas
 
-**The portal is a CSS transform mirrored by hand in JS. Change both together.**
-On activation the CSS in [`../styles/canvas.css`](../styles/canvas.css) shrinks
-and tilts `#glyphCanvas` only. `#effectCanvas` stays flat, so `effectUtils.ts`
-duplicates the same magic numbers: `PORTAL_SHRINK` <-> `scale()`,
-`PORTAL_SCALE_Y` <-> `rotateX()`, `PORTAL_ORIGIN_Y` <-> `transform-origin`,
-`PORTAL_LIFT_Y` <-> `translateY`, all scaled by `portalFit` <-> `--portal-fit`.
-`portalScaledRing()` and `activePortalPlane()` consume them. Edit one side alone
-and every effect drifts off the tilted paper.
+**This directory owns no portal numbers.** On activation the CSS in
+[`../styles/canvas.css`](../styles/canvas.css) shrinks and tilts `#glyphCanvas`
+only; `#effectCanvas` stays flat, so effects have to place themselves on that
+tilted paper by hand. [`../portal/`](../portal/CLAUDE.md) is the single owner of
+both sides: it writes the CSS custom properties the transform is built from, and
+it exports the projection the effects use. Take `portalScaledRing()`,
+`activePortalPlane()`, `projectSeal()` and `projectSealDirection()` from there,
+and never re-declare a shrink, tilt, pivot, lift, or foreshortening here. Ground
+distance and height come from one elevation (`asin(scaleY)`), so a particle and
+the paper it rose from cannot fall out of perspective.
 
-**Keep `renderer.portalTiltMs` equal to `--portal-tilt-duration`.** They live in
-[`../config.ts`](../config.ts) and [`../styles/tokens.css`](../styles/tokens.css)
-(980ms). The renderer holds all emission back for that long so the paper visibly
-tilts before the spell erupts. Drift makes the effect fire early or late.
+`effectUtils.ts` re-exports `activePortalPlane` and `portalScaledRing` for the
+spell-effect lab route, which imports the portal through it. New code should
+import from `../portal/portal.js` directly.
+
+**`renderer.portalTiltMs` is the portal's, not the renderer's.**
+[`../config.ts`](../config.ts) reads it from `PORTAL.tiltMs`, which also writes
+the `--portal-tilt-duration` the CSS animates on. The renderer holds all emission
+back for that long so the paper visibly tilts before the spell erupts, which is
+the spec's charge beat (R-01). Tune it in `portal/portal.ts`.
 
 **`dt` is 60fps frame units, not seconds.** Clamped to `[0.4, 2.5]`. Tune every
 velocity, acceleration and lifetime in per-frame units and multiply by `dt`.
@@ -93,6 +101,8 @@ that must apply to sign-bearing spells belongs in the field, not here.
   element behavior notes. It explicitly sanctions replacing everything here, as
   long as the replacement consumes `SpellIR`.
 - [`../../../docs/spell-ir.md`](../../../docs/spell-ir.md) — the input contract.
+- [`../portal/CLAUDE.md`](../portal/CLAUDE.md) — the tilted paper and the
+  projection every effect draws through.
 - [`../field/CLAUDE.md`](../field/CLAUDE.md) — the force field being rendered.
 - [`../ui/canvas/CLAUDE.md`](../ui/canvas/CLAUDE.md),
   [`../ui/simulator/CLAUDE.md`](../ui/simulator/CLAUDE.md) — rAF loop and wiring.
