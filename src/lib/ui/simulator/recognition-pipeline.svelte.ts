@@ -30,6 +30,11 @@ import { visibleCanvasShortAxis } from './layout.js';
 import type { CanvasTool } from './mode.js';
 import type { SimulatorDiagnostics } from './types.js';
 
+// How long a recompute waits before retrying when the glyph canvas is detached.
+// Long enough that a reattach in the same frame settles first, short enough that
+// the guides are never visibly stale.
+const DETACHED_CANVAS_RETRY_MS = 50;
+
 /**
  * Dependencies supplied by the simulator session to keep recognition independent
  * from the route and canvas-controller implementation.
@@ -39,8 +44,8 @@ interface RecognitionPipelineOptions {
 	store: StrokeStore;
 	/** Editable placements, used by summary derivation. */
 	placements: PlacementStore;
-	/** Current glyph canvas, needed for classifier dimensions. */
-	glyphCanvas: () => HTMLCanvasElement;
+	/** Current glyph canvas, needed for classifier dimensions. Null while detached. */
+	glyphCanvas: () => HTMLCanvasElement | null;
 	/** Complete stroke set, including baked previews of editable placements. */
 	mergedStrokes: () => Stroke[];
 	/** Active canvas tool, used to derive summary mode flags. */
@@ -89,6 +94,7 @@ export class RecognitionPipeline {
 	#dictionarySnapshot: Dictionary | null = null;
 	#recomputeTimer: ReturnType<typeof setTimeout> | null = null;
 	#recomputeSeq = 0;
+	#disposed = false;
 	readonly #options: RecognitionPipelineOptions;
 
 	constructor(options: RecognitionPipelineOptions) {
@@ -152,6 +158,23 @@ export class RecognitionPipeline {
 		this.#strokes = this.#options.mergedStrokes();
 	}
 
+	/**
+	 * Rescales recognized geometry into a resized canvas.
+	 *
+	 * Recognition is async and takes seconds on a full seal, so the guide and seal
+	 * layers would otherwise spend that whole time drawing the ring at its old
+	 * canvas size while the ink has already been rescaled around them. Scaling the
+	 * ring here keeps them locked to the ink until the recompute lands.
+	 */
+	scaleGeometry(scale: number) {
+		const ring = this.#pipeline?.ring;
+		if (!ring?.found || scale === 1) {
+			return;
+		}
+		ring.center = { x: ring.center.x * scale, y: ring.center.y * scale };
+		ring.radius *= scale;
+	}
+
 	/** Clears ring continuity state after undo, clear, or canvas resize. */
 	clearPreviousRing() {
 		this.#previousRing = null;
@@ -185,6 +208,9 @@ export class RecognitionPipeline {
 
 	/** Schedules recognition after a short debounce window. */
 	scheduleRecompute(delay: number) {
+		if (this.#disposed) {
+			return;
+		}
 		this.cancelScheduledRecompute();
 		this.#recomputeTimer = setTimeout(() => {
 			this.#recomputeTimer = null;
@@ -203,10 +229,21 @@ export class RecognitionPipeline {
 			return;
 		}
 
+		// The canvas is bound DOM, so it reads null between detach and reattach. A
+		// canvas resize schedules a recompute straight into that window, and running
+		// this pass against null used to throw out of the debounce timer as an
+		// unhandled rejection. The pass cannot simply be dropped either: recognition
+		// owns the geometry the guide, seal and diagnostic layers draw from, so
+		// losing it leaves them drawing the ring the pre-resize canvas recognized.
+		const glyphCanvas = this.#options.glyphCanvas();
+		if (!glyphCanvas) {
+			this.scheduleRecompute(DETACHED_CANVAS_RETRY_MS);
+			return;
+		}
+
 		this.refreshStrokes();
 		const seq = ++this.#recomputeSeq;
 		let result: ClassifiedDrawing;
-		const glyphCanvas = this.#options.glyphCanvas();
 		const guideReferenceSize = visibleCanvasShortAxis(glyphCanvas);
 		this.#mlDebugLog('recompute starting', {
 			strokes: this.#strokes.length,
@@ -240,6 +277,7 @@ export class RecognitionPipeline {
 
 	/** Stops pending recognition timers and disposes classifier worker clients. */
 	dispose() {
+		this.#disposed = true;
 		this.cancelScheduledRecompute();
 		disposeDrawingClassifierClient();
 	}

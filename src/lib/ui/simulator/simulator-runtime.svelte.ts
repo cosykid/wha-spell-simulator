@@ -303,6 +303,7 @@ export class SimulatorRuntime {
 				if (scale !== 1) {
 					drawing.scalePlacements(scale, scale);
 					drawing.history.scale(scale, scale);
+					recognition.scaleGeometry(scale);
 				}
 				recognition.clearPreviousRing();
 				this.#updateCanvasCursor();
