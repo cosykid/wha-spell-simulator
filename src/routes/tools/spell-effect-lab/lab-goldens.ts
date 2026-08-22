@@ -19,7 +19,13 @@ export interface GoldenFrameRequest {
 	frameMs: number;
 }
 
-/** The frame this URL asks for, or null for the interactive lab. */
+/**
+ * The frame this URL asks for, or null for the interactive lab.
+ *
+ * Call this after mount only. The lab page is prerendered, and SvelteKit blocks
+ * `searchParams` while prerendering because one static file answers every query
+ * string.
+ */
 export function readGoldenFrameRequest(url: URL): GoldenFrameRequest | null {
 	const presetId = url.searchParams.get('preset');
 	const frameMs = Number(url.searchParams.get('frameMs'));

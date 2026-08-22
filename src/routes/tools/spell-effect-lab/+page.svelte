@@ -25,12 +25,9 @@
 
 	const controlEntries = Object.entries(EFFECT_CONTROLS);
 
-	// Test-only: the look golden tier asks for one preset at one timestamp.
-	const goldenFrame = readGoldenFrameRequest(page.url);
-
 	let sigil = $state(DEFAULT_SIGIL);
 	const element = $derived(elementForSigil(sigil));
-	let presetId = $state(goldenFrame?.presetId ?? 'none');
+	let presetId = $state('none');
 	const preset = $derived(presetById(presetId));
 	const field = $derived(buildSpellField(preset.signs));
 	const reading = $derived(readPresetSeal(preset.signs, sigil));
@@ -108,7 +105,12 @@
 			field,
 			presetSigns: preset.signs
 		}));
+		// Test-only: the look golden tier asks for one preset at one timestamp.
+		// Read after mount because the page is prerendered, so one static file
+		// answers every query string.
+		const goldenFrame = readGoldenFrameRequest(page.url);
 		if (goldenFrame) {
+			presetId = goldenFrame.presetId;
 			preview.renderGoldenFrame(goldenFrame.frameMs);
 			return;
 		}
