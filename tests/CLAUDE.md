@@ -42,7 +42,17 @@ into committed PNGs, then re-renders and byte-compares.
 - [`probes.ts`](golden/probes.ts) is the old scorecard as data: one row is one claim about one preset at one point and time, tagged with the ruling it pins in [`../docs/animation-spec.md`](../docs/animation-spec.md). `rulingId: 'legacy'` means current-engine behaviour no ruling covers yet.
 - [`frames.ts`](golden/frames.ts) owns which presets and timestamps a baseline exists for; [`update.ts`](golden/update.ts) rewrites them.
 
-Below it sits the **plan tier**, the cheapest of the three: [`plans.ts`](golden/plans.ts) resolves each
+Beside it sits the **cast tier**, the same idea run through `cast/` instead of `field/`:
+[`casts.ts`](golden/casts.ts) compiles each lab preset's plan to a `SpellScore`, simulates it, and
+rasterizes the parcels at 1100ms, 1600ms and 2600ms: one timestamp inside the strike, two inside the
+body of a 4-second cast. It reads only the score's two inputs (a pinned duration and a pinned
+signature), so a field or renderer change can never move a cast baseline. Its gate is the redesign's
+replayability contract: [`cast.test.ts`](golden/cast.test.ts) checks that stepping fresh to a
+timestamp is bit-identical to stepping there incrementally, that two renders produce the same bytes,
+and that the charge beat is silent (R-01). Law tests for the same layers live one level up in
+[`../tests/spellScore.test.ts`](spellScore.test.ts) and [`../tests/castSim.test.ts`](castSim.test.ts).
+
+Below both sits the **plan tier**, the cheapest of the four: [`plans.ts`](golden/plans.ts) resolves each
 lab preset to a `SpellPlan` and serializes it, [`plan.test.ts`](golden/plan.test.ts) compares the text
 against [`plans/`](golden/plans/), one committed file per preset, and the same `update.ts` rewrites
 those too. A changed canon ruling shows up as a changed line a reviewer can read.
@@ -51,7 +61,7 @@ Rules that keep it a baseline instead of a coin flip:
 
 - **Nothing under `golden/` may call `Math.random` or read a clock.** Seeds come from `presetSeed(preset.id)`, time advances in whole `MOTION.stepMs` steps, and `stepsFor` must land exactly on every sampled timestamp.
 - **It lives one level down on purpose.** The `test:unit` glob is one level deep, so the unit suite never depends on baseline PNGs, and `test:golden` runs the same `node --import tsx --test` toolchain.
-- **Regenerate deliberately.** A field change moves every baseline; run `npm run test:golden:update` and read the image diff before committing. Baselines are byte-compared, so an encoder or rasterizer tweak rewrites all 36.
+- **Regenerate deliberately.** A field change moves every motion baseline and a score or sim change moves every cast baseline; run `npm run test:golden:update` and read the image diff before committing. Baselines are byte-compared, so an encoder or rasterizer tweak rewrites all 72 PNGs at once.
 - **New behaviour gets a probe row, not a new closure.** Add a row citing its ruling id. If no ruling covers it, use `legacy` and say so in the row's `claim`.
 
 ## Invariants and gotchas
