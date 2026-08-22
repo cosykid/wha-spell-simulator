@@ -251,7 +251,7 @@ export function resolvePlan(reading: SealReading): SpellPlan {
 
 /**
  * The plan of a seal that resolved to nothing. `invalidSpell` needs a plan with
- * the same shape as a real one, for the same reason `emptySpellField` exists:
+ * the same shape as a real one, for the same reason `emptySealReading` exists:
  * consumers read these fields unguarded.
  */
 export function inertPlan(): SpellPlan {

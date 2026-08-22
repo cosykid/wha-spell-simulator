@@ -3,7 +3,6 @@
 import type { Vector } from './geometry.js';
 import type { ElementId } from './dictionary.js';
 import type { SealReading } from './seal-reading.js';
-import type { SpellField } from './spell-field.js';
 import type { SpellPlan } from './spell-plan.js';
 
 export interface SpellDirection {
@@ -49,11 +48,9 @@ export interface SpellIR {
 	effectScale: number;
 	primaryManifestation: string;
 	manifestations: Record<string, Manifestation>;
-	/** Per-sign force operators; drives the field particle effect when non-empty. */
-	field: SpellField;
 	/** The gated reading of the signs. Debug overlay and the Plan layer's input. */
 	reading: SealReading;
-	/** The resolved plan of named primitives. Alongside `field` until the cutover. */
+	/** The resolved plan of named primitives; the cast performs this. */
 	plan: SpellPlan;
 	direction: SpellDirection;
 	directionCoherence: number;

@@ -42,9 +42,10 @@ be kept in sync by hand.
   `../parser/signRotation.ts` rotates candidates into that frame and allows only
   +/- 15 degrees. A template drawn upright is unrecognizable at most ring positions.
 - Signs are orientation-bearing. A new sign needs `semantic.manifestation` **and**
-  a matching `case` in `buildSpellField`, or it contributes no force and only
-  nudges the scalar semantics. `crush`, `weave`, `billowing`, and `repetition`
-  sit in that state today. See [`../field/CLAUDE.md`](../field/CLAUDE.md).
+  a family row in `../compiler/plan/resolvePlan.ts`, or its ink only pays into the
+  burst budget and the plan tags it `unmodeled-<manifestation>`. `crush`, `weave`,
+  `billowing`, and `repetition` sit in that state today. See
+  [`../compiler/CLAUDE.md`](../compiler/CLAUDE.md).
 - Unit tests read these files from disk. `tests/dictionaryFixtures.ts`
   `readRealDictionary()` parses the real JSON, so a template edit changes the
   outcome of `symbolRecognition`, `decomposition`, and `shapePlacement` tests.
@@ -72,7 +73,7 @@ be kept in sync by hand.
    `recognitionRotationInvariant`. Sigils add `element`; signs add `semantic`.
 3. Add `svg/<id>.svg` and run `npm run normalize:svg` so thumbnails and the
    sample-maker overlay work.
-4. For a sign, add the `manifestation` case in `../field/buildSpellField.ts`.
+4. For a sign, add the `manifestation` row in `../compiler/plan/resolvePlan.ts`.
 5. Run `npm run test:unit`.
 
 Canonical glyph art comes from the Witch Hat Atelier wiki on telepedia. Trace
@@ -82,4 +83,4 @@ from there rather than inventing a shape.
 
 - [`../../../docs/dictionary-authoring.md`](../../../docs/dictionary-authoring.md) full field-by-field authoring guide.
 - [`../parser/CLAUDE.md`](../parser/CLAUDE.md) how templates become recognition examples.
-- [`../field/CLAUDE.md`](../field/CLAUDE.md) how a sign's manifestation and orientation become force.
+- [`../compiler/CLAUDE.md`](../compiler/CLAUDE.md) how a sign's manifestation and orientation become a plan.

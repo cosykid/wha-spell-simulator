@@ -24,7 +24,7 @@ import { classifyTwist } from '../src/lib/compiler/reading/facing.js';
 import { inertPlan, resolvePlan } from '../src/lib/compiler/plan/resolvePlan.js';
 import { PORTAL } from '../src/lib/portal/portal.js';
 import { readPresetSeal } from '../src/lib/ui/spellEffectLab.js';
-import { FIELD_PRESETS, presetById } from '../src/lib/ui/spellEffectLabPresets.js';
+import { LAB_PRESETS, presetById } from '../src/lib/ui/spellEffectLabPresets.js';
 import { signedAngleDifferenceDeg, vectorFromAngleDeg } from '../src/lib/utils/geometry.js';
 import type { CurveId, SealReading, SignReading, SpellPlan, SpellScore } from '../src/lib/types.js';
 
@@ -36,7 +36,7 @@ function scoreFor(presetId: string, sigil = SIGIL): SpellScore {
 }
 
 function everyScore(sigil = SIGIL): SpellScore[] {
-	return FIELD_PRESETS.map((preset) =>
+	return LAB_PRESETS.map((preset) =>
 		compileScore(resolvePlan(readPresetSeal(preset.signs, sigil)), SOURCE)
 	);
 }
@@ -293,7 +293,7 @@ test('R-11: a seal that manifests nothing still gets a designed default', () => 
 test('R-13: every family that has a kernel gets its own primitive, not a stand-in', () => {
 	// `vessel` is the one primitive still deferred, and no lab preset draws an orb,
 	// so no preset may carry a routed-* note at all.
-	for (const preset of FIELD_PRESETS) {
+	for (const preset of LAB_PRESETS) {
 		for (const note of scoreFor(preset.id).notes) {
 			assert.ok(!note.startsWith('routed-'), `${preset.id} is still routing: ${note}`);
 		}
@@ -408,7 +408,7 @@ test('identical inputs mean an identical score, and identical signature means id
 	assert.equal(seeds.size, 1, 'the seed follows the spell signature, not the plan');
 
 	const signatures = everyScore().map((score) => score.signature);
-	assert.equal(new Set(signatures).size, FIELD_PRESETS.length, 'two presets share a cast');
+	assert.equal(new Set(signatures).size, LAB_PRESETS.length, 'two presets share a cast');
 
 	// The seal's own reset key reaches the score through the seed, so a respelled
 	// spell is a different cast even when its plan is identical.

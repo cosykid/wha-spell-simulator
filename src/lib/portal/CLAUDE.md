@@ -48,8 +48,6 @@ there for painter-order sorting and size attenuation, which is most of why flat
   animation length and the length of the cast's first beat in
   [`../cast/score/beats.ts`](../cast/CLAUDE.md), so the paper always finishes
   tilting before the spell erupts — while the ambient medium draws in over it.
-  The superseded field renderer reads it as a flat emission hold through
-  `CONFIG.renderer.portalTiltMs`, which is why its charge is dead time.
 - **`portalFit` is measured, not fixed.** It is the fraction of the canvas
   height that is on screen, passed in by
   [`../ui/simulator/`](../ui/simulator/CLAUDE.md) and mirrored by the

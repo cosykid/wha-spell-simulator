@@ -1,7 +1,7 @@
 /**
  * @file The hold kernel: R-13's spring, levitation as a hover ceiling.
  *
- * The ceiling curve is the `buoyancy` case of `field/sampleField.ts` moved into
+ * The ceiling curve is the deleted field engine's `buoyancy` case moved into
  * a kernel — lift fades linearly with altitude, so held magic settles into a
  * hovering mass instead of climbing away. Around that equilibrium the mass
  * gathers back onto the hover axis and keeps a slow bob, which is `ground-truth`
@@ -46,7 +46,7 @@ export const HOLD: Primitive<HoldParams> = {
 	},
 
 	velocity(params, at, ageS): Vec3 {
-		// The hover ceiling, from FIELD_TUNING.hoverCeiling: lift fades with
+		// The hover ceiling, salvaged from the deleted field engine: lift fades with
 		// altitude, so the equilibrium is a height rather than an escape.
 		const ceiling = Math.max(params.at.z, NEGLIGIBLE_DISTANCE);
 		const lift = params.lift * Math.max(0, 1 - at.z / ceiling);

@@ -19,7 +19,6 @@ export type * from './types/glyph-ast.js';
 export type * from './types/seal-reading.js';
 export type * from './types/spell-plan.js';
 export type * from './types/spell-score.js';
-export type * from './types/spell-field.js';
 export type * from './types/spell-ir.js';
 export type * from './types/input.js';
 export type * from './types/placement.js';

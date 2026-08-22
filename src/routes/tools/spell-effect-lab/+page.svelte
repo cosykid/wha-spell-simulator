@@ -13,15 +13,13 @@
 		readPresetSeal,
 		valuesFromSpellIR
 	} from '$lib/ui/spellEffectLab.js';
-	import { FIELD_PRESETS, presetById } from '$lib/ui/spellEffectLabPresets.js';
-	import { buildSpellField } from '$lib/field/buildSpellField.js';
+	import { LAB_PRESETS, presetById } from '$lib/ui/spellEffectLabPresets.js';
 	import { resolvePlan } from '$lib/compiler/plan/resolvePlan.js';
 	import { roundDeep } from '$lib/utils/json.js';
 	import { page } from '$app/state';
 	import { onMount } from 'svelte';
 	import { LabPreview } from './lab-preview.js';
 	import PlanPanel from './PlanPanel.svelte';
-	import { DEFAULT_LAB_ENGINE, type LabEngine } from './lab-engines.js';
 	import { readGoldenFrameRequest } from './lab-goldens.js';
 
 	const controlEntries = Object.entries(EFFECT_CONTROLS);
@@ -29,12 +27,10 @@
 	// Test-only: the look golden tier asks for one preset at one timestamp.
 	const goldenFrame = readGoldenFrameRequest(page.url);
 
-	let engine = $state<LabEngine>(goldenFrame?.engine ?? DEFAULT_LAB_ENGINE);
 	let sigil = $state(goldenFrame?.sigil ?? DEFAULT_SIGIL);
 	const element = $derived(elementForSigil(sigil));
 	let presetId = $state(goldenFrame?.presetId ?? 'none');
 	const preset = $derived(presetById(presetId));
-	const field = $derived(buildSpellField(preset.signs));
 	const reading = $derived(readPresetSeal(preset.signs, sigil));
 	const plan = $derived(resolvePlan(reading));
 	let values = $state<Record<string, number>>(defaultControlValues());
@@ -48,7 +44,7 @@
 	let preview: LabPreview | null = null;
 
 	const irJson = $derived(
-		roundDeep(buildSpellIR({ values, element, sigil, activatedAt, config: CONFIG, field, reading }))
+		roundDeep(buildSpellIR({ values, element, sigil, activatedAt, config: CONFIG, reading }))
 	);
 
 	$effect(() => {
@@ -60,11 +56,6 @@
 	function restartSpell() {
 		activatedAt = performance.now();
 		preview?.resetParticles();
-	}
-
-	function selectEngine(next: LabEngine) {
-		engine = next;
-		restartSpell();
 	}
 
 	function handleSlider(key: string, event: Event & { currentTarget: HTMLInputElement }) {
@@ -90,9 +81,7 @@
 
 	async function copyIR() {
 		const json = JSON.stringify(
-			roundDeep(
-				buildSpellIR({ values, element, sigil, activatedAt, config: CONFIG, field, reading })
-			),
+			roundDeep(buildSpellIR({ values, element, sigil, activatedAt, config: CONFIG, reading })),
 			null,
 			2
 		);
@@ -112,8 +101,6 @@
 			element,
 			sigil,
 			activatedAt,
-			engine,
-			field,
 			reading,
 			presetSigns: preset.signs
 		}));
@@ -142,9 +129,9 @@
 				bind:value={presetId}
 				onchange={restartSpell}
 				title={preset.description}
-				data-testid="field-preset-select"
+				data-testid="lab-preset-select"
 			>
-				{#each FIELD_PRESETS as option (option.id)}
+				{#each LAB_PRESETS as option (option.id)}
 					<option value={option.id}>{option.label}</option>
 				{/each}
 			</select>
@@ -196,7 +183,7 @@
 			{/each}
 		</section>
 
-		<PlanPanel {plan} {engine} onEngine={selectEngine} />
+		<PlanPanel {plan} />
 
 		<section class="diagnostic-block">
 			<h2>Paste IR</h2>

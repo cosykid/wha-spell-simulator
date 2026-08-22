@@ -1,12 +1,11 @@
 import { CONFIG } from '$lib/config.js';
-import { activePortalPlane, convergenceFlow } from '$lib/renderer/effects/effectUtils.js';
 import { drawGlowingStrokes } from '$lib/renderer/glyphOverlayRenderer.js';
-import type { ElementId, Recognition, RingInfo, SealReading, SpellField } from '$lib/types.js';
-import { buildSpellIR } from '$lib/ui/spellEffectLab.js';
+import type { ElementId, Recognition, RingInfo, SealReading } from '$lib/types.js';
 import { vectorFromAngleDeg } from '$lib/utils/geometry.js';
+import { buildSpellIR } from '$lib/ui/spellEffectLab.js';
 import { renderPaper } from '$canvas/entities/paperEntity.js';
 import { drawGuides } from '$canvas/guideRenderer.js';
-import { createLabEngines, type LabEffectEngine, type LabEngine } from './lab-engines.js';
+import { createLabEngine, type LabEffectEngine } from './lab-engines.js';
 import { GOLDEN_FRAME_ATTRIBUTE, GOLDEN_FRAME_STEP_MS } from './lab-goldens.js';
 
 /** Live control state the preview samples each animation frame. */
@@ -15,22 +14,16 @@ export interface LabState {
 	element: ElementId;
 	sigil: string;
 	activatedAt: number;
-	/** Which effect engine draws the frame. See `lab-engines.ts`. */
-	engine: LabEngine;
-	/** Force field synthesized from the selected sign preset, which the field engine renders. */
-	field: SpellField;
-	/** Gated reading of the same preset signs. `SpellIR.plan` follows from it, and the cast engine plays that. */
+	/** Gated reading of the preset signs. `SpellIR.plan` follows from it, and the cast plays that. */
 	reading: SealReading;
 	/** The preset's signs, drawn as position/facing markers on the glyph. */
 	presetSigns: Recognition[];
 }
 
-type SpellIR = ReturnType<typeof buildSpellIR>;
-
 /**
  * The Spell Effect Lab's canvas preview: a self-contained render harness driving two stacked
  * canvases (a synthetic glyph + the effect layer) from a {@link LabState} getter. It owns the
- * effect engines, the resize bookkeeping, and the animation loop; the page keeps
+ * effect engine, the resize bookkeeping, and the animation loop; the page keeps
  * the reactive control state and reads back through `resetParticles`/`start`.
  */
 export class LabPreview {
@@ -39,8 +32,7 @@ export class LabPreview {
 	readonly #shell: HTMLElement;
 	readonly #getState: () => LabState;
 	readonly #glyphCtx: CanvasRenderingContext2D;
-	readonly #effectCtx: CanvasRenderingContext2D;
-	readonly #engines: Record<LabEngine, LabEffectEngine>;
+	readonly #engine: LabEffectEngine;
 	#rafId: number | null = null;
 
 	constructor(
@@ -54,8 +46,7 @@ export class LabPreview {
 		this.#shell = shell;
 		this.#getState = getState;
 		this.#glyphCtx = glyphCanvas.getContext('2d')!;
-		this.#effectCtx = effectCanvas.getContext('2d')!;
-		this.#engines = createLabEngines(effectCanvas);
+		this.#engine = createLabEngine(effectCanvas);
 	}
 
 	/** Begin the animation loop; returns a teardown that cancels the pending frame. */
@@ -86,9 +77,7 @@ export class LabPreview {
 
 	/** Drop accumulated render state so the next frame restarts the effect cleanly. */
 	resetParticles(): void {
-		for (const engine of Object.values(this.#engines)) {
-			engine.reset();
-		}
+		this.#engine.reset();
 	}
 
 	#buildRing(values: Record<string, number>): RingInfo {
@@ -211,47 +200,6 @@ export class LabPreview {
 		ctx.restore();
 	}
 
-	// The dashed centerline the field's convergence manifestation compresses onto.
-	// It reads field numbers, so it is drawn only when the field engine is.
-	#drawConvergencePathGuide(spellIR: SpellIR, ring: RingInfo) {
-		const convergence = spellIR.manifestations?.convergence;
-		if (!convergence?.strength) {
-			return;
-		}
-
-		const ctx = this.#effectCtx;
-		const portal = activePortalPlane(this.#effectCanvas, ring);
-		const flow = convergenceFlow(spellIR, portal, 0);
-		const guideLength = ring.radius * (0.72 + spellIR.force * 0.46 + spellIR.range * 0.22);
-		const end = {
-			x: flow.origin.x + flow.direction.x * guideLength,
-			y: flow.origin.y + flow.direction.y * guideLength
-		};
-		const radiusX = Math.max(5, flow.radiusX);
-		const radiusY = Math.max(4, flow.radiusY);
-
-		ctx.save();
-		ctx.globalCompositeOperation = 'source-over';
-		ctx.strokeStyle = 'rgba(19, 118, 166, 0.78)';
-		ctx.lineWidth = 1.4;
-		ctx.setLineDash([4, 5]);
-		ctx.beginPath();
-		ctx.moveTo(flow.origin.x, flow.origin.y);
-		ctx.lineTo(end.x, end.y);
-		ctx.stroke();
-		ctx.beginPath();
-		ctx.ellipse(end.x, end.y, radiusX, radiusY, 0, 0, Math.PI * 2);
-		ctx.stroke();
-		ctx.setLineDash([]);
-		ctx.beginPath();
-		ctx.moveTo(end.x - 7, end.y);
-		ctx.lineTo(end.x + 7, end.y);
-		ctx.moveTo(end.x, end.y - 7);
-		ctx.lineTo(end.x, end.y + 7);
-		ctx.stroke();
-		ctx.restore();
-	}
-
 	#resizeCanvases() {
 		const rect = this.#shell.getBoundingClientRect();
 		const width = Math.max(1, Math.round(rect.width));
@@ -282,13 +230,9 @@ export class LabPreview {
 			sigil: state.sigil,
 			activatedAt: state.activatedAt,
 			config: CONFIG,
-			field: state.field,
 			reading: state.reading
 		});
 		this.#drawSyntheticGlyph(ring, timestamp, state);
-		this.#engines[state.engine].render(spellIR, ring, timestamp);
-		if (state.engine === 'field') {
-			this.#drawConvergencePathGuide(spellIR, ring);
-		}
+		this.#engine.render(spellIR, ring, timestamp);
 	}
 }

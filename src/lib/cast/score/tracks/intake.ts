@@ -10,7 +10,7 @@
  *
  * The three channels are section 7's: a signed radial sink, a lateral drag along
  * the arrows, and a twist whose sense follows their turn. Only the twist lifts,
- * which is `FIELD_TUNING.swirlLift` from `sampleField.ts` — a straight pull is a
+ * is the swirl lift salvaged from the deleted field engine — a straight pull is a
  * flat inflow and a slanted one is canon's helical, apple-plucking vortex.
  */
 
@@ -29,9 +29,9 @@ const INTAKE_TUNING = {
 	speedFloor: 0.3,
 	/** Canon's default pull is inward, so pull ink with no trusted facing still inhales. */
 	defaultDraw: 5,
-	/** Radius where the draw peaks, from FIELD_TUNING.radialCore: the center is a pool. */
+	/** Radius where the draw peaks, from the old radial core: the center is a pool. */
 	pool: 0.4,
-	/** Lift per unit of swirl, from FIELD_TUNING.swirlLift, and the height it fades over. */
+	/** Lift per unit of swirl, from the old swirl lift, and the height it fades over. */
 	swirlLift: 0.85,
 	ceiling: 0.7
 } as const;

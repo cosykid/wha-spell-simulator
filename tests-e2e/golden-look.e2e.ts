@@ -1,113 +1,72 @@
 /**
  * Look golden tier: the Spell Effect Lab's effect canvas, for every lab preset,
- * under both effect engines, at fixed timestamps.
+ * at fixed timestamps on R-01's beat clock, plus two cases pinning the sigil look
+ * rows. One engine, because since the redesign's phase 5 there is only one.
  *
- * Two lists. The **field** list is the shipping renderer, sampled on the wall
- * clock. The **cast** list is the redesign's engine, sampled on R-01's beat
- * clock, plus two cases pinning the sigil look rows that phase 4 added.
- * Generate both in one command with `npm run test:golden:look:update`; a case
- * whose baseline is missing skips with a hint rather than failing.
+ * Generate with `npm run test:golden:look:update`; a case whose baseline is
+ * missing skips with a hint rather than failing.
  *
- * The motion tier (`npm run test:golden`) is the primary gate. This tier only
+ * The cast tier (`npm run test:golden`) is the primary gate. This tier only
  * catches what pixels can say and motion cannot: colour, sprite, compositing.
  */
 
 import { existsSync } from 'node:fs';
 import { expect, test } from '@playwright/test';
-import { FIELD_PRESETS } from '../src/lib/ui/spellEffectLabPresets.js';
-import type { LabEngine } from '../src/routes/tools/spell-effect-lab/lab-engines.js';
+import { LAB_PRESETS } from '../src/lib/ui/spellEffectLabPresets.js';
 
 /**
- * Field frames: one during the 980ms portal tilt, one just after emission
- * starts, one with the effect developed. The lab's default cast runs 5s.
+ * Read off the beat clock rather than the wall. Charge ends at 980ms, the strike
+ * runs to 1300ms, and the body of a 5s cast runs to 3820ms. 700ms is therefore
+ * charge *content* — R-01's ambient medium drawing inward with the spell's own
+ * manifestation still to come — then one frame inside the strike and one
+ * mid-body.
  */
-const FIELD_FRAME_MS = [300, 1400, 2600] as const;
-
-/**
- * Cast frames, read off the beat clock instead of the wall. Charge ends at
- * 980ms, the strike runs to 1300ms, and the body of a 5s cast runs to 3820ms.
- * 700ms is therefore charge *content* — R-01's ambient medium drawing inward
- * with the spell's own manifestation still to come — then one frame inside the
- * strike and one mid-body.
- */
-const CAST_FRAME_MS = [700, 1150, 2200] as const;
+const FRAME_MS = [700, 1150, 2200] as const;
 
 /** The two sigil rows keyed above their element (crystal over earth, aeroform over wind). */
 const SIGIL_ROWS = ['crystal', 'aeroform'] as const;
 
-/** The preset the sigil cases run, so their only difference from `cast-column-balanced` is the row. */
+/** The preset the sigil cases run, so their only difference from `column-balanced` is the row. */
 const SIGIL_CASE_PRESET = 'column-balanced';
 
-// The field effect jitters particles with Math.random and Chromium renders
-// gradients a hair differently across machines, so a field baseline pins the
-// composition rather than every pixel. The cast engine is seeded end to end and
-// reads no clock, so its baselines are held far tighter.
-const MAX_DIFF_PIXEL_RATIO = { field: 0.02, cast: 0.005 } as const;
+// The cast engine is seeded end to end and reads no clock, so its baselines are
+// held tight; the tolerance only absorbs Chromium's gradient dithering.
+const MAX_DIFF_PIXEL_RATIO = 0.005;
 
 const UPDATE_HINT = 'run `npm run test:golden:look:update`';
 
-/** One preset, one engine, one look row, at a list of timestamps. */
+/** One preset and one look row, at a list of timestamps. */
 interface LookCase {
-	/** Baseline file stem, distinct per case. Field cases keep the bare preset id. */
+	/** Baseline file stem, distinct per case. */
 	id: string;
 	presetId: string;
-	engine: LabEngine;
 	/** Omitted for the lab's default sigil. */
 	sigil?: string;
 	frames: readonly number[];
 }
 
 const LOOK_CASES: LookCase[] = [
-	...FIELD_PRESETS.map((preset) => ({
-		id: preset.id,
-		presetId: preset.id,
-		engine: 'field' as const,
-		frames: FIELD_FRAME_MS
-	})),
-	...FIELD_PRESETS.map((preset) => ({
+	...LAB_PRESETS.map((preset) => ({
 		id: `cast-${preset.id}`,
 		presetId: preset.id,
-		engine: 'cast' as const,
-		frames: CAST_FRAME_MS
+		frames: FRAME_MS
 	})),
 	...SIGIL_ROWS.map((sigil) => ({
 		id: `cast-${SIGIL_CASE_PRESET}-${sigil}`,
 		presetId: SIGIL_CASE_PRESET,
-		engine: 'cast' as const,
 		sigil,
-		frames: CAST_FRAME_MS
+		frames: FRAME_MS
 	}))
 ];
-
-// The field effect spawns and jitters particles with Math.random, so an
-// unseeded page paints a different frame every run. Seeding it in the page is
-// the test's job; the app keeps its real randomness.
-function installSeededRandom(): void {
-	let state = 0x9e3779b9;
-	Math.random = () => {
-		state = (state + 0x6d2b79f5) | 0;
-		let t = Math.imul(state ^ (state >>> 15), 1 | state);
-		t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-		return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-	};
-}
-
-test.beforeEach(async ({ page }) => {
-	await page.addInitScript(installSeededRandom);
-});
 
 function baselineName(caseId: string, atMs: number): string {
 	return `${caseId}-${String(atMs).padStart(4, '0')}ms.png`;
 }
 
-// The route's scripted-clock hook: load this preset under this engine and step
-// the preview to this timestamp, then stop. See lab-goldens.ts.
+// The route's scripted-clock hook: load this preset and step the preview to this
+// timestamp, then stop. See lab-goldens.ts.
 function labUrl(lookCase: LookCase, atMs: number): string {
-	const params = new URLSearchParams({
-		preset: lookCase.presetId,
-		frameMs: String(atMs),
-		engine: lookCase.engine
-	});
+	const params = new URLSearchParams({ preset: lookCase.presetId, frameMs: String(atMs) });
 	if (lookCase.sigil) {
 		params.set('sigil', lookCase.sigil);
 	}
@@ -130,7 +89,7 @@ for (const lookCase of LOOK_CASES) {
 
 			await expect(effectCanvas).toHaveScreenshot(name, {
 				animations: 'disabled',
-				maxDiffPixelRatio: MAX_DIFF_PIXEL_RATIO[lookCase.engine]
+				maxDiffPixelRatio: MAX_DIFF_PIXEL_RATIO
 			});
 		});
 	}

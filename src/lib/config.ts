@@ -1,5 +1,3 @@
-import { PORTAL } from './portal/portal.js';
-
 export const CONFIG = {
 	// String version tag shown in diagnostics.
 	appVersion: '0.1.0-poc',
@@ -98,23 +96,11 @@ export const CONFIG = {
 		maxUnknownsBeforeInstability: 4
 	},
 	renderer: {
-		// Milliseconds the spell paper takes to tilt into the screen before the
-		// effect animation begins. Owned by `portal/portal.ts`, which also writes
-		// the CSS `--portal-tilt-duration` the tilt animates on, so the hold and
-		// the animation cannot drift apart. Tune it there.
-		portalTiltMs: PORTAL.tiltMs,
-
 		// CSS color; drawn ink color.
 		inkColor: '#241b16',
 
 		// CSS color; guide line color.
 		guideColor: 'rgba(92, 74, 54, 0.28)',
-
-		// Count; default effect particle budget before element-specific scaling.
-		particleBaseCount: 130,
-
-		// Count; hard cap for effect particles.
-		particleCap: 360,
 
 		effectSize: {
 			// Ring-fraction footprint treated as a sigil's "regular" size when its

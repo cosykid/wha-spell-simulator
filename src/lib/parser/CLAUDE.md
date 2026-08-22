@@ -97,4 +97,4 @@ cannot be created. The classifier worker itself scores candidates in-thread.
 - [`../../../docs/glyph-ast.md`](../../../docs/glyph-ast.md) the `GlyphAST` output contract.
 - [`../dictionary/CLAUDE.md`](../dictionary/CLAUDE.md) where sigils and signs come from.
 - [`../ui/simulator/CLAUDE.md`](../ui/simulator/CLAUDE.md) debounce, sequence guarding, and how results reach the UI.
-- [`../field/CLAUDE.md`](../field/CLAUDE.md) how a sign's `rotationOffsetDeg` becomes force.
+- [`../compiler/CLAUDE.md`](../compiler/CLAUDE.md) how a sign's `rotationOffsetDeg` becomes a facing the plan can rule on.

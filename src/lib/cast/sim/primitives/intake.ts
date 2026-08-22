@@ -8,7 +8,7 @@
  * away through the same kernel rather than through a second code path, exactly
  * as R-07 refuses a separate inverted column.
  *
- * The finite core is `radialMagnitude` from `field/sampleField.ts`: the draw
+ * The finite core is the old field engine's radial magnitude: the draw
  * dies at the origin, so arriving matter pools against the seal instead of
  * spiking through a singularity.
  */

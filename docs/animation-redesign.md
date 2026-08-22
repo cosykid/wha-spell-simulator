@@ -1,12 +1,13 @@
 # Animation System Redesign
 
-Status: implemented through phase 5a (the cutover), 2026-08-22. Phases 0
-through 4 and the simulator switch are on main; only the phase 5 deletions
-(`field/`, `renderer/effects/`, `SpellIR.field`, the lab engine flag) and the
-optional phase 6 remain. The plan below is kept as written for the record. The behavioral rulings it implements live in
+Status: implemented, 2026-08-22. Phases 0 through 5 are on main: the simulator
+casts through `cast/`, and `field/`, `renderer/effects/`, `SpellIR.field` and the
+lab engine flag are deleted. Only the optional phase 6 remains. The plan below is
+kept as written for the record. The behavioral rulings it implements live in
 [`animation-spec.md`](animation-spec.md). Supersedes
-[`Plan for converting spells to animations.md`](<Plan for converting spells to animations.md>)
-and, on cutover, [`effect-rendering.md`](effect-rendering.md).
+[`Plan for converting spells to animations.md`](<Plan for converting spells to animations.md>),
+and replaced `effect-rendering.md`, which was deleted with the engine it
+described.
 
 Context: two three.js attempts (PR #74 `theorycrafting`, PR #76
 `tc-field-canvas-rework`) were abandoned. Their post-mortem drives every

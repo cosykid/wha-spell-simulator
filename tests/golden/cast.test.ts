@@ -17,7 +17,7 @@ import {
 	CAST_DIR,
 	CAST_FRAME_MS,
 	castFileName,
-	FIELD_PRESETS,
+	LAB_PRESETS,
 	landsOnStep,
 	presetScore,
 	renderPresetCast
@@ -51,7 +51,7 @@ test('every cast probe row names a subject that exists', () => {
 
 test('every committed cast baseline names a real preset', () => {
 	const expected = new Set(
-		FIELD_PRESETS.flatMap((preset) => CAST_FRAME_MS.map((atMs) => castFileName(preset.id, atMs)))
+		LAB_PRESETS.flatMap((preset) => CAST_FRAME_MS.map((atMs) => castFileName(preset.id, atMs)))
 	);
 	for (const name of readdirSync(CAST_DIR).filter((file) => file.endsWith('.png'))) {
 		assert.ok(expected.has(name), `cast baseline "${name}" has no lab preset: ${UPDATE_HINT}`);
@@ -63,7 +63,7 @@ test('the charge beat holds the ambient medium and nothing the seal manifests', 
 	// draws inward while the paper turns. R-02: nothing the seal manifests may
 	// erupt until the tilt is over.
 	assert.ok(landsOnStep(LATE_CHARGE_MS), `${LATE_CHARGE_MS}ms is not a whole simulation step`);
-	for (const preset of FIELD_PRESETS) {
+	for (const preset of LAB_PRESETS) {
 		const score = presetScore(preset);
 		assert.ok(LATE_CHARGE_MS < score.beats.charge.endMs, `${preset.id} charges past the tilt`);
 		const parcels = simulateTo(score, LATE_CHARGE_MS).parcels;
@@ -83,7 +83,7 @@ test('stepping fresh to a timestamp matches stepping there incrementally', () =>
 	// The contract that makes golden frames cheap: a baseline never depends on
 	// which timestamps were sampled before it.
 	const last = CAST_FRAME_MS[CAST_FRAME_MS.length - 1];
-	for (const preset of FIELD_PRESETS) {
+	for (const preset of LAB_PRESETS) {
 		const score = presetScore(preset);
 		const incremental = newCast(score);
 		for (const atMs of CAST_FRAME_MS) {
@@ -96,7 +96,7 @@ test('stepping fresh to a timestamp matches stepping there incrementally', () =>
 });
 
 test('two runs of the same cast render the same bytes', () => {
-	for (const preset of FIELD_PRESETS) {
+	for (const preset of LAB_PRESETS) {
 		const first = renderPresetCast(preset);
 		const second = renderPresetCast(preset);
 		for (let i = 0; i < first.length; i += 1) {
@@ -105,7 +105,7 @@ test('two runs of the same cast render the same bytes', () => {
 	}
 });
 
-for (const preset of FIELD_PRESETS) {
+for (const preset of LAB_PRESETS) {
 	test(`cast baseline: ${preset.id}`, () => {
 		for (const frame of renderPresetCast(preset)) {
 			const path = join(CAST_DIR, frame.fileName);

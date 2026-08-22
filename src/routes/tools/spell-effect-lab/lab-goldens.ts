@@ -1,17 +1,15 @@
 /**
  * @file Test-only hook for the look golden tier. `?preset=<id>&frameMs=<n>`
- * loads a field preset and steps the preview to a fixed timestamp with a fixed
+ * loads a lab preset and steps the preview to a fixed timestamp with a fixed
  * step, instead of following the animation clock, so a Playwright screenshot
- * lands on the same frame every run. `&engine=cast` drives the redesign's cast
- * engine instead of the field one, and `&sigil=<id>` picks which look row it
- * paints from, which is how the crystal and aeroform rows get a baseline.
+ * lands on the same frame every run. `&sigil=<id>` picks which look row it paints
+ * from, which is how the crystal and aeroform rows get a baseline.
  *
  * Nothing in the app links here. The lab's own UI is unaffected when the
  * parameters are absent. See `tests-e2e/golden-look.e2e.ts`.
  */
 
 import { DEFAULT_SIGIL, SIGIL_OPTIONS } from '$lib/ui/spellEffectLab.js';
-import { labEngineFrom, type LabEngine } from './lab-engines.js';
 
 /** Step the scripted clock advances by, matching a 60fps frame. */
 export const GOLDEN_FRAME_STEP_MS = 1000 / 60;
@@ -22,7 +20,6 @@ export const GOLDEN_FRAME_ATTRIBUTE = 'data-golden-frame';
 export interface GoldenFrameRequest {
 	presetId: string;
 	frameMs: number;
-	engine: LabEngine;
 	sigil: string;
 }
 
@@ -41,7 +38,6 @@ export function readGoldenFrameRequest(url: URL): GoldenFrameRequest | null {
 	return {
 		presetId,
 		frameMs,
-		engine: labEngineFrom(url.searchParams.get('engine')),
 		sigil: labSigilFrom(url.searchParams.get('sigil'))
 	};
 }

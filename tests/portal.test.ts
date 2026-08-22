@@ -1,7 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { CONFIG } from '../src/lib/config.js';
 import {
 	GROUND_FORESHORTENING,
 	HEIGHT_FORESHORTENING,
@@ -128,5 +127,4 @@ test('the CSS variables carry the same numbers the projection uses', () => {
 	assert.match(variables, new RegExp(`--portal-origin-shift: ${PORTAL.originShiftPct}%(;|$)`));
 	// The charge beat and the CSS tilt animation are the same 980ms (R-01).
 	assert.match(variables, new RegExp(`--portal-tilt-duration: ${PORTAL.tiltMs}ms(;|$)`));
-	assert.equal(CONFIG.renderer.portalTiltMs, PORTAL.tiltMs);
 });

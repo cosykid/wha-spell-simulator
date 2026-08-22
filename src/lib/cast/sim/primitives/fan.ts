@@ -3,7 +3,7 @@
  * routed vortex leaves in it.
  *
  * The radial term and its finite core are salvaged from the `radial` case of
- * `field/sampleField.ts`; the vortex eye is deliberately left behind, because it
+ * the deleted field engine; the vortex eye is deliberately left behind, because it
  * belongs to the real `vortex` primitive phase 4 builds. The ceiling is that
  * file's `hoverCeiling` shape: lift fades with altitude so a fan settles onto
  * the paper instead of climbing off it.

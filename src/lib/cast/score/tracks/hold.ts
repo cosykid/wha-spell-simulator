@@ -7,7 +7,7 @@
  * one job past that is unit conversion. The plan's `hold.at` is in ink units, an
  * unbounded sum of drawn length, so a four-sign ring parks its locus at 2.8 ring
  * radii — off the seal entirely. `saturate` maps it onto the seal's own hover
- * range, whose top is the 0.85 `hoverCeiling` salvaged from `sampleField.ts`.
+ * range, whose top is the 0.85 hover ceiling salvaged from the old field engine.
  *
  * Open canon question 3 (does a levitation rotor spin without a grip?) is
  * already answered upstream: `resolveHold` returns null when the ink never

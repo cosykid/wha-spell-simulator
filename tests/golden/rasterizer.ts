@@ -1,6 +1,6 @@
 /**
- * @file Software rasterizer for the motion tier, adapted from the
- * `theorycrafting` branch's three-panel renderer down to what a diff needs.
+ * @file Software rasterizer for the cast tier, adapted from the `theorycrafting`
+ * branch's three-panel renderer down to what a diff needs.
  *
  * Two small panels per frame, both in seal space: a top view (x right, y
  * screen-down) and a side view (x right, z up). Parcels splat additively in
@@ -9,7 +9,13 @@
  */
 
 import { encodePng } from './png.js';
-import type { Parcel } from './motion.js';
+
+/** All a frame needs of a parcel: where it sits in seal space. */
+export interface RasterPoint {
+	x: number;
+	y: number;
+	z: number;
+}
 
 const PANEL = 96;
 const GAP = 4;
@@ -77,15 +83,12 @@ function drawSealReference(frame: Framebuffer): void {
  * One frame of a population as a PNG: top view left, side view right.
  *
  * @example
- * writeFileSync(path, rasterizePopulation(population.parcels));
+ * writeFileSync(path, rasterizePopulation(sealPoints(state.parcels)));
  */
-export function rasterizePopulation(parcels: Parcel[]): Buffer {
+export function rasterizePopulation(parcels: RasterPoint[]): Buffer {
 	const frame = new Framebuffer();
 	drawSealReference(frame);
 	for (const parcel of parcels) {
-		if (parcel.escaped) {
-			continue;
-		}
 		frame.splat(topX(parcel.x), topY(parcel.y), PARCEL_INK, 1);
 		frame.splat(sideX(parcel.x), sideY(parcel.z), PARCEL_INK, 1);
 	}

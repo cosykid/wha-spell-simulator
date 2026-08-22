@@ -4,7 +4,7 @@
  * R-05 is built into the params rather than applied later. `axis` is the plan's
  * own aim vector, which points where the long sign points and never toward where
  * it sits, so there is no separate lean term left to invert the way the first
- * `SpellField` did.
+ * force field did.
  *
  * R-02 shapes the timing: emission runs from `strike` to `body` and stops there,
  * so nothing is still charging when `release` begins.
@@ -24,8 +24,8 @@ const JET_TUNING = {
 	speed: 2.4,
 	/** Fraction of `speed` the faintest jet still keeps. */
 	speedFloor: 0.4,
-	// Beam footprint and chimney draft, salvaged from the `axial` case of
-	// field/sampleField.ts (FIELD_TUNING.axialFootprint / axialConverge).
+	// Beam footprint and chimney draft, salvaged from the deleted field engine's
+	// `axial` case (its axialFootprint / axialConverge).
 	footprint: 0.45,
 	converge: 0.6,
 	/** Seal units along the axis where the beam has spent half its push. */

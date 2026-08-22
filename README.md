@@ -24,8 +24,8 @@ The app lets users draw or arrange spell circles on a canvas, then converts thos
 - Trains the ResNet18 recognizer from more than 8,000 hand-drawn labelled samples collected with the Sample Maker tool and stored in Postgres (accurate as of June 16, 2026).
 - Recognizes signs that modify direction, levitation, convergence, force, spread, focus, range, duration, and stability.
 - Produces parser diagnostics, `GlyphAST`, and `SpellIR` output for inspection, including tentative glyph labels while symbols are still being drawn.
-- Renders animated element effects from the compiled spell behavior.
-- Compiles signs into a typed force field (`SpellField`): columns beam and lean, pulls twist by their facing angle, regions gate where magic spawns, and levitation lifts. Spells with signs render as particles advected through the summed field, so behaviors like vortices from angled pulls emerge from the physics.
+- Resolves the recognized signs into a `SpellPlan`: a finite list of named motion primitives with their own budgets. Columns beam and lean where their signs point, pulls twist by their facing angle, regions gate where magic emits from, levitation grips a hovering mass, and a plan says out loud where two of them interact.
+- Performs that plan as a timed one-shot cast: five beats, seeded parcels advected per primitive, painted from a look table keyed on the sigil. Deterministic end to end, so the same drawing always casts the same way.
 - Shows sample spell layouts in the Dictionary panel as drawing references.
 - Saves spells as per-account presets (username + password accounts), recalled from the My Spells tab. Presets always store the ring open, so a recalled spell is prepared, never instantly active.
 - Shares spells to a communal Spell Library styled as a page-turning book, with upvotes, popularity/recency sorting, and in-place animated previews. Guests can browse and cast; saving, publishing, and voting need an account.
@@ -231,6 +231,5 @@ cut out, so a recalled spell always arrives prepared and is sealed by hand.
 - [Parser and spell semantics rules](docs/play-rules.md)
 - [Parsed glyph output contract](docs/glyph-ast.md)
 - [Compiled spell output contract](docs/spell-ir.md)
-- [Visual effect renderer notes](docs/effect-rendering.md)
 - [Spell behavior specification](docs/animation-spec.md)
 - [Animation system redesign plan](docs/animation-redesign.md)
