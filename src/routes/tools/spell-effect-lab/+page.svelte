@@ -21,6 +21,7 @@
 	import { onMount } from 'svelte';
 	import { LabPreview } from './lab-preview.js';
 	import PlanPanel from './PlanPanel.svelte';
+	import { DEFAULT_LAB_ENGINE, type LabEngine } from './lab-engines.js';
 	import { readGoldenFrameRequest } from './lab-goldens.js';
 
 	const controlEntries = Object.entries(EFFECT_CONTROLS);
@@ -28,6 +29,7 @@
 	// Test-only: the look golden tier asks for one preset at one timestamp.
 	const goldenFrame = readGoldenFrameRequest(page.url);
 
+	let engine = $state<LabEngine>(goldenFrame?.engine ?? DEFAULT_LAB_ENGINE);
 	let sigil = $state(DEFAULT_SIGIL);
 	const element = $derived(elementForSigil(sigil));
 	let presetId = $state(goldenFrame?.presetId ?? 'none');
@@ -58,6 +60,11 @@
 	function restartSpell() {
 		activatedAt = performance.now();
 		preview?.resetParticles();
+	}
+
+	function selectEngine(next: LabEngine) {
+		engine = next;
+		restartSpell();
 	}
 
 	function handleSlider(key: string, event: Event & { currentTarget: HTMLInputElement }) {
@@ -105,7 +112,9 @@
 			element,
 			sigil,
 			activatedAt,
+			engine,
 			field,
+			reading,
 			presetSigns: preset.signs
 		}));
 		if (goldenFrame) {
@@ -187,7 +196,7 @@
 			{/each}
 		</section>
 
-		<PlanPanel {plan} />
+		<PlanPanel {plan} {engine} onEngine={selectEngine} />
 
 		<section class="diagnostic-block">
 			<h2>Paste IR</h2>

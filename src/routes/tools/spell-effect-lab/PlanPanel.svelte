@@ -3,19 +3,22 @@
 	resolves to, in the same text form the plan goldens commit, plus the engine
 	switch the cutover will flip.
 
-	The plan does not drive anything yet — the field still renders — so this panel
-	is how a ruling change is seen before phase 3 exists to play it.
+	`field` renders the shipping effect, `cast` plays the plan through the
+	redesign's score, sim and painter. The switch is how the same ruling is seen
+	under both engines before phase 5 deletes the older one.
 -->
 <script lang="ts">
 	import { planText } from '$lib/compiler/plan/planText.js';
 	import type { SpellPlan } from '$lib/types.js';
+	import { LAB_ENGINES, type LabEngine } from './lab-engines.js';
 
-	let { plan }: { plan: SpellPlan } = $props();
+	let {
+		plan,
+		engine,
+		onEngine
+	}: { plan: SpellPlan; engine: LabEngine; onEngine: (engine: LabEngine) => void } = $props();
 
 	const text = $derived(planText(plan));
-
-	/** The `cast` engine lands in phase 3; the switch point exists from here on. */
-	let engine = $state<'field' | 'cast'>('field');
 </script>
 
 <details class="diagnostic-block plan-panel" open>
@@ -23,20 +26,19 @@
 
 	<fieldset class="plan-engine">
 		<legend>Engine</legend>
-		<label>
-			<input
-				type="radio"
-				name="engine"
-				value="field"
-				bind:group={engine}
-				data-testid="lab-engine-field"
-			/>
-			<span>field</span>
-		</label>
-		<label class="plan-engine-pending">
-			<input type="radio" name="engine" value="cast" disabled data-testid="lab-engine-cast" />
-			<span>cast <small>(phase 3)</small></span>
-		</label>
+		{#each LAB_ENGINES as option (option)}
+			<label>
+				<input
+					type="radio"
+					name="engine"
+					value={option}
+					checked={engine === option}
+					onchange={() => onEngine(option)}
+					data-testid="lab-engine-{option}"
+				/>
+				<span>{option}</span>
+			</label>
+		{/each}
 	</fieldset>
 
 	<pre class="diagnostic-output plan-text" data-testid="lab-plan-text">{text}</pre>
@@ -73,10 +75,6 @@
 		align-items: center;
 		color: var(--muted-ink);
 		font-size: 12px;
-	}
-
-	.plan-engine-pending {
-		opacity: 0.55;
 	}
 
 	.plan-text {

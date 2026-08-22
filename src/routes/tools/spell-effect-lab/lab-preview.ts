@@ -1,16 +1,12 @@
 import { CONFIG } from '$lib/config.js';
-import {
-	activePortalPlane,
-	convergenceFlow,
-	resetParticleState
-} from '$lib/renderer/effects/effectUtils.js';
+import { activePortalPlane, convergenceFlow } from '$lib/renderer/effects/effectUtils.js';
 import { drawGlowingStrokes } from '$lib/renderer/glyphOverlayRenderer.js';
-import { SpellEffectRenderer } from '$lib/renderer/spellEffectRenderer.js';
-import type { ElementId, Recognition, RingInfo, SpellField } from '$lib/types.js';
+import type { ElementId, Recognition, RingInfo, SealReading, SpellField } from '$lib/types.js';
 import { buildSpellIR } from '$lib/ui/spellEffectLab.js';
 import { vectorFromAngleDeg } from '$lib/utils/geometry.js';
 import { renderPaper } from '$canvas/entities/paperEntity.js';
 import { drawGuides } from '$canvas/guideRenderer.js';
+import { createLabEngines, type LabEffectEngine, type LabEngine } from './lab-engines.js';
 import { GOLDEN_FRAME_ATTRIBUTE, GOLDEN_FRAME_STEP_MS } from './lab-goldens.js';
 
 /** Live control state the preview samples each animation frame. */
@@ -19,8 +15,12 @@ export interface LabState {
 	element: ElementId;
 	sigil: string;
 	activatedAt: number;
-	/** Force field synthesized from the selected sign preset. */
+	/** Which effect engine draws the frame. See `lab-engines.ts`. */
+	engine: LabEngine;
+	/** Force field synthesized from the selected sign preset, which the field engine renders. */
 	field: SpellField;
+	/** Gated reading of the same preset signs. `SpellIR.plan` follows from it, and the cast engine plays that. */
+	reading: SealReading;
 	/** The preset's signs, drawn as position/facing markers on the glyph. */
 	presetSigns: Recognition[];
 }
@@ -30,7 +30,7 @@ type SpellIR = ReturnType<typeof buildSpellIR>;
 /**
  * The Spell Effect Lab's canvas preview: a self-contained render harness driving two stacked
  * canvases (a synthetic glyph + the effect layer) from a {@link LabState} getter. It owns the
- * {@link SpellEffectRenderer}, the resize bookkeeping, and the animation loop; the page keeps
+ * effect engines, the resize bookkeeping, and the animation loop; the page keeps
  * the reactive control state and reads back through `resetParticles`/`start`.
  */
 export class LabPreview {
@@ -40,7 +40,7 @@ export class LabPreview {
 	readonly #getState: () => LabState;
 	readonly #glyphCtx: CanvasRenderingContext2D;
 	readonly #effectCtx: CanvasRenderingContext2D;
-	readonly #renderer: SpellEffectRenderer;
+	readonly #engines: Record<LabEngine, LabEffectEngine>;
 	#rafId: number | null = null;
 
 	constructor(
@@ -55,7 +55,7 @@ export class LabPreview {
 		this.#getState = getState;
 		this.#glyphCtx = glyphCanvas.getContext('2d')!;
 		this.#effectCtx = effectCanvas.getContext('2d')!;
-		this.#renderer = new SpellEffectRenderer(effectCanvas, CONFIG);
+		this.#engines = createLabEngines(effectCanvas);
 	}
 
 	/** Begin the animation loop; returns a teardown that cancels the pending frame. */
@@ -84,11 +84,11 @@ export class LabPreview {
 		this.#effectCanvas.setAttribute(GOLDEN_FRAME_ATTRIBUTE, String(frameMs));
 	}
 
-	/** Drop accumulated particle state so the next frame restarts the effect cleanly. */
+	/** Drop accumulated render state so the next frame restarts the effect cleanly. */
 	resetParticles(): void {
-		this.#renderer.lastSignature = null;
-		this.#renderer.lastTime = null;
-		resetParticleState(this.#renderer.state);
+		for (const engine of Object.values(this.#engines)) {
+			engine.reset();
+		}
 	}
 
 	#buildRing(values: Record<string, number>): RingInfo {
@@ -211,6 +211,8 @@ export class LabPreview {
 		ctx.restore();
 	}
 
+	// The dashed centerline the field's convergence manifestation compresses onto.
+	// It reads field numbers, so it is drawn only when the field engine is.
 	#drawConvergencePathGuide(spellIR: SpellIR, ring: RingInfo) {
 		const convergence = spellIR.manifestations?.convergence;
 		if (!convergence?.strength) {
@@ -280,10 +282,13 @@ export class LabPreview {
 			sigil: state.sigil,
 			activatedAt: state.activatedAt,
 			config: CONFIG,
-			field: state.field
+			field: state.field,
+			reading: state.reading
 		});
 		this.#drawSyntheticGlyph(ring, timestamp, state);
-		this.#renderer.render(spellIR, ring, timestamp, { showGuides: false });
-		this.#drawConvergencePathGuide(spellIR, ring);
+		this.#engines[state.engine].render(spellIR, ring, timestamp);
+		if (state.engine === 'field') {
+			this.#drawConvergencePathGuide(spellIR, ring);
+		}
 	}
 }
