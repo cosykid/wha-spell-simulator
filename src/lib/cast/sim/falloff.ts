@@ -1,6 +1,8 @@
 /**
- * @file The two distance curves every kernel is built from, copied out of
- * `field/sampleField.ts` before that file is deleted at phase 5.
+ * @file The distance curves every kernel is built from. The two falloffs are
+ * copied out of `field/sampleField.ts` before that file is deleted at phase 5;
+ * `smoothstep` comes from `math2.ts` on branch `tc-field-canvas-rework`, where
+ * the salvaged Rankine vortex windows its terms with it.
  *
  * Copied, not imported: the field's version reads a `SpellField` source and sums
  * over all of them, while a kernel is local by contract. Only the shapes carry
@@ -26,4 +28,17 @@ export function coreFalloff(distance: number, core: number): number {
  */
 export function softFalloff(distance: number, radius: number): number {
 	return 1 / (1 + (distance * distance) / (radius * radius));
+}
+
+/**
+ * The Hermite ramp: 0 at or below `from`, 1 at or above `to`, smooth at both
+ * ends. A vortex switches its updraft, floor inflow and crown spill on and off
+ * with it, so no term turns on at a corner the eye can see.
+ */
+export function smoothstep(from: number, to: number, value: number): number {
+	if (to === from) {
+		return value < from ? 0 : 1;
+	}
+	const t = Math.min(1, Math.max(0, (value - from) / (to - from)));
+	return t * t * (3 - 2 * t);
 }

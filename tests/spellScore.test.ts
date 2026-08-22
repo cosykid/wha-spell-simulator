@@ -26,7 +26,7 @@ import { PORTAL } from '../src/lib/portal/portal.js';
 import { readPresetSeal } from '../src/lib/ui/spellEffectLab.js';
 import { FIELD_PRESETS, presetById } from '../src/lib/ui/spellEffectLabPresets.js';
 import { signedAngleDifferenceDeg, vectorFromAngleDeg } from '../src/lib/utils/geometry.js';
-import type { CurveId, SealReading, SignReading, SpellScore } from '../src/lib/types.js';
+import type { CurveId, SealReading, SignReading, SpellPlan, SpellScore } from '../src/lib/types.js';
 
 const SIGIL = 'water';
 const SOURCE = { signature: 'test-spell', duration: 4 };
@@ -57,8 +57,25 @@ function column(atDeg: number, facingDeg: number): SignReading {
 	};
 }
 
+/** A levitation sign. Facing inward its clash closes a grip; tangential it does not. */
+function levitation(atDeg: number, facingDeg = (atDeg + 180) % 360): SignReading {
+	return { ...column(atDeg, facingDeg), id: 'levitation', manifestation: 'levitation' };
+}
+
 function reading(signs: SignReading[]): SealReading {
 	return { signs, sigil: SIGIL, element: 'water', quality: 1, symmetry: null, notes: [] };
+}
+
+/**
+ * Four columns each pointing a quarter turn off their own arm: `P = 0, C = 0,
+ * Gamma = S`, which `docs/ground-truth.md` section 4 calls a vortex. No lab
+ * preset draws it, so R-05's circulation is pinned on a reading built here.
+ */
+function pinwheelPlan(sense: 1 | -1 = 1): SpellPlan {
+	const signs = [0, 90, 180, 270].map((atDeg) => column(atDeg, (atDeg + 360 + 90 * sense) % 360));
+	const plan = resolvePlan(reading(signs));
+	assert.ok(Math.abs(plan.circulation) > 1, 'fixture stopped circulating');
+	return plan;
 }
 
 /**
@@ -126,11 +143,22 @@ test('R-02: no track is still emitting when release begins', () => {
 				0,
 				`${track.id} emits at the top of release`
 			);
-			assert.equal(
-				evaluateEnvelope(track.emission, score.beats, score.beats.charge.startMs),
-				0,
-				`${track.id} emits before the portal has tilted`
-			);
+		}
+	}
+});
+
+test('R-01: the charge beat belongs to the ambient medium, and to nothing else', () => {
+	// The charge is content, not dead time: the medium draws inward while the
+	// portal tilts. It is the one exception to the silence, and the exception is
+	// exactly one kind wide.
+	for (const score of everyScore()) {
+		for (const track of scoreTracks(score)) {
+			const atCharge = evaluateEnvelope(track.emission, score.beats, score.beats.charge.startMs);
+			if (track.kind === 'shimmer') {
+				assert.ok(atCharge > 0, 'the medium must seed itself during the charge');
+			} else {
+				assert.equal(atCharge, 0, `${track.id} manifests before the portal has tilted`);
+			}
 		}
 	}
 });
@@ -197,13 +225,20 @@ test('R-08: dispersion is a timing distinction, not a spatial one', () => {
 	assert.ok(scoreFor('dispersion').notes.includes('dispersion-leak'));
 });
 
+/** The two tracks R-10 makes ambient by law, whatever class the sigil belongs to. */
+const AMBIENT_BY_LAW = new Set(['shimmer', 'intake']);
+
 test('R-10: population follows the sigil class, never the sign family', () => {
 	const ownSigils = ['fire', 'water', 'light', 'aeroform', 'crystal'];
 	const ambientSigils = ['wind-directs-air', 'earth'];
 	for (const sigil of ownSigils) {
 		for (const score of everyScore(sigil)) {
 			for (const track of scoreTracks(score)) {
-				assert.equal(track.population, 'own', `${sigil}/${track.id} left its own population`);
+				// The medium is never the spell's own, and section 7 exempts the spell's
+				// own manifestation from the pull field outright, so an intake is
+				// ambient even under a create-class sigil.
+				const expected = AMBIENT_BY_LAW.has(track.kind) ? 'ambient' : 'own';
+				assert.equal(track.population, expected, `${sigil}/${track.id} left its population`);
 			}
 		}
 	}
@@ -213,6 +248,19 @@ test('R-10: population follows the sigil class, never the sign family', () => {
 				assert.equal(track.population, 'ambient', `${sigil}/${track.id} is not ambient`);
 			}
 		}
+	}
+});
+
+test('R-10: every score carries the ambient medium, so nothing has an empty world', () => {
+	for (const score of [
+		...everyScore(),
+		inertQuadrupoleScore(),
+		compileScore(inertPlan(), SOURCE)
+	]) {
+		const medium = scoreTracks(score).filter((track) => track.kind === 'shimmer');
+		assert.equal(medium.length, 1, 'a score holds exactly one ambient medium');
+		assert.equal(medium[0].population, 'ambient');
+		assert.ok(medium[0].emission.gain > 0, 'the medium would seed nothing');
 	}
 });
 
@@ -238,26 +286,114 @@ test('R-11: a seal that manifests nothing still gets a designed default', () => 
 	assert.ok(score.notes.includes('manifests-nothing'));
 	assert.deepEqual(
 		scoreTracks(score).map((track) => track.id),
-		['burst', 'jet-default']
+		['shimmer-ambient', 'burst', 'jet-default']
 	);
 });
 
-test('a plan wanting an unbuilt primitive is routed and says so', () => {
-	// Phase 4 owns hold, intake, vortex and vessel. Until then the nearest built
-	// kind plays them, at a conservative gain, and the score names the swap.
-	const routes: Array<[presetId: string, note: string, trackId: string]> = [
-		['levitation', 'routed-hold', 'jet-hold'],
-		['pull-inward', 'routed-intake', 'fan-intake'],
-		['pull-vortex', 'routed-intake', 'fan-intake']
+test('R-13: every family that has a kernel gets its own primitive, not a stand-in', () => {
+	// `vessel` is the one primitive still deferred, and no lab preset draws an orb,
+	// so no preset may carry a routed-* note at all.
+	for (const preset of FIELD_PRESETS) {
+		for (const note of scoreFor(preset.id).notes) {
+			assert.ok(!note.startsWith('routed-'), `${preset.id} is still routing: ${note}`);
+		}
+	}
+	const owners: Array<[presetId: string, trackId: string]> = [
+		['levitation', 'hold-levitation'],
+		['pull-inward', 'intake-pull'],
+		['pull-vortex', 'intake-pull'],
+		['pull-inverted', 'intake-pull']
 	];
-	for (const [presetId, note, trackId] of routes) {
-		const score = scoreFor(presetId);
-		assert.ok(score.notes.includes(note as never), `${presetId} lost its ${note} note`);
+	for (const [presetId, trackId] of owners) {
 		assert.ok(
-			scoreTracks(score).some((track) => track.id === trackId),
+			scoreTracks(scoreFor(presetId)).some((track) => track.id === trackId),
 			`${presetId} has no ${trackId}`
 		);
 	}
+});
+
+test('R-10: the pull family acts on the ambient population under any sigil', () => {
+	// Ground truth section 7 exempts the spell's own manifestation from the pull
+	// field, or grasping wind would swallow its own burst.
+	for (const sigil of ['fire', 'water', 'crystal', 'earth']) {
+		const intake = scoreTracks(scoreFor('pull-inward', sigil)).find(
+			(track) => track.kind === 'intake'
+		);
+		assert.ok(intake, `${sigil} lost its intake`);
+		assert.equal(intake.population, 'ambient', `${sigil} pulled on its own manifestation`);
+	}
+});
+
+test('R-05: circulation scores a vortex past a dead-band, and region ink never does', () => {
+	const vortex = scoreTracks(compileScore(pinwheelPlan(), SOURCE)).find(
+		(track) => track.kind === 'vortex'
+	);
+	assert.ok(vortex, 'a pinwheel of columns must score a vortex');
+	assert.ok(vortex.params.spin > 0, 'positive Gamma turns counter-clockwise seen from +z');
+
+	// The mirrored pinwheel turns the other way, and nothing else changes.
+	const mirrored = scoreTracks(compileScore(pinwheelPlan(-1), SOURCE)).find(
+		(track) => track.kind === 'vortex'
+	);
+	assert.ok(mirrored && mirrored.params.spin < 0, 'negative Gamma must turn clockwise');
+
+	// `swirl-pushes` looks like a pinwheel and is not one: its ink is chevrons, so
+	// R-09's valve owns it, and R-05's Gamma is a column-family aggregate that
+	// stays at zero. The plan says so already, in `region-unruled`.
+	const plan = resolvePlan(readPresetSeal(presetById('swirl-pushes').signs, SIGIL));
+	assert.equal(plan.circulation, 0, 'chevrons started paying into the column aggregate');
+	assert.ok(plan.notes.includes('region-unruled'));
+	assert.ok(
+		!scoreTracks(scoreFor('swirl-pushes')).some((track) => track.kind === 'vortex'),
+		'a seal with no circulation scored a vortex'
+	);
+
+	// And the dead-band keeps a hand's incidental twist from authoring one.
+	const dusty = { ...plan, circulation: 0.05 };
+	assert.ok(
+		!scoreTracks(compileScore(dusty, SOURCE)).some((track) => track.kind === 'vortex'),
+		'drawing dust authored a vortex'
+	);
+});
+
+test('open canon question 5: a declared coupling is soft, and says so', () => {
+	// The plan names which primitives a hold captures. The score writes the holder
+	// on them and tags the ranking it did not invent.
+	const plan = resolvePlan(reading([column(180, 0), levitation(0), levitation(180)]));
+	assert.deepEqual(plan.couplings, [{ holder: 'hold', captures: ['burst', 'jet'] }]);
+
+	const score = compileScore(plan, SOURCE);
+	const holder = scoreTracks(score).find((track) => track.kind === 'hold');
+	assert.ok(holder, 'the fixture must close a grip');
+	assert.ok(score.notes.includes('coupling-soft'), 'the ranking was answered silently');
+	for (const track of scoreTracks(score)) {
+		const captured = track.kind === 'burst' || track.kind === 'jet';
+		assert.equal(track.capturedBy, captured ? holder.id : undefined, `${track.id} bound wrongly`);
+	}
+});
+
+test('open canon question 7: a hold never fills, and says so', () => {
+	// Canon stops a full levitation seal manifesting, which on a six-second cast
+	// reads as breakage. Nothing counts held mass until that is ruled.
+	assert.ok(scoreFor('levitation').notes.includes('capacity-unmodeled'));
+	assert.ok(!scoreFor('column-balanced').notes.includes('capacity-unmodeled'));
+});
+
+test('open canon question 3: a levitation rotor spins nothing without a grip', () => {
+	// A levitation pinwheel: all circulation, no clash. `resolveHold` already takes
+	// the least-committal default and returns null, and the score does not invent
+	// a spring the plan refused to close.
+	const plan = resolvePlan(
+		reading([0, 90, 180, 270].map((atDeg) => levitation(atDeg, (atDeg + 90) % 360)))
+	);
+	assert.equal(plan.hold, null);
+	assert.ok(plan.notes.includes('levitation-without-grip'));
+	const tracks = scoreTracks(compileScore(plan, SOURCE));
+	assert.ok(!tracks.some((track) => track.kind === 'hold'));
+	// And it is not smuggled in as a vortex either: levitation pays into its own
+	// budget, so R-05's column circulation stays at zero.
+	assert.equal(plan.circulation, 0);
+	assert.ok(!tracks.some((track) => track.kind === 'vortex'));
 });
 
 // ---------------------------------------------------------------------------

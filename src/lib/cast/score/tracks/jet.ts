@@ -32,12 +32,6 @@ const JET_TUNING = {
 	reach: 1.6,
 	/** R-09's valve throws by its own numbers, so its jet reads `hardness` as strength. */
 	exhaustRateScale: 0.8,
-	/** Phase 4 owns `hold`. Until it lands a grip is played as a slow, short jet. */
-	holdRateScale: 0.5,
-	holdSpeedScale: 0.35,
-	holdHalfGrip: 8,
-	/** Shortest reach a routed hold may stall at, in seal units. */
-	holdMinReach: 0.6,
 	/** R-11's designed default: faint, upward, and never absent. */
 	defaultRate: 45,
 	defaultSpeed: 0.7
@@ -105,33 +99,6 @@ export function exhaustJet(plan: SpellPlan, population: Population): Track<'jet'
 			rate: JET_TUNING.rate * JET_TUNING.exhaustRateScale * strength,
 			speed: JET_TUNING.speed * aboveFloor(JET_TUNING.speedFloor, strength),
 			reach: JET_TUNING.reach * plan.reach,
-			look: 'body'
-		},
-		plan,
-		population
-	);
-}
-
-/**
- * The levitation spring, routed. `hold` is a phase 4 primitive, so until it
- * lands the grip is played as a jet that stalls at the hover locus: the reach is
- * the hover height, which is the hover ceiling of `field/sampleField.ts` moved
- * into the one place a jet can express it.
- */
-export function holdJet(plan: SpellPlan, population: Population): Track<'jet'> | null {
-	const hold = plan.hold;
-	if (!hold) {
-		return null;
-	}
-	const strength = saturate(hold.grip, JET_TUNING.holdHalfGrip);
-	return jetTrack(
-		{
-			id: 'jet-hold',
-			axis: normalize3(hold.at, SEAL_UP),
-			rate: JET_TUNING.rate * JET_TUNING.holdRateScale * strength,
-			speed:
-				JET_TUNING.speed * JET_TUNING.holdSpeedScale * aboveFloor(JET_TUNING.speedFloor, strength),
-			reach: Math.max(hold.at.z, JET_TUNING.holdMinReach),
 			look: 'body'
 		},
 		plan,

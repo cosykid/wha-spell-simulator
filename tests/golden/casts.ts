@@ -32,12 +32,13 @@ export const CAST_DIR = fileURLToPath(new URL('./casts/', import.meta.url));
 export const CAST_DURATION_S = 4;
 
 /**
- * Sampled inside three different beats, each landing exactly on a simulation
- * step. `charge` has no frame on purpose: R-02 makes it silent, so twelve
- * identical empty PNGs would compare equal for the wrong reason, and
- * `cast.test.ts` asserts the silence directly instead.
+ * Sampled inside four different beats, each landing exactly on a simulation
+ * step. The charge frame is the ambient medium alone: R-01 makes the charge
+ * content rather than dead time, and `shimmer` is the only track allowed to play
+ * it, so 850ms is where a baseline can see the medium drawing inward with the
+ * spell's own manifestation still to come.
  */
-export const CAST_FRAME_MS = [1100, 1600, 2600] as const;
+export const CAST_FRAME_MS = [850, 1100, 1600, 2600] as const;
 
 export interface CastFrame {
 	fileName: string;

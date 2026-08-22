@@ -8,7 +8,7 @@
  * type-check**. That is how "timing must be authored" stops being a convention.
  */
 
-import type { Vec3 } from './geometry.js';
+import type { Vec3, Vector } from './geometry.js';
 import type { ElementId } from './dictionary.js';
 import type { Aperture } from './spell-plan.js';
 
@@ -52,8 +52,8 @@ export type PrimitiveKind =
 	| 'burst'
 	| 'shimmer';
 
-/** The primitives phase 3 implements. Everything else in `PrimitiveKind` is phase 4. */
-export type PlayedKind = 'burst' | 'jet' | 'fan';
+/** Every primitive that plays. `vessel` is R-13's deferred orb and has no kernel yet. */
+export type PlayedKind = Exclude<PrimitiveKind, 'vessel'>;
 
 /**
  * R-05. The aimed column. The aim vector _is_ the lean: `axis` is where the long
@@ -72,9 +72,9 @@ export interface JetParams {
 	reach: number;
 }
 
-/** R-07. Plane-hugging radial dispersion, and the swirl a routed vortex leaves in it. */
+/** R-07. Plane-hugging radial dispersion, and the swirl a routed vessel stirs into it. */
 export interface FanParams {
-	/** Seal units per second. Negative draws inward, which is how a routed intake reads. */
+	/** Seal units per second. Negative draws inward. */
 	speed: number;
 	/** Tangential rate; positive is counter-clockwise seen from +z. */
 	swirl: number;
@@ -99,18 +99,95 @@ export interface BurstParams {
 }
 
 /**
- * Params by kind. The four kinds phase 4 owns map to `never`, so a track of an
- * unbuilt kind cannot be constructed until its params type lands with it.
+ * R-05's circulation as a Rankine cell, salvaged from `vortex.ts` on branch
+ * `tc-field-canvas-rework`: a funnel that spins solid-body inside its core and
+ * as `1/r` outside it, with a secondary cell (floor inflow, wall updraft, crown
+ * spill) so matter cycles through the whirl instead of orbiting a flat stir.
+ */
+export interface VortexParams {
+	/** Tangential rate on the funnel wall; positive is counter-clockwise from +z. */
+	spin: number;
+	/** Seal units: the core radius at the foot. Inside it the eye stays hollow. */
+	footRadius: number;
+	/** Seal units: the core radius at the crown, so the funnel flares as it climbs. */
+	crownRadius: number;
+	/** Seal units the crown stands at. Past it the swirl fades and parcels spill. */
+	height: number;
+	/** Seal units per second up the funnel wall. */
+	updraft: number;
+	/** Seal units per second the floor boundary layer feeds toward the foot. */
+	feed: number;
+	/** Seal units per second the crown sheds out and down, closing the cell. */
+	spill: number;
+}
+
+/**
+ * R-13's spring: levitation as a hover ceiling with a settle. The ceiling curve
+ * is the `buoyancy` case of `field/sampleField.ts` moved into a kernel.
+ */
+export interface HoldParams {
+	/** The hover locus in seal space; `z` is the ceiling the held mass parks at. */
+	at: Vec3;
+	/** Seal units per second of lift below that ceiling. */
+	lift: number;
+	/** Per second: how hard displaced parcels are drawn back onto the hover axis. */
+	gather: number;
+	/** Seal units of blob the mass churns in. Inside it the gather is off. */
+	radius: number;
+	/** Tangential rate about the hover axis; positive is counter-clockwise from +z. */
+	spin: number;
+	/** Radians per second of the slow bob the settled mass keeps, amplitude `radius`. */
+	bobRate: number;
+	/** Fastest a parcel may move and still count as arrived. Open canon question 5. */
+	captureSpeed: number;
+}
+
+/** R-13's ambient coupling: the pull family drawing the ambient medium in. */
+export interface IntakeParams {
+	/** Seal units per second inward. Negative pushes the medium away: one signed kernel. */
+	draw: number;
+	/** Tangential rate; positive is counter-clockwise from +z. A swirled draw is helical inflow. */
+	swirl: number;
+	/** Seal units per second the stream is dragged along `lateral`. */
+	drift: number;
+	/** Unit, in-plane: which way that drag runs. */
+	lateral: Vector;
+	/** Radius where the draw peaks, so arriving matter pools instead of spiking. */
+	pool: number;
+	/** Seal units per second the swirl pumps up the seal axis. */
+	rise: number;
+	/** Seal units above the paper the stream may climb to. */
+	ceiling: number;
+}
+
+/**
+ * R-10 and R-11's thin ambient medium: the world every cast happens in, and the
+ * one track R-01 gives the charge beat.
+ */
+export interface ShimmerParams {
+	/** Seal units per second a young parcel draws toward the seal. */
+	drift: number;
+	/** Seconds over which that draw settles into a hover. */
+	settleS: number;
+	/** Seal units per second of the idle curl the settled medium keeps. */
+	wander: number;
+	/** Seal units above the paper the medium hovers around. */
+	ceiling: number;
+}
+
+/**
+ * Params by kind. `vessel` is R-13's deferred orb and maps to `never`, so a
+ * track of the one unbuilt kind cannot be constructed until its params land.
  */
 export interface PrimitiveParams {
 	burst: BurstParams;
 	jet: JetParams;
 	fan: FanParams;
-	vortex: never;
-	hold: never;
-	intake: never;
+	vortex: VortexParams;
+	hold: HoldParams;
+	intake: IntakeParams;
+	shimmer: ShimmerParams;
 	vessel: never;
-	shimmer: never;
 }
 
 export interface Track<K extends PrimitiveKind = PlayedKind> {
@@ -124,10 +201,22 @@ export interface Track<K extends PrimitiveKind = PlayedKind> {
 	/** Velocity scale on the primitive's kernel. */
 	drive: Envelope;
 	look: LookRole;
+	/**
+	 * The id of the `hold` track that captured this one, from a plan `Coupling`.
+	 * The sim's only cross-track path, and it exists because the plan declared it.
+	 */
+	capturedBy?: string;
 }
 
 /** Any track a v1 score may hold. */
-export type ScoreTrack = Track<'burst'> | Track<'jet'> | Track<'fan'>;
+export type ScoreTrack =
+	| Track<'burst'>
+	| Track<'jet'>
+	| Track<'fan'>
+	| Track<'vortex'>
+	| Track<'hold'>
+	| Track<'intake'>
+	| Track<'shimmer'>;
 
 /**
  * R-12. The nesting hook: a score holds layers, and v1 always has exactly one.
@@ -145,12 +234,16 @@ export interface ScoreLayer {
 
 /** What the score had to say about the plan it compiled. Notes never change behavior. */
 export type ScoreNote =
-	/** The plan asked for a primitive phase 4 owns; the nearest built kind plays it. */
+	/** The plan asked for a primitive with no kernel yet; the nearest built kind plays it. */
 	| `routed-${PrimitiveKind}`
 	/** R-11: the plan manifests nothing, so the score carries the designed default. */
 	| 'manifests-nothing'
 	/** R-08: dispersion ink, so its fan runs as a low, long leak. */
-	| 'dispersion-leak';
+	| 'dispersion-leak'
+	/** Open canon question 5: a hold captured other tracks, and only softly. */
+	| 'coupling-soft'
+	/** Open canon question 7: a hold holds without ever filling up. */
+	| 'capacity-unmodeled';
 
 export interface SpellScore {
 	version: 1;
