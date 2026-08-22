@@ -154,6 +154,11 @@ export interface IntakeParams {
 	lateral: Vector;
 	/** Radius where the draw peaks, so arriving matter pools instead of spiking. */
 	pool: number;
+	/**
+	 * Seal units of hollow the twist holds open at the center, so a slanted pull
+	 * reads as canon's vortex. Zero for a straight pull, which pools instead.
+	 */
+	eye: number;
 	/** Seal units per second the swirl pumps up the seal axis. */
 	rise: number;
 	/** Seal units above the paper the stream may climb to. */

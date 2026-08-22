@@ -332,6 +332,24 @@ test('R-13: an intake draws the ambient medium in, and the same kernel pushes it
 	assert.ok(swirled && INTAKE.velocity(swirled.params, at, 0).z > 0, 'helical inflow must lift');
 });
 
+test('ground-truth 7: the twist holds an eye open, and a straight pull holds none', () => {
+	const straight = scoreTracks(scoreFor('pull-inward')).find((track) => track.kind === 'intake');
+	const swirled = scoreTracks(scoreFor('pull-vortex')).find((track) => track.kind === 'intake');
+	assert.ok(straight && swirled, 'both pull presets must score an intake');
+	assert.equal(straight.params.eye, 0, 'a straight pull pools; only the twist hollows');
+	assert.ok(
+		swirled.params.eye > 0,
+		'canon calls the slanted case a vortex, and a vortex is hollow'
+	);
+	// Inside the eye the flow is thrown back out, the way `vortex.ts` sheathes its funnel.
+	const inEye = { x: swirled.params.eye / 2, y: 0, z: 0 };
+	assert.ok(INTAKE.velocity(swirled.params, inEye, 0).x > 0, 'the eye did not push back out');
+	assert.ok(
+		INTAKE.velocity(straight.params, inEye, 0).x < 0,
+		'a straight pull must still inhale through the same point'
+	);
+});
+
 // ---------------------------------------------------------------------------
 // R-11 and determinism
 // ---------------------------------------------------------------------------
