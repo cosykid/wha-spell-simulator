@@ -203,10 +203,9 @@ test('[R-09] rule 7: a lone inward rim chevron biases the disc away from itself'
 	assert.ok(bias.x < 0, 'the chevron sits at +x, so the bias goes the other way');
 });
 
-test('[R-09] no cliff: one degree of separation cannot flip a rule', () => {
-	// The table matches on classes — count, radial position, facing — so the 60
-	// degrees of azimuth that used to gate chevron fusion is not a threshold any
-	// more. Neighbouring arrangements resolve identically.
+test('[R-09, R-19] the table has one threshold left, and it is the named fence gate', () => {
+	// R-09 matches on classes — count, radial position, facing — so wherever the
+	// set already reads as a ring, one degree of separation cannot flip a rule.
 	const ringAt = (second: number, fourth: number) =>
 		resolveRegion([0, second, 180, fourth].map((atDeg) => sign({ atDeg })));
 	const narrow = ringAt(59, 239);
@@ -215,6 +214,16 @@ test('[R-09] no cliff: one degree of separation cannot flip a rule', () => {
 	assert.equal(narrow.row, wide.row);
 	assert.deepEqual(narrow.aperture, wide.aperture);
 	assert.deepEqual(narrow.exhaust, wide.exhaust);
+
+	// R-19 reintroduces exactly one threshold, because ground truth section 5
+	// states it: a radial ring fuses only once its members span 60 degrees of
+	// azimuth. A pair does flip there, so this pins where the gate sits rather
+	// than letting it drift. It is the only place in the table that flips.
+	const pairAt = (spreadDeg: number) =>
+		resolveRegion([0, spreadDeg].map((atDeg) => sign({ atDeg })));
+	assert.notEqual(pairAt(59).row, pairAt(60).row, 'the fence gate must sit at 60 degrees');
+	assert.equal(pairAt(60).row, 2, 'above it, two inward members close the disc');
+	assert.equal(pairAt(59).row, 1, 'below it, the pair names no row and takes the default disc');
 });
 
 test('[R-10] the sigil class table decides create versus manipulate', () => {
