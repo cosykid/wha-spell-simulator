@@ -216,6 +216,68 @@ export const LAB_PRESETS: LabPreset[] = [
 				facingDeg: inward(angleDeg)
 			}))
 		]
+	},
+	{
+		id: 'column-half-ring',
+		label: 'Columns ×3 — half ring',
+		description:
+			'R-14: three inward columns spanning half the ring. The most common hand-drawn arrangement, and a steep diagonal geyser rather than a ground-hugging surge.',
+		signs: signsAt([270, 0, 90], (angleDeg) => ({
+			id: 'column',
+			manifestation: 'column',
+			facingDeg: inward(angleDeg)
+		}))
+	},
+	{
+		id: 'column-cancelled',
+		label: 'Columns ×4 — cancelled ink',
+		description:
+			'R-15: two inward columns and two outward ones, so every moment cancels. The budget is spent and the seal fires the bare shockwave.',
+		signs: [
+			...signsAt([0, 180], (angleDeg) => ({
+				id: 'column',
+				manifestation: 'column',
+				facingDeg: inward(angleDeg)
+			})),
+			...signsAt([90, 270], (angleDeg) => ({
+				id: 'column',
+				manifestation: 'column',
+				facingDeg: angleDeg
+			}))
+		]
+	},
+	{
+		id: 'levitation-pinwheel',
+		label: 'Levitation ×4 — rotor',
+		description:
+			'R-16: four tangential levitation arrows. No clash, so no grip, but the torque still turns: a flat swirl at the hover height.',
+		signs: signsAt([0, 90, 180, 270], (angleDeg) => ({
+			id: 'levitation',
+			manifestation: 'levitation',
+			facingDeg: (inward(angleDeg) + 90) % 360
+		}))
+	},
+	{
+		id: 'levitation-inverted',
+		label: 'Levitation ×4 — inverted',
+		description:
+			'R-17: four outward levitation arrows. Negative convergence grips nothing, so this is a dud, named rather than silently blank.',
+		signs: signsAt([0, 90, 180, 270], (angleDeg) => ({
+			id: 'levitation',
+			manifestation: 'levitation',
+			facingDeg: angleDeg
+		}))
+	},
+	{
+		id: 'region-pair',
+		label: 'Regions ×2 — fused fence',
+		description:
+			'R-19: two outward chevrons, opposed. Two members complete a fence, so this opens the moat instead of pinching the rim.',
+		signs: signsAt([0, 180], (angleDeg) => ({
+			id: 'region',
+			manifestation: 'directed',
+			facingDeg: angleDeg
+		}))
 	}
 ];
 

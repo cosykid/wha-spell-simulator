@@ -7,7 +7,7 @@ implements it lives in [`animation-redesign.md`](animation-redesign.md).
 Every ruling carries a stable id (`R-xx`) and a status tag so a law test can
 cite the ruling it pins:
 
-- `[canon]` — anchored in source material (see `theorycrafting/GROUND_TRUTH.md`
+- `[canon]` — anchored in source material (see [`ground-truth.md`](ground-truth.md)
   and its wiki captures for citations).
 - `[ruled]` — decided here for the simulator. Changing one is a deliberate,
   visible edit, never a tuning drift.
@@ -139,8 +139,8 @@ where 60 degrees of separation reads one way and 59 another:
 | #   | Chevrons         | Position | Facing      | Aperture               | Exhaust                        |
 | --- | ---------------- | -------- | ----------- | ---------------------- | ------------------------------ |
 | 1   | 0                | -        | -           | `disc`                 | omnidirectional                |
-| 2   | 3+               | rim      | all inward  | `disc`                 | up                             |
-| 3   | 3+               | rim      | all outward | `annulus(1.0, 1.5)`    | outward plus small up          |
+| 2   | 2+, spread 60°+  | rim      | all inward  | `disc`                 | up                             |
+| 3   | 2+, spread 60°+  | rim      | all outward | `annulus(1.0, 1.5)`    | outward plus small up          |
 | 4   | 2+ opposed pairs | rim      | paired      | `annulus(0.85, 1.05)`  | up                             |
 | 5   | 2+ opposed pairs | one arc  | paired      | `annulus(..., arcDeg)` | up                             |
 | 6   | any              | center   | crossed     | `point(0,0)`           | up                             |
@@ -148,6 +148,10 @@ where 60 degrees of separation reads one way and 59 another:
 | 8   | 1                | center   | outward     | `sector` far side      | lateral outward                |
 | 9   | 1                | mid      | outward     | `band` at mid radius   | lateral outward                |
 | 10  | 2+ collinear     | any      | agreeing    | `disc`                 | lateral along facing, n scales |
+
+Rows 2 and 3 carry R-19's fusion rule: two members complete a fence when they
+span at least 60 degrees of azimuth, and an opposed pair (row 4) means two
+direction classes, never two antipodal positions of the same sense.
 
 `hardness` and `reach` grow with member count. Chevron size has no canon:
 `[deferred, default: size scales hardness only, never geometry]`.
@@ -192,6 +196,159 @@ Nothing overrides anything, so no precedence rule is needed. The term
 with four different meanings. Crush forcing whole-spell modify mode is
 `[deferred, default: crush contributes power only]`.
 
+## R-14 — Unopposed convergence `[ruled]`
+
+Convergence is not gated on opposition. `C` enters the aim exactly as R-05
+states it, whether or not another sign cancels the flux that produced it.
+
+A half-ring of inward columns is therefore a **steep diagonal geyser**, not a
+ground-hugging surge: three signs spanning 180 degrees lift at 71.6 degrees,
+nine at 60.8, and the continuous limit is `atan(pi/2)` = 57.5. A lone rim sign
+is the shallow end of the same law at 45 degrees, and the `column-unbalanced`
+preset, whose sign sits at radius 0.8, at 38.7.
+
+This ratifies the standing choice in [`ground-truth.md`](ground-truth.md)
+section 4 ("Kept as flux law **[agreed]**"), which weighed the alternative
+clash-bookkeeping reading `V = S - |P|` and kept flux because Flame Shot's
+column sits at `w = 0.6` to `0.75`, so a diagonally rising flame matches the
+panel. The revisit trigger it attached, "if it feels wrong in the sim", is
+discharged here: section 4 was uneasy about the _lone_ sign at 45 degrees, but
+the arrangement this spec asked about is the half-ring, and a half-ring reads
+as a geyser leaning off its open side rather than as a 45-degree compromise.
+
+Sections 6 and 7 bind levitation and pull to whatever the column gets, so R-14
+rules `hold.ts` and `intake.ts` too.
+
+## R-15 — Cancelled ink `[ruled]`
+
+Ink whose moments cancel **fires the bare shockwave and buys nothing with it**.
+
+Section 3 fixes half of this already: the burst is "the default spend, not an
+unconditional one", and the list of seals that suppress it is closed — pull-only
+seals, and orb-bearing seals. Cancelled columns are budget-bearing column ink,
+so the ring fires. With `A = P + C₊ẑ = 0` there is nothing to steer it, so it
+fires isotropically.
+
+R-15 adds the loudness: cancelled flux does **not** convert to impulse. At the
+burst, a cancelling seal is indistinguishable from an unmarked ring.
+
+The reason is that section 1 already spends the bare shockwave on a neighbouring
+failure — a seal below the quality threshold "fizzles into the bare shockwave".
+Cancelled ink is a second cause of the same outcome, and the caster learns one
+reading for both. Scaling the burst by `S` instead would teach that
+contradictory ink is rewarded, and it is not what the previous engine did: its
+burst magnitude carried no `S` term at all.
+
+The budget still survives on the plan, so the arrangement stays legible in a
+plan text and to any later ruling.
+
+## R-16 — The levitation rotor `[ruled]`
+
+Tangential levitation circulation **spins without a grip**. `resolveHold`
+returns a hold whenever `|Γ_lev|` clears the floor, with `grip` at zero, and the
+hold track carries the spin.
+
+Both source statements support it and neither gates spin on the grip. Section 6:
+"`Γ_lev` exchanges angular momentum: held mass spins about the hover axis. A
+levitation pinwheel is a **rotor**." Section 10 states the spin term as an
+independent addend, not a factor inside `C_lev,+`. The previous implementation
+nested spin inside the grip and its own preset called that a defect, so the dud
+this engine inherited is that bug rather than that spec.
+
+A gripless hold lifts nothing. The rotor is a flat tangential swirl at the rest
+height, which is what the `hold` kernel already produces when its lift parameter
+sits at the floor.
+
+## R-17 — Inverted levitation `[ruled]`
+
+`C_lev < 0` grips nothing, and that is the ruling: **a dud, named**.
+
+Section 12.6 states the mechanism and then asks the only question that could
+overturn it, "does canon ever show one?", and no attested case exists. The
+column's inversion is ruled the other way (R-07: outward columns disperse) but
+that reading is anchored in Snugstone's dispersal. Levitation has no such
+anchor, so a press or a repulsor would be invented behavior rather than derived
+behavior.
+
+What R-17 changes is legibility. A gripless levitation seal now says which kind
+it is: `levitation-inverted` where the convergence points outward, and
+`levitation-inert` where the ink closed neither a grip nor a rotor. Before this
+ruling both arrangements produced identical plans, identical tracks and one
+shared note, so neither could be tested and neither could be told from the other
+in a golden. Tangential ink no longer lands here at all — under R-16 it resolves
+to a hold.
+
+## R-18 — Drive versus grip `[ruled]`
+
+**Drive wins while driven, grip wins on coast.** A hold captures a parcel only
+once it has effectively arrived, so a live column passes through the grip and
+only its spent parcels are caught.
+
+R-13's separate budgets do not settle this, and never did. Under the field
+engine they appeared to, because separate budgets fed one summed velocity field
+and section 10's composition was literal addition, so "nothing overrides
+anything" held for free. This engine deleted superposition: a parcel belongs to
+one track and feels one kernel, and the only cross-track path is a positional
+constraint. R-13 rules out precedence _between budgets_. It says nothing about
+what a parcel does when two resolved primitives claim the same volume, and R-18
+is that missing rule.
+
+The resolution is the move R-08 makes for dispersion: a conflict with no spatial
+answer gets a temporal one. `captureSpeed` is this ruling's constant rather than
+a stopgap awaiting one.
+
+## R-19 — Chevron fusion `[ruled]`
+
+**Two agreeing radial chevrons complete a fence**, provided they span at least
+60 degrees of azimuth. Fusion is collective, so a lone radially aligned chevron
+stays a straight shutter.
+
+This restores [`ground-truth.md`](ground-truth.md) section 5, which is tagged
+`[agreed]` and states the rule directly: a radial ring is two or more radially
+aligned chevrons of the same sense spread over at least 60 degrees of azimuth,
+fusing into one curved fence. R-09's table discretized that to three members and
+swapped the azimuth test for a widest-gap gate. R-19 puts both back. The wiki
+demo panels all happen to use four chevrons, but they demonstrate rather than
+state a minimum, so they bound nothing.
+
+Completion is a threshold; **staging is not**. Section 5 keeps hardness
+continuous in member count, and R-09's scalars keep that shape.
+
+R-19 also repairs what hid the old threshold: opposed pairs were counted by
+position alone, so two chevrons of the _same_ sense registered as a pair and
+took the rim-pinch row, which made two outward chevrons exhaust upward instead
+of into the moat. A pair is two direction classes, per section 5.
+
+## R-20 — Fill to capacity `[ruled]`
+
+A levitation seal **stops manifesting once the held mass reaches capacity**,
+with `W_max ∝ η R² C_lev`. The visible spell is a fill transient and then a
+suspended ball.
+
+This is not a new ruling. Section 6 decided it on 2026-07-02, superseding an
+earlier "continuously fed from the disk" reading, and it is absent from section
+12's open register. Its constants are tagged tunable; its behavior is not. What
+was open is mechanical: the ruled fill was implemented as a population-level
+spawn throttle, and this engine's `Primitive` contract had no way to read a
+population.
+
+`Primitive` therefore gains a fourth member beside `spawn`, `velocity` and
+`constrain`:
+
+```ts
+throttle?(params: PrimitiveParams, state: CastState): number;
+```
+
+It returns an emission multiplier derived from the live parcel list each step.
+It never accumulates, so the fresh-versus-incremental bit-identity contract
+survives: replaying to a timestamp recomputes the same gate from the same state.
+
+Section 6's other half comes with it. The grip "sustains held magic (no
+dissipation inside the blob)", so held parcels stop aging. Without that the ball
+never reaches capacity on a long cast — it swells for about three seconds and
+then evaporates, which is a worse failure than the breakage this question was
+raised about.
+
 ## PDF defect register
 
 The original design PDF's defects (A through M), each with its resolution:
@@ -214,22 +371,29 @@ The original design PDF's defects (A through M), each with its resolution:
 
 ## Open canon questions
 
-Each blocks one law test and needs an authorial ruling, not an engineering
-guess:
+All seven are ruled. They were raised here because this spec was written
+treating [`ground-truth.md`](ground-truth.md) as unavailable; in fact it takes a
+documented position on five of them, two with ruling dates. The register below
+records where each landed and what actually decided it.
 
-1. **Unopposed convergence.** A half-ring of inward columns: a diagonal geyser
-   (flux reading) or a flat ground-hugging surge (clash reading)? This is the
-   most common hand-drawn arrangement.
-2. **Cancelled ink.** Four signs whose moments cancel: blank ring, boosted
-   burst, or a true quadrupole flow? "Your drawing did nothing" needs a
-   designed answer either way.
-3. **Levitation rotor.** Does tangential levitation circulation spin without a
-   grip?
-4. **Inverted levitation.** Dud, press, or repulsor?
-5. **Column plus levitation.** Does drive beat grip, or does hold have
-   right-of-way?
-6. **Chevron fusion.** How many agreeing radial chevrons complete a circular
-   fence?
-7. **Fill-to-capacity.** Canon says a levitation seal stops manifesting once
-   full, which on a six-second cast reads as breakage. May timing override the
-   law, or must the look sell the stop?
+| Question               | Ruling | Outcome                            | Decided by                              |
+| ---------------------- | ------ | ---------------------------------- | --------------------------------------- |
+| Unopposed convergence  | R-14   | Flux law, ratified                 | section 4's standing `[agreed]` choice  |
+| Cancelled ink          | R-15   | Bare shockwave, no impulse         | section 3 plus section 1's fizzle look  |
+| Levitation rotor       | R-16   | Spins without a grip               | sections 6 and 10, against prior code   |
+| Inverted levitation    | R-17   | Dud, named distinctly              | section 12.6; no attested case          |
+| Column plus levitation | R-18   | Drive while driven, grip on coast  | authorial, in R-08's timing idiom       |
+| Chevron fusion         | R-19   | Two members, spread 60°+           | section 5's `[agreed]` radial-ring rule |
+| Fill to capacity       | R-20   | Real capacity, via a throttle hook | section 6's ruling of 2026-07-02        |
+
+Three of these exposed defects rather than choices, and those are fixed with
+their rulings: a hold declared no couplings at all on a pure levitation seal, so
+the burst escaped the grip and sprayed section 6's skirt; opposed pairs were
+counted by position without reading facing; and questions 3 and 4 produced
+byte-identical artifacts, so neither could be tested.
+
+Still deferred, and untouched by these rulings: nesting (R-12), crush forcing
+modify mode and the orb vessel (R-13), chevron size and targeting signs (R-09,
+defect K), and — upstream in ground-truth section 12 — the levitation hover
+displacement sign (12.5), the sigil-size exception for levitation power (12.7,
+defect F), and grasp discharge (12.8).

@@ -15,7 +15,7 @@
 import { emptySealReading } from '../reading/readSeal.js';
 import { aimVector, dispersionScalar, foldAggregate } from './columns.js';
 import { resolveFocus } from './focus.js';
-import { resolveHold } from './hold.js';
+import { holdFailure, resolveHold } from './hold.js';
 import { resolveIntake } from './intake.js';
 import { resolveRegion } from './region.js';
 import { planFingerprint, snapPlan } from './snap.js';
@@ -122,12 +122,13 @@ function gatherFamilies(signs: SignReading[]): FamilyBudgets {
 	return budgets;
 }
 
-/** The primitives this plan's own manifestation implies. */
+/**
+ * The primitives this plan's own manifestation implies. The burst is
+ * unconditional because the score's is: R-11 makes every plan strike, so a
+ * grip has a ring to catch even when the seal spends no column ink at all.
+ */
 function ownPrimitives(plan: SpellPlan): PlanPrimitive[] {
-	const primitives: PlanPrimitive[] = [];
-	if (plan.budget > NEGLIGIBLE) {
-		primitives.push('burst');
-	}
+	const primitives: PlanPrimitive[] = ['burst'];
 	if (Math.hypot(plan.aim.x, plan.aim.y, plan.aim.z) > NEGLIGIBLE) {
 		primitives.push('jet');
 	}
@@ -145,16 +146,18 @@ function ownPrimitives(plan: SpellPlan): PlanPrimitive[] {
  * these emergent and unpredictable; a declared coupling shows up in a text
  * golden instead.
  *
- * Open canon question 5 — column plus levitation, does drive beat grip or does
- * hold have right-of-way? — is deliberately not answered here. The plan declares
- * that the two meet and leaves the ranking to the ruling.
+ * R-18 ranks the pair the plan declares here: drive wins while driven, grip wins
+ * on coast. The plan's job is only to say the two meet; the hand-off itself is
+ * the hold kernel's capture speed.
+ *
+ * A rotor holds nothing. R-16 lets a hold exist on spin alone, and such a hold
+ * has no ceiling to catch anything with, so only a gripping hold couples.
  */
 function declareCouplings(plan: SpellPlan): Coupling[] {
-	if (!plan.hold) {
+	if (!plan.hold || plan.hold.grip <= NEGLIGIBLE) {
 		return [];
 	}
-	const captures = ownPrimitives(plan);
-	return captures.length ? [{ holder: 'hold', captures }] : [];
+	return [{ holder: 'hold', captures: ownPrimitives(plan) }];
 }
 
 function planNotes(
@@ -172,9 +175,9 @@ function planNotes(
 	if (budgets.leak) {
 		notes.push('dispersion-leak');
 	}
-	// Open canon question 2: four signs whose moments cancel. Least-committal
-	// default is to keep the budget and name the case, so "your drawing did
-	// nothing" can be designed rather than rendered as literal nothing (R-11).
+	// R-15: ink whose moments cancel keeps its budget and fires the bare
+	// shockwave, so "your drawing did nothing" is a designed look and the
+	// arrangement stays legible here rather than being rendered as blank.
 	if (
 		plan.budget > NEGLIGIBLE &&
 		lateral <= NEGLIGIBLE &&
@@ -184,15 +187,10 @@ function planNotes(
 	) {
 		notes.push('inert-quadrupole');
 	}
-	// Open canon question 1: a half-ring of inward columns, diagonal geyser or
-	// flat ground-hugging surge? Least-committal default is the flux law R-05
-	// already specifies, tagged so the arrangement is visible when it is ruled.
-	if (plan.aim.z > NEGLIGIBLE && lateral > NEGLIGIBLE) {
-		notes.push('unopposed-convergence');
-	}
-	// Open canon questions 3 and 4: the levitation rotor and inverted levitation.
+	// R-16 and R-17: levitation ink that closed neither channel, named by which
+	// dud it is. Tangential ink never reaches here — under R-16 it is a rotor.
 	if (budgets.levitation.length && !plan.hold) {
-		notes.push('levitation-without-grip');
+		notes.push(holdFailure(budgets.levitation));
 	}
 	// R-11 and the pull-only ruling: the seal manifests nothing of its own, which
 	// is a look (ambient streaming inward), never an empty canvas.

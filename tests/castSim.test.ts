@@ -287,7 +287,7 @@ test('R-13: a hold lifts to its ceiling and stops there', () => {
 	assert.ok(Math.max(...heights) <= ceiling + radius + 1e-9, 'held magic climbed away');
 });
 
-test('open canon question 5: a hold captures what has arrived and lets a live column through', () => {
+test('[R-18] a hold captures what has arrived and lets a live column through', () => {
 	const hold = scoreTracks(scoreFor('levitation')).find((track) => track.kind === 'hold');
 	assert.ok(hold, 'the levitation preset must score a hold');
 	const top = hold.params.at.z + hold.params.radius;
@@ -302,12 +302,45 @@ test('open canon question 5: a hold captures what has arrived and lets a live co
 		lifetimeS: 2
 	});
 	const arrived = above(hold.params.captureSpeed / 2);
-	HOLD.constrain!(hold.params, arrived);
+	HOLD.constrain!(hold.params, arrived, CAST.stepMs / 1000);
 	assert.ok(Math.abs(arrived.at.z - top) < 1e-9, 'a spent parcel must be caught at the ceiling');
 
 	const driven = above(hold.params.captureSpeed * 4);
-	HOLD.constrain!(hold.params, driven);
+	HOLD.constrain!(hold.params, driven, CAST.stepMs / 1000);
 	assert.ok(driven.at.z > top, 'a live column was clipped mid-beam');
+});
+
+test('[R-20] the grip sustains what it holds, and the feed closes as the ball fills', () => {
+	const hold = scoreTracks(scoreFor('levitation')).find((track) => track.kind === 'hold');
+	assert.ok(hold, 'the levitation preset must score a hold');
+
+	// Section 6: no dissipation inside the blob, so a held parcel does not age out
+	// of the ball. Outside it, nothing is sustained.
+	const inBlob = (offset: number): Parcel => ({
+		trackId: hold.id,
+		population: 'own',
+		look: 'body',
+		at: { x: hold.params.at.x + offset, y: hold.params.at.y, z: hold.params.at.z },
+		velocity: { x: 0, y: 0, z: 0 },
+		bornStep: 0,
+		ageS: 0,
+		lifetimeS: 2
+	});
+	const held = inBlob(0);
+	HOLD.constrain!(hold.params, held, CAST.stepMs / 1000);
+	assert.ok(held.lifetimeS > 2, 'held magic must stop dissipating');
+
+	const loose = inBlob(hold.params.radius * 4);
+	HOLD.constrain!(hold.params, loose, CAST.stepMs / 1000);
+	assert.equal(loose.lifetimeS, 2, 'only what is in the ball is sustained');
+
+	// The valve: open on an empty ball, shut once the held mass reaches W_max.
+	assert.equal(HOLD.throttle!(hold.params, []), 1, 'an empty grip feeds at full rate');
+	const full = Array.from({ length: Math.ceil(hold.params.capacity) }, () => inBlob(0));
+	assert.equal(HOLD.throttle!(hold.params, full), 0, 'a full seal stops manifesting');
+	const half = full.slice(0, Math.floor(full.length / 2));
+	const partial = HOLD.throttle!(hold.params, half);
+	assert.ok(partial > 0 && partial < 1, 'and it tapers rather than snapping shut');
 });
 
 test('R-13: an intake draws the ambient medium in, and the same kernel pushes it out', () => {

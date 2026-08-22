@@ -136,17 +136,92 @@ export const CAST_PROBES: CastProbe[] = [
 			atMs: BODY_MS,
 			of: 'jet',
 			expect: { metric: 'maxHeight', above: 1.2 },
-			rulingId: 'R-13',
+			rulingId: 'R-18',
 			claim:
-				'capture is soft (the score note, and open canon question 5): a live beam fires straight through the grip, past its ceiling band, instead of being clipped mid-beam'
+				'drive wins while driven: a live beam fires straight through the grip, past its ceiling band, instead of being clipped mid-beam'
 		},
 		{
 			atMs: RELEASE_MS,
 			of: 'jet',
 			expect: { metric: 'maxHeight', below: 1.7 },
-			rulingId: 'R-13',
+			rulingId: 'R-18',
 			claim:
-				'and once the drive eases the hold takes the spent parcels, so the beam settles into the band instead of coasting away'
+				'and grip wins on coast, so once the drive eases the hold takes the spent parcels instead of letting them coast away'
+		}
+	]),
+
+	...on('column-half-ring', [
+		{
+			atMs: BODY_MS,
+			of: 'jet',
+			expect: { metric: 'meanHeight', above: 0.3 },
+			rulingId: 'R-14',
+			claim:
+				'unopposed convergence still leaves the paper: a half-ring is a diagonal geyser, never a ground-hugging surge'
+		},
+		{
+			atMs: BODY_MS,
+			of: 'jet',
+			expect: { metric: 'meanX', below: -0.1 },
+			rulingId: 'R-14',
+			claim: 'and it leans off the open side of the ring, where the uncancelled flux points'
+		}
+	]),
+
+	...on('column-cancelled', [
+		{
+			atMs: BODY_MS,
+			of: 'burst',
+			expect: { metric: 'axisDensity', radius: 0.3, below: 0.05 },
+			rulingId: 'R-15',
+			claim:
+				'cancelled ink leaves A = 0, so nothing steers the ring: it spreads isotropically instead of collimating'
+		}
+	]),
+
+	...on('levitation-pinwheel', [
+		{
+			atMs: BODY_MS,
+			of: 'hold',
+			expect: { metric: 'axisDensity', radius: 0.3, below: 0.05 },
+			rulingId: 'R-16',
+			claim:
+				'a rotor spins without a grip, so its mass rides a ring and leaves the hover axis empty, where a gripping hold packs it'
+		},
+		{
+			atMs: BODY_MS,
+			of: 'hold',
+			expect: { metric: 'meanHeight', above: 0.5 },
+			rulingId: 'R-16',
+			claim: 'and it still climbs to the rest height, because a gripless hold rises before it turns'
+		}
+	]),
+
+	...on('levitation-inverted', [
+		{
+			atMs: BODY_MS,
+			of: 'hold',
+			expect: { metric: 'parcels', below: 1 },
+			rulingId: 'R-17',
+			claim:
+				'outward levitation grips nothing, so a dud holds no mass at all rather than pressing or repelling'
+		}
+	]),
+
+	...on('region-pair', [
+		{
+			atMs: BODY_MS,
+			of: 'burst',
+			expect: { metric: 'meanRadius', above: 0.9 },
+			rulingId: 'R-19',
+			claim: 'two outward chevrons complete the fence, so the source is the moat and not the disc'
+		},
+		{
+			atMs: BODY_MS,
+			of: 'burst',
+			expect: { metric: 'axisDensity', radius: 0.5, below: 0.1 },
+			rulingId: 'R-19',
+			claim: 'and the interior it fences off stays empty'
 		}
 	]),
 
@@ -188,6 +263,22 @@ export const CAST_PROBES: CastProbe[] = [
 			expect: { metric: 'meanRadius', below: 0.5 },
 			rulingId: 'ground-truth-6',
 			claim: 'and gathers onto the hover axis, so the grip reads as a blob and not a spray'
+		},
+		{
+			atMs: RELEASE_MS,
+			of: 'hold',
+			expect: { metric: 'meanRadius', below: 0.35 },
+			rulingId: 'R-20',
+			claim:
+				'by the release the ball has filled and closed its own feed, so it reads as a suspended mass rather than a column still being fed from the disk'
+		},
+		{
+			atMs: RELEASE_MS,
+			of: 'hold',
+			expect: { metric: 'parcels', below: 40 },
+			rulingId: 'R-20',
+			claim:
+				'and the held mass settles at a capacity set by the grip instead of growing with the clock'
 		}
 	]),
 

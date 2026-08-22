@@ -128,7 +128,7 @@ export interface SpellPlan {
 in a text golden instead of emergent from a superposition nobody predicted.
 Canon-spell snapping stays a seam with an empty table:
 `snapPlan(fingerprint, plan)` over a `Record<Fingerprint, Partial<SpellPlan>>`,
-filled only after the open canon questions are ruled.
+fillable now that the open canon questions are ruled (R-14 to R-20).
 
 ### 3. Score — `SpellPlan + SpellIR -> SpellScore`
 
