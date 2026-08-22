@@ -32,10 +32,12 @@ the ring radius, x right, y screen-down, z out of the paper (spec R-03).
   [`registry.ts`](sim/primitives/registry.ts), the one place kind is switched on.
 - `render/` — [`castRenderer.ts`](render/castRenderer.ts) the engine,
   [`painter2d.ts`](render/painter2d.ts) parcels to pixels,
-  [`sprites.ts`](render/sprites.ts) the baked atlas.
+  [`sprites.ts`](render/sprites.ts) the baked atlas: four shapes, each one
+  gradient circle drawn under a list of scales, so a `streak` is a stretched
+  `disc` and a `glint` is two thin lobes crossed.
 - `looks/` — [`look.ts`](looks/look.ts) the contract,
   [`table.ts`](looks/table.ts) `LOOKS` and resolution, one file per row
-  (`fire`, `water`, `wind`, `earth`, `light`, `inert`).
+  (`fire`, `water`, `wind`, `earth`, `light`, `crystal`, `aeroform`, `inert`).
 - [`vec3.ts`](vec3.ts) — the seal-space vector math the score and sim run on.
   `utils/geometry.ts` owns the in-plane `Vector` helpers.
 
@@ -120,6 +122,18 @@ exists to kill.
 "manifests nothing" a look, so there is no empty path in the renderer and no
 ownership boolean. If something is unpainted, that is a missing table row.
 
+**The table is seven rows and the last two are the reason it exists.** Five
+element rows, `crystal` above earth, `aeroform` above wind. Both are argued from
+the dictionary's `sourceNotes`, not from taste: crystal "creates and manipulates
+crystalline objects", so it keeps earth's occluding `source-over` on the matter
+roles and parts company everywhere else (cool tints, the widest core-to-edge
+contrast in the table, the `glint` sprite, almost no trails); aeroform "creates
+and manipulates air, but does not itself move that air", so it is wind read as a
+volume rather than as a path (soft discs, the larger sizes, a fraction of wind's
+stretch, and `leak` wherever wind decays). Those two rows are PDF defect I
+closed: they were unrepresentable while looks keyed on element, and adding them
+touched nothing but `table.ts`. That is the whole claim the layer makes.
+
 **The painter owns no portal numbers.** Screen position, painter order and size
 attenuation all come from `projectSeal`. Ground distance and height share one
 elevation, so a parcel and the paper it rose from cannot fall out of perspective.
@@ -135,9 +149,16 @@ renderer paints nothing, and both are ordinary early returns, not special cases.
 
 - **New look, or new art for an element:** edit that element's row in `looks/`.
   Nothing else may change. Sizes and tints are the whole surface.
-- **New sigil row (crystal, aeroform, phase 4):** add `looks/<sigil>.ts` and one
-  line in `LOOKS`. Keying is by sigil id, so it takes precedence over the element
-  row underneath it automatically.
+- **New sigil row:** add `looks/<sigil>.ts` and one line in `LOOKS`, the way
+  `crystal` and `aeroform` did. Keying is by sigil id, so it takes precedence
+  over the element row underneath it automatically. Argue the row from the
+  sigil's dictionary `sourceNotes` in its `@file` block, and pin the argument in
+  [`../../../tests/castLooks.test.ts`](../../../tests/castLooks.test.ts) so a
+  later tuning pass cannot quietly undo it.
+- **New sprite shape:** add the id to `SpriteId` and a row to each of
+  `CORE_STOP`, `ASPECT` and `LOBES` in `render/sprites.ts` (all three are
+  exhaustive records, so TypeScript names what you missed). A shape is a list of
+  scales on the one gradient circle, never a second gradient.
 - **New primitive (`vessel` is the last one left):** add its params to
   `PrimitiveParams` in `types/spell-score.ts`, add it to the `ScoreTrack` union,
   write a kernel in `sim/primitives/`, add three rows in
@@ -148,7 +169,7 @@ renderer paints nothing, and both are ordinary early returns, not special cases.
 - **New role:** add it to `LookRole`, then every row in `looks/` stops
   type-checking until it is filled in. That is the point.
 - **Iterate visually:** `/tools/spell-effect-lab`, engine `cast`. The
-  scripted-clock hook is `?preset=<id>&frameMs=<n>&engine=cast`.
+  scripted-clock hook is `?preset=<id>&frameMs=<n>&engine=cast&sigil=<id>`.
 
 ## Related
 

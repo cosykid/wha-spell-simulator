@@ -25,8 +25,13 @@ import type { CurveId, LookRole } from '../../types.js';
 /** A color as additive channels, 0..255. Tuples so a tint is a cheap atlas key. */
 export type Rgb = readonly [red: number, green: number, blue: number];
 
-/** Which pre-baked sprite a look blits. `../render/sprites.ts` bakes one per (sprite, tint). */
-export type SpriteId = 'disc' | 'spark' | 'streak';
+/**
+ * Which pre-baked sprite a look blits. `../render/sprites.ts` bakes one per
+ * (sprite, tint). `glint` is the one anisotropic shape: a specular cross no
+ * radial gradient can make, and the only way crystal's facets read as facets
+ * rather than as small cool balls.
+ */
+export type SpriteId = 'disc' | 'spark' | 'streak' | 'glint';
 
 /** The gradient a sprite is baked with: hot center, cooler rim. */
 export interface Tint {
