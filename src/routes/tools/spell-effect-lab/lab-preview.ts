@@ -11,6 +11,7 @@ import { buildSpellIR } from '$lib/ui/spellEffectLab.js';
 import { vectorFromAngleDeg } from '$lib/utils/geometry.js';
 import { renderPaper } from '$canvas/entities/paperEntity.js';
 import { drawGuides } from '$canvas/guideRenderer.js';
+import { GOLDEN_FRAME_ATTRIBUTE, GOLDEN_FRAME_STEP_MS } from './lab-goldens.js';
 
 /** Live control state the preview samples each animation frame. */
 export interface LabState {
@@ -64,6 +65,23 @@ export class LabPreview {
 			if (this.#rafId) cancelAnimationFrame(this.#rafId);
 			this.#rafId = null;
 		};
+	}
+
+	/**
+	 * Render straight to `frameMs` on a scripted clock, then stop, so a golden
+	 * screenshot lands on the same frame every run. Test-only; the interactive
+	 * lab always calls {@link start} instead.
+	 *
+	 * @example
+	 * preview.renderGoldenFrame(600); // the frame 600ms into the cast
+	 */
+	renderGoldenFrame(frameMs: number): void {
+		const activatedAt = this.#getState().activatedAt;
+		const steps = Math.round(frameMs / GOLDEN_FRAME_STEP_MS);
+		for (let step = 0; step <= steps; step += 1) {
+			this.#renderAt(activatedAt + step * GOLDEN_FRAME_STEP_MS);
+		}
+		this.#effectCanvas.setAttribute(GOLDEN_FRAME_ATTRIBUTE, String(frameMs));
 	}
 
 	/** Drop accumulated particle state so the next frame restarts the effect cleanly. */
@@ -248,6 +266,11 @@ export class LabPreview {
 	}
 
 	#frame(timestamp: number) {
+		this.#renderAt(timestamp);
+		this.#rafId = requestAnimationFrame((next) => this.#frame(next));
+	}
+
+	#renderAt(timestamp: number) {
 		this.#resizeCanvases();
 		const state = this.#getState();
 		const ring = this.#buildRing(state.values);
@@ -262,6 +285,5 @@ export class LabPreview {
 		this.#drawSyntheticGlyph(ring, timestamp, state);
 		this.#renderer.render(spellIR, ring, timestamp, { showGuides: false });
 		this.#drawConvergencePathGuide(spellIR, ring);
-		this.#rafId = requestAnimationFrame((next) => this.#frame(next));
 	}
 }

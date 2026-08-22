@@ -276,7 +276,7 @@ src/lib/
   portal/      portal.ts
   types/       seal-reading.ts  spell-plan.ts  spell-score.ts
 tests/
-  golden/      rasterizer.ts  png.ts  probes.ts
+  golden/      motion.ts  rasterizer.ts  png.ts  rng.ts  frames.ts  probes.ts  probeMetrics.ts
 ```
 
 Every file is one responsibility, well under the 300-line guide.
