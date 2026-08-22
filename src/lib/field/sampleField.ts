@@ -6,8 +6,9 @@ import { degreesToRadians, normalizeAngleDeg, radiansToDegrees } from '../utils/
 import type { DirectedSource, FieldVector, SpawnDomain, SpellField, Vector } from '../types.js';
 
 const FIELD_TUNING = {
-	// How far a column's ring position shifts its beam axis off center, so the
-	// beam manifests toward the side with the most or largest signs.
+	// How far a column shifts its beam axis off center, per ring radius of the
+	// sign's own offset. The shift runs along the sign's facing, so canon's
+	// long-sign demo tilts the jet away from the sign that carries it.
 	axialLean: 0.55,
 	// Beam footprint: the jet is strong within this distance of the beam axis
 	// and soft outside it, so columns read as a column instead of a sheet.
@@ -88,10 +89,12 @@ export function sampleFieldForce(field: SpellField, p: Vector, height: number = 
 	for (const source of field.sources) {
 		switch (source.kind) {
 			case 'axial': {
-				// The beam rises at an axis leaned toward the sign; magic is
+				// The beam rises at an axis leaned along the way the sign points,
+				// by a distance set by how far off center the sign sits. Magic is
 				// drafted toward that axis and jetted up within the footprint.
-				const axisX = source.at.x * FIELD_TUNING.axialLean;
-				const axisY = source.at.y * FIELD_TUNING.axialLean;
+				const lean = Math.hypot(source.at.x, source.at.y) * FIELD_TUNING.axialLean;
+				const axisX = source.direction.x * lean;
+				const axisY = source.direction.y * lean;
 				const dx = p.x - axisX;
 				const dy = p.y - axisY;
 				const distance = Math.hypot(dx, dy);

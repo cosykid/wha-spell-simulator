@@ -14,7 +14,7 @@ import {
 	sampleFieldForce,
 	spawnDomainPosition
 } from '../src/lib/field/sampleField.js';
-import type { GlyphAST, Recognition, Vector } from '../src/lib/types.js';
+import type { FieldSource, GlyphAST, Recognition, Vector } from '../src/lib/types.js';
 
 /**
  * Minimal recognized-sign fixture. `angleDeg` is the ring position bearing
@@ -73,6 +73,13 @@ function inwardFacing(angleDeg: number): number {
 
 function forceAt(field: ReturnType<typeof buildSpellField>, x: number, y: number) {
 	return sampleFieldForce(field, { x, y });
+}
+
+/** Where a column's beam axis sits, mirroring the axialLean tuning. */
+function beamAxis(source: FieldSource): Vector {
+	assert.ok(source.kind === 'axial');
+	const lean = Math.hypot(source.at.x, source.at.y) * 0.55;
+	return { x: source.direction.x * lean, y: source.direction.y * lean };
 }
 
 /** Screen-space z of cross(position, force); same sign everywhere = coherent swirl. */
@@ -145,15 +152,16 @@ test('a column gathers magic toward its beam instead of spraying', () => {
 	const field = buildSpellField([
 		sign({ id: 'column', manifestation: 'column', angleDeg: 0, facingDeg: 180 })
 	]);
-	// Outside the beam the draft points back toward the beam axis (east side).
-	const westEdge = forceAt(field, -0.9, 0);
-	assert.ok(westEdge.x > 0, 'draft pulls toward the beam axis');
+	// The inward-facing sign sits east, so its beam axis leans west of center.
+	const axis = beamAxis(field.sources[0]);
+	assert.ok(axis.x < 0, 'the axis leans along the facing, not toward the sign');
+	// Outside the beam the draft points back toward that axis from either side.
+	const eastEdge = forceAt(field, 0.9, 0);
+	assert.ok(eastEdge.x < 0, 'draft pulls toward the beam axis');
+	assert.ok(forceAt(field, -1.4, 0).x > 0, 'and pulls back from the far side too');
 	// The jet is strongest near the axis and soft far away.
-	const source = field.sources[0];
-	assert.ok(source.kind === 'axial');
-	const axis = source.kind === 'axial' ? { x: source.at.x * 0.55, y: source.at.y * 0.55 } : null;
-	const onAxis = sampleFieldForce(field, axis!);
-	assert.ok(onAxis.z > westEdge.z * 2, 'the jet concentrates in the beam footprint');
+	const onAxis = sampleFieldForce(field, axis);
+	assert.ok(onAxis.z > eastEdge.z * 2, 'the jet concentrates in the beam footprint');
 });
 
 test('levitation lift fades with height into a hover equilibrium', () => {
@@ -172,16 +180,21 @@ test('levitation lift fades with height into a hover equilibrium', () => {
 	assert.ok(gather.x < 0, 'held magic gathers toward the seal axis');
 });
 
-test('a lone column beams upward and leans toward its own side', () => {
+test('a lone column beams upward and leans the way its sign points', () => {
+	// Canon's sign-length demo draws a long column on one side and the jet
+	// tilts to the other: the beam follows where the sign points, and a sign in
+	// its canonical pose points inward, across the seal and away from its rim.
 	const field = buildSpellField([
-		sign({ id: 'column', manifestation: 'column', angleDeg: 0, facingDeg: 180 })
+		sign({ id: 'column', manifestation: 'column', angleDeg: 180, facingDeg: inwardFacing(180) })
 	]);
 	assert.equal(field.sources.length, 1);
-	assert.equal(field.sources[0].kind, 'axial');
+	const source = field.sources[0];
+	assert.equal(source.kind, 'axial');
+	assert.ok(source.kind === 'axial' && source.direction.x > 0.99, 'the west sign points east');
 
 	const force = forceAt(field, 0, 0);
 	assert.ok(force.z > 0, 'column pushes out of the seal');
-	assert.ok(force.x > 0.05, 'unbalanced column leans toward the sign side');
+	assert.ok(force.x > 0.05, 'the west sign throws the beam east, away from its own side');
 	assert.ok(Math.abs(force.y) < 1e-9);
 });
 
@@ -508,6 +521,14 @@ test('spawnDomainPosition respects each domain', () => {
 		const radius = Math.hypot(sector.x, sector.y);
 		assert.ok(sector.x / radius > 0.2, 'sector spawns bias toward its direction');
 	}
+});
+
+test('field signatures change when a column turns', () => {
+	const columnFacing = (facingDeg: number) =>
+		spellFieldSignature(
+			buildSpellField([sign({ id: 'column', manifestation: 'column', angleDeg: 0, facingDeg })])
+		);
+	assert.notEqual(columnFacing(180), columnFacing(240), 'the lean direction reaches the digest');
 });
 
 test('field signatures change when a sign twist changes', () => {

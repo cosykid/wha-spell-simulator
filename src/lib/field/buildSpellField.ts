@@ -97,6 +97,7 @@ function columnSource(sign: Recognition): FieldSource {
 		kind: 'axial',
 		sign: sign.id ?? 'column',
 		at: sealPosition(sign),
+		direction: facingDirection(sign),
 		strength: signInfluence(sign)
 	};
 }
@@ -254,7 +255,7 @@ export function spellFieldSignature(field: SpellField): string {
 		.map((source) => {
 			switch (source.kind) {
 				case 'axial':
-					return `a${Math.round(source.at.x * 20)},${Math.round(source.at.y * 20)}.${Math.round(source.strength * 100)}`;
+					return `a${Math.round(source.at.x * 20)},${Math.round(source.at.y * 20)}>${Math.round(source.direction.x * 10)},${Math.round(source.direction.y * 10)}.${Math.round(source.strength * 100)}`;
 				case 'radial':
 					return `r${Math.round(source.twistDeg)}@${Math.round(source.center.x * 20)},${Math.round(source.center.y * 20)}.${Math.round(source.strength * 100)}`;
 				case 'directed':
