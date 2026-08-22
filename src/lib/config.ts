@@ -1,3 +1,5 @@
+import { PORTAL } from './portal/portal.js';
+
 export const CONFIG = {
 	// String version tag shown in diagnostics.
 	appVersion: '0.1.0-poc',
@@ -97,10 +99,10 @@ export const CONFIG = {
 	},
 	renderer: {
 		// Milliseconds the spell paper takes to tilt into the screen before the
-		// effect animation begins. MUST match the CSS `--portal-tilt-duration`
-		// variable in tokens.css; the renderer holds the effect/glow back for this
-		// long so the canvas visibly tilts first, then the spell erupts.
-		portalTiltMs: 980,
+		// effect animation begins. Owned by `portal/portal.ts`, which also writes
+		// the CSS `--portal-tilt-duration` the tilt animates on, so the hold and
+		// the animation cannot drift apart. Tune it there.
+		portalTiltMs: PORTAL.tiltMs,
 
 		// CSS color; drawn ink color.
 		inkColor: '#241b16',

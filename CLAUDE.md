@@ -55,9 +55,11 @@ pipeline, in order:
 - [`src/lib/dictionary/`](src/lib/dictionary/CLAUDE.md) — the glyph corpus: sigil/sign JSON + SVG art
 - [`src/lib/compiler/`](src/lib/compiler/CLAUDE.md) — `GlyphAST` → `SpellIR` (meaning, activation, signature)
 - [`src/lib/field/`](src/lib/field/CLAUDE.md) — signs → superposable force field in seal space
-- [`src/lib/renderer/`](src/lib/renderer/CLAUDE.md) — `SpellIR` → pixels (effects, portal projection)
+- [`src/lib/renderer/`](src/lib/renderer/CLAUDE.md) — `SpellIR` → pixels (effects)
 
 Around it:
+
+- [`src/lib/portal/`](src/lib/portal/CLAUDE.md) — the tilted paper: one owner of the CSS tilt and the seal-to-screen projection
 
 - [`src/lib/ui/canvas/`](src/lib/ui/canvas/CLAUDE.md) — the Entity/Command/Behavior canvas engine
 - [`src/lib/ui/simulator/`](src/lib/ui/simulator/CLAUDE.md) — the main route's session, runtime, and locks

@@ -7,6 +7,7 @@
 	import '$lib/styles/tabs.css';
 	import '$lib/styles/content.css';
 	import AuthDialog from '$lib/components/auth/AuthDialog.svelte';
+	import { portalCssVariables } from '$lib/portal/portal.js';
 	import { AuthState, setAuthState } from '$lib/ui/auth/auth-state.svelte.js';
 	import { isApplePlatform, setPlatformContext } from '$lib/ui/keybindings.js';
 	import { dev } from '$app/environment';
@@ -46,7 +47,9 @@
 </script>
 
 <div class="app-background" aria-hidden="true"></div>
-<div class="app-content">
+<!-- The portal tilt's numbers are handed to CSS here, once, from the module that
+     also projects the spell effect onto that tilt. See portal/portal.ts. -->
+<div class="app-content" style={portalCssVariables()}>
 	{@render children()}
 </div>
 

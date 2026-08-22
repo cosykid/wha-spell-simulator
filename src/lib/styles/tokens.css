@@ -17,7 +17,8 @@
 	--warm-wood-deep: #5c4630;
 	--shadow: rgba(16, 34, 38, 0.28);
 	--radius: 8px;
-	--portal-tilt-duration: 980ms;
+	/* The portal's own variables (--portal-tilt-duration and the tilt geometry) are
+	   written onto the app shell from portal/portal.ts, so they are not tokens. */
 
 	/* ── Minimal full-bleed canvas chrome & slide-out drawers ──────────── */
 	/* Warm sepia ink for chrome that floats directly on the parchment. */
