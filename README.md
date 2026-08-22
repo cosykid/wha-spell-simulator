@@ -232,3 +232,5 @@ cut out, so a recalled spell always arrives prepared and is sealed by hand.
 - [Parsed glyph output contract](docs/glyph-ast.md)
 - [Compiled spell output contract](docs/spell-ir.md)
 - [Visual effect renderer notes](docs/effect-rendering.md)
+- [Spell behavior specification](docs/animation-spec.md)
+- [Animation system redesign plan](docs/animation-redesign.md)

@@ -1,3 +1,8 @@
+> **Superseded (2026-08-22).** Stages 1 and 2 shipped in a different shape, and
+> stages 3 and 4 were never built as described. The current plan is
+> [`animation-redesign.md`](animation-redesign.md) with
+> [`animation-spec.md`](animation-spec.md). Kept for history.
+
 This information is accurate as of 18/06/2026
 Big shoutout to **@Einlar** for actively contributing to project planning so far.
 

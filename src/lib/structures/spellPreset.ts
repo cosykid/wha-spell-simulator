@@ -19,10 +19,10 @@ import type { Placement, RingInfo, Stroke, Vector } from '../types.js';
 
 export const SPELL_PRESET_VERSION = 1;
 
-/** Gap opened in a sealed ring at save time, matching the stamped ring template. */
+/** Gap opened in a sealed ring at save time. Width matches the stamped ring template. */
 export const PRESET_RING_GAP_DEG = 45;
 
-/** Where the reopened gap sits: straight up, like the stamped ring template. */
+/** Where the reopened gap sits: straight up. The stamped template's gap is at 0 degrees, so only the width matches. */
 const GAP_CENTER_DEG = -90;
 
 /** A stroke counts as part of the ring only when it stays inside this radius band. */
