@@ -1,12 +1,11 @@
 /**
- * @file What a cast probe row is, and how it turns into a number.
+ * @file What a cast probe row is, and how it turns into a number. One evaluator
+ * per metric, so the table in [`castProbes.ts`](castProbes.ts) stays data and
+ * every row is comparable to every other row.
  *
- * The counterpart of [`probeMetrics.ts`](probeMetrics.ts) one tier over: those
- * rows read `sampleFieldForce`, these read the parcels a `SpellScore` actually
- * advected. A cast row therefore claims something about the redesign's own
- * behaviour rather than about the field it replaces.
- *
- * A row selects its parcels by R-10's own vocabulary. The world holds the
+ * A row reads the parcels a `SpellScore` actually advected, so it claims
+ * something about behaviour rather than about a force sampled in the abstract.
+ * It selects those parcels by R-10's own vocabulary: the world holds the
  * `medium` and what the spell `manifested` out of it, and a row may also name
  * one primitive when the claim is about that kernel in particular.
  */
@@ -14,7 +13,29 @@
 import { scoreTracks } from '../../src/lib/cast/score/compileScore.js';
 import type { Parcel } from '../../src/lib/cast/sim/parcel.js';
 import type { PrimitiveKind, SpellScore } from '../../src/lib/types.js';
-import type { ProbeResult, RulingId } from './probeMetrics.js';
+
+/**
+ * A ruling in docs/animation-spec.md, or a section of docs/ground-truth.md for a
+ * claim the spec delegates rather than restates.
+ */
+export type RulingId =
+	| 'R-01'
+	| 'R-02'
+	| 'R-03'
+	| 'R-04'
+	| 'R-05'
+	| 'R-06'
+	| 'R-07'
+	| 'R-08'
+	| 'R-09'
+	| 'R-10'
+	| 'R-11'
+	| 'R-12'
+	| 'R-13'
+	/** Levitation, the force pair. */
+	| 'ground-truth-6'
+	/** Pull, the ambient coupling, and the ambient medium itself. */
+	| 'ground-truth-7';
 
 /** R-10's two halves of the world, or one primitive by name. */
 export type CastSelector = 'medium' | 'manifested' | PrimitiveKind;
@@ -25,7 +46,11 @@ export type CastMetric =
 	/** Fraction of them inside `radius` of the seal axis. */
 	| 'axisDensity'
 	| 'meanHeight'
+	/** The highest any one of them got, which is how a ceiling shows. */
+	| 'maxHeight'
 	| 'meanRadius'
+	/** Mean seal-space x. Positive is east, the side the preset claims name. */
+	| 'meanX'
 	/** Mean outward velocity along each parcel's own arm. Negative is inflow. */
 	| 'radialSpeed';
 
@@ -51,7 +76,9 @@ export interface CastProbe {
 const NEEDS_PARCELS: ReadonlySet<CastMetric> = new Set([
 	'axisDensity',
 	'meanHeight',
+	'maxHeight',
 	'meanRadius',
+	'meanX',
 	'radialSpeed'
 ]);
 
@@ -63,8 +90,10 @@ const MEASURE: Record<CastMetric, (probe: CastProbe, parcels: Parcel[]) => numbe
 		return near.length / parcels.length;
 	},
 	meanHeight: (_probe, parcels) => mean(parcels.map((parcel) => parcel.at.z)),
+	maxHeight: (_probe, parcels) => Math.max(...parcels.map((parcel) => parcel.at.z)),
 	meanRadius: (_probe, parcels) =>
 		mean(parcels.map((parcel) => Math.hypot(parcel.at.x, parcel.at.y))),
+	meanX: (_probe, parcels) => mean(parcels.map((parcel) => parcel.at.x)),
 	radialSpeed: (_probe, parcels) =>
 		mean(
 			parcels.map((parcel) => {
@@ -78,6 +107,13 @@ const MEASURE: Record<CastMetric, (probe: CastProbe, parcels: Parcel[]) => numbe
 
 function mean(values: number[]): number {
 	return values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : 0;
+}
+
+export interface ProbeResult {
+	passed: boolean;
+	measured: number;
+	/** Failure text: what was claimed, what was measured, and which ruling it pins. */
+	message: string;
 }
 
 /** The parcels a row's selector names, out of a cast of the score it was scored from. */

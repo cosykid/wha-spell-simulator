@@ -13,9 +13,9 @@ import { fileURLToPath } from 'node:url';
 import { planText } from '../../src/lib/compiler/plan/planText.js';
 import { resolvePlan } from '../../src/lib/compiler/plan/resolvePlan.js';
 import { DEFAULT_SIGIL, readPresetSeal } from '../../src/lib/ui/spellEffectLab.js';
-import { FIELD_PRESETS, type FieldPreset } from '../../src/lib/ui/spellEffectLabPresets.js';
+import { LAB_PRESETS, type LabPreset } from '../../src/lib/ui/spellEffectLabPresets.js';
 
-export { FIELD_PRESETS, type FieldPreset };
+export { LAB_PRESETS, type LabPreset };
 
 export const PLAN_DIR = fileURLToPath(new URL('./plans/', import.meta.url));
 
@@ -31,6 +31,6 @@ export function planFileName(presetId: string): string {
 }
 
 /** One preset's plan, as the committed file's exact contents. */
-export function renderPresetPlan(preset: FieldPreset): string {
+export function renderPresetPlan(preset: LabPreset): string {
 	return `${planText(resolvePlan(readPresetSeal(preset.signs, GOLDEN_SIGIL)))}\n`;
 }

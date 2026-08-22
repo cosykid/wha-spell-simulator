@@ -1,7 +1,7 @@
 /**
  * @file The jet kernel: an aimed column of flow along one axis.
  *
- * Salvaged from the `axial` case of `field/sampleField.ts`, with the lean
+ * Salvaged from the deleted field engine's `axial` case, with the lean
  * removed. The old version offset the beam axis by the sign's own ring position;
  * R-05 says the beam goes where the ink points, and the score already put that
  * in `params.axis`, so the kernel needs no lean term of its own.

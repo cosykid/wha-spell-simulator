@@ -8,8 +8,8 @@ import {
 } from './semanticRules.js';
 import { directionFromSurfaceVector } from './spellDirection.js';
 import { calculateSpellQuality, calculateSpellStability } from './spellQuality.js';
-import { buildSpellField, emptySpellField, spellFieldSignature } from '../field/buildSpellField.js';
 import { emptySealReading, readSeal } from './reading/readSeal.js';
+import { planDigest } from './plan/planDigest.js';
 import { inertPlan, resolvePlan } from './plan/resolvePlan.js';
 import type {
 	AppConfig,
@@ -81,7 +81,6 @@ function invalidSpell(status: string, glyphAST: GlyphASTLike, warnings: string[]
 		effectScale: 1,
 		primaryManifestation: 'none',
 		manifestations: {},
-		field: emptySpellField(),
 		reading: emptySealReading(),
 		plan: inertPlan(),
 		direction: { x: 0, y: 0, z: 1, xTiltDeg: 0, yTiltDeg: 0, tiltFromZDeg: 0 },
@@ -226,10 +225,6 @@ export function compileSpell({
 	const neatness = glyphAST.globalMetrics?.neatness ?? quality;
 	const { primaryManifestation, manifestations, manifestationInfluence } =
 		aggregateManifestations(signs);
-	const field = buildSpellField(signs);
-	// The Plan layer rides alongside the field until the phase 5 cutover. It is
-	// deliberately absent from `signature`: the field still drives rendering, so
-	// a plan change must not reset particles.
 	const reading = readSeal(glyphAST, previous?.reading ?? null);
 	const plan = resolvePlan(reading);
 	const deltas = aggregateSemanticDeltas(signs);
@@ -298,7 +293,6 @@ export function compileSpell({
 		effectScale,
 		primaryManifestation,
 		manifestations,
-		field,
 		reading,
 		plan,
 		direction,
@@ -313,7 +307,7 @@ export function compileSpell({
 		quality,
 		neatness,
 		warnings: glyphAST.warnings ?? [],
-		signature: `${primary.id}:${primary.element}:${manifestationSignature(manifestations)}:${spellFieldSignature(field)}:${active}:${Math.round(effectScale * 100)}:${Math.round(strength * 100)}:${Math.round(
+		signature: `${primary.id}:${primary.element}:${manifestationSignature(manifestations)}:${planDigest(plan)}:${active}:${Math.round(effectScale * 100)}:${Math.round(strength * 100)}:${Math.round(
 			force * 100
 		)}:${Math.round(spread * 100)}:${Math.round(duration * 100)}:${Math.round(direction.xTiltDeg)}:${Math.round(
 			direction.yTiltDeg

@@ -1,22 +1,30 @@
 /**
  * @file Canvas harness that replays a saved spell's effect for the library
  * book. Follows the Spell Effect Lab's preview pattern: the stored drawing is
- * inked onto a glyph canvas while the real {@link SpellEffectRenderer} plays
- * the stored IR over it, against a synthetic sealed ring. No recognition runs.
- *
- * Still on the field engine after the phase 5 cutover, so it moves to
- * `CastRenderer` with the rest of the deletion. See `docs/animation-redesign.md`.
+ * inked onto a glyph canvas while the real {@link CastRenderer} plays the stored
+ * IR over it, against a synthetic sealed ring. No recognition runs.
  */
+import { CastRenderer } from '$lib/cast/render/castRenderer.js';
+import { totalMsFor } from '$lib/cast/score/beats.js';
 import { CONFIG } from '$lib/config.js';
 import { bakePlacementToStrokes } from '$lib/input/shapeBaker.js';
-import { resetParticleState } from '$lib/renderer/effects/effectUtils.js';
-import { SpellEffectRenderer } from '$lib/renderer/spellEffectRenderer.js';
+import { inertPlan } from '$lib/compiler/plan/resolvePlan.js';
 import { deserializeSpellPreset, type SpellPresetData } from '$lib/structures/spellPreset.js';
 import type { RingInfo, SpellIR, Stroke } from '$lib/types.js';
 import { renderPaper } from '$canvas/entities/paperEntity.js';
 
-/** Padding after the spell's own duration before a replay counts as finished. */
+/** Padding after the cast's last beat before a replay counts as finished. */
 const END_GRACE_MS = 1600;
+
+/**
+ * The stored IR, as an active cast. Rows saved before the Plan layer landed hold
+ * the scalars and the deleted force field but no `plan`, and the cast performs
+ * the plan, so those get the inert one: R-11 says a seal that manifests nothing
+ * is a look, never a blank canvas. Everything else about the replay is unchanged.
+ */
+function playableIr(stored: SpellIR): SpellIR {
+	return { ...stored, active: true, prepared: false, plan: stored.plan ?? inertPlan() };
+}
 
 function estimateRing(strokes: Stroke[], canvasSize: number): RingInfo {
 	const points = strokes.flatMap((stroke) => stroke.points);
@@ -49,7 +57,7 @@ export class SpellPreviewDriver {
 	readonly #shell: HTMLElement;
 	readonly #ir: SpellIR;
 	readonly #onEnded: (() => void) | null;
-	readonly #effectRenderer: SpellEffectRenderer;
+	readonly #effectRenderer: CastRenderer;
 	readonly #glyphCtx: CanvasRenderingContext2D;
 	#strokes: Stroke[] = [];
 	#ring: RingInfo = { found: true, complete: true, center: { x: 0, y: 0 }, radius: 1 };
@@ -73,9 +81,9 @@ export class SpellPreviewDriver {
 		this.#onEnded = options.onEnded ?? null;
 		// The stored IR may have been captured unsealed. Preview always plays it
 		// as an active spell, stamped with a fresh activation each replay.
-		this.#ir = { ...options.previewIr, active: true, prepared: false };
+		this.#ir = playableIr(options.previewIr);
 		this.#glyphCtx = options.glyphCanvas.getContext('2d')!;
-		this.#effectRenderer = new SpellEffectRenderer(options.effectCanvas, CONFIG);
+		this.#effectRenderer = new CastRenderer(options.effectCanvas);
 	}
 
 	/** Starts the replay loop. Returns a teardown that cancels the pending frame. */
@@ -92,9 +100,7 @@ export class SpellPreviewDriver {
 	restart(): void {
 		this.#activatedAt = performance.now();
 		this.#endedFired = false;
-		this.#effectRenderer.lastSignature = null;
-		this.#effectRenderer.lastTime = null;
-		resetParticleState(this.#effectRenderer.state);
+		this.#effectRenderer.reset();
 	}
 
 	#resize(): void {
@@ -146,7 +152,7 @@ export class SpellPreviewDriver {
 			timestamp
 		);
 		const elapsed = performance.now() - this.#activatedAt;
-		if (!this.#endedFired && elapsed > this.#ir.duration * 1000 + END_GRACE_MS) {
+		if (!this.#endedFired && elapsed > totalMsFor(this.#ir.duration) + END_GRACE_MS) {
 			this.#endedFired = true;
 			this.#onEnded?.();
 		}

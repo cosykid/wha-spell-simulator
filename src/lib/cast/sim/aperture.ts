@@ -4,7 +4,7 @@
  *
  * One sampler for all three primitives, so the valve is the same shape whatever
  * flows through it. The `sqrt` on every radius is salvaged from
- * `spawnDomainPosition` in `field/sampleField.ts`: it keeps parcels evenly
+ * the deleted field engine's spawn-domain sampler: it keeps parcels evenly
  * spread by area instead of piling up at the middle.
  *
  * @example

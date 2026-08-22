@@ -24,7 +24,7 @@ import { VORTEX } from '../src/lib/cast/sim/primitives/vortex.js';
 import { classifyTwist } from '../src/lib/compiler/reading/facing.js';
 import { inertPlan, resolvePlan } from '../src/lib/compiler/plan/resolvePlan.js';
 import { readPresetSeal } from '../src/lib/ui/spellEffectLab.js';
-import { FIELD_PRESETS, presetById } from '../src/lib/ui/spellEffectLabPresets.js';
+import { LAB_PRESETS, presetById } from '../src/lib/ui/spellEffectLabPresets.js';
 import { signedAngleDifferenceDeg, vectorFromAngleDeg } from '../src/lib/utils/geometry.js';
 import type { CastState } from '../src/lib/cast/sim/cast.js';
 import type { Parcel } from '../src/lib/cast/sim/parcel.js';
@@ -44,7 +44,7 @@ function scoreFor(presetId: string, signature = SOURCE.signature): SpellScore {
 }
 
 function everyScore(): SpellScore[] {
-	return FIELD_PRESETS.map((preset) =>
+	return LAB_PRESETS.map((preset) =>
 		compileScore(resolvePlan(readPresetSeal(preset.signs, SIGIL)), SOURCE)
 	);
 }
@@ -324,7 +324,7 @@ test('R-13: an intake draws the ambient medium in, and the same kernel pushes it
 		near < Math.abs(INTAKE.velocity(inward.params, at, 0).x),
 		'the center is a singularity'
 	);
-	// Only the twist lifts (FIELD_TUNING.swirlLift): a straight pull stays flat.
+	// Only the twist lifts (the salvaged swirl lift): a straight pull stays flat.
 	// A folded plan leaves rounding dust in a cancelled component, so the floor is
 	// "nothing to speak of" rather than a literal zero.
 	assert.ok(Math.abs(INTAKE.velocity(inward.params, at, 0).z) < 1e-9);

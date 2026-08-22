@@ -25,7 +25,7 @@ export function stripCandidate(candidate: SymbolCandidate) {
 
 /**
  * Removes heavy diagnostics from public AST recognition entries. The compact
- * ML verdict stays: facing (facingTwistDeg) only trusts rotationOffsetDeg
+ * ML verdict stays: the reading's facing only trusts rotationOffsetDeg
  * when the ML pose head accepted the sign, so dropping it would silently
  * reset every sign to canon inward facing.
  */

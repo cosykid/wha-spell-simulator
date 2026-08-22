@@ -21,7 +21,7 @@ const FAN_TUNING = {
 	/** Seal units per second at full strength. */
 	speed: 1.5,
 	speedFloor: 0.35,
-	// Finite-core radius, salvaged from field/sampleField.ts (FIELD_TUNING.radialCore):
+	// Finite-core radius, salvaged from the deleted field engine's radial core:
 	// the push peaks off-center so the seal origin is not a singularity.
 	core: 0.4,
 	/** Plane-hugging (R-07): a fan barely leaves the paper, and never climbs past its ceiling. */

@@ -7,8 +7,8 @@
 import { clamp } from '../utils/geometry.js';
 import { directionFromTiltAngles } from '../compiler/spellDirection.js';
 import { emptySealReading, readSeal } from '../compiler/reading/readSeal.js';
+import { planDigest } from '../compiler/plan/planDigest.js';
 import { resolvePlan } from '../compiler/plan/resolvePlan.js';
-import { emptySpellField, spellFieldSignature } from '../field/buildSpellField.js';
 import type {
 	AppConfig,
 	ElementId,
@@ -16,7 +16,6 @@ import type {
 	Manifestation,
 	Recognition,
 	SealReading,
-	SpellField,
 	SpellIR
 } from '../types.js';
 
@@ -297,7 +296,6 @@ export function buildSpellIR({
 	sigil,
 	activatedAt,
 	config,
-	field,
 	reading
 }: {
 	values: ControlValues;
@@ -305,9 +303,7 @@ export function buildSpellIR({
 	sigil?: string;
 	activatedAt: number | null;
 	config: AppConfig;
-	/** Optional sign force field, synthesized by the lab's sign presets. */
-	field?: SpellField;
-	/** Optional gated reading of the same preset signs; the plan follows from it. */
+	/** Optional gated reading of the lab's preset signs; the plan follows from it. */
 	reading?: SealReading;
 }): SpellIR {
 	const { effectScale, force, spread, focus, gravity, duration, stability } =
@@ -323,8 +319,8 @@ export function buildSpellIR({
 		values.yTiltDeg!
 	) as SpellIR['direction'];
 	const { primaryManifestation, manifestations } = buildManifestations(values);
-	const spellField = field ?? emptySpellField();
 	const sealReading = reading ?? emptySealReading();
+	const plan = resolvePlan(sealReading);
 
 	return {
 		type: 'SpellIR',
@@ -342,9 +338,8 @@ export function buildSpellIR({
 		effectScale,
 		primaryManifestation,
 		manifestations,
-		field: spellField,
 		reading: sealReading,
-		plan: resolvePlan(sealReading),
+		plan,
 		direction,
 		directionCoherence: clamp(Math.hypot(direction.x, direction.y), 0, 1),
 		gravity,
@@ -361,7 +356,7 @@ export function buildSpellIR({
 			'lab',
 			element,
 			sigil ?? element,
-			spellFieldSignature(spellField),
+			planDigest(plan),
 			Math.round(effectScale * 100),
 			Math.round(force * 100),
 			Math.round(spread * 100),

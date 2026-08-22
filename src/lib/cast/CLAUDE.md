@@ -8,11 +8,11 @@ SpellPlan -> score/ -> SpellScore -> sim/ -> Parcel[] -> render/ -> pixels
                                                 looks/ (data, read by render/)
 ```
 
-This directory is the redesign's replacement for [`../field/`](../field/CLAUDE.md)
-and [`../renderer/effects/`](../renderer/CLAUDE.md), and since the phase 5
-cutover it is what the simulator's effect canvas runs. The field engine survives
-only for the Spell Effect Lab's `field` option and the library preview, pending
-the deletion half of phase 5. Read
+This directory replaced the force field and the six effect renderers the redesign
+deleted, and it is the **only** effect path: the simulator's canvas, the Spell
+Effect Lab's preview, and the library book's replay all run it. There is no
+second engine, no ownership boolean and no fallback branch anywhere below
+`SpellIR`. Read
 [`../../../docs/animation-redesign.md`](../../../docs/animation-redesign.md) and
 [`../../../docs/animation-spec.md`](../../../docs/animation-spec.md) before
 changing anything here; every rule below is one of theirs.
@@ -61,9 +61,9 @@ dropped.
 track's kernel, moves it, then constrains it. Parcels leave when they age out or
 pass `CAST.bounds`.
 
-**Paint.** `CastRenderer.render(spellIR, ring, timestamp, options)` takes the
-same arguments as `SpellEffectRenderer.render`, which is what made the cutover a
-swap. It compiles the score once per `spellIR.signature`, maps wall clock to cast time
+**Paint.** `CastRenderer.render(spellIR, ring, timestamp, options)` kept the
+argument list of the renderer it replaced, which is what made the cutover a swap.
+It compiles the score once per `spellIR.signature`, maps wall clock to cast time
 from `activatedAt`, steps the state, and hands the parcels to `paintCast`. The
 painter projects each parcel through [`../portal/`](../portal/CLAUDE.md), sorts
 by `depth`, sizes it from the look's range and its own `fade` curve, attenuates
@@ -169,8 +169,8 @@ renderer paints nothing, and both are ordinary early returns, not special cases.
   track picks an existing `LookRole`.
 - **New role:** add it to `LookRole`, then every row in `looks/` stops
   type-checking until it is filled in. That is the point.
-- **Iterate visually:** `/tools/spell-effect-lab`, engine `cast`. The
-  scripted-clock hook is `?preset=<id>&frameMs=<n>&engine=cast&sigil=<id>`.
+- **Iterate visually:** `/tools/spell-effect-lab`. The scripted-clock hook the
+  look tier drives is `?preset=<id>&frameMs=<n>&sigil=<id>`.
 
 ## Related
 
@@ -178,5 +178,5 @@ renderer paints nothing, and both are ordinary early returns, not special cases.
   [`../types/spell-plan.ts`](../types/spell-plan.ts) — its input.
 - [`../compiler/CLAUDE.md`](../compiler/CLAUDE.md) — the plan this performs.
 - [`../portal/CLAUDE.md`](../portal/CLAUDE.md) — the tilted paper it paints on.
-- [`../../../tests/CLAUDE.md`](../../../tests/CLAUDE.md) — the motion, cast, plan
-  and look golden tiers, and which change moves which baseline.
+- [`../../../tests/CLAUDE.md`](../../../tests/CLAUDE.md) — the cast, plan and
+  look golden tiers, and which change moves which baseline.

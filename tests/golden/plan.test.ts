@@ -11,18 +11,18 @@ import test from 'node:test';
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 
-import { FIELD_PRESETS, PLAN_DIR, planFileName, renderPresetPlan } from './plans.js';
+import { LAB_PRESETS, PLAN_DIR, planFileName, renderPresetPlan } from './plans.js';
 
 const UPDATE_HINT = 'run `npm run test:golden:update` after reviewing the change';
 
 test('every committed plan baseline names a real preset', () => {
-	const expected = new Set(FIELD_PRESETS.map((preset) => planFileName(preset.id)));
+	const expected = new Set(LAB_PRESETS.map((preset) => planFileName(preset.id)));
 	for (const name of readdirSync(PLAN_DIR).filter((file) => file.endsWith('.txt'))) {
 		assert.ok(expected.has(name), `plan baseline "${name}" has no lab preset: ${UPDATE_HINT}`);
 	}
 });
 
-for (const preset of FIELD_PRESETS) {
+for (const preset of LAB_PRESETS) {
 	test(`plan baseline: ${preset.id}`, () => {
 		const path = join(PLAN_DIR, planFileName(preset.id));
 		assert.ok(existsSync(path), `no plan baseline for ${preset.id}: ${UPDATE_HINT}`);

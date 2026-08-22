@@ -1,19 +1,18 @@
 /**
  * @file The distance curves every kernel is built from. The two falloffs are
- * copied out of `field/sampleField.ts` before that file is deleted at phase 5;
+ * copied out of the field engine before phase 5 deleted it;
  * `smoothstep` comes from `math2.ts` on branch `tc-field-canvas-rework`, where
  * the salvaged Rankine vortex windows its terms with it.
  *
- * Copied, not imported: the field's version reads a `SpellField` source and sums
- * over all of them, while a kernel is local by contract. Only the shapes carry
- * over.
+ * Copied, not imported: the field's version read a force source and summed over
+ * all of them, while a kernel is local by contract. Only the shapes carry over.
  */
 
 /** Below this two points are the same point, so there is no direction between them. */
 export const NEGLIGIBLE_DISTANCE = 1e-6;
 
 /**
- * Finite-core falloff, from `radialMagnitude` in `field/sampleField.ts`: zero at
+ * Finite-core falloff, from the field engine's radial magnitude: zero at
  * the center, exactly 1 at `core`, then decaying slowly, so a radial kernel
  * keeps reaching past the ring without the center being a singularity.
  */
@@ -23,7 +22,7 @@ export function coreFalloff(distance: number, core: number): number {
 
 /**
  * Soft footprint, from the `axial` and `directed` cases of
- * `field/sampleField.ts`: 1 at the center and half strength at `radius`, which
+ * the field engine: 1 at the center and half strength at `radius`, which
  * is what makes a column read as a column instead of a sheet.
  */
 export function softFalloff(distance: number, radius: number): number {

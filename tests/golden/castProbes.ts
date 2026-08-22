@@ -1,22 +1,24 @@
 /**
  * @file The cast probe table: one row is one claim about one cast at one moment,
- * tagged with the ruling or the ground-truth section it pins.
+ * tagged with the ruling or the ground-truth section it pins. Thresholds are
+ * deliberately loose: a row pins the qualitative claim of its ruling, not today's
+ * tuning constants.
  *
- * Same discipline as [`probes.ts`](probes.ts) — thresholds are loose, because a
- * row pins the qualitative claim of its ruling and not today's tuning constants
- * — and the same shape, over the redesign's own parcels instead of the field's.
+ * This is the whole probe table now. The field tier's rows died with
+ * `sampleFieldForce`; the ones citing a real ruling were re-measured on parcels
+ * and live here, and the ones citing `legacy` described the deleted engine.
  *
  * Most rows name a lab preset. The `pinwheel` fixture is the exception: R-05's
  * circulation `Gamma` is a **column-family** aggregate, and no lab preset draws
  * tangential columns, so the one arrangement the vortex exists for has to be
- * built here. The lab corpus stays as it is; it belongs to the look tier.
+ * built here.
  */
 
 import { compileScore } from '../../src/lib/cast/score/compileScore.js';
 import { resolvePlan } from '../../src/lib/compiler/plan/resolvePlan.js';
 import { classifyTwist } from '../../src/lib/compiler/reading/facing.js';
 import { readPresetSeal } from '../../src/lib/ui/spellEffectLab.js';
-import { FIELD_PRESETS } from '../../src/lib/ui/spellEffectLabPresets.js';
+import { LAB_PRESETS } from '../../src/lib/ui/spellEffectLabPresets.js';
 import { signedAngleDifferenceDeg, vectorFromAngleDeg } from '../../src/lib/utils/geometry.js';
 import { castSource } from './casts.js';
 import { GOLDEN_SIGIL } from './plans.js';
@@ -25,8 +27,12 @@ import type { SignReading, SpellScore } from '../../src/lib/types.js';
 
 /** Inside the 980ms charge beat, on a whole simulation step. */
 const CHARGE_MS = 850;
+/** Early in the body of a 4-second cast, while spawn positions still show. */
+const EARLY_BODY_MS = 1600;
 /** Late in the body of a 4-second cast, where the slow primitives have arrived. */
 const BODY_MS = 2600;
+/** Inside the release, where the drive has eased and a grip can take hold. */
+const RELEASE_MS = 3000;
 
 /** A column sign gated the way `readSeal` gates one. */
 function column(atDeg: number, facingDeg: number): SignReading {
@@ -60,7 +66,7 @@ function pinwheelScore(): SpellScore {
 /** Every subject a row may name, by the name it names it with. */
 export function castSubjects(): Map<string, SpellScore> {
 	const subjects = new Map<string, SpellScore>();
-	for (const preset of FIELD_PRESETS) {
+	for (const preset of LAB_PRESETS) {
 		subjects.set(
 			preset.id,
 			compileScore(resolvePlan(readPresetSeal(preset.signs, GOLDEN_SIGIL)), castSource(preset.id))
@@ -77,7 +83,7 @@ function on(subject: string, rows: Array<Omit<CastProbe, 'subject'>>): CastProbe
 
 /** A row every lab preset owes, because R-10's world is the same in all of them. */
 function onEveryPreset(row: Omit<CastProbe, 'subject'>): CastProbe[] {
-	return FIELD_PRESETS.map((preset) => ({ subject: preset.id, ...row }));
+	return LAB_PRESETS.map((preset) => ({ subject: preset.id, ...row }));
 }
 
 export const CAST_PROBES: CastProbe[] = [
@@ -102,6 +108,47 @@ export const CAST_PROBES: CastProbe[] = [
 		rulingId: 'R-02',
 		claim: 'while nothing the seal manifests may erupt before the portal has tilted'
 	}),
+
+	...on('column-balanced', [
+		{
+			atMs: BODY_MS,
+			of: 'jet',
+			expect: { metric: 'meanHeight', above: 0.2 },
+			rulingId: 'R-05',
+			claim:
+				'a balanced ring of columns clashes into a beam that lifts the population off the paper'
+		}
+	]),
+
+	...on('column-unbalanced', [
+		{
+			atMs: BODY_MS,
+			of: 'jet',
+			expect: { metric: 'meanX', below: -0.1 },
+			rulingId: 'R-05',
+			claim:
+				'the east sign faces inward, so the beam leans west, where the sign points, never toward the side carrying it'
+		}
+	]),
+
+	...on('column-levitation', [
+		{
+			atMs: BODY_MS,
+			of: 'jet',
+			expect: { metric: 'maxHeight', above: 1.2 },
+			rulingId: 'R-13',
+			claim:
+				'capture is soft (the score note, and open canon question 5): a live beam fires straight through the grip, past its ceiling band, instead of being clipped mid-beam'
+		},
+		{
+			atMs: RELEASE_MS,
+			of: 'jet',
+			expect: { metric: 'maxHeight', below: 1.7 },
+			rulingId: 'R-13',
+			claim:
+				'and once the drive eases the hold takes the spent parcels, so the beam settles into the band instead of coasting away'
+		}
+	]),
 
 	...on('pinwheel', [
 		{
@@ -155,6 +202,14 @@ export const CAST_PROBES: CastProbe[] = [
 		{
 			atMs: BODY_MS,
 			of: 'intake',
+			expect: { metric: 'meanRadius', below: 0.8 },
+			rulingId: 'R-13',
+			claim:
+				'pull owns the intake verb: the population gathers toward the seal instead of dispersing'
+		},
+		{
+			atMs: BODY_MS,
+			of: 'intake',
 			expect: { metric: 'axisDensity', radius: 0.4, above: 0.1 },
 			rulingId: 'ground-truth-7',
 			claim: 'arriving matter pools against the seal instead of spiking through the center'
@@ -175,6 +230,58 @@ export const CAST_PROBES: CastProbe[] = [
 			expect: { metric: 'radialSpeed', above: 0 },
 			rulingId: 'ground-truth-7',
 			claim: 'the same signed kernel un-reversed is a push: no second code path for inversion'
+		},
+		{
+			atMs: BODY_MS,
+			of: 'intake',
+			expect: { metric: 'meanHeight', below: 0.1 },
+			rulingId: 'R-07',
+			claim:
+				'an outward-facing pull carries no twist, so its push hugs the plane rather than climbing'
+		}
+	]),
+
+	...on('dispersion', [
+		{
+			atMs: BODY_MS,
+			of: 'fan',
+			expect: { metric: 'radialSpeed', above: 0.1 },
+			rulingId: 'R-07',
+			claim: 'dispersion gives C < 0: a radial fan away from the seal, on every side at once'
+		},
+		{
+			atMs: BODY_MS,
+			of: 'fan',
+			expect: { metric: 'meanHeight', below: 0.15 },
+			rulingId: 'R-07',
+			claim: 'and the fan hugs the plane (canon Snugstone dispersal) rather than aiming out of it'
+		}
+	]),
+
+	...on('region-sector', [
+		{
+			atMs: BODY_MS,
+			of: 'jet',
+			expect: { metric: 'meanX', above: 0.3 },
+			rulingId: 'R-09',
+			claim: 'row 10: collinear agreeing chevrons exhaust laterally along their facing, here east'
+		}
+	]),
+
+	...on('region-ring', [
+		{
+			atMs: EARLY_BODY_MS,
+			of: 'jet',
+			expect: { metric: 'meanRadius', above: 0.6 },
+			rulingId: 'R-09',
+			claim: 'row 4: opposed pairs open an annulus, so what the valve passes sits on the ring line'
+		},
+		{
+			atMs: EARLY_BODY_MS,
+			of: 'jet',
+			expect: { metric: 'axisDensity', radius: 0.5, below: 0.1 },
+			rulingId: 'R-09',
+			claim: 'and the interior is pinched off'
 		}
 	]),
 

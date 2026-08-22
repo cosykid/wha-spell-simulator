@@ -8,8 +8,8 @@
  * the crown the swirl fades and the column sheds **out and down**, which is the
  * spill rule that keeps matter cycling instead of stranding in mid-air.
  *
- * The eye is the one term the branch left implicit and `field/sampleField.ts`
- * made explicit (`FIELD_TUNING.vortexEye`): inside the core radius the flow is
+ * The eye is the one term the branch left implicit and the deleted field engine
+ * made explicit: inside the core radius the flow is
  * thrown back onto the wall, so the funnel reads as a sheath around a calm
  * center rather than a filled cone.
  */

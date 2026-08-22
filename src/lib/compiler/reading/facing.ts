@@ -5,7 +5,7 @@
  * center, +/-90 sideways, 180 straight outward, positive counter-clockwise on
  * screen. The hierarchy tries the ML pose head first and falls back through
  * weaker evidence, so a missing ML verdict degrades instead of collapsing every
- * facing to canon inward the way `field/buildSpellField.ts` does today. The
+ * facing to canon inward the way the deleted field builder did. The
  * tiers below `ml-pose` are new here, per `docs/animation-redesign.md` section 1.
  */
 
@@ -92,7 +92,7 @@ function templateRotationTwistDeg(sign: Recognition): number | null {
 /**
  * Draw order carries facing only for a single-stroke sign. Reading it on a
  * multi-stroke glyph once made four columns spray outward as fake inverted ones,
- * so the stroke count gates the whole tier. See `../../field/CLAUDE.md`.
+ * so the stroke count gates the whole tier.
  */
 function strokeGeometryTwistDeg(sign: Recognition): number | null {
 	if ((sign.strokeIds?.length ?? 0) !== 1) {

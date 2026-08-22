@@ -3,10 +3,10 @@
  * PNG for each pair lives. Shared by the comparing test and the updater so they
  * can never disagree about a filename.
  *
- * This is the motion tier for `cast/`, and it deliberately does not touch
- * `field/`. The score reads two fields off the compiled spell, its length and
- * its signature, and both are pinned here, so a field or renderer change cannot
- * move a cast baseline and a score or sim change always does.
+ * This is the motion tier. The score reads two values off the compiled spell,
+ * its length and its signature, and both are pinned here, so a compiler or
+ * renderer change cannot move a cast baseline and a score or sim change always
+ * does.
  */
 
 import { fileURLToPath } from 'node:url';
@@ -15,12 +15,12 @@ import { CAST, newCast, stepTo } from '../../src/lib/cast/sim/cast.js';
 import type { Parcel } from '../../src/lib/cast/sim/parcel.js';
 import { resolvePlan } from '../../src/lib/compiler/plan/resolvePlan.js';
 import { readPresetSeal } from '../../src/lib/ui/spellEffectLab.js';
-import { FIELD_PRESETS, type FieldPreset } from '../../src/lib/ui/spellEffectLabPresets.js';
-import { rasterizePopulation } from './rasterizer.js';
+import { LAB_PRESETS, type LabPreset } from '../../src/lib/ui/spellEffectLabPresets.js';
+import { rasterizePopulation, type RasterPoint } from './rasterizer.js';
 import { GOLDEN_SIGIL } from './plans.js';
 import type { SpellScore } from '../../src/lib/types.js';
 
-export { FIELD_PRESETS, type FieldPreset };
+export { LAB_PRESETS, type LabPreset };
 
 export const CAST_DIR = fileURLToPath(new URL('./casts/', import.meta.url));
 
@@ -56,24 +56,16 @@ export function castSource(presetId: string): CastSource {
 }
 
 /** One preset's score: the same plan the plan tier snapshots, given a timeline. */
-export function presetScore(preset: FieldPreset): SpellScore {
+export function presetScore(preset: LabPreset): SpellScore {
 	return compileScore(
 		resolvePlan(readPresetSeal(preset.signs, GOLDEN_SIGIL)),
 		castSource(preset.id)
 	);
 }
 
-/** The rasterizer draws the motion tier's parcel shape; a cast parcel is one seal-space point. */
-function asPopulation(parcels: Parcel[]) {
-	return parcels.map((parcel) => ({
-		x: parcel.at.x,
-		y: parcel.at.y,
-		z: parcel.at.z,
-		vx: parcel.velocity.x,
-		vy: parcel.velocity.y,
-		vz: parcel.velocity.z,
-		escaped: false
-	}));
+/** The rasterizer draws seal-space points; a parcel carries more than it needs. */
+function sealPoints(parcels: Parcel[]): RasterPoint[] {
+	return parcels.map((parcel) => ({ x: parcel.at.x, y: parcel.at.y, z: parcel.at.z }));
 }
 
 /**
@@ -81,7 +73,7 @@ function asPopulation(parcels: Parcel[]) {
  * timestamps in order. Fresh and incremental stepping agree, so this is the same
  * result as simulating each timestamp from scratch.
  */
-export function renderPresetCast(preset: FieldPreset): CastFrame[] {
+export function renderPresetCast(preset: LabPreset): CastFrame[] {
 	const score = presetScore(preset);
 	const state = newCast(score);
 	return CAST_FRAME_MS.map((atMs) => {
@@ -89,7 +81,7 @@ export function renderPresetCast(preset: FieldPreset): CastFrame[] {
 		return {
 			fileName: castFileName(preset.id, atMs),
 			atMs,
-			png: rasterizePopulation(asPopulation(state.parcels))
+			png: rasterizePopulation(sealPoints(state.parcels))
 		};
 	});
 }

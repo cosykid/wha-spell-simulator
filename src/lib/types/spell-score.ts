@@ -123,7 +123,7 @@ export interface VortexParams {
 
 /**
  * R-13's spring: levitation as a hover ceiling with a settle. The ceiling curve
- * is the `buoyancy` case of `field/sampleField.ts` moved into a kernel.
+ * is the deleted field engine's `buoyancy` case moved into a kernel.
  */
 export interface HoldParams {
 	/** The hover locus in seal space; `z` is the ceiling the held mass parks at. */

@@ -1,6 +1,8 @@
-// Canned sign arrangements for the Spell Effect Lab. Each preset synthesizes
-// the Recognition fixtures a drawn spell would produce, so the field pipeline
-// (buildSpellField -> field effect) can be exercised without drawing signs.
+// Canned sign arrangements for the Spell Effect Lab. Each preset synthesizes the
+// Recognition fixtures a drawn spell would produce, so the whole pipeline below
+// the reading (readSeal -> resolvePlan -> cast) can be exercised without drawing
+// signs. This list is also the golden corpus: every preset owes a plan text, a
+// set of cast motion PNGs and a set of look snapshots.
 
 import { normalizeAngleDeg } from '../utils/geometry.js';
 import type { Recognition } from '../types.js';
@@ -16,7 +18,7 @@ interface PresetSignSpec {
 	sizeNorm?: number;
 }
 
-export interface FieldPreset {
+export interface LabPreset {
 	id: string;
 	label: string;
 	description: string;
@@ -32,7 +34,7 @@ function presetSign({
 	sizeNorm = 0.16
 }: PresetSignSpec): Recognition {
 	// Facing travels the way real recognitions carry it: as the ML pose head's
-	// rotationOffsetDeg (see facingTwistDeg in buildSpellField).
+	// rotationOffsetDeg (see `readFacing` in compiler/reading/facing.ts).
 	const twistDeg = facingDeg - (angleDeg + 180);
 	return {
 		candidateId: `preset-${id}-${angleDeg}`,
@@ -74,11 +76,11 @@ function signsAt(
 	return angles.map((angleDeg) => presetSign({ angleDeg, ...spec(angleDeg) }));
 }
 
-export const FIELD_PRESETS: FieldPreset[] = [
+export const LAB_PRESETS: LabPreset[] = [
 	{
 		id: 'none',
 		label: 'No signs (element only)',
-		description: 'Legacy per-element effect; the field renderer stays idle.',
+		description: 'A sigil with no signs: the plan resolves to nothing, which R-11 makes a look.',
 		signs: []
 	},
 	{
@@ -196,9 +198,27 @@ export const FIELD_PRESETS: FieldPreset[] = [
 			manifestation: 'levitation',
 			facingDeg: inward(angleDeg)
 		}))
+	},
+	{
+		id: 'column-levitation',
+		label: 'Columns ×2 + levitation ×2 — held beam',
+		description:
+			'A column pair beams straight out while an opposed levitation pair grips it; the only arrangement whose plan declares a coupling.',
+		signs: [
+			...signsAt([0, 180], (angleDeg) => ({
+				id: 'column',
+				manifestation: 'column',
+				facingDeg: inward(angleDeg)
+			})),
+			...signsAt([90, 270], (angleDeg) => ({
+				id: 'levitation',
+				manifestation: 'levitation',
+				facingDeg: inward(angleDeg)
+			}))
+		]
 	}
 ];
 
-export function presetById(id: string): FieldPreset {
-	return FIELD_PRESETS.find((preset) => preset.id === id) ?? FIELD_PRESETS[0];
+export function presetById(id: string): LabPreset {
+	return LAB_PRESETS.find((preset) => preset.id === id) ?? LAB_PRESETS[0];
 }

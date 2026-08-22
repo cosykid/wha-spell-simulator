@@ -84,10 +84,10 @@ Worked check: two opposed inward columns at +x and -x with `l = 1, w = 1` give
 viewed from +z, mapped to a vortex track's spin rate.
 
 Note the jet tilts **where the long sign points**, not toward the long sign's
-position. The first `SpellField` implementation shipped this lean inverted,
-pinned in place by its own tests.
-[`../src/lib/field/CLAUDE.md`](../src/lib/field/CLAUDE.md) documents the
-corrected lean.
+position. The first force-field implementation shipped this lean inverted,
+pinned in place by its own tests, which is why the law test in
+[`../tests/spellPlan.test.ts`](../tests/spellPlan.test.ts) states the direction
+in words and a probe row measures it on the parcels.
 
 **R-06: sloppy drawings add power, not direction.** A sign whose facing trust
 falls below the floor contributes `length` to `S` only, never to `P`, `C`, or
