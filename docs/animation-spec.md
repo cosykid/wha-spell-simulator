@@ -133,8 +133,14 @@ export function resolveRegion(chevrons: SignReading[]): Region;
 ```
 
 Resolution is a **ranked rule table** over `(count, radial position class,
-facing class)` — never a threshold on fused geometry, so there is no cliff
-where 60 degrees of separation reads one way and 59 another:
+facing class)`. Matching on classes rather than on fused geometry is what keeps
+neighbouring arrangements reading alike: wherever a set already resolves to a
+row, one degree of separation cannot move it to another.
+
+R-19 is the single exception, and it is deliberate. Ground truth section 5 fuses
+a radial ring only once its members span 60 degrees of azimuth, so a pair does
+flip at that gate. The threshold is a stated rule with a citation, not a tuning
+constant, and its position is pinned by a law test.
 
 | #   | Chevrons         | Position | Facing      | Aperture               | Exhaust                        |
 | --- | ---------------- | -------- | ----------- | ---------------------- | ------------------------------ |
@@ -313,6 +319,12 @@ state a minimum, so they bound nothing.
 
 Completion is a threshold; **staging is not**. Section 5 keeps hardness
 continuous in member count, and R-09's scalars keep that shape.
+
+This is the one place the grammar admits a cliff, against R-09's general rule
+that a class table has none. It is accepted because section 5 states the gate
+outright rather than leaving it to be tuned, and because the alternative —
+letting any two same-sense chevrons fuse however close together — makes a
+shutter stack indistinguishable from a fence.
 
 R-19 also repairs what hid the old threshold: opposed pairs were counted by
 position alone, so two chevrons of the _same_ sense registered as a pair and
