@@ -40,6 +40,33 @@ export default defineConfig(
 		}
 	},
 	{
+		// Looks are data (docs/animation-redesign.md section 5). They may not reach
+		// the layers that decide behaviour, or an art fix starts arriving as a
+		// physics term again, which is the root cause the look table exists to kill.
+		files: ['src/lib/cast/looks/**'],
+		rules: {
+			'no-restricted-imports': [
+				'error',
+				{
+					patterns: [
+						{
+							group: [
+								'**/compiler/plan',
+								'**/compiler/plan/**',
+								'../../compiler/plan/**',
+								'**/cast/sim',
+								'**/cast/sim/**',
+								'../sim',
+								'../sim/**'
+							],
+							message: 'Looks are data: they may not import from the plan or the sim.'
+						}
+					]
+				}
+			]
+		}
+	},
+	{
 		// Override or add rule settings here, such as:
 		// 'svelte/button-has-type': 'error'
 		rules: {}

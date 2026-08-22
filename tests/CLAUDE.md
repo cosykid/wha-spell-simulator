@@ -50,7 +50,9 @@ signature), so a field or renderer change can never move a cast baseline. Its ga
 replayability contract: [`cast.test.ts`](golden/cast.test.ts) checks that stepping fresh to a
 timestamp is bit-identical to stepping there incrementally, that two renders produce the same bytes,
 and that the charge beat is silent (R-01). Law tests for the same layers live one level up in
-[`../tests/spellScore.test.ts`](spellScore.test.ts) and [`../tests/castSim.test.ts`](castSim.test.ts).
+[`../tests/spellScore.test.ts`](spellScore.test.ts) and [`../tests/castSim.test.ts`](castSim.test.ts),
+with the Paint layer's pure half (look resolution, the painter's size, fade and depth arithmetic) in
+[`../tests/castLooks.test.ts`](castLooks.test.ts).
 
 Below both sits the **plan tier**, the cheapest of the four: [`plans.ts`](golden/plans.ts) resolves each
 lab preset to a `SpellPlan` and serializes it, [`plan.test.ts`](golden/plan.test.ts) compares the text

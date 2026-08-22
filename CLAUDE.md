@@ -56,6 +56,7 @@ pipeline, in order:
 - [`src/lib/compiler/`](src/lib/compiler/CLAUDE.md) — `GlyphAST` → `SpellIR` (meaning, activation, signature)
 - [`src/lib/field/`](src/lib/field/CLAUDE.md) — signs → superposable force field in seal space
 - [`src/lib/renderer/`](src/lib/renderer/CLAUDE.md) — `SpellIR` → pixels (effects)
+- [`src/lib/cast/`](src/lib/cast/CLAUDE.md) — the redesign's replacement for both: plan → score → sim → paint
 
 Around it:
 
