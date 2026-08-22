@@ -23,11 +23,12 @@ the ring radius, x right, y screen-down, z out of the paper (spec R-03).
 
 - `score/` — [`compileScore.ts`](score/compileScore.ts) plan to timeline,
   [`beats.ts`](score/beats.ts) the R-01 clock, [`envelopes.ts`](score/envelopes.ts)
-  the six curves, `tracks/{burst,jet,fan,gain}.ts` one builder per primitive.
+  the six curves, `tracks/{burst,jet,fan,vortex,hold,intake,shimmer}.ts` one
+  builder per primitive, `tracks/gain.ts` the shared saturation.
 - `sim/` — [`cast.ts`](sim/cast.ts) the fixed-step loop and `CastState`,
   [`parcel.ts`](sim/parcel.ts), [`aperture.ts`](sim/aperture.ts) the R-09 spawn
   surface, [`rng.ts`](sim/rng.ts), [`falloff.ts`](sim/falloff.ts),
-  `primitives/{burst,jet,fan}.ts` the kernels plus
+  `primitives/{burst,jet,fan,vortex,hold,intake,shimmer}.ts` the kernels plus
   [`registry.ts`](sim/primitives/registry.ts), the one place kind is switched on.
 - `render/` — [`castRenderer.ts`](render/castRenderer.ts) the engine,
   [`painter2d.ts`](render/painter2d.ts) parcels to pixels,
@@ -47,8 +48,10 @@ crossing the seam is declared once.
 over `totalMs` and turns the plan's primitives into tracks. Every track carries
 an `emission` envelope (parcels per second) and a `drive` envelope (velocity
 scale), and both are required fields, so a track without timing does not compile.
-Phase 4's primitives are routed into a built kind at a conservative gain and the
-score says so in a `routed-*` note rather than dropping them.
+Two tracks are unconditional: `shimmer-ambient` (R-10's medium) and `burst`
+(R-01's strike). R-13's `vessel` is the last primitive without a kernel, and a
+plan asking for one is routed into a fan with a `routed-vessel` note rather than
+dropped.
 
 **Sim.** `stepTo(score, state, targetMs)` advances a `CastState` in whole
 `CAST.stepMs` steps. Each step emits per track, steers every parcel onto its own
@@ -71,6 +74,14 @@ few percent of incidental bias can no longer drift the whole domain. A kernel
 takes its own params, a point and an age. Never give it a second track, the
 parcel list, or the score.
 
+**The one cross-track path is a declared coupling, and it is a constraint, not a
+kernel.** Where the plan says `{ holder: 'hold', captures: [...] }` the score
+writes `capturedBy` on those tracks and `cast.ts` runs the holder's `constrain`
+after the parcel's own. A captured parcel still feels exactly one flow; it just
+also meets a ceiling. Nothing else in the sim may reach across tracks, and
+anything that wants to has to be declared in `plan/` first, where a text golden
+can see it.
+
 **Stepping fresh to a timestamp is bit-identical to stepping there
 incrementally.** The clock is `steps * stepMs`, a product and never a running
 sum; `parcel.ageS` is derived from `bornStep` and never accumulated; the only
@@ -84,10 +95,19 @@ the only `timestamp`, and it converts it to cast time immediately.
 **Only `body` stretches (R-02).** A longer spell buys body time and nothing else.
 No emission envelope may reach into `release`.
 
-**The charge beat is silent this phase, on purpose.** R-01 gives it content, the
-ambient medium drawing inward, and that arrives with the phase 4 primitives. It
-is one beat of the score with no track in it, not a gap in the timeline: the cast
-clock still starts at `activatedAt`, so the charge beat spans the portal tilt.
+**The charge beat is silent for everything the seal manifests, and only for
+that.** R-01 makes the charge content rather than dead time — "ink brightens,
+ambient medium draws inward" — so `shimmer` is the one track whose emission opens
+there, and every other track still starts at the strike. The law is _zero
+non-ambient parcels during charge_, not zero parcels. The cast clock still starts
+at `activatedAt`, so the charge beat spans the portal tilt.
+
+**Every score carries the ambient medium (R-10).** `shimmer-ambient` is
+unconditional and always `population: 'ambient'`, whatever class the sigil
+belongs to, because it is the world rather than the spell. `intake` is ambient by
+law too: `docs/ground-truth.md` section 7 exempts the spell's own manifestation
+from the pull field, or grasping wind would swallow its own burst. Those two are
+the only tracks that ignore `plan.mode`.
 
 **Looks may not import from `compiler/plan/` or `cast/sim/`.** One
 `no-restricted-imports` rule in [`../../../eslint.config.js`](../../../eslint.config.js)
@@ -118,11 +138,13 @@ renderer paints nothing, and both are ordinary early returns, not special cases.
 - **New sigil row (crystal, aeroform, phase 4):** add `looks/<sigil>.ts` and one
   line in `LOOKS`. Keying is by sigil id, so it takes precedence over the element
   row underneath it automatically.
-- **New primitive (`vortex`, `hold`, `intake`, `shimmer`, phase 4):** add its
-  params to `PrimitiveParams` in `types/spell-score.ts`, a kernel in
-  `sim/primitives/`, three rows in `sim/primitives/registry.ts`, a track builder
-  in `score/tracks/`, and delete its `routed-*` stand-in from `compileScore.ts`.
-  The painter needs no change: a new track picks an existing `LookRole`.
+- **New primitive (`vessel` is the last one left):** add its params to
+  `PrimitiveParams` in `types/spell-score.ts`, add it to the `ScoreTrack` union,
+  write a kernel in `sim/primitives/`, add three rows in
+  `sim/primitives/registry.ts` (the switches are exhaustive, so TypeScript names
+  the ones you missed), add a track builder in `score/tracks/`, and delete its
+  `routed-*` stand-in from `compileScore.ts`. The painter needs no change: a new
+  track picks an existing `LookRole`.
 - **New role:** add it to `LookRole`, then every row in `looks/` stops
   type-checking until it is filled in. That is the point.
 - **Iterate visually:** `/tools/spell-effect-lab`, engine `cast`. The

@@ -88,14 +88,30 @@ function emit(
 	}
 }
 
-/** One parcel, one step: steer onto the driven kernel, move, then constrain. */
-function advect(parcel: Parcel, track: ScoreTrack, drive: number, steps: number): void {
+/**
+ * One parcel, one step: steer onto the driven kernel, move, then constrain.
+ *
+ * `holder` is the sim's only cross-track path, and it exists because a plan
+ * `Coupling` declared it: a captured parcel also meets its holder's constraint,
+ * which is how a levitation ceiling catches what a column threw. It never sees
+ * the holder's kernel, so a parcel still feels exactly one flow.
+ */
+function advect(
+	parcel: Parcel,
+	track: ScoreTrack,
+	drive: number,
+	steps: number,
+	holder: ScoreTrack | undefined
+): void {
 	parcel.ageS = (steps - parcel.bornStep) * STEP_SECONDS;
 	const target = scale3(kernelFor(track, parcel.at, parcel.ageS), drive);
 	const steer = CAST.steerPerSecond * STEP_SECONDS;
 	parcel.velocity = add3(parcel.velocity, scale3(subtract3(target, parcel.velocity), steer));
 	parcel.at = add3(parcel.at, scale3(parcel.velocity, STEP_SECONDS));
 	constrainFor(track, parcel);
+	if (holder) {
+		constrainFor(holder, parcel);
+	}
 }
 
 function inScene(parcel: Parcel): boolean {
@@ -120,7 +136,8 @@ function step(score: SpellScore, state: CastState, byId: Map<string, ScoreTrack>
 	for (const parcel of state.parcels) {
 		const track = byId.get(parcel.trackId);
 		if (track) {
-			advect(parcel, track, drives.get(track.id) ?? 0, state.steps);
+			const holder = track.capturedBy ? byId.get(track.capturedBy) : undefined;
+			advect(parcel, track, drives.get(track.id) ?? 0, state.steps, holder);
 		}
 	}
 	state.parcels = state.parcels.filter(inScene);

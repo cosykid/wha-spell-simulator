@@ -44,12 +44,19 @@ into committed PNGs, then re-renders and byte-compares.
 
 Beside it sits the **cast tier**, the same idea run through `cast/` instead of `field/`:
 [`casts.ts`](golden/casts.ts) compiles each lab preset's plan to a `SpellScore`, simulates it, and
-rasterizes the parcels at 1100ms, 1600ms and 2600ms: one timestamp inside the strike, two inside the
-body of a 4-second cast. It reads only the score's two inputs (a pinned duration and a pinned
-signature), so a field or renderer change can never move a cast baseline. Its gate is the redesign's
-replayability contract: [`cast.test.ts`](golden/cast.test.ts) checks that stepping fresh to a
-timestamp is bit-identical to stepping there incrementally, that two renders produce the same bytes,
-and that the charge beat is silent (R-01). Law tests for the same layers live one level up in
+rasterizes the parcels at 850ms, 1100ms, 1600ms and 2600ms: the ambient medium alone during the
+charge, one timestamp inside the strike, two inside the body of a 4-second cast. It reads only the
+score's two inputs (a pinned duration and a pinned signature), so a field or renderer change can
+never move a cast baseline. Its gate is the redesign's replayability contract:
+[`cast.test.ts`](golden/cast.test.ts) checks that stepping fresh to a timestamp is bit-identical to
+stepping there incrementally, that two renders produce the same bytes, and that the charge beat
+holds the ambient medium and nothing else (R-01, R-02). It also runs the **cast probe table**,
+[`castProbes.ts`](golden/castProbes.ts) over [`castProbeMetrics.ts`](golden/castProbeMetrics.ts):
+same row shape as the field probes, measured on the parcels a score advected rather than on
+`sampleFieldForce`, and selecting them in R-10's vocabulary (`medium`, `manifested`, or one
+primitive by name). Most rows name a lab preset; `pinwheel` is a fixture, because R-05's circulation
+is a column-family aggregate and no preset draws tangential columns. Law tests for the same layers
+live one level up in
 [`../tests/spellScore.test.ts`](spellScore.test.ts) and [`../tests/castSim.test.ts`](castSim.test.ts),
 with the Paint layer's pure half (look resolution, the painter's size, fade and depth arithmetic) in
 [`../tests/castLooks.test.ts`](castLooks.test.ts).
@@ -63,7 +70,7 @@ Rules that keep it a baseline instead of a coin flip:
 
 - **Nothing under `golden/` may call `Math.random` or read a clock.** Seeds come from `presetSeed(preset.id)`, time advances in whole `MOTION.stepMs` steps, and `stepsFor` must land exactly on every sampled timestamp.
 - **It lives one level down on purpose.** The `test:unit` glob is one level deep, so the unit suite never depends on baseline PNGs, and `test:golden` runs the same `node --import tsx --test` toolchain.
-- **Regenerate deliberately.** A field change moves every motion baseline and a score or sim change moves every cast baseline; run `npm run test:golden:update` and read the image diff before committing. Baselines are byte-compared, so an encoder or rasterizer tweak rewrites all 72 PNGs at once.
+- **Regenerate deliberately.** A field change moves every motion baseline and a score or sim change moves every cast baseline; run `npm run test:golden:update` and read the image diff before committing. Baselines are byte-compared, so an encoder or rasterizer tweak rewrites all 84 PNGs at once. Adding a track moves _every_ cast baseline even where its own tracks are untouched, because emission draws from one seeded stream; check the track params rather than the pixels when you need to prove a behaviour did not change.
 - **New behaviour gets a probe row, not a new closure.** Add a row citing its ruling id. If no ruling covers it, use `legacy` and say so in the row's `claim`.
 
 ## Invariants and gotchas

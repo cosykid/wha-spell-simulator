@@ -10,7 +10,11 @@
 import { sampleFieldForce } from '../../src/lib/field/sampleField.js';
 import type { Population } from './motion.js';
 
-/** A ruling in docs/animation-spec.md, or `legacy` for unruled current behaviour. */
+/**
+ * A ruling in docs/animation-spec.md, a section of docs/ground-truth.md for a
+ * claim the spec delegates rather than restates, or `legacy` for unruled current
+ * behaviour.
+ */
 export type RulingId =
 	| 'R-01'
 	| 'R-02'
@@ -25,6 +29,10 @@ export type RulingId =
 	| 'R-11'
 	| 'R-12'
 	| 'R-13'
+	/** Levitation, the force pair. */
+	| 'ground-truth-6'
+	/** Pull, the ambient coupling, and the ambient medium itself. */
+	| 'ground-truth-7'
 	| 'legacy';
 
 export type ProbeMetric =

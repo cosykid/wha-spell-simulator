@@ -2,14 +2,16 @@
  * @file `compileScore` — the Score layer's entry point: a resolved `SpellPlan`
  * plus the compiled spell's length and signature become an authored timeline.
  *
- * Two promises shape it. **Every plan compiles to at least one track**, because
+ * Three promises shape it. **Every plan compiles to at least one track**, because
  * R-11 makes "manifests nothing" a look rather than an absence, so there is no
- * empty path to fall into and nothing here throws. And **no plan forks on
- * element**: a sigil picks a look row (phase 4), never a behavior.
+ * empty path to fall into and nothing here throws. **No plan forks on element**:
+ * a sigil picks a look row, never a behavior. And **every score carries the
+ * ambient medium** (R-10), so a manipulate-mode seal always has something to
+ * manipulate and the charge beat always has R-01's content in it.
  *
- * Phase 4 owns `vortex`, `hold`, `intake`, `vessel` and `shimmer`. A plan asking
- * for one is not dropped and not faked: its budget is routed into the nearest
- * built kind at a conservative gain, and the score says so in a `routed-*` note.
+ * R-13's `vessel` is the one primitive still without a kernel. A plan asking for
+ * one is not dropped and not faked: its budget is routed into a fan at a
+ * conservative gain and the score says so in a `routed-vessel` note.
  *
  * @example
  * const score = compileScore(resolvePlan(reading), spellIR);
@@ -17,8 +19,12 @@
 
 import { buildBeats, totalMsFor } from './beats.js';
 import { burstTrack } from './tracks/burst.js';
-import { circulationFan, dispersionFan, intakeFan, vesselFan } from './tracks/fan.js';
-import { aimJet, defaultJet, exhaustJet, holdJet } from './tracks/jet.js';
+import { dispersionFan, vesselFan } from './tracks/fan.js';
+import { holdTrack } from './tracks/hold.js';
+import { intakeTrack } from './tracks/intake.js';
+import { aimJet, defaultJet, exhaustJet } from './tracks/jet.js';
+import { ambientShimmer } from './tracks/shimmer.js';
+import { circulationVortex } from './tracks/vortex.js';
 import { hashHex, hashSeed } from '../sim/rng.js';
 import type {
 	Population,
@@ -41,14 +47,11 @@ const OUTER_LAYER = 'outer';
 
 /**
  * What each track owes the notes list, by the id it is built under. A row rather
- * than a branch: `fan-dispersion` is R-08's leak, and the four below it are
- * stand-ins a phase 4 primitive will take back.
+ * than a branch: `fan-dispersion` is R-08's leak, and `fan-vessel` is the one
+ * stand-in left, for the one primitive still deferred.
  */
 const NOTE_FOR_TRACK: Record<string, ScoreNote> = {
 	'fan-dispersion': 'dispersion-leak',
-	'jet-hold': 'routed-hold',
-	'fan-circulation': 'routed-vortex',
-	'fan-intake': 'routed-intake',
 	'fan-vessel': 'routed-vessel'
 };
 
@@ -58,22 +61,57 @@ interface Performance {
 }
 
 /**
- * The plan's primitives, in performance order. The burst is unconditional (R-01
- * gives every cast a strike), and the R-11 default only appears when nothing
- * else did.
+ * The plan's declared couplings, written onto the tracks they bind. The plan
+ * names which primitives a hold captures; the score records the holder's track
+ * id on each of them, and the sim reads nothing else.
+ *
+ * Open canon question 5 — column plus levitation, does drive beat grip or does
+ * hold have right of way? — stays unanswered. The least-committal reading is
+ * that capture is soft: `hold`'s constraint only takes parcels that have
+ * effectively arrived, so a live column is not clipped mid-beam. The note says
+ * so rather than the ranking being invisible.
+ */
+function bindCouplings(plan: SpellPlan, tracks: ScoreTrack[]): ScoreNote[] {
+	const holder = tracks.find((track) => track.kind === 'hold');
+	if (!holder) {
+		return [];
+	}
+	const captured = new Set<string>(
+		plan.couplings.filter((coupling) => coupling.holder === 'hold').flatMap((c) => c.captures)
+	);
+	let bound = false;
+	for (const track of tracks) {
+		if (track !== holder && captured.has(track.kind)) {
+			track.capturedBy = holder.id;
+			bound = true;
+		}
+	}
+	// Open canon question 7: canon stops a full levitation seal manifesting, which
+	// on a six-second cast reads as breakage. Until it is ruled nothing counts held
+	// mass, and the score names the omission.
+	return bound ? ['coupling-soft', 'capacity-unmodeled'] : ['capacity-unmodeled'];
+}
+
+/**
+ * The plan's primitives, in performance order: the medium first, then the
+ * strike, then the spell's own manifestation. The medium and the burst are both
+ * unconditional (R-10 and R-01), and the R-11 default only appears when the plan
+ * itself resolved to nothing.
  */
 function perform(plan: SpellPlan, population: Population): Performance {
 	const tracks: ScoreTrack[] = [];
 	const notes: ScoreNote[] = [];
 
-	const jets = [aimJet(plan, population), exhaustJet(plan, population), holdJet(plan, population)];
-	const fans = [
+	const manifested = [
+		aimJet(plan, population),
+		exhaustJet(plan, population),
 		dispersionFan(plan, population),
-		circulationFan(plan, population),
-		intakeFan(plan, population),
-		vesselFan(plan, population)
+		circulationVortex(plan, population),
+		holdTrack(plan, population),
+		vesselFan(plan, population),
+		intakeTrack(plan)
 	];
-	for (const track of [...jets, ...fans]) {
+	for (const track of manifested) {
 		if (!track) {
 			continue;
 		}
@@ -89,7 +127,9 @@ function perform(plan: SpellPlan, population: Population): Performance {
 		notes.push('manifests-nothing');
 	}
 
-	return { tracks: [burstTrack(plan, population), ...tracks], notes };
+	const performed = [ambientShimmer(plan), burstTrack(plan, population), ...tracks];
+	notes.push(...bindCouplings(plan, performed));
+	return { tracks: performed, notes };
 }
 
 /**
@@ -104,7 +144,8 @@ export function compileScore(plan: SpellPlan, spellIR: CastSource): SpellScore {
 	const totalMs = totalMsFor(spellIR.duration);
 	// R-10. Create-class sigils emit their own element, manipulate-only sigils
 	// move the ambient medium. The plan already made that call; nothing here
-	// second-guesses it per family.
+	// second-guesses it per family. The two ambient-by-law tracks, the medium
+	// itself and the pull coupling, set their own population and ignore this.
 	const population: Population = plan.mode === 'manipulate' ? 'ambient' : 'own';
 	const { tracks, notes } = perform(plan, population);
 	const layer: ScoreLayer = { id: OUTER_LAYER, aperture: plan.aperture, tracks };
