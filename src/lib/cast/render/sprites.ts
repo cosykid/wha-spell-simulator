@@ -20,7 +20,9 @@ const SPRITE = {
 	/** Baked texture height in px. Sprites draw scaled, so this buys quality, not size. */
 	texturePx: 64,
 	/** How much wider than tall a `streak` is baked. */
-	streakAspect: 3
+	streakAspect: 3,
+	/** How much longer than wide each of a `glint`'s two crossed lobes is baked. */
+	glintLobeAspect: 4
 } as const;
 
 /** Where each sprite hands the core color over to the edge color, as a fraction of its radius. */
@@ -29,7 +31,33 @@ const CORE_STOP: Record<SpriteId, number> = {
 	// A spark is mostly rim, which is what makes it read as a hot point rather
 	// than as a small ball.
 	spark: 0.12,
-	streak: 0.28
+	streak: 0.28,
+	glint: 0.1
+};
+
+/** Texture width over height. Only a `streak` is baked wider than it is tall. */
+const ASPECT: Record<SpriteId, number> = {
+	disc: 1,
+	spark: 1,
+	streak: SPRITE.streakAspect,
+	glint: 1
+};
+
+/**
+ * The scales the one gradient circle is drawn under, one entry per lobe. Keeping
+ * a sprite a list of scaled draws rather than a list of gradients is what stops
+ * a second falloff curve from drifting out of sync with the first.
+ */
+const LOBES: Record<SpriteId, ReadonlyArray<readonly [x: number, y: number]>> = {
+	disc: [[1, 1]],
+	spark: [[1, 1]],
+	streak: [[SPRITE.streakAspect, 1]],
+	// Two thin lobes crossed at the center: the specular star of a facet, whose
+	// brightest pixel is where they overlap.
+	glint: [
+		[1, 1 / SPRITE.glintLobeAspect],
+		[1 / SPRITE.glintLobeAspect, 1]
+	]
 };
 
 /** Alpha at the handover, so the rim reads as a glow rather than as a drawn ring. */
@@ -53,7 +81,7 @@ function atlasKey(sprite: SpriteId, tint: Tint): string {
 }
 
 function bake(sprite: SpriteId, tint: Tint): Sprite {
-	const aspect = sprite === 'streak' ? SPRITE.streakAspect : 1;
+	const aspect = ASPECT[sprite];
 	const height = SPRITE.texturePx;
 	const width = height * aspect;
 	const image = document.createElement('canvas');
@@ -61,22 +89,29 @@ function bake(sprite: SpriteId, tint: Tint): Sprite {
 	image.height = height;
 
 	const ctx = image.getContext('2d')!;
-	// Draw one circle under a horizontal stretch, so a streak is an ellipse with
-	// the same falloff as a disc rather than a second gradient to keep in sync.
 	ctx.translate(width / 2, height / 2);
-	ctx.scale(aspect, 1);
+	// Lobes pile up rather than paint over each other, so a crossing point is
+	// hotter than either lobe alone. A one-lobe sprite is unaffected.
+	ctx.globalCompositeOperation = 'lighter';
 
 	const radius = height / 2;
 	const core = CORE_STOP[sprite];
-	const gradient = ctx.createRadialGradient(0, 0, 0, 0, 0, radius);
-	gradient.addColorStop(0, rgba(tint.core, 1));
-	gradient.addColorStop(core, rgba(tint.core, 0.88));
-	gradient.addColorStop((core + 1) / 2, rgba(tint.edge, EDGE_ALPHA));
-	gradient.addColorStop(1, rgba(tint.edge, 0));
-	ctx.fillStyle = gradient;
-	ctx.beginPath();
-	ctx.arc(0, 0, radius, 0, Math.PI * 2);
-	ctx.fill();
+	// Draw one circle under a scale per lobe, so every shape in the atlas is the
+	// same falloff seen from a different aspect.
+	for (const [scaleX, scaleY] of LOBES[sprite]) {
+		ctx.save();
+		ctx.scale(scaleX, scaleY);
+		const gradient = ctx.createRadialGradient(0, 0, 0, 0, 0, radius);
+		gradient.addColorStop(0, rgba(tint.core, 1));
+		gradient.addColorStop(core, rgba(tint.core, 0.88));
+		gradient.addColorStop((core + 1) / 2, rgba(tint.edge, EDGE_ALPHA));
+		gradient.addColorStop(1, rgba(tint.edge, 0));
+		ctx.fillStyle = gradient;
+		ctx.beginPath();
+		ctx.arc(0, 0, radius, 0, Math.PI * 2);
+		ctx.fill();
+		ctx.restore();
+	}
 
 	return { image, aspect };
 }

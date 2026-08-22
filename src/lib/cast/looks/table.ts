@@ -4,10 +4,9 @@
  *
  * Keying on **sigil id** rather than element is what makes crystal and aeroform
  * representable: they are earth and wind behaviorally, and a row of their own is
- * the only place that difference is allowed to live. This phase ships the five
- * element rows plus the inert fallback, so every sigil currently resolves
- * through the element tier; phase 4 adds sigil rows above it and nothing else
- * changes.
+ * the only place that difference is allowed to live. Both rows are here, above
+ * the five element rows and the inert fallback, and adding them changed nothing
+ * but this table. Every other sigil still resolves through the element tier.
  *
  * Resolution never returns undefined, which is why no caller may branch on
  * element. If a look is missing, that is a missing table row, not a code path.
@@ -16,6 +15,8 @@
  * const look = lookRow({ sigil: 'crystal', element: 'earth' }).body;
  */
 
+import { AEROFORM_LOOKS } from './aeroform.js';
+import { CRYSTAL_LOOKS } from './crystal.js';
 import { EARTH_LOOKS } from './earth.js';
 import { FIRE_LOOKS } from './fire.js';
 import { INERT_LOOKS } from './inert.js';
@@ -27,14 +28,17 @@ import type { ElementId, LookRole } from '../../types.js';
 
 /**
  * Rows keyed on sigil id. The five element ids are rows too, and they are the
- * fallback tier every sigil without a row of its own lands on.
+ * fallback tier every sigil without a row of its own lands on. `crystal` and
+ * `aeroform` are the two sigils whose art parts company with their element.
  */
 export const LOOKS: LookTable = {
 	fire: FIRE_LOOKS,
 	water: WATER_LOOKS,
 	wind: WIND_LOOKS,
 	earth: EARTH_LOOKS,
-	light: LIGHT_LOOKS
+	light: LIGHT_LOOKS,
+	crystal: CRYSTAL_LOOKS,
+	aeroform: AEROFORM_LOOKS
 };
 
 /** What a cast paints from: the sigil that was drawn, and the element behind it. */

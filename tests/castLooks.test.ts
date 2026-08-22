@@ -15,8 +15,11 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import { LOOKS, lookFor, lookRow } from '../src/lib/cast/looks/table.js';
+import { AEROFORM_LOOKS } from '../src/lib/cast/looks/aeroform.js';
+import { CRYSTAL_LOOKS } from '../src/lib/cast/looks/crystal.js';
 import { INERT_LOOKS } from '../src/lib/cast/looks/inert.js';
 import { EARTH_LOOKS } from '../src/lib/cast/looks/earth.js';
+import { WIND_LOOKS } from '../src/lib/cast/looks/wind.js';
 import {
 	depthAttenuation,
 	farthestFirst,
@@ -48,15 +51,24 @@ const EVERY_ELEMENT: Record<ElementId, true> = {
 };
 const ELEMENTS = Object.keys(EVERY_ELEMENT) as ElementId[];
 
-/** A sigil row that differs from the element row underneath it, which is the point of sigil keying. */
-const CRYSTAL_LOOKS: LookRow = {
-	...EARTH_LOOKS,
-	body: { ...EARTH_LOOKS.body, sizePx: [3, 4] }
+/**
+ * A row for a sigil the real table has none for, so the precedence seam is
+ * exercised on its own rather than through data that could change for art
+ * reasons.
+ */
+const UNDERFOOT_LOOKS: LookRow = {
+	...WIND_LOOKS,
+	body: { ...WIND_LOOKS.body, sizePx: [3, 4] }
 };
-const WITH_SIGIL_ROW: LookTable = { ...LOOKS, crystal: CRYSTAL_LOOKS };
+const WITH_SIGIL_ROW: LookTable = { ...LOOKS, 'wind-underfoot': UNDERFOOT_LOOKS };
 
 function everyLook(): Look[] {
 	return [...Object.values(LOOKS), INERT_LOOKS].flatMap((row) => Object.values(row));
+}
+
+/** How heavily a whole row smears, summed over its roles. */
+function totalTrailFrames(row: LookRow): number {
+	return Object.values(row).reduce((total, look) => total + (look.trail?.frames ?? 0), 0);
 }
 
 // ---------------------------------------------------------------------------
@@ -65,18 +77,62 @@ function everyLook(): Look[] {
 
 test('a sigil row wins over the element row underneath it', () => {
 	assert.deepStrictEqual(
-		lookFor({ sigil: 'crystal', element: 'earth' }, 'body', WITH_SIGIL_ROW),
-		CRYSTAL_LOOKS.body
+		lookFor({ sigil: 'wind-underfoot', element: 'wind' }, 'body', WITH_SIGIL_ROW),
+		UNDERFOOT_LOOKS.body
 	);
 });
 
 test('a sigil with no row of its own falls back to its element', () => {
-	assert.deepStrictEqual(
-		lookRow({ sigil: 'wind-underfoot', element: 'wind' }, WITH_SIGIL_ROW),
-		LOOKS.wind
-	);
+	assert.deepStrictEqual(lookRow({ sigil: 'wind-underfoot', element: 'wind' }), WIND_LOOKS);
 	// The fallback is by row, so an unknown sigil takes the whole element row.
 	assert.deepStrictEqual(lookRow({ sigil: 'not-a-sigil', element: 'earth' }), EARTH_LOOKS);
+});
+
+test('defect I: crystal and aeroform resolve their own rows rather than their elements', () => {
+	assert.deepStrictEqual(lookRow({ sigil: 'crystal', element: 'earth' }), CRYSTAL_LOOKS);
+	assert.deepStrictEqual(lookRow({ sigil: 'aeroform', element: 'wind' }), AEROFORM_LOOKS);
+	// Resolution picks a whole row, so nothing inherits per field. Every role of
+	// both sigils has to stand on its own, and every one of them differs.
+	for (const role of ROLES) {
+		assert.notDeepStrictEqual(CRYSTAL_LOOKS[role], EARTH_LOOKS[role], `crystal ${role} is earth's`);
+		assert.notDeepStrictEqual(AEROFORM_LOOKS[role], WIND_LOOKS[role], `aeroform ${role} is wind's`);
+		assert.ok(lookFor({ sigil: 'crystal', element: 'earth' }, role));
+		assert.ok(lookFor({ sigil: 'aeroform', element: 'wind' }, role));
+	}
+});
+
+test('crystal keeps earth matter opaque, and everything else about it is a facet', () => {
+	// "Creates and manipulates crystalline objects": objects occlude.
+	assert.equal(CRYSTAL_LOOKS.body.blend, 'source-over');
+	assert.equal(CRYSTAL_LOOKS.skin.blend, 'source-over');
+	// Crystalline, so cool where earth is warm, and specular where earth is round.
+	const [red, , blue] = CRYSTAL_LOOKS.body.tint.core;
+	assert.ok(blue > red, 'crystal is the cool reading of earth');
+	assert.ok(EARTH_LOOKS.body.tint.core[2] < EARTH_LOOKS.body.tint.core[0]);
+	assert.equal(CRYSTAL_LOOKS.core.sprite, 'glint');
+	// A clod smears and a shard does not, so the whole row carries fewer ghosts
+	// than earth's does.
+	assert.ok(totalTrailFrames(CRYSTAL_LOOKS) < totalTrailFrames(EARTH_LOOKS));
+});
+
+test('aeroform is the volume reading of wind: softer, larger, and it lingers', () => {
+	// "Creates and manipulates air, but does not itself move that air."
+	for (const role of ROLES) {
+		assert.ok(
+			AEROFORM_LOOKS[role].stretch < WIND_LOOKS[role].stretch,
+			`aeroform ${role} streaks like wind`
+		);
+		assert.ok(
+			AEROFORM_LOOKS[role].sizePx[1] > WIND_LOOKS[role].sizePx[1],
+			`aeroform ${role} is no larger than wind`
+		);
+	}
+	// The air it made stays after the gust would have passed. Only the thrown
+	// fleck still dies on the wing.
+	assert.equal(WIND_LOOKS.body.fade, 'decay');
+	assert.equal(AEROFORM_LOOKS.body.fade, 'leak');
+	assert.equal(AEROFORM_LOOKS.core.fade, 'leak');
+	assert.equal(AEROFORM_LOOKS.ember.fade, 'decay');
 });
 
 test('R-11: a seal with no sigil and no element resolves to the inert row, never to nothing', () => {

@@ -30,7 +30,7 @@
 	const goldenFrame = readGoldenFrameRequest(page.url);
 
 	let engine = $state<LabEngine>(goldenFrame?.engine ?? DEFAULT_LAB_ENGINE);
-	let sigil = $state(DEFAULT_SIGIL);
+	let sigil = $state(goldenFrame?.sigil ?? DEFAULT_SIGIL);
 	const element = $derived(elementForSigil(sigil));
 	let presetId = $state(goldenFrame?.presetId ?? 'none');
 	const preset = $derived(presetById(presetId));
