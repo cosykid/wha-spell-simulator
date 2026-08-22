@@ -11,7 +11,7 @@ npm run test:golden                              # the cast and plan golden tier
 npm run test:golden:update                       # rewrite their baselines
 ```
 
-The whole suite is ~240 tests in ~13s. Run it before you commit.
+The whole suite is ~250 tests in ~15s. Run it before you commit.
 
 ## Map
 
@@ -61,7 +61,7 @@ Rules that keep it a baseline instead of a coin flip:
 
 - **Nothing under `golden/` may call `Math.random` or read a clock.** The only randomness is the score's own seeded `Rng`, and every sampled timestamp must land on a whole `CAST.stepMs` step (`landsOnStep`).
 - **It lives one level down on purpose.** The `test:unit` glob is one level deep, so the unit suite never depends on baseline PNGs, and `test:golden` runs the same `node --import tsx --test` toolchain.
-- **Regenerate deliberately.** A score or sim change moves every cast baseline; run `npm run test:golden:update` and read the image diff before committing. Baselines are byte-compared, so an encoder or rasterizer tweak rewrites all 52 PNGs at once. Adding a track moves _every_ cast baseline even where its own tracks are untouched, because emission draws from one seeded stream; check the track params rather than the pixels when you need to prove a behaviour did not change.
+- **Regenerate deliberately.** A score or sim change moves every cast baseline; run `npm run test:golden:update` and read the image diff before committing. Baselines are byte-compared, so an encoder or rasterizer tweak rewrites all 72 PNGs at once. Adding a track moves _every_ cast baseline even where its own tracks are untouched, because emission draws from one seeded stream; check the track params rather than the pixels when you need to prove a behaviour did not change.
 - **New behaviour gets a probe row, not a new closure.** Add a row citing the ruling id it pins. If no ruling covers it, the claim belongs in an open canon question first.
 - **A new lab preset owes the full golden set**: a plan text, four cast PNGs, three look snapshots, and at least one probe row for whatever it was added to cover.
 

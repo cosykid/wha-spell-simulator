@@ -77,6 +77,14 @@ few percent of incidental bias can no longer drift the whole domain. A kernel
 takes its own params, a point and an age. Never give it a second track, the
 parcel list, or the score.
 
+**`throttle` is the one member that reads the population, and it may not steer
+anything.** R-20 states fill-to-capacity in terms of held mass, which no
+per-parcel function can see, so `Primitive.throttle(params, parcels)` returns an
+emission multiplier and nothing else. It is safe for the same reason `velocity`
+is: it derives its answer from the current state every step and never
+accumulates, so a fresh replay recomputes the identical gate. Only `hold`
+defines one. If you reach for it to move a parcel, you want a coupling instead.
+
 **The one cross-track path is a declared coupling, and it is a constraint, not a
 kernel.** Where the plan says `{ holder: 'hold', captures: [...] }` the score
 writes `capturedBy` on those tracks and `cast.ts` runs the holder's `constrain`

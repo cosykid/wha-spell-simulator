@@ -65,11 +65,10 @@ interface Performance {
  * names which primitives a hold captures; the score records the holder's track
  * id on each of them, and the sim reads nothing else.
  *
- * Open canon question 5 — column plus levitation, does drive beat grip or does
- * hold have right of way? — stays unanswered. The least-committal reading is
- * that capture is soft: `hold`'s constraint only takes parcels that have
- * effectively arrived, so a live column is not clipped mid-beam. The note says
- * so rather than the ranking being invisible.
+ * R-18 ranks the pair: drive wins while driven, grip wins on coast. Capture is
+ * soft, because `hold`'s constraint only takes parcels that have effectively
+ * arrived, so a live column is not clipped mid-beam. The note keeps the ranking
+ * visible in a score rather than buried in a kernel.
  */
 function bindCouplings(plan: SpellPlan, tracks: ScoreTrack[]): ScoreNote[] {
 	const holder = tracks.find((track) => track.kind === 'hold');
@@ -86,10 +85,7 @@ function bindCouplings(plan: SpellPlan, tracks: ScoreTrack[]): ScoreNote[] {
 			bound = true;
 		}
 	}
-	// Open canon question 7: canon stops a full levitation seal manifesting, which
-	// on a six-second cast reads as breakage. Until it is ruled nothing counts held
-	// mass, and the score names the omission.
-	return bound ? ['coupling-soft', 'capacity-unmodeled'] : ['capacity-unmodeled'];
+	return bound ? ['coupling-soft'] : [];
 }
 
 /**

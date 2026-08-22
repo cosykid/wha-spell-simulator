@@ -277,10 +277,10 @@ test('[R-13] the convergence lens is one-sided and touches no other budget', () 
 	assert.equal(lensed.budget, plain.budget);
 });
 
-test('[open canon question 2] cancelled ink keeps its budget and names the case', () => {
-	// Two inward columns and two outward ones: every moment cancels. The default
-	// stays least-committal — the budget survives and the arrangement is tagged,
-	// so "your drawing did nothing" can be designed rather than rendered blank.
+test('[R-15] cancelled ink keeps its budget and names the case', () => {
+	// Two inward columns and two outward ones: every moment cancels. The budget
+	// survives and the arrangement is tagged, so the score can spend R-15's bare
+	// shockwave on it rather than rendering literal nothing (R-11).
 	const plan = resolvePlan(
 		reading([
 			sign({ atDeg: 0 }),
@@ -296,20 +296,88 @@ test('[open canon question 2] cancelled ink keeps its budget and names the case'
 	assert.ok(plan.notes.includes('inert-quadrupole'));
 });
 
-test('[open canon question 1] unopposed convergence keeps the flux law and is tagged', () => {
-	const plan = resolvePlan(reading([sign({ atDeg: 0 })]));
+test('[R-14] unopposed convergence still lifts: the flux law is not gated on opposition', () => {
+	// The half-ring, which R-14 calls the most common hand-drawn arrangement.
+	// S = 3, |P| = 1, C = 3: the uncancelled lateral residue is the minority term.
+	const halfRing = resolvePlan(reading([-90, 0, 90].map((atDeg) => sign({ atDeg }))));
 
-	assert.ok(plan.aim.z > 0, 'the flux law R-05 lifts a lone rim sign');
-	assert.ok(plan.notes.includes('unopposed-convergence'), 'and the arrangement is visible');
+	assert.equal(round(halfRing.aim.z), 3, 'C is the whole inward flux, not the cancelled part');
+	assert.ok(
+		halfRing.aim.z > Math.hypot(halfRing.aim.x, halfRing.aim.y),
+		'a half-ring is a geyser leaning off its open side, never a ground-hugging surge'
+	);
+	// A lone rim sign is the shallow end of the same law, not a separate case.
+	assert.ok(
+		resolvePlan(reading([sign({ atDeg: 0 })])).aim.z > 0,
+		'nothing opposes it, and it lifts'
+	);
 });
 
-test('[open canon questions 3, 4] levitation with no grip is a dud, tagged', () => {
+test('[R-16] tangential levitation is a rotor: it spins without a grip', () => {
 	const plan = resolvePlan(
+		reading(
+			[0, 90, 180, 270].map((atDeg) =>
+				sign({ manifestation: 'levitation', atDeg, facingDeg: (atDeg + 90) % 360 })
+			)
+		)
+	);
+
+	assert.ok(plan.hold, 'either channel makes a hold, so a pinwheel is not a dud');
+	assert.equal(round(plan.hold.grip), 0, 'a rotor grips nothing');
+	assert.equal(round(plan.hold.spin), 4, 'and carries the whole levitation circulation');
+	// R-13 survives R-16: levitation still never moves the column aggregate.
+	assert.equal(plan.circulation, 0);
+});
+
+test('[R-17] inverted levitation is a dud, and the plan says which dud it is', () => {
+	const outward = resolvePlan(
 		reading([sign({ manifestation: 'levitation', atDeg: 0, facingDeg: 0 })])
 	);
 
-	assert.equal(plan.hold, null, 'no invented rotor, no invented repulsor');
-	assert.ok(plan.notes.includes('levitation-without-grip'));
+	assert.equal(outward.hold, null, 'C_lev < 0 grips nothing, and no press is invented for it');
+	assert.ok(outward.notes.includes('levitation-inverted'));
+
+	// The other dud: R-06 ink that pays into the budget and no channel at all.
+	const untrusted = resolvePlan(
+		reading([sign({ manifestation: 'levitation', atDeg: 0, facingTrust: FACING_TRUST_FLOOR / 2 })])
+	);
+
+	assert.equal(untrusted.hold, null);
+	assert.ok(
+		untrusted.notes.includes('levitation-inert'),
+		'inert is not the same failure as inverted'
+	);
+});
+
+test('[R-19] two agreeing radial chevrons complete a fence, and a pair is two senses', () => {
+	const ring = (count: number, sense: 'in' | 'out') =>
+		resolveRegion(
+			Array.from({ length: count }, (_, index) => {
+				const atDeg = (360 / count) * index;
+				return sign({
+					manifestation: 'directed',
+					atDeg,
+					facingDeg: sense === 'in' ? atDeg + 180 : atDeg
+				});
+			})
+		);
+
+	// Two members fuse. Ground truth section 5: a radial ring is collective, so a
+	// lone chevron stays a shutter and never completes anything.
+	assert.deepEqual(ring(2, 'in').aperture, { kind: 'disc' }, 'two inward members close the disc');
+	assert.deepEqual(
+		ring(2, 'out').aperture,
+		{ kind: 'annulus', inner: 1, outer: 1.5 },
+		'and two outward members open the moat rather than the rim pinch'
+	);
+	assert.ok(ring(2, 'out').exhaust.z < 0.5, 'an outward pair exhausts into the moat, not upward');
+	assert.notDeepEqual(ring(1, 'in').aperture, { kind: 'disc' }, 'one chevron is still a shutter');
+
+	// Completion is a threshold; staging is not, so the scalars stay monotone.
+	for (const sense of ['in', 'out'] as const) {
+		assert.deepEqual(ring(4, sense).aperture, ring(2, sense).aperture, 'the fence is stable in N');
+		assert.ok(ring(4, sense).reach > ring(2, sense).reach, 'extra aligned ink still stages');
+	}
 });
 
 test('[PDF defect I] every manifestation in the dictionary resolves to something', () => {

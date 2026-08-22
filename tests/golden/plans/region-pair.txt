@@ -1,0 +1,19 @@
+plan v1
+sigil       water
+element     water
+mode        create
+budget      0.000
+aim         (0.000, 0.000, 0.000)
+dispersion  0.000
+circulation 0.000
+focus       1.000
+quality     0.984
+aperture    annulus inner=1.000 outer=1.500
+exhaust     (0.000, 0.000, 0.250)
+hardness    0.456
+reach       1.250
+hold        none
+intake      none
+vessel      none
+couplings   none
+notes       none
