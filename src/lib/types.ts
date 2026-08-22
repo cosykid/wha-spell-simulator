@@ -16,6 +16,7 @@ export type * from './types/dictionary.js';
 export type * from './types/rings.js';
 export type * from './types/recognition.js';
 export type * from './types/glyph-ast.js';
+export type * from './types/seal-reading.js';
 export type * from './types/spell-field.js';
 export type * from './types/spell-ir.js';
 export type * from './types/input.js';

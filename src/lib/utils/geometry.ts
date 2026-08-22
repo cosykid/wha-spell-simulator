@@ -194,6 +194,12 @@ export function angularDifference(a: number, b: number): number {
 	return diff > HALF_CIRCLE_DEG ? FULL_CIRCLE_DEG - diff : diff;
 }
 
+/** Degrees from one bearing to another in (-180, 180]. Positive turns counter-clockwise. */
+export function signedAngleDifferenceDeg(fromDeg: number, toDeg: number): number {
+	const wrapped = normalizeAngleDeg(toDeg - fromDeg);
+	return wrapped > HALF_CIRCLE_DEG ? wrapped - FULL_CIRCLE_DEG : wrapped;
+}
+
 export function mean(values: number[]): number {
 	if (!values.length) {
 		return 0;
