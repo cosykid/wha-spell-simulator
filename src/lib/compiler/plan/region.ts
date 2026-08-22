@@ -44,13 +44,22 @@ interface RegionRule {
 /** Ranked. First match wins, and the last row matches everything. */
 const REGION_RULES: RegionRule[] = [
 	{
+		// R-19: two same-sense members fuse into a fence once they span the ring
+		// spread. `!agreeing` is what separates a fence from a stack: a radial ring
+		// points its members at each other, a shutter stack points them all one way.
 		row: 2,
-		when: (set) => set.count >= 3 && set.position === 'rim' && !set.arc.confined && set.allInward,
+		when: (set) =>
+			set.count >= 2 && set.position === 'rim' && set.spreadsRing && !set.agreeing && set.allInward,
 		resolve: () => ({ aperture: { kind: 'disc' }, exhaust: UP })
 	},
 	{
 		row: 3,
-		when: (set) => set.count >= 3 && set.position === 'rim' && !set.arc.confined && set.allOutward,
+		when: (set) =>
+			set.count >= 2 &&
+			set.position === 'rim' &&
+			set.spreadsRing &&
+			!set.agreeing &&
+			set.allOutward,
 		resolve: (set) => ({
 			aperture: { kind: 'annulus', inner: 1, outer: 1.5 },
 			// Radial has no one side, so a symmetric moat cancels to a pure rise.

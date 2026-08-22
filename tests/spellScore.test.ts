@@ -356,44 +356,87 @@ test('R-05: circulation scores a vortex past a dead-band, and region ink never d
 	);
 });
 
-test('open canon question 5: a declared coupling is soft, and says so', () => {
+test('[R-18] a declared coupling is soft, and says so', () => {
 	// The plan names which primitives a hold captures. The score writes the holder
-	// on them and tags the ranking it did not invent.
+	// on them and tags the ranking: drive while driven, grip on coast.
 	const plan = resolvePlan(reading([column(180, 0), levitation(0), levitation(180)]));
 	assert.deepEqual(plan.couplings, [{ holder: 'hold', captures: ['burst', 'jet'] }]);
 
 	const score = compileScore(plan, SOURCE);
 	const holder = scoreTracks(score).find((track) => track.kind === 'hold');
 	assert.ok(holder, 'the fixture must close a grip');
-	assert.ok(score.notes.includes('coupling-soft'), 'the ranking was answered silently');
+	assert.ok(score.notes.includes('coupling-soft'), 'the ranking is named, not silent');
 	for (const track of scoreTracks(score)) {
 		const captured = track.kind === 'burst' || track.kind === 'jet';
 		assert.equal(track.capturedBy, captured ? holder.id : undefined, `${track.id} bound wrongly`);
 	}
 });
 
-test('open canon question 7: a hold never fills, and says so', () => {
-	// Canon stops a full levitation seal manifesting, which on a six-second cast
-	// reads as breakage. Nothing counts held mass until that is ruled.
-	assert.ok(scoreFor('levitation').notes.includes('capacity-unmodeled'));
-	assert.ok(!scoreFor('column-balanced').notes.includes('capacity-unmodeled'));
+test('[R-18] a grip catches the burst even when the seal spends no column ink', () => {
+	// Section 6's skirt: a hold that declares no coupling lets the burst escape it
+	// near the plane. R-11 strikes unconditionally, so the burst is always there
+	// to be caught, whatever the column budget is.
+	const plan = resolvePlan(readPresetSeal(presetById('levitation').signs, SIGIL));
+	assert.equal(plan.budget, 0, 'levitation ink pays into the hold budget only (R-13)');
+	assert.deepEqual(plan.couplings, [{ holder: 'hold', captures: ['burst'] }]);
+
+	const burst = scoreTracks(scoreFor('levitation')).find((track) => track.kind === 'burst');
+	assert.ok(burst?.capturedBy, 'the burst escaped the grip');
 });
 
-test('open canon question 3: a levitation rotor spins nothing without a grip', () => {
-	// A levitation pinwheel: all circulation, no clash. `resolveHold` already takes
-	// the least-committal default and returns null, and the score does not invent
-	// a spring the plan refused to close.
+test('[R-20] a hold fills to a capacity set by its grip, and a rotor has none', () => {
+	const held = scoreTracks(scoreFor('levitation')).find((track) => track.kind === 'hold');
+	assert.ok(held, 'the levitation preset must score a hold');
+	assert.ok(held.params.capacity > 0, 'a gripping hold owes section 6 a W_max');
+
+	// W_max is linear in the grip, so half the clash holds half the mass.
+	const weaker = scoreTracks(scoreFor('column-levitation')).find((track) => track.kind === 'hold');
+	assert.ok(weaker);
+	assert.ok(
+		weaker.params.capacity < held.params.capacity,
+		'capacity must follow the grip, not the cast length'
+	);
+
+	// R-16's rotor grips nothing, so it never fills and its valve never closes.
+	const rotor = resolvePlan(
+		reading([0, 90, 180, 270].map((atDeg) => levitation(atDeg, (atDeg + 90) % 360)))
+	);
+	const spun = scoreTracks(compileScore(rotor, SOURCE)).find((track) => track.kind === 'hold');
+	assert.ok(spun, 'R-16: a pinwheel scores a hold');
+	assert.equal(spun.params.capacity, 0);
+	assert.ok(spun.emission.gain > 0, 'and it still feeds, or the rotor has nothing to spin');
+});
+
+test('[R-16] a levitation rotor scores a spinning hold, not a vortex', () => {
 	const plan = resolvePlan(
 		reading([0, 90, 180, 270].map((atDeg) => levitation(atDeg, (atDeg + 90) % 360)))
 	);
-	assert.equal(plan.hold, null);
-	assert.ok(plan.notes.includes('levitation-without-grip'));
+	assert.ok(plan.hold);
 	const tracks = scoreTracks(compileScore(plan, SOURCE));
-	assert.ok(!tracks.some((track) => track.kind === 'hold'));
-	// And it is not smuggled in as a vortex either: levitation pays into its own
-	// budget, so R-05's column circulation stays at zero.
+	const hold = tracks.find((track) => track.kind === 'hold');
+	assert.ok(hold, 'section 6 predicts a rotor and R-16 rules one');
+	assert.notEqual(hold.params.spin, 0, 'the whole point of a rotor is its spin');
+	// R-13 survives: circulation stays the column engine's verb, so levitation
+	// never smuggles itself in as a vortex.
 	assert.equal(plan.circulation, 0);
 	assert.ok(!tracks.some((track) => track.kind === 'vortex'));
+});
+
+test('[R-15] cancelled ink strikes exactly as quietly as an unmarked ring', () => {
+	const cancelled = resolvePlan(
+		reading([column(0, 180), column(180, 0), column(90, 90), column(270, 270)])
+	);
+	assert.ok(cancelled.notes.includes('inert-quadrupole'));
+	assert.ok(cancelled.budget > 0, 'the ink is spent, not refunded');
+
+	const burstOf = (plan: SpellPlan) =>
+		scoreTracks(compileScore(plan, SOURCE)).find((track) => track.kind === 'burst');
+	const spent = burstOf(cancelled);
+	const blank = burstOf(inertPlan());
+	assert.ok(spent && blank);
+	// R-15: cancelled flux buys no impulse, so the ring is the bare shockwave.
+	assert.deepEqual(spent.params, blank.params);
+	assert.equal(spent.emission.gain, blank.emission.gain);
 });
 
 // ---------------------------------------------------------------------------
@@ -407,8 +450,26 @@ test('identical inputs mean an identical score, and identical signature means id
 	const seeds = new Set(everyScore().map((score) => score.seed));
 	assert.equal(seeds.size, 1, 'the seed follows the spell signature, not the plan');
 
-	const signatures = everyScore().map((score) => score.signature);
-	assert.equal(new Set(signatures).size, LAB_PRESETS.length, 'two presets share a cast');
+	// Every preset that manifests something owes a distinct timeline. The ones
+	// that manifest nothing deliberately share one: R-11 makes "nothing" a look,
+	// and R-15 rules that cancelled ink buys no impulse, so a cancelled
+	// quadrupole, an inverted levitation ring and an unruled chevron arrangement
+	// all resolve to the same bare shockwave. They still cast differently,
+	// because the seed follows the spell signature and not the score.
+	const [manifesting, blank] = [false, true].map((nothing) =>
+		everyScore().filter((score) => score.notes.includes('manifests-nothing') === nothing)
+	);
+	assert.equal(
+		new Set(manifesting.map((score) => score.signature)).size,
+		manifesting.length,
+		'two presets that manifest something share a cast'
+	);
+	assert.ok(blank.length > 1, 'the manifests-nothing family must have members to collapse');
+	assert.equal(
+		new Set(blank.map((score) => score.signature)).size < blank.length,
+		true,
+		'R-15: seals that manifest nothing must be indistinguishable, not merely similar'
+	);
 
 	// The seal's own reset key reaches the score through the seed, so a respelled
 	// spell is a different cast even when its plan is identical.

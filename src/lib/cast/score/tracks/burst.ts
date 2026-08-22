@@ -32,12 +32,16 @@ const BURST_TUNING = {
 /**
  * The strike, sized by the plan's burst budget (R-13: column ink plus ink whose
  * only ruled contribution is power).
+ *
+ * R-15 is the one exception. Ink whose moments cancel fires the bare shockwave
+ * and buys nothing with it, so an inert plan strikes at the floor and reads
+ * exactly like an unmarked ring. Section 1 already spends that look on a seal
+ * that fizzles, and cancelled ink is the second cause of the same outcome.
  */
 export function burstTrack(plan: SpellPlan, population: Population): Track<'burst'> {
-	const strength = Math.max(
-		saturate(plan.budget, BURST_TUNING.halfBudget),
-		BURST_TUNING.floorStrength
-	);
+	const strength = plan.notes.includes('inert-quadrupole')
+		? BURST_TUNING.floorStrength
+		: Math.max(saturate(plan.budget, BURST_TUNING.halfBudget), BURST_TUNING.floorStrength);
 	return {
 		id: 'burst',
 		kind: 'burst',
