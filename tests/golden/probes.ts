@@ -75,10 +75,10 @@ export const PROBES: Probe[] = [
 		{
 			atMs: 0,
 			point: { x: 0, y: 0 },
-			expect: { metric: 'forceX', above: 0.05 },
-			rulingId: 'legacy',
+			expect: { metric: 'forceX', below: -0.05 },
+			rulingId: 'R-05',
 			claim:
-				'today the beam leans toward the sign own rim position, east. R-05 leans it where the sign points, so this row is the axial-lean tripwire and flips with that fix'
+				'the east sign faces inward, so the beam leans west, where the sign points, never toward the side carrying it'
 		},
 		{
 			atMs: 0,
