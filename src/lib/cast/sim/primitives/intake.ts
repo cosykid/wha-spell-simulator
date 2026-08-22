@@ -11,6 +11,12 @@
  * The finite core is the old field engine's radial magnitude: the draw
  * dies at the origin, so arriving matter pools against the seal instead of
  * spiking through a singularity.
+ *
+ * A twisted pull holds a hollow eye instead of a pool, and it is authored the
+ * same way [`vortex.ts`](vortex.ts) authors its own: inside the eye the flow is
+ * thrown back out, and nothing is born in there to begin with. The score sizes
+ * the eye from the slant, so a straight pull passes through both terms with
+ * `eye` at zero and keeps its pool.
  */
 
 import { sampleAperture } from '../aperture.js';
@@ -29,7 +35,11 @@ const INTAKE_SIM = {
 	 * environment, not on what the seal emits (section 7), so its parcels start
 	 * outside the aperture and stream in through it.
 	 */
-	reach: 1.6
+	reach: 1.6,
+	/** How hard the eye throws the medium back out, as a share of the swirl. */
+	eyePush: 0.6,
+	/** Nothing is born inside the eye, as a fraction of its radius. */
+	spawnFloor: 1.05
 } as const;
 
 export const INTAKE: Primitive<IntakeParams> = {
@@ -37,8 +47,13 @@ export const INTAKE: Primitive<IntakeParams> = {
 
 	spawn(params, aperture, rng) {
 		const at = sampleAperture(aperture, rng);
-		const x = at.x * INTAKE_SIM.reach;
-		const y = at.y * INTAKE_SIM.reach;
+		const reached = { x: at.x * INTAKE_SIM.reach, y: at.y * INTAKE_SIM.reach };
+		const arm = Math.hypot(reached.x, reached.y);
+		// A parcel born in the eye would fill the hollow the twist exists to hold.
+		const floor = params.eye * INTAKE_SIM.spawnFloor;
+		const lift = arm < floor ? floor / Math.max(arm, NEGLIGIBLE_DISTANCE) : 1;
+		const x = reached.x * lift;
+		const y = reached.y * lift;
 		const radius = Math.hypot(x, y);
 		const kick = params.draw * INTAKE_SIM.spawnKick;
 		const inward =
@@ -62,7 +77,13 @@ export const INTAKE: Primitive<IntakeParams> = {
 		const outward = { x: at.x / radius, y: at.y / radius };
 		const tangential = { x: outward.y, y: -outward.x };
 		const falloff = coreFalloff(radius, params.pool);
-		const radial = -params.draw * falloff;
+		// The hollow eye: inside it the flow is thrown back out, the way the funnel
+		// in `vortex.ts` is a sheath around a calm center rather than a filled cone.
+		const push =
+			radius < params.eye
+				? Math.abs(params.swirl) * INTAKE_SIM.eyePush * (1 - radius / params.eye)
+				: 0;
+		const radial = -params.draw * falloff + push;
 		const swirl = params.swirl * falloff;
 		return {
 			x: outward.x * radial + tangential.x * swirl + drag.x,

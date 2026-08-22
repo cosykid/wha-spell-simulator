@@ -292,6 +292,13 @@ export const CAST_PROBES: CastProbe[] = [
 			expect: { metric: 'meanHeight', above: 0.05 },
 			rulingId: 'ground-truth-7',
 			claim: 'a slanted pull is helical inflow: only the twist lifts, and here it does'
+		},
+		{
+			atMs: BODY_MS,
+			of: 'intake',
+			expect: { metric: 'axisDensity', radius: 0.4, below: 0.02 },
+			rulingId: 'ground-truth-7',
+			claim: 'and canon calls the slanted case a vortex, so its center is an eye and not a pool'
 		}
 	])
 ];
