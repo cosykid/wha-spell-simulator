@@ -9,10 +9,10 @@
  * radii — off the seal entirely. `saturate` maps it onto the seal's own hover
  * range, whose top is the 0.85 hover ceiling salvaged from the old field engine.
  *
- * Open canon question 3 (does a levitation rotor spin without a grip?) is
- * already answered upstream: `resolveHold` returns null when the ink never
- * closes a grip and tags the plan `levitation-without-grip`. Nothing here
- * second-guesses that, so a rotor scores no track rather than an invented one.
+ * R-16 splits the two channels. A hold's presence is whichever of grip and spin
+ * is louder, so a rotor emits, but `lift` stays keyed on the grip alone: a
+ * gripless hold rises gently to its rest height and swirls there rather than
+ * carrying anything. R-20 adds the capacity the feed throttles against.
  */
 
 import { aboveFloor, saturate } from './gain.js';
@@ -49,7 +49,14 @@ const HOLD_TUNING = {
 	/** Spin magnitude at which the rotor reads half as fast as it can get. */
 	halfSpin: 6,
 	/** Tangential seal units per second at full spin. */
-	spin: 1.1
+	spin: 1.1,
+	/**
+	 * R-20: parcels the ball holds per unit of grip, section 6's `W_max` in the
+	 * only extensive unit this sim has. Linear in the grip, as section 6 states
+	 * it, and scaled by quality for its `eta`. A rotor grips nothing, so its
+	 * capacity is zero and its throttle never closes.
+	 */
+	capacityPerGrip: 4.5
 } as const;
 
 /** The in-plane locus, squashed into the seal disc however lopsided the ink is. */
@@ -69,6 +76,8 @@ export function holdTrack(plan: SpellPlan, population: Population): Track<'hold'
 		return null;
 	}
 	const strength = saturate(hold.grip, HOLD_TUNING.halfGrip);
+	// R-16: either channel makes the hold present, so a rotor still feeds.
+	const presence = Math.max(strength, saturate(hold.spin, HOLD_TUNING.halfSpin));
 	const rest = saturate(hold.at.z, HOLD_TUNING.halfHeight);
 	const locus = slide(hold.at);
 	return {
@@ -86,12 +95,13 @@ export function holdTrack(plan: SpellPlan, population: Population): Track<'hold'
 			radius: HOLD_TUNING.radius,
 			spin: Math.sign(hold.spin) * HOLD_TUNING.spin * saturate(hold.spin, HOLD_TUNING.halfSpin),
 			bobRate: HOLD_TUNING.bobRate,
-			captureSpeed: HOLD_TUNING.captureSpeed
+			captureSpeed: HOLD_TUNING.captureSpeed,
+			capacity: HOLD_TUNING.capacityPerGrip * hold.grip * clamp(plan.quality)
 		},
 		// Section 6's fill transient: the disk feeds the blob hard at the strike and
 		// then tails off, and the drive runs long because the grip does not let go
-		// when release begins.
-		emission: { from: 'strike', to: 'body', curve: 'decay', gain: HOLD_TUNING.rate * strength },
+		// when release begins. R-20's throttle closes this valve as the ball fills.
+		emission: { from: 'strike', to: 'body', curve: 'decay', gain: HOLD_TUNING.rate * presence },
 		drive: { from: 'strike', to: 'release', curve: 'hold', gain: 1 },
 		look: 'body'
 	};

@@ -15,5 +15,5 @@ reach       1.000
 hold        at=(0.000, 0.000, 2.827) grip=10.053 spin=0.000 budget=12.566
 intake      none
 vessel      none
-couplings   none
+couplings   hold captures burst
 notes       none

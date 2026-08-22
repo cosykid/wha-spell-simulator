@@ -138,8 +138,13 @@ export interface HoldParams {
 	spin: number;
 	/** Radians per second of the slow bob the settled mass keeps, amplitude `radius`. */
 	bobRate: number;
-	/** Fastest a parcel may move and still count as arrived. Open canon question 5. */
+	/** Fastest a parcel may move and still count as arrived (R-18). */
 	captureSpeed: number;
+	/**
+	 * R-20: parcels the ball may hold before the seal stops manifesting, section
+	 * 6's `W_max`. Zero on a rotor, which grips nothing and so never fills.
+	 */
+	capacity: number;
 }
 
 /** R-13's ambient coupling: the pull family drawing the ambient medium in. */
@@ -240,10 +245,8 @@ export type ScoreNote =
 	| 'manifests-nothing'
 	/** R-08: dispersion ink, so its fan runs as a low, long leak. */
 	| 'dispersion-leak'
-	/** Open canon question 5: a hold captured other tracks, and only softly. */
-	| 'coupling-soft'
-	/** Open canon question 7: a hold holds without ever filling up. */
-	| 'capacity-unmodeled';
+	/** R-18: a hold captured other tracks, and only once they had arrived. */
+	| 'coupling-soft';
 
 export interface SpellScore {
 	version: 1;

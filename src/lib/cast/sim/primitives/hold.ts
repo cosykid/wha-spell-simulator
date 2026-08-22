@@ -7,17 +7,18 @@
  * gathers back onto the hover axis and keeps a slow bob, which is `ground-truth`
  * section 6's damped spring anchored at the hover locus.
  *
- * Two open canon questions are answered here as narrowly as possible and no
- * further. **Question 5** (column plus levitation: does drive beat grip?): the
- * grip takes only parcels that have effectively arrived, so a live jet passes
- * straight through it and only its spent parcels are caught. **Question 7**
- * (fill to capacity): nothing counts held mass, so the hold never stops.
+ * Two rulings live here. **R-18** (drive versus grip): the grip takes only
+ * parcels that have effectively arrived, so a live jet passes straight through
+ * it and only its spent parcels are caught. **R-20** (fill to capacity): held
+ * parcels stop dissipating and the feed throttles against the mass in the blob,
+ * so the seal fills and then stops manifesting.
  */
 
 import { sampleAperture } from '../aperture.js';
 import { NEGLIGIBLE_DISTANCE } from '../falloff.js';
 import { restOnSeal, SPAWN_HEIGHT, type Primitive } from './primitive.js';
 import { magnitude3 } from '../../vec3.js';
+import type { Parcel } from '../parcel.js';
 import type { HoldParams, Vec3 } from '../../../types.js';
 
 const HOLD_SIM = {
@@ -31,6 +32,18 @@ const HOLD_SIM = {
 /** The top of the band the settled mass occupies, and the cap `constrain` enforces. */
 function ceilingTop(params: HoldParams): number {
 	return params.at.z + params.radius;
+}
+
+/**
+ * Whether a parcel is in the ball. Section 6's blob plus the same margin again,
+ * because `constrain` parks arrivals on the ceiling rather than inside the
+ * sphere, and a parcel resting on the lid is as held as one churning under it.
+ */
+function inBlob(params: HoldParams, parcel: Parcel): boolean {
+	const dx = parcel.at.x - params.at.x;
+	const dy = parcel.at.y - params.at.y;
+	const dz = parcel.at.z - params.at.z;
+	return Math.hypot(dx, dy, dz) <= params.radius * 2;
 }
 
 export const HOLD: Primitive<HoldParams> = {
@@ -72,18 +85,41 @@ export const HOLD: Primitive<HoldParams> = {
 		};
 	},
 
-	constrain(params, parcel) {
+	constrain(params, parcel, stepS) {
 		restOnSeal(parcel);
-		// Open canon question 5, least-committal: capture is soft. A parcel is
-		// caught only once it has effectively arrived — past the band and no longer
-		// being driven — so a column firing through a hold is not clipped mid-beam.
-		// Open canon question 7 stays unanswered: nothing here counts held mass, so
-		// the seal never fills and never stops.
+		// R-20: the grip sustains held magic, so a parcel in the ball does not age
+		// out of it. Extending the lifetime rather than freezing the age keeps the
+		// settled mass breathing, since the bob reads the same clock.
+		if (inBlob(params, parcel)) {
+			parcel.lifetimeS += stepS;
+		}
+		// R-18: capture is soft. A parcel is caught only once it has effectively
+		// arrived — past the band and no longer being driven — so a column firing
+		// through a hold is not clipped mid-beam.
 		const top = ceilingTop(params);
 		if (parcel.at.z <= top || magnitude3(parcel.velocity) > params.captureSpeed) {
 			return;
 		}
 		parcel.at.z = top;
 		parcel.velocity.z = 0;
+	},
+
+	/**
+	 * R-20's valve. Section 6: the disk's feed accumulates in the ball, and once
+	 * the held mass reaches `W_max` the seal stops manifesting. Held mass is every
+	 * parcel in the blob whatever track threw it, so a column feeding a grip fills
+	 * it too, which is section 6's recapture.
+	 */
+	throttle(params, parcels) {
+		if (params.capacity <= 0) {
+			return 1;
+		}
+		let held = 0;
+		for (const parcel of parcels) {
+			if (inBlob(params, parcel)) {
+				held += 1;
+			}
+		}
+		return Math.max(0, 1 - held / params.capacity);
 	}
 };

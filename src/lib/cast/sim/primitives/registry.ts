@@ -58,28 +58,46 @@ export function kernelFor(track: ScoreTrack, at: Vec3, ageS: number): Vec3 {
 	}
 }
 
-export function constrainFor(track: ScoreTrack, parcel: Parcel): void {
+export function constrainFor(track: ScoreTrack, parcel: Parcel, stepS: number): void {
 	switch (track.kind) {
 		case 'burst':
-			BURST.constrain?.(track.params, parcel);
+			BURST.constrain?.(track.params, parcel, stepS);
 			return;
 		case 'jet':
-			JET.constrain?.(track.params, parcel);
+			JET.constrain?.(track.params, parcel, stepS);
 			return;
 		case 'fan':
-			FAN.constrain?.(track.params, parcel);
+			FAN.constrain?.(track.params, parcel, stepS);
 			return;
 		case 'vortex':
-			VORTEX.constrain?.(track.params, parcel);
+			VORTEX.constrain?.(track.params, parcel, stepS);
 			return;
 		case 'hold':
-			HOLD.constrain?.(track.params, parcel);
+			HOLD.constrain?.(track.params, parcel, stepS);
 			return;
 		case 'intake':
-			INTAKE.constrain?.(track.params, parcel);
+			INTAKE.constrain?.(track.params, parcel, stepS);
 			return;
 		case 'shimmer':
-			SHIMMER.constrain?.(track.params, parcel);
+			SHIMMER.constrain?.(track.params, parcel, stepS);
 			return;
+	}
+}
+
+/**
+ * R-20's emission gate. Only the hold defines one; every other primitive leaves
+ * its valve open, so the default is 1 and the switch stays exhaustive.
+ */
+export function throttleFor(track: ScoreTrack, parcels: readonly Parcel[]): number {
+	switch (track.kind) {
+		case 'hold':
+			return HOLD.throttle?.(track.params, parcels) ?? 1;
+		case 'burst':
+		case 'jet':
+		case 'fan':
+		case 'vortex':
+		case 'intake':
+		case 'shimmer':
+			return 1;
 	}
 }

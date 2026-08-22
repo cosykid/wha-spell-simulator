@@ -49,7 +49,10 @@ export interface Region {
 export interface HoldSpec {
 	/** Hover locus in seal space; `z` is height above the seal plane. */
 	at: Vec3;
-	/** Grip strength, the levitation clash. Always above zero when a hold exists. */
+	/**
+	 * Grip strength, the levitation clash. Zero on a rotor: R-16 spins without a
+	 * grip, so a hold may exist on the strength of its `spin` alone.
+	 */
 	grip: number;
 	/** Torque about the hover axis; positive is counter-clockwise seen from +z. */
 	spin: number;
@@ -96,12 +99,12 @@ export type PlanNote =
 	| 'facing-untrusted'
 	/** R-08: dispersion ink is present, so the body beat runs as a slow leak. */
 	| 'dispersion-leak'
-	/** Budget with no aim, no fan and no swirl. Open canon question 2. */
+	/** Budget with no aim, no fan and no swirl. R-15: it fires the bare shockwave. */
 	| 'inert-quadrupole'
-	/** Convergence with a lateral residue that nothing opposes. Open canon question 1. */
-	| 'unopposed-convergence'
-	/** Levitation ink that never closes a grip. Open canon questions 3 and 4. */
-	| 'levitation-without-grip'
+	/** Levitation ink whose convergence points outward, so it grips nothing (R-17). */
+	| 'levitation-inverted'
+	/** Levitation ink with neither a grip nor a rotor to show for it (R-16, R-17). */
+	| 'levitation-inert'
 	/** Pull is the only budget-bearing family, so the seal manifests nothing of its own (R-11). */
 	| 'intake-only'
 	/** Chevrons in an arrangement R-09's table does not name; the default disc applies. */

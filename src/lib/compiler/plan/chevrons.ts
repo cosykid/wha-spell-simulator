@@ -18,7 +18,9 @@ const CHEVRON_TUNING = {
 	/** How near two facings must be to count as one direction class (ground truth section 5). */
 	agreementDeg: 25,
 	/** How near antipodal two positions must be to form an opposed pair. */
-	pairingDeg: 30
+	pairingDeg: 30,
+	/** R-19: azimuth two same-sense radial chevrons must span before they fuse into a fence. */
+	ringSpreadDeg: 60
 };
 
 const ORIGIN: Vector = { x: 0, y: 0 };
@@ -45,8 +47,10 @@ export interface ChevronSet {
 	agreeing: boolean;
 	/** More than one direction class, which at the center is the pin. */
 	crossed: boolean;
-	/** Members that sit opposite another member. */
+	/** Members that sit opposite another member and disagree with it about direction. */
 	opposedPairs: number;
+	/** R-19: the members cover enough azimuth for a same-sense pair to fuse into a fence. */
+	spreadsRing: boolean;
 	/** Mean facing, unnormalized: a symmetric set cancels to zero. */
 	meanFacing: Vector;
 	/** Mean sign power, which scales hardness and nothing else. */
@@ -117,13 +121,22 @@ function facingsAgree(members: SignReading[]): boolean {
 	return members.every((member) => member.facing.x * axis.x + member.facing.y * axis.y >= limit);
 }
 
-/** Members claim each other pairwise, so one chevron cannot partner two others. */
+/**
+ * Members claim each other pairwise, so one chevron cannot partner two others.
+ *
+ * R-19: a pair is two direction classes, per ground truth section 5. Counting on
+ * position alone made two chevrons of the *same* sense read as a pinch pair, so
+ * an outward pair exhausted upward instead of into the moat.
+ */
 function countOpposedPairs(members: SignReading[]): number {
 	const bearings = members.map((member) => bearingOf(member.at));
 	const partnered = new Set<number>();
 	for (let index = 0; index < bearings.length; index += 1) {
 		for (let other = index + 1; other < bearings.length; other += 1) {
 			if (partnered.has(index) || partnered.has(other)) {
+				continue;
+			}
+			if (members[index].facingClass === members[other].facingClass) {
 				continue;
 			}
 			const separation = Math.abs(normalizeAngleDeg(bearings[index] - bearings[other]) - 180);
@@ -137,16 +150,18 @@ function countOpposedPairs(members: SignReading[]): number {
 }
 
 export function readChevrons(members: SignReading[]): ChevronSet {
+	const arc = arcExtent(members);
 	return {
 		members,
 		count: members.length,
 		position: setPositionClass(members),
-		arc: arcExtent(members),
+		arc,
 		allInward: members.every((member) => member.facingClass === 'inward'),
 		allOutward: members.every((member) => member.facingClass === 'outward'),
 		agreeing: facingsAgree(members),
 		crossed: new Set(members.map((member) => member.facingClass)).size > 1,
 		opposedPairs: countOpposedPairs(members),
+		spreadsRing: arc.arcDeg >= CHEVRON_TUNING.ringSpreadDeg,
 		meanFacing: meanVector(members.map((member) => member.facing)),
 		power: mean(members.map((member) => member.power)),
 		radius: mean(members.map((member) => Math.hypot(member.at.x, member.at.y)))

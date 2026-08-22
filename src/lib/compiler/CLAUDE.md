@@ -62,8 +62,10 @@ Rules for working in here:
   data. If a change wants an `if`, it probably wants a row.
 - **Every manifestation resolves to something.** An unruled sign still pays its ink into the budget and
   emits an `unmodeled-<manifestation>` note. Never throw, never drop (PDF defect I).
-- **Never silently answer an open canon question.** Take the least-committal default, tag it with a
-  `PlanNote`, and leave a comment citing the question number from the spec's open list.
+- **Never silently answer an open canon question.** The spec's open list is empty as of R-20, so a
+  case it does not cover is a new question, not a licence to guess. Take the least-committal default,
+  tag it with a `PlanNote`, and leave a comment saying what is undecided — then get it ruled and add
+  the `R-xx` section, rather than letting the default harden into canon by being tested.
 - **Law tests cite ruling ids.** [`tests/spellPlan.test.ts`](../../../tests/spellPlan.test.ts) names the
   ruling each test pins, and [`tests/golden/plans/`](../../../tests/golden/plans/) holds one text
   snapshot per lab preset. A ruling change edits both, visibly.

@@ -17,7 +17,7 @@
 import { scoreTracks } from '../score/compileScore.js';
 import { evaluateEnvelope } from '../score/envelopes.js';
 import { bindParcel, type Parcel } from './parcel.js';
-import { constrainFor, kernelFor, spawnFor } from './primitives/registry.js';
+import { constrainFor, kernelFor, spawnFor, throttleFor } from './primitives/registry.js';
 import { mulberry32, type Rng } from './rng.js';
 import { add3, scale3, subtract3 } from '../vec3.js';
 import type { Aperture, ScoreTrack, SpellScore } from '../../types.js';
@@ -79,7 +79,11 @@ function emit(
 	aperture: Aperture,
 	tMs: number
 ): void {
-	const rate = evaluateEnvelope(track.emission, score.beats, tMs);
+	// R-20: the envelope says how hard the seal would feed; the throttle says how
+	// much room is left to feed into. A full ball closes the valve without
+	// touching the clock, so the beat structure is untouched by capacity.
+	const rate =
+		evaluateEnvelope(track.emission, score.beats, tMs) * throttleFor(track, state.parcels);
 	const carried = (state.pending[track.id] ?? 0) + rate * STEP_SECONDS;
 	const wanted = Math.floor(carried);
 	state.pending[track.id] = carried - wanted;
@@ -108,9 +112,9 @@ function advect(
 	const steer = CAST.steerPerSecond * STEP_SECONDS;
 	parcel.velocity = add3(parcel.velocity, scale3(subtract3(target, parcel.velocity), steer));
 	parcel.at = add3(parcel.at, scale3(parcel.velocity, STEP_SECONDS));
-	constrainFor(track, parcel);
+	constrainFor(track, parcel, STEP_SECONDS);
 	if (holder) {
-		constrainFor(holder, parcel);
+		constrainFor(holder, parcel, STEP_SECONDS);
 	}
 }
 

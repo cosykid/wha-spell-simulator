@@ -1,8 +1,14 @@
 /**
  * @file The canon-snap seam. Canon spells should resolve to the plan the source
- * material shows, not merely to something near it — but the table that says so
- * cannot be written until the spec's open canon questions are ruled, so the seam
- * ships with an empty table and behaves as a passthrough (PDF defect J).
+ * material shows, not merely to something near it, so the seam ships as a
+ * passthrough over an empty table (PDF defect J).
+ *
+ * The open canon questions that blocked the table are ruled (R-14 to R-20), but
+ * the fingerprint is not yet expressive enough to fill it: the key carries no
+ * exhaust class and no gate class, so `Flame shot` — collimated with extended
+ * reach, which lives entirely in `hardness` and `reach` — cannot be told from a
+ * bare central column, and every all-inward region seal shares one key with
+ * `Water bolt`. Widening the key comes before the first row, not after it.
  *
  * **Fingerprint scheme.** A fingerprint is a slash-joined list of coarse classes
  * read off a resolved plan, never off raw geometry:
