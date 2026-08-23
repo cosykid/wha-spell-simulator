@@ -95,25 +95,6 @@ export interface MaterialProfile {
 }
 
 /**
- * A stand-in profile so every row compiles before its material is designed.
- * Each row must replace this with values argued from its `sourceNotes`; when
- * the last row does, delete this export.
- */
-export const PLACEHOLDER_MATERIAL: MaterialProfile = {
-	emissive: 0.5,
-	opacity: 0.7,
-	edge: 'feather',
-	bands: 3,
-	noiseScale: 1,
-	ribbonWidth: 0.12,
-	garnishDensity: 0.5,
-	trailPersistence: 0.5,
-	flicker: 0.3,
-	undulation: 0.3,
-	weight: 0.5
-};
-
-/**
  * One sigil's or element's five roles plus its material profile. A row is
  * complete on purpose: resolution picks a whole row and then indexes it, so
  * there is no half-resolved look and no per-field fallback chain to reason

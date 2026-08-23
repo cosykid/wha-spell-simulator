@@ -9,16 +9,37 @@
  *
  * It is also the reason `lookRow` can promise it never returns undefined, which
  * is what keeps the renderer's empty path from ever being written.
+ *
+ * The material is designed to lose every comparison it can lose and one it may
+ * not. Emission and garnish budget are the table's minimum, because nothing lit
+ * is being made and nothing is being thrown off. Its fill, break-up and swell
+ * all sit low, its edge is feathered because there is no form here with a
+ * silhouette to defend, and its weight is middling, which is what makes it slow
+ * to arrive and slow to leave. The one number it does not give up is trail
+ * persistence, which runs with the longest in the table: the motion has to stay
+ * legible, or R-11 turns back into the blank canvas it was written against.
  */
 
-import { PLACEHOLDER_MATERIAL, type LookRow } from './look.js';
+import type { LookRow } from './look.js';
 
 const ASH = [206, 206, 199] as const;
 const SLATE = [126, 130, 132] as const;
 const VOID_INK = [58, 62, 66] as const;
 
 export const INERT_LOOKS: LookRow = {
-	material: PLACEHOLDER_MATERIAL,
+	material: {
+		emissive: 0.02,
+		opacity: 0.22,
+		edge: 'feather',
+		bands: 0,
+		noiseScale: 1.2,
+		ribbonWidth: 0.11,
+		garnishDensity: 0.1,
+		trailPersistence: 0.75,
+		flicker: 0.08,
+		undulation: 0.2,
+		weight: 0.5
+	},
 	core: {
 		sprite: 'spark',
 		tint: { core: [222, 224, 218], edge: ASH },
