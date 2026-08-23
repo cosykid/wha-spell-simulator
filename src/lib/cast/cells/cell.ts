@@ -24,7 +24,7 @@
  */
 
 import type * as THREE from 'three';
-import type { Beat, ScoreTrack } from '../../types.js';
+import type { Beat, ScoreTrack, Vec3 } from '../../types.js';
 import type { LookRow } from '../looks/look.js';
 
 /** What a cell is built with. Fixed for the life of the cell. */
@@ -52,6 +52,21 @@ export interface CellFrame {
 	dtMs: number;
 }
 
+/**
+ * A ceiling a holder imposes on the cells the plan declared it captures. This is
+ * the whole of a coupling: the stage reads it off the holder after every step and
+ * hands it to each captured cell, which decides for itself what the ceiling means
+ * for its own form. Neither cell ever sees the other.
+ */
+export interface CellConstraint {
+	/** Seal space. Where the holder keeps what it holds. */
+	at: Vec3;
+	/** Seal units of shell around `at`. A captured form may not reach past it. */
+	radius: number;
+	/** 0..1, how closed the grip is. Zero holds nothing, so nothing is capped. */
+	closed: number;
+}
+
 /** One track's performer. */
 export interface Cell {
 	/** Parented under the stage's seal-space root, so its transform is seal space. */
@@ -59,6 +74,20 @@ export interface Cell {
 	update(frame: CellFrame): void;
 	/** Every geometry, material and texture the cell made. */
 	dispose(): void;
+	/**
+	 * Holder side of a coupling, optional. What this cell imposes on what it holds,
+	 * as of the last {@link Cell.update}. `null` while it grips nothing (R-16's
+	 * rotor never does). The stage only reads it, and the object stays the cell's
+	 * own: it is valid until the next step, so a reader may not keep it.
+	 */
+	constraint?(): CellConstraint | null;
+	/**
+	 * Captured side of a coupling, optional. The stage hands over the holder's
+	 * ceiling after every step. A cell that does not implement this is never
+	 * capped, which is exactly what an uncaptured cell is, so adding a cell to the
+	 * stage never requires thinking about couplings at all.
+	 */
+	bind?(constraint: CellConstraint | null): void;
 }
 
 export type CellFactory = (track: ScoreTrack, ctx: CellContext) => Cell;

@@ -12,8 +12,13 @@
  * const cell = cellFor(track, { seed, look, quality });
  */
 
+import { createAmbientCell } from './ambient.js';
+import { createBeamCell } from './beam.js';
 import { createBurstCell } from './burst.js';
-import { createUnbuiltCell } from './unbuilt.js';
+import { createFanCell } from './fan.js';
+import { createHoldCell } from './hold.js';
+import { createIntakeCell } from './intake.js';
+import { createVortexCell } from './vortex.js';
 import type { Cell, CellContext } from './cell.js';
 import type { ScoreTrack } from '../../types.js';
 
@@ -21,14 +26,17 @@ export function cellFor(track: ScoreTrack, ctx: CellContext): Cell {
 	switch (track.kind) {
 		case 'burst':
 			return createBurstCell(track, ctx);
-		// Phase 3 of `docs/animation-cells.md` gives each of these a performer:
-		// beam, fan, vortex, hold, intake and ambient, against looks v2 profiles.
-		case 'jet':
-		case 'fan':
 		case 'vortex':
-		case 'hold':
+			return createVortexCell(track, ctx);
 		case 'intake':
+			return createIntakeCell(track, ctx);
+		case 'hold':
+			return createHoldCell(track, ctx);
 		case 'shimmer':
-			return createUnbuiltCell(track);
+			return createAmbientCell(track, ctx);
+		case 'jet':
+			return createBeamCell(track, ctx);
+		case 'fan':
+			return createFanCell(track, ctx);
 	}
 }

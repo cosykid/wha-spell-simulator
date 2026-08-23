@@ -176,9 +176,13 @@ test('every kind a score can hold resolves to a cell, and unbuilt ones say so', 
 		const score = scoreFor(presetId);
 		for (const { track, cell } of performersFor(score)) {
 			assert.ok(cell.group, `${track.kind} has no group`);
-			if (track.kind !== 'burst') {
+			// A performed track names itself; a kind still waiting for its performer
+			// says which one it is standing in for and draws nothing.
+			if (cell.group.name.startsWith('unbuilt-')) {
 				assert.equal(cell.group.name, `unbuilt-${track.kind}`);
 				assert.equal(cell.group.visible, false);
+			} else {
+				assert.equal(cell.group.name, `cell-${track.id}`);
 			}
 		}
 	}

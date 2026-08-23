@@ -17,7 +17,10 @@
  * | release   | it commits: still spreading, letting go of its brightness. |
  * | afterglow | a scorch fading out where the shock passed.                |
  *
- * The catalog's radial ink licks are still to come; they arrive with looks v2.
+ * The look's material profile shapes all of it: `emissive` is how much light the
+ * event is made of, `garnishDensity` is how many licks break its rim,
+ * `flicker` is how ragged that rim runs, and `weight` is how hard the shock has
+ * to lean to get moving and how soon it drags to a stop.
  */
 
 import { createShockAnnulus } from './forms/shockAnnulus.js';
@@ -39,12 +42,16 @@ const BURST_CELL = {
 	maxLiftUnits: 0.14,
 	/** Radians of phase per seal unit of spread. The rim's licks turn as it grows. */
 	phasePerUnit: 2.4,
-	/** Scallops around the rim. Seeded, so two spells break differently. */
-	lobes: { min: 5, max: 9 },
+	/** Scallops around the rim: the material's garnish density, jittered by the seed. */
+	lobes: { min: 4, max: 11 },
+	/** Licks up the flash column, at no garnish density and at full. */
+	flashLicks: { min: 3, max: 7 },
+	/** How hard a unit of weight drags on the front, per seal unit already spread. */
+	dragPerUnit: 0.32,
+	/** How much of the strike's advance a unit of weight holds back. */
+	attackLag: 0.4,
 	/** Seal units the flash flares to, and stands, at the peak of the strike. */
 	flash: { radius: 0.34, heightUnits: 1.35, restingHeight: 0.35 },
-	/** Vertical licks around the flash. */
-	flashLicks: 4,
 	/** Peak alpha of the annulus. Additive ink piles up, so nothing here is opaque. */
 	shockAlpha: 0.85,
 	/** Peak alpha of the flash. */
@@ -76,19 +83,30 @@ function shapeOf(value: number, gain: number): number {
  */
 export function createBurstCell(track: Track<'burst'>, ctx: CellContext): Cell {
 	const rng = mulberry32(ctx.seed);
-	const spread = BURST_CELL.lobes.max - BURST_CELL.lobes.min;
-	const lobes = BURST_CELL.lobes.min + Math.floor(rng() * (spread + 1));
-	const seedPhase = rng() * Math.PI * 2;
 	const look = ctx.look[track.look];
+	const material = ctx.look.material;
+	const garnish = clamp(material.garnishDensity);
+	const lobes = Math.round(
+		BURST_CELL.lobes.min + (BURST_CELL.lobes.max - BURST_CELL.lobes.min) * garnish + (rng() * 2 - 1)
+	);
+	const seedPhase = rng() * Math.PI * 2;
+	/** How much of the event is its own light, and how much is just displaced air. */
+	const glow = 0.45 + 0.55 * clamp(material.emissive);
 
 	const shock = createShockAnnulus({
 		look,
 		lobes,
-		// A sloppier seal breaks a rougher rim. The score already paid for
-		// strength, so quality buys form here and nothing else.
-		roughness: 0.35 + 0.65 * (1 - clamp(ctx.quality))
+		// A sloppier seal breaks a rougher rim, and so does a material that
+		// flickers. The score already paid for strength, so both buy form here and
+		// nothing else.
+		roughness: clamp(0.25 + 0.45 * (1 - clamp(ctx.quality)) + 0.55 * clamp(material.flicker))
 	});
-	const flash = createFlashColumn({ look, licks: BURST_CELL.flashLicks });
+	const flash = createFlashColumn({
+		look,
+		licks: Math.round(
+			BURST_CELL.flashLicks.min + (BURST_CELL.flashLicks.max - BURST_CELL.flashLicks.min) * garnish
+		)
+	});
 	shock.mesh.name = 'burst-shock';
 	flash.mesh.name = 'burst-flash';
 
@@ -109,7 +127,14 @@ export function createBurstCell(track: Track<'burst'>, ctx: CellContext): Cell {
 				return;
 			}
 
-			frontUnits += track.params.speed * frame.drive * (frame.dtMs / 1000);
+			// Weight is felt twice: a heavy shock leans into the strike before it
+			// moves, and then drags itself down the further it has spread.
+			const attack =
+				frame.beat === 'strike'
+					? 1 - material.weight * BURST_CELL.attackLag * (1 - frame.beatT)
+					: 1;
+			const drag = 1 / (1 + material.weight * BURST_CELL.dragPerUnit * frontUnits);
+			frontUnits += track.params.speed * frame.drive * attack * drag * (frame.dtMs / 1000);
 			const phase = seedPhase + frontUnits * BURST_CELL.phasePerUnit;
 
 			const thinning = clamp(frontUnits / BURST_CELL.bandFadeUnits);
@@ -117,7 +142,7 @@ export function createBurstCell(track: Track<'burst'>, ctx: CellContext): Cell {
 			shock.setRing({
 				inner: Math.max(0, frontUnits - band),
 				outer: frontUnits,
-				alpha: SHOCK_PRESENCE[frame.beat](frame.beatT) * BURST_CELL.shockAlpha,
+				alpha: SHOCK_PRESENCE[frame.beat](frame.beatT) * BURST_CELL.shockAlpha * glow,
 				phase,
 				height: Math.min(
 					track.params.rise * frontUnits * BURST_CELL.liftPerUnit,
@@ -133,7 +158,7 @@ export function createBurstCell(track: Track<'burst'>, ctx: CellContext): Cell {
 				height:
 					BURST_CELL.flash.restingHeight +
 					(BURST_CELL.flash.heightUnits - BURST_CELL.flash.restingHeight) * bloom,
-				alpha: bloom * BURST_CELL.flashAlpha,
+				alpha: bloom * BURST_CELL.flashAlpha * glow,
 				phase
 			});
 		},

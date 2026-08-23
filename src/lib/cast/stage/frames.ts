@@ -10,7 +10,12 @@
  *
  * **Stepping fresh to `targetMs` is identical to stepping there incrementally.**
  *
+ * It is also where the score's declared couplings are carried, for the same
+ * reason `sim/cast.ts` carried them: a cell may not read another cell, so the
+ * holder's ceiling has to travel through the one thing that sees both.
+ *
  * @example
+ * bindCouplings(performers);
  * advanceCells(score, performers, clock, tMs);
  */
 
@@ -29,6 +34,30 @@ export const STAGE = {
 export interface Performer {
 	track: ScoreTrack;
 	cell: Cell;
+	/**
+	 * The performer whose ceiling this one meets, resolved once by
+	 * {@link bindCouplings} from the track's `capturedBy`. Absent on everything the
+	 * plan did not declare a coupling for, which is almost every track.
+	 */
+	holder?: Performer;
+}
+
+/**
+ * Resolve the score's declared couplings into performer pairs, once, when the
+ * cast is built. `capturedBy` is written by the score from a plan `Coupling`, so
+ * the cross-track path stays something a plan text golden can see.
+ *
+ * This is the whole of the stage's side of the ruling: the holder publishes a
+ * ceiling, the stage carries it, and the captured cell applies it to its own
+ * form. Nothing here reads into either cell.
+ */
+export function bindCouplings(performers: readonly Performer[]): void {
+	for (const performer of performers) {
+		const holderId = performer.track.capturedBy;
+		performer.holder = holderId
+			? performers.find((candidate) => candidate.track.id === holderId)
+			: undefined;
+	}
 }
 
 /** How far through the cast the stage has stepped. */
@@ -82,6 +111,14 @@ export function advanceCells(
 		clock.tMs = clock.steps * STAGE.stepMs;
 		for (const { track, cell } of performers) {
 			cell.update(cellFrameFor(score, track, clock.tMs));
+		}
+		// Every cell has now felt its own track and nothing else, which is the rule
+		// this has to run after: a ceiling is only meaningful once the holder has
+		// performed the step that set it.
+		for (const { cell, holder } of performers) {
+			if (holder) {
+				cell.bind?.(holder.cell.constraint?.() ?? null);
+			}
 		}
 	}
 }

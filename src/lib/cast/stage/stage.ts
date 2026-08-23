@@ -20,7 +20,13 @@ import * as THREE from 'three';
 import { compileScore, scoreTracks } from '../score/compileScore.js';
 import { lookRow } from '../looks/table.js';
 import { cellFor } from '../cells/registry.js';
-import { advanceCells, newStageClock, type Performer, type StageClock } from './frames.js';
+import {
+	advanceCells,
+	bindCouplings,
+	newStageClock,
+	type Performer,
+	type StageClock
+} from './frames.js';
 import { aimPortalCamera, createPortalCamera } from './portalCamera.js';
 import { createSealRoot } from './sealRoot.js';
 import { createStageSurface, type StageSurface } from './surface.js';
@@ -144,6 +150,9 @@ export class CastStage {
 		for (const { cell } of performers) {
 			this.#sealRoot.add(cell.group);
 		}
+		// The plan's declared couplings, resolved once. Every step after this hands
+		// each holder's ceiling to what it holds.
+		bindCouplings(performers);
 		this.#signature = spellIR.signature;
 		this.#cast = { score, performers, clock: newStageClock() };
 		return this.#cast;
