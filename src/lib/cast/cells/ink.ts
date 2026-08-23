@@ -2,7 +2,7 @@
  * @file The look table, read as three.js material settings. The one place a
  * `Look`'s art data becomes a GPU number, so a cell never reinterprets a tint.
  *
- * Looks stay data (`looks/CLAUDE.md`): this module reads them and never writes
+ * Looks stay data (`cast/CLAUDE.md`): this module reads them and never writes
  * one, and it holds no art of its own.
  */
 

@@ -52,6 +52,15 @@ circulation, aperture, quality) are continuous functions of the ink.
 
 ## The five layers
 
+**Layers 4 and 5 were superseded on 2026-08-24.** Everything below the score —
+`cast/sim/`, `cast/render/`, and the Canvas2D technology ruling further down —
+was replaced by the cell stage on branch `animation-cells`, per
+[`animation-cells.md`](animation-cells.md): one bespoke cell per track performs
+that track's envelopes as macroscopic form on a three.js stage, and the portal
+identity is kept rather than approximated. Layers 1 through 3 stand as written.
+The two sections below are the record of what was built first, and the module
+layout and fate tables that follow describe that same phase-5 shape.
+
 ### 1. Reading — `Recognition[] -> SealReading`
 
 Pure, in `compiler/reading/`. Contract: **downstream code never sees a raw

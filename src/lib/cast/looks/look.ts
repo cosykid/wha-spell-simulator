@@ -6,8 +6,8 @@
  * abandoned 3D attempts is a look table, because it is what stops an art fix
  * from being smuggled in as a physics term. That only holds while the data
  * cannot reach the behavior, so this directory may not import from
- * `compiler/plan/` or `cast/sim/`, and one `no-restricted-imports` rule in
- * `eslint.config.js` says so out loud.
+ * `compiler/plan/`, `cast/cells/` or `cast/stage/`, and one
+ * `no-restricted-imports` rule in `eslint.config.js` says so out loud.
  *
  * The five roles a track may ask a row for:
  *
@@ -26,10 +26,11 @@ import type { CurveId, LookRole } from '../../types.js';
 export type Rgb = readonly [red: number, green: number, blue: number];
 
 /**
- * Which pre-baked sprite a look blits. `../render/sprites.ts` bakes one per
- * (sprite, tint). `glint` is the one anisotropic shape: a specular cross no
- * radial gradient can make, and the only way crystal's facets read as facets
- * rather than as small cool balls.
+ * Which shape a look's flecks take. The 2D painter baked one sprite per
+ * (sprite, tint); the cell stage draws real geometry, so this now records the
+ * row's intent rather than naming an atlas entry. `glint` is the one
+ * anisotropic shape: a specular cross no radial gradient can make, and the only
+ * way crystal's facets read as facets rather than as small cool balls.
  */
 export type SpriteId = 'disc' | 'spark' | 'streak' | 'glint';
 

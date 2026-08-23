@@ -84,7 +84,7 @@ would begin only after the last refinement instead of when the ring was sealed.
 sole production caller and should stay that way.
 
 **`SpellIR.signature` is a reset key, not a debug string.**
-[`../cast/render/castRenderer.ts`](../cast/CLAUDE.md) compares it every frame and recompiles the score
+[`../cast/stage/stage.ts`](../cast/stage/CLAUDE.md) compares it every frame and rebuilds the cast
 from scratch when it changes. It folds in the sigil id, element, `manifestationSignature`, the plan
 digest, `active`, and rounded scalars. Changing what goes into it changes when a running cast restarts,
 so treat any edit as a renderer behavior change.
@@ -130,7 +130,7 @@ numbers at the use site.
   compiler edit. See [`docs/dictionary-authoring.md`](../../../docs/dictionary-authoring.md).
 - **Manifestation needing more than `{ strength }`**: extend `aggregateManifestations` the way
   `convergence` does through `convergenceProfile`, and give it a branch in `manifestationSignature`.
-- **Manifestation that should move parcels**: give it a family row in
+- **Manifestation that should move something**: give it a family row in
   [`plan/resolvePlan.ts`](plan/resolvePlan.ts) and a rule module beside the others. Nothing about
   motion belongs in this file.
 - **New `SpellPlan` field**: declare it in [`../types/spell-plan.ts`](../types/spell-plan.ts), print it

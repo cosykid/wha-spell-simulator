@@ -35,13 +35,15 @@ the ring radius, x right, y screen-down, z out of the paper (spec R-03).
   [`beats.ts`](score/beats.ts) the R-01 clock, [`envelopes.ts`](score/envelopes.ts)
   the six curves, `tracks/{burst,jet,fan,vortex,hold,intake,shimmer}.ts` one
   builder per primitive, `tracks/gain.ts` the shared saturation.
-- `stage/` — [`stage.ts`](stage/stage.ts) `CastStage`, the engine the three call
-  sites construct, over [`surface.ts`](stage/surface.ts) (the `WebGLRenderer` and
-  its canvas), [`frames.ts`](stage/frames.ts) (the fixed step and the couplings),
-  [`portalCamera.ts`](stage/portalCamera.ts) and [`sealRoot.ts`](stage/sealRoot.ts).
-- `cells/` — one performer per track kind, over [`cell.ts`](cells/cell.ts) the
-  contract and [`registry.ts`](cells/registry.ts), the one place kind is switched
-  on. `forms/` holds the geometry each cell is built from.
+- [`stage/`](stage/CLAUDE.md) — [`stage.ts`](stage/stage.ts) `CastStage`, the
+  engine the three call sites construct, over [`surface.ts`](stage/surface.ts)
+  (the `WebGLRenderer` and its canvas), [`frames.ts`](stage/frames.ts) (the fixed
+  step and the couplings), [`portalCamera.ts`](stage/portalCamera.ts) and
+  [`sealRoot.ts`](stage/sealRoot.ts).
+- [`cells/`](cells/CLAUDE.md) — one performer per track kind, over
+  [`cell.ts`](cells/cell.ts) the contract and [`registry.ts`](cells/registry.ts),
+  the one place kind is switched on. `forms/` holds the geometry each cell is
+  built from.
 - `looks/` — [`look.ts`](looks/look.ts) the contract,
   [`table.ts`](looks/table.ts) `LOOKS` and resolution, one file per row
   (`fire`, `water`, `wind`, `earth`, `light`, `crystal`, `aeroform`, `inert`).
@@ -74,33 +76,33 @@ in one perspective.
 
 ## Invariants and gotchas
 
-**A parcel belongs to exactly one track and feels only that track's kernel.**
-This one sentence replaces the field's sum-over-sources, and it is the reason a
-few percent of incidental bias can no longer drift the whole domain. A kernel
-takes its own params, a point and an age. Never give it a second track, the
-parcel list, or the score.
+**A cell is exactly one track, and feels only that track.** This one sentence
+replaces the field's sum-over-sources, and it is the reason a few percent of
+incidental bias can no longer drift the whole domain. A cell is built from its
+track and its context, and advanced by frames carrying its own two envelopes.
+Never give it a second track, another cell, or the score.
 
-**`throttle` is the one member that reads the population, and it may not steer
-anything.** R-20 states fill-to-capacity in terms of held mass, which no
-per-parcel function can see, so `Primitive.throttle(params, parcels)` returns an
-emission multiplier and nothing else. It is safe for the same reason `velocity`
-is: it derives its answer from the current state every step and never
-accumulates, so a fresh replay recomputes the identical gate. Only `hold`
-defines one. If you reach for it to move a parcel, you want a coupling instead.
+**R-20's fill-to-capacity lives inside the cell that holds it.** The sim needed a
+`throttle` member for it, because held mass is not something a per-parcel
+function can see. A cell is the whole track, so `hold` accumulates its own mass
+against `capacity` and approaches it without reaching it. That fill is the one
+thing it derives from its own history, and all it may steer is this cell's form
+and the ceiling it publishes.
 
 **The one cross-track path is a declared coupling, and it is a constraint, not a
-kernel.** Where the plan says `{ holder: 'hold', captures: [...] }` the score
-writes `capturedBy` on those tracks and `cast.ts` runs the holder's `constrain`
-after the parcel's own. A captured parcel still feels exactly one flow; it just
-also meets a ceiling. Nothing else in the sim may reach across tracks, and
-anything that wants to has to be declared in `plan/` first, where a text golden
-can see it.
+flow.** Where the plan says `{ holder: 'hold', captures: [...] }` the score
+writes `capturedBy` on those tracks, and [`stage/frames.ts`](stage/frames.ts)
+hands the holder's published ceiling to each captured cell after every cell has
+taken the step. A captured cell still feels exactly one track; it just also meets
+a ceiling. Nothing else below the score may reach across tracks, and anything
+that wants to has to be declared in `plan/` first, where a text golden can see
+it.
 
 **Stepping fresh to a timestamp is bit-identical to stepping there
 incrementally.** The clock is `steps * stepMs`, a product and never a running
-sum; every cell derives its state from `frame.tMs` rather than accumulating it;
-the only randomness is each cell's own seeded `Rng`. The golden tiers stand on
-this. If you add state to a cell, it has to survive the same test in
+sum; a cell that integrates anything integrates it on the same fixed `dtMs` at
+every frame rate, so the same step count always reaches the same state; the only
+randomness is each cell's own seeded `Rng`. The golden tiers stand on this. If you add state to a cell, it has to survive the same test in
 [`../../../tests/golden/cast.test.ts`](../../../tests/golden/cast.test.ts).
 
 **Never call `Math.random` or read a clock below `stage/`.** The stage owns the
@@ -146,21 +148,24 @@ stretch, and `leak` wherever wind decays). Those two rows are PDF defect I
 closed: they were unrepresentable while looks keyed on element, and adding them
 touched nothing but `table.ts`. That is the whole claim the layer makes.
 
-**The painter owns no portal numbers.** Screen position, painter order and size
-attenuation all come from `projectSeal`. Ground distance and height share one
-elevation, so a parcel and the paper it rose from cannot fall out of perspective.
-`sizePx` is screen pixels, matching the renderer it replaces.
+**The stage owns no portal numbers.** The camera in
+[`stage/portalCamera.ts`](stage/portalCamera.ts) is read off the portal's own
+ellipse and reproduces `projectSeal` to within 0.05px, so a form and the paper it
+rose from cannot fall out of perspective. Every number it uses comes from
+[`../portal/`](../portal/CLAUDE.md).
 
-**Do not reorder `state.parcels`.** Painter order is a sorted copy. The array's
-own order is part of the replay contract.
+**Do not reorder a layer's tracks.** A cell is seeded from the score signature
+and its own track index, so moving a track re-seeds every form after it. The
+order is part of the replay contract, and every cast baseline moves with it.
 
 **A cast is a one-shot.** Before `activatedAt` and after `score.totalMs` the
-renderer paints nothing, and both are ordinary early returns, not special cases.
+stage paints nothing, and both are ordinary early returns, not special cases.
 
 ## Extending
 
 - **New look, or new art for an element:** edit that element's row in `looks/`.
-  Nothing else may change. Sizes and tints are the whole surface.
+  Nothing else may change. The role tints and the row's `material` profile are
+  the whole surface.
 - **New sigil row:** add `looks/<sigil>.ts` and one line in `LOOKS`, the way
   `crystal` and `aeroform` did. Keying is by sigil id, so it takes precedence
   over the element row underneath it automatically. Argue the row from the
@@ -183,6 +188,8 @@ renderer paints nothing, and both are ordinary early returns, not special cases.
 
 ## Related
 
+- [`cells/CLAUDE.md`](cells/CLAUDE.md) — the performers and their forms ·
+  [`stage/CLAUDE.md`](stage/CLAUDE.md) — the camera, the step and the surface.
 - [`../types/spell-score.ts`](../types/spell-score.ts) — the score's shapes ·
   [`../types/spell-plan.ts`](../types/spell-plan.ts) — its input.
 - [`../compiler/CLAUDE.md`](../compiler/CLAUDE.md) — the plan this performs.
