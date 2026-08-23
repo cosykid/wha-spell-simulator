@@ -30,7 +30,7 @@ import {
 import { aimPortalCamera, createPortalCamera } from './portalCamera.js';
 import { createSealRoot } from './sealRoot.js';
 import { createStageSurface, type StageSurface } from './surface.js';
-import { hashSeed } from './rng.js';
+import { hashSeed } from '../rng.js';
 import { clamp } from '../../utils/geometry.js';
 import type { RingInfo, SpellIR, SpellScore } from '../../types.js';
 

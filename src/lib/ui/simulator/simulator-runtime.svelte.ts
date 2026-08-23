@@ -1,3 +1,4 @@
+import { castReadbackRequested } from '$lib/cast/stage/readback.js';
 import { CastStage } from '$lib/cast/stage/stage.js';
 import { CONFIG } from '$lib/config.js';
 import { emitMlDebug, ML_DEBUG_BUILD_ID } from '$lib/debug/mlDebug.js';
@@ -187,7 +188,11 @@ export class SimulatorRuntime {
 
 		if (!this.#castStage || this.#stageEffectCanvas !== ui.effectCanvas) {
 			this.#disposeCastStage();
-			this.#castStage = new CastStage(ui.effectCanvas);
+			this.#castStage = new CastStage(ui.effectCanvas, {
+				// Test-only and absent in production: a spec reading the effect canvas
+				// back needs the frame to survive compositing (`stage/readback.ts`).
+				preserveDrawingBuffer: castReadbackRequested(window.location.search)
+			});
 			this.#stageEffectCanvas = ui.effectCanvas;
 		}
 

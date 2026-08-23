@@ -1,0 +1,65 @@
+cast dispersion
+
+@0850ms beat=charge beatT=0.8673
+track shimmer-ambient kind=shimmer look=skin population=ambient emission=21.7311 drive=1.0000
+  group cell-shimmer-ambient
+    form ambient-haze blend=normal at=(0.0000, 0.0000, 0.0200) uAlpha=0.1113 uCore=(0.216, 0.701, 1.000) uEdge=(0.006, 0.195, 0.701) uLobes=4.0000 uPeak=1.3654 uPhase=5.0243 uWidth=0.4239
+    form ambient-motes blend=add instances=25 uAlpha=0.3657 uCeiling=0.5000 uCore=(0.006, 0.195, 0.701) uEdge=(0.003, 0.048, 0.195) uInhale=0.7523 uRim=1.0000 uStretch=1.0000 uTime=0.8500 uWander=0.0765
+  ceiling none
+track burst kind=burst look=core population=own emission=0.0000 drive=0.0000
+  group cell-burst hidden
+  ceiling none
+track fan-dispersion kind=fan look=body population=own emission=0.0000 drive=0.0000
+  group cell-fan-dispersion hidden
+  ceiling none
+
+@1100ms beat=strike beatT=0.3750
+track shimmer-ambient kind=shimmer look=skin population=ambient emission=20.3055 drive=1.0000
+  group cell-shimmer-ambient
+    form ambient-haze blend=normal at=(0.0000, 0.0000, 0.0200) uAlpha=0.0917 uCore=(0.216, 0.701, 1.000) uEdge=(0.006, 0.195, 0.701) uLobes=4.0000 uPeak=1.3140 uPhase=5.6079 uWidth=0.3844
+    form ambient-motes blend=add instances=25 uAlpha=0.3012 uCeiling=0.5000 uCore=(0.006, 0.195, 0.701) uEdge=(0.003, 0.048, 0.195) uInhale=0.8313 uRim=1.0000 uStretch=0.4500 uTime=1.1000 uWander=0.0765
+  ceiling none
+track burst kind=burst look=core population=own emission=425.3307 drive=0.8738
+  group cell-burst
+    form burst-shock blend=add at=(0.0000, 0.0000, 0.0035) uAlpha=0.3328 uCore=(0.491, 0.855, 1.000) uEdge=(0.216, 0.701, 1.000) uInner=0.0000 uLobes=7.0000 uOuter=0.1174 uPhase=1.2361 uWaveAmplitude=0.0090
+    form burst-flash blend=add turn=(1.5708, 0.0000, 0.0000) size=(0.3400, 1.2739, 0.3400) uAlpha=0.5342 uCore=(0.491, 0.855, 1.000) uEdge=(0.216, 0.701, 1.000) uLicks=4.0000 uPhase=1.2361
+  ceiling none
+track fan-dispersion kind=fan look=body population=own emission=61.2549 drive=0.5372
+  group cell-fan-dispersion
+    form fan-sheet blend=add uAlpha=0.5180 uBandDepth=0.6200 uBands=7.0000 uCore=(0.216, 0.701, 1.000) uEdge=(0.006, 0.195, 0.701) uEdgeMode=0.0000 uEmissive=0.3500 uFlicker=0.0000 uFlow=0.0508 uInner=0.2200 uLift=0.1230 uOpacity=0.6500 uOuter=1.1725 uSerration=0.0200 uSideFade=1.0000 uStreaks=10.0000 uUndulation=0.4500
+    form fan-sparks blend=add instances=23 uAlpha=0.4875 uCore=(0.730, 0.922, 1.000) uEdge=(0.216, 0.701, 1.000) uFlow=0.0508 uLift=0.1778 uOuter=1.1725 uSize=0.2340
+  ceiling none
+
+@1600ms beat=body beatT=0.1974
+track shimmer-ambient kind=shimmer look=skin population=ambient emission=17.1013 drive=1.0000
+  group cell-shimmer-ambient
+    form ambient-haze blend=normal at=(0.0000, 0.0000, 0.0200) uAlpha=0.0414 uCore=(0.216, 0.701, 1.000) uEdge=(0.006, 0.195, 0.701) uLobes=4.0000 uPeak=1.5493 uPhase=4.0158 uWidth=0.5250
+    form ambient-motes blend=add instances=25 uAlpha=0.1361 uCeiling=0.5000 uCore=(0.006, 0.195, 0.701) uEdge=(0.003, 0.048, 0.195) uInhale=0.5500 uRim=1.0000 uStretch=0.1500 uTime=1.6000 uWander=0.0765
+  ceiling none
+track burst kind=burst look=core population=own emission=0.0000 drive=0.4396
+  group cell-burst
+    form burst-shock blend=add at=(0.0000, 0.0000, 0.0146) uAlpha=0.4976 uCore=(0.491, 0.855, 1.000) uEdge=(0.216, 0.701, 1.000) uInner=0.1411 uLobes=7.0000 uOuter=0.4879 uPhase=2.1252 uWaveAmplitude=0.0090
+    form burst-flash hidden
+  ceiling none
+track fan-dispersion kind=fan look=body population=own emission=61.2549 drive=0.4800
+  group cell-fan-dispersion
+    form fan-sheet blend=add uAlpha=0.8081 uBandDepth=0.6200 uBands=7.0000 uCore=(0.216, 0.701, 1.000) uEdge=(0.006, 0.195, 0.701) uEdgeMode=0.0000 uEmissive=0.3500 uFlicker=0.0000 uFlow=0.2409 uInner=0.2490 uLift=0.2207 uOpacity=0.6500 uOuter=1.4441 uSerration=0.0200 uSideFade=1.0000 uStreaks=10.0000 uUndulation=0.4500
+    form fan-sparks blend=add instances=23 uAlpha=0.7605 uCore=(0.730, 0.922, 1.000) uEdge=(0.216, 0.701, 1.000) uFlow=0.2409 uLift=0.1778 uOuter=1.4441 uSize=0.2340
+  ceiling none
+
+@2600ms beat=body beatT=0.8553
+track shimmer-ambient kind=shimmer look=skin population=ambient emission=7.2621 drive=1.0000
+  group cell-shimmer-ambient
+    form ambient-haze blend=normal at=(0.0000, 0.0000, 0.0200) uAlpha=0.0414 uCore=(0.216, 0.701, 1.000) uEdge=(0.006, 0.195, 0.701) uLobes=4.0000 uPeak=1.4817 uPhase=4.3658 uWidth=0.5250
+    form ambient-motes blend=add instances=25 uAlpha=0.1361 uCeiling=0.5000 uCore=(0.006, 0.195, 0.701) uEdge=(0.003, 0.048, 0.195) uInhale=0.5500 uRim=1.0000 uStretch=0.1500 uTime=2.6000 uWander=0.0765
+  ceiling none
+track burst kind=burst look=core population=own emission=0.0000 drive=0.0143
+  group cell-burst
+    form burst-shock blend=add at=(0.0000, 0.0000, 0.0207) uAlpha=0.3359 uCore=(0.491, 0.855, 1.000) uEdge=(0.216, 0.701, 1.000) uInner=0.3717 uLobes=7.0000 uOuter=0.6884 uPhase=2.6066 uWaveAmplitude=0.0090
+    form burst-flash hidden
+  ceiling none
+track fan-dispersion kind=fan look=body population=own emission=61.2549 drive=0.3377
+  group cell-fan-dispersion
+    form fan-sheet blend=add uAlpha=0.6683 uBandDepth=0.6200 uBands=7.0000 uCore=(0.216, 0.701, 1.000) uEdge=(0.006, 0.195, 0.701) uEdgeMode=0.0000 uEmissive=0.3500 uFlicker=0.0000 uFlow=0.5491 uInner=0.3908 uLift=0.1813 uOpacity=0.6500 uOuter=1.8845 uSerration=0.0200 uSideFade=1.0000 uStreaks=10.0000 uUndulation=0.4500
+    form fan-sparks blend=add instances=23 uAlpha=0.6289 uCore=(0.730, 0.922, 1.000) uEdge=(0.216, 0.701, 1.000) uFlow=0.5491 uLift=0.1778 uOuter=1.8845 uSize=0.2340
+  ceiling none

@@ -15,7 +15,7 @@
 
 import * as THREE from 'three';
 import { inkBlending, inkColor } from '../ink.js';
-import type { Rng } from '../../stage/rng.js';
+import type { Rng } from '../../rng.js';
 import type { FanSector } from './fanSheet.js';
 import type { Look, MaterialProfile } from '../../looks/look.js';
 

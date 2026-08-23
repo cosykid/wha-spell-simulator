@@ -1,0 +1,71 @@
+cast region-ring
+
+@0850ms beat=charge beatT=0.8673
+track shimmer-ambient kind=shimmer look=skin population=ambient emission=21.7311 drive=1.0000
+  group cell-shimmer-ambient
+    form ambient-haze blend=normal at=(0.0000, 0.0000, 0.0200) uAlpha=0.1113 uCore=(0.216, 0.701, 1.000) uEdge=(0.006, 0.195, 0.701) uLobes=7.0000 uPeak=1.3654 uPhase=5.0243 uWidth=0.4239
+    form ambient-motes blend=add instances=25 uAlpha=0.3657 uCeiling=0.5000 uCore=(0.006, 0.195, 0.701) uEdge=(0.003, 0.048, 0.195) uInhale=0.7523 uRim=1.0000 uStretch=1.0000 uTime=0.8500 uWander=0.0765
+  ceiling none
+track burst kind=burst look=core population=own emission=0.0000 drive=0.0000
+  group cell-burst hidden
+  ceiling none
+track jet-exhaust kind=jet look=body population=own emission=0.0000 drive=0.0000
+  group cell-jet-exhaust hidden
+  ceiling none
+
+@1100ms beat=strike beatT=0.3750
+track shimmer-ambient kind=shimmer look=skin population=ambient emission=20.3055 drive=1.0000
+  group cell-shimmer-ambient
+    form ambient-haze blend=normal at=(0.0000, 0.0000, 0.0200) uAlpha=0.0917 uCore=(0.216, 0.701, 1.000) uEdge=(0.006, 0.195, 0.701) uLobes=7.0000 uPeak=1.3140 uPhase=5.6079 uWidth=0.3844
+    form ambient-motes blend=add instances=25 uAlpha=0.3012 uCeiling=0.5000 uCore=(0.006, 0.195, 0.701) uEdge=(0.003, 0.048, 0.195) uInhale=0.8313 uRim=1.0000 uStretch=0.4500 uTime=1.1000 uWander=0.0765
+  ceiling none
+track burst kind=burst look=core population=own emission=99.7790 drive=0.8738
+  group cell-burst
+    form burst-shock blend=add at=(0.0000, 0.0000, 0.0024) uAlpha=0.3328 uCore=(0.491, 0.855, 1.000) uEdge=(0.216, 0.701, 1.000) uInner=0.0000 uLobes=7.0000 uOuter=0.0787 uPhase=0.7234 uWaveAmplitude=0.0090
+    form burst-flash blend=add turn=(1.5708, 0.0000, 0.0000) size=(0.3400, 1.2739, 0.3400) uAlpha=0.5342 uCore=(0.491, 0.855, 1.000) uEdge=(0.216, 0.701, 1.000) uLicks=4.0000 uPhase=0.7234
+  ceiling none
+track jet-exhaust kind=jet look=body population=own emission=13.8020 drive=1.0000
+  group cell-jet-exhaust
+    group beam-aimed at=(0.0000, 0.0000, 0.1400)
+      form beam-spine blend=add uAlpha=0.4610 uBandDepth=0.6200 uBands=7.0000 uCore=(0.491, 0.855, 1.000) uEdge=(0.006, 0.195, 0.701) uEmissive=0.3500 uFlicker=0.0000 uFlow=0.1562 uLength=1.9184 uNoiseScale=1.0000 uTip=0.6094 uWidth=0.2882
+      form beam-ribbons blend=add uAlpha=0.4125 uBandDepth=0.6200 uBands=7.0000 uCore=(0.216, 0.701, 1.000) uEdge=(0.006, 0.195, 0.701) uEdgeMode=0.0000 uFeather=0.7213 uFlicker=0.0000 uFlow=0.1562 uLength=1.4579 uNoiseScale=0.9000 uOpacity=0.6500 uRadius=0.3406 uUndulation=0.1080 uWidth=0.1300
+    form beam-feeders hidden
+  ceiling none
+
+@1600ms beat=body beatT=0.1974
+track shimmer-ambient kind=shimmer look=skin population=ambient emission=17.1013 drive=1.0000
+  group cell-shimmer-ambient
+    form ambient-haze blend=normal at=(0.0000, 0.0000, 0.0200) uAlpha=0.0414 uCore=(0.216, 0.701, 1.000) uEdge=(0.006, 0.195, 0.701) uLobes=7.0000 uPeak=1.5493 uPhase=4.0158 uWidth=0.5250
+    form ambient-motes blend=add instances=25 uAlpha=0.1361 uCeiling=0.5000 uCore=(0.006, 0.195, 0.701) uEdge=(0.003, 0.048, 0.195) uInhale=0.5500 uRim=1.0000 uStretch=0.1500 uTime=1.6000 uWander=0.0765
+  ceiling none
+track burst kind=burst look=core population=own emission=0.0000 drive=0.4396
+  group cell-burst
+    form burst-shock blend=add at=(0.0000, 0.0000, 0.0099) uAlpha=0.4976 uCore=(0.491, 0.855, 1.000) uEdge=(0.216, 0.701, 1.000) uInner=0.0000 uLobes=7.0000 uOuter=0.3306 uPhase=1.3280 uWaveAmplitude=0.0090
+    form burst-flash hidden
+  ceiling none
+track jet-exhaust kind=jet look=body population=own emission=61.2950 drive=1.0000
+  group cell-jet-exhaust
+    group beam-aimed at=(0.0000, 0.0000, 0.1400)
+      form beam-spine blend=add uAlpha=0.7829 uBandDepth=0.6200 uBands=7.0000 uCore=(0.491, 0.855, 1.000) uEdge=(0.006, 0.195, 0.701) uEmissive=0.3500 uFlicker=0.0000 uFlow=0.7812 uLength=3.5098 uNoiseScale=1.0000 uTip=0.8421 uWidth=0.2402
+      form beam-ribbons blend=add uAlpha=0.7005 uBandDepth=0.6200 uBands=7.0000 uCore=(0.216, 0.701, 1.000) uEdge=(0.006, 0.195, 0.701) uEdgeMode=0.0000 uFeather=0.9400 uFlicker=0.0000 uFlow=0.7812 uLength=2.6674 uNoiseScale=0.9000 uOpacity=0.6500 uRadius=0.2838 uUndulation=0.1080 uWidth=0.1300
+    form beam-feeders hidden
+  ceiling none
+
+@2600ms beat=body beatT=0.8553
+track shimmer-ambient kind=shimmer look=skin population=ambient emission=7.2621 drive=1.0000
+  group cell-shimmer-ambient
+    form ambient-haze blend=normal at=(0.0000, 0.0000, 0.0200) uAlpha=0.0414 uCore=(0.216, 0.701, 1.000) uEdge=(0.006, 0.195, 0.701) uLobes=7.0000 uPeak=1.4817 uPhase=4.3658 uWidth=0.5250
+    form ambient-motes blend=add instances=25 uAlpha=0.1361 uCeiling=0.5000 uCore=(0.006, 0.195, 0.701) uEdge=(0.003, 0.048, 0.195) uInhale=0.5500 uRim=1.0000 uStretch=0.1500 uTime=2.6000 uWander=0.0765
+  ceiling none
+track burst kind=burst look=core population=own emission=0.0000 drive=0.0143
+  group cell-burst
+    form burst-shock blend=add at=(0.0000, 0.0000, 0.0141) uAlpha=0.3359 uCore=(0.491, 0.855, 1.000) uEdge=(0.216, 0.701, 1.000) uInner=0.1195 uLobes=7.0000 uOuter=0.4691 uPhase=1.6605 uWaveAmplitude=0.0090
+    form burst-flash hidden
+  ceiling none
+track jet-exhaust kind=jet look=body population=own emission=107.8187 drive=1.0000
+  group cell-jet-exhaust
+    group beam-aimed at=(0.0000, 0.0000, 0.1400)
+      form beam-spine blend=add uAlpha=0.9446 uBandDepth=0.6200 uBands=7.0000 uCore=(0.491, 0.855, 1.000) uEdge=(0.006, 0.195, 0.701) uEmissive=0.3500 uFlicker=0.0000 uFlow=2.0311 uLength=3.0290 uNoiseScale=1.0000 uTip=0.3158 uWidth=0.2157
+      form beam-ribbons blend=add uAlpha=0.8451 uBandDepth=0.6200 uBands=7.0000 uCore=(0.216, 0.701, 1.000) uEdge=(0.006, 0.195, 0.701) uEdgeMode=0.0000 uFeather=0.9400 uFlicker=0.0000 uFlow=2.0311 uLength=2.3020 uNoiseScale=0.9000 uOpacity=0.6500 uRadius=0.2550 uUndulation=0.1080 uWidth=0.1300
+    form beam-feeders hidden
+  ceiling none

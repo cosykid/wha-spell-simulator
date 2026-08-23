@@ -16,7 +16,7 @@
 import * as THREE from 'three';
 import { FLOW_INK_GLSL, bandDepth, edgeMode } from './flowInk.js';
 import { inkBlending, inkColor } from '../ink.js';
-import type { Rng } from '../../stage/rng.js';
+import type { Rng } from '../../rng.js';
 import type { Look, MaterialProfile } from '../../looks/look.js';
 
 /** Steps up one ribbon. The twist is a helix, so it needs the segments to be smooth. */

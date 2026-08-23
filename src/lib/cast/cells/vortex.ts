@@ -25,7 +25,7 @@
 
 import { createVortexArms } from './forms/vortexArms.js';
 import { createVortexFloor } from './forms/vortexFloor.js';
-import { mulberry32 } from '../stage/rng.js';
+import { mulberry32 } from '../rng.js';
 import { clamp } from '../../utils/geometry.js';
 import * as THREE from 'three';
 import type { Cell, CellConstraint, CellContext, CellFrame } from './cell.js';

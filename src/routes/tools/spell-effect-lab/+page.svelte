@@ -21,15 +21,15 @@
 	import { LabPreview } from './lab-preview.js';
 	import PlanPanel from './PlanPanel.svelte';
 	import { readGoldenFrameRequest } from './lab-goldens.js';
-	import { readLabEngineId } from './lab-engines.js';
+	import { castReadbackRequested } from '$lib/cast/stage/readback.js';
 
 	const controlEntries = Object.entries(EFFECT_CONTROLS);
 
 	// Test-only: the look golden tier asks for one preset at one timestamp.
 	const goldenFrame = readGoldenFrameRequest(page.url);
-	// The cell stage is the shipped engine. Migration-only: `?engine=cast` previews
-	// the 2D renderer it replaced, until step 5 deletes it.
-	const engineId = readLabEngineId(page.url);
+	// Test-only: a spec that reads pixels back off the effect canvas needs the
+	// frame to survive compositing, and so does the scripted clock's screenshot.
+	const preserveFrames = goldenFrame !== null || castReadbackRequested(page.url.search);
 
 	let sigil = $state(goldenFrame?.sigil ?? DEFAULT_SIGIL);
 	const element = $derived(elementForSigil(sigil));
@@ -59,7 +59,7 @@
 
 	function restartSpell() {
 		activatedAt = performance.now();
-		preview?.resetParticles();
+		preview?.resetCast();
 	}
 
 	function handleSlider(key: string, event: Event & { currentTarget: HTMLInputElement }) {
@@ -112,7 +112,7 @@
 				reading,
 				presetSigns: preset.signs
 			}),
-			{ id: engineId, scriptedClock: goldenFrame !== null }
+			{ preserveFrames }
 		);
 		if (goldenFrame) {
 			preview.renderGoldenFrame(goldenFrame.frameMs);

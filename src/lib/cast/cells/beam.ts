@@ -33,7 +33,7 @@
 import { createBeamSpine } from './forms/beamSpine.js';
 import { createBeamRibbons } from './forms/beamRibbons.js';
 import { createBeamFeeders } from './forms/beamFeeders.js';
-import { mulberry32 } from '../stage/rng.js';
+import { mulberry32 } from '../rng.js';
 import { clamp } from '../../utils/geometry.js';
 import * as THREE from 'three';
 import type { Cell, CellConstraint, CellContext, CellFrame } from './cell.js';

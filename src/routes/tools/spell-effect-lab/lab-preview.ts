@@ -6,7 +6,7 @@ import { vectorFromAngleDeg } from '$lib/utils/geometry.js';
 import { buildSpellIR } from '$lib/ui/spellEffectLab.js';
 import { renderPaper } from '$canvas/entities/paperEntity.js';
 import { drawGuides } from '$canvas/guideRenderer.js';
-import { createLabEngine, type LabEffectEngine, type LabEngineOptions } from './lab-engines.js';
+import { CastStage } from '$lib/cast/stage/stage.js';
 import { GOLDEN_FRAME_ATTRIBUTE, GOLDEN_FRAME_STEP_MS } from './lab-goldens.js';
 
 /** Live control state the preview samples each animation frame. */
@@ -21,11 +21,20 @@ export interface LabState {
 	presetSigns: Recognition[];
 }
 
+export interface LabPreviewOptions {
+	/**
+	 * Keep the last frame readable after it is composited. Test-only: the
+	 * scripted-clock path renders once and stops, and a screenshot of a swapped
+	 * buffer is blank.
+	 */
+	preserveFrames?: boolean;
+}
+
 /**
  * The Spell Effect Lab's canvas preview: a self-contained render harness driving two stacked
  * canvases (a synthetic glyph + the effect layer) from a {@link LabState} getter. It owns the
- * effect engine, the resize bookkeeping, and the animation loop; the page keeps
- * the reactive control state and reads back through `resetParticles`/`start`.
+ * cast stage, the resize bookkeeping, and the animation loop; the page keeps
+ * the reactive control state and reads back through `resetCast`/`start`.
  */
 export class LabPreview {
 	readonly #glyphCanvas: HTMLCanvasElement;
@@ -33,7 +42,7 @@ export class LabPreview {
 	readonly #shell: HTMLElement;
 	readonly #getState: () => LabState;
 	readonly #glyphCtx: CanvasRenderingContext2D;
-	readonly #engine: LabEffectEngine;
+	readonly #stage: CastStage;
 	#rafId: number | null = null;
 
 	constructor(
@@ -41,14 +50,16 @@ export class LabPreview {
 		effectCanvas: HTMLCanvasElement,
 		shell: HTMLElement,
 		getState: () => LabState,
-		engine: LabEngineOptions = {}
+		options: LabPreviewOptions = {}
 	) {
 		this.#glyphCanvas = glyphCanvas;
 		this.#effectCanvas = effectCanvas;
 		this.#shell = shell;
 		this.#getState = getState;
 		this.#glyphCtx = glyphCanvas.getContext('2d')!;
-		this.#engine = createLabEngine(effectCanvas, engine);
+		this.#stage = new CastStage(effectCanvas, {
+			preserveDrawingBuffer: options.preserveFrames
+		});
 	}
 
 	/** Begin the animation loop; returns a teardown that cancels the pending frame. */
@@ -77,9 +88,9 @@ export class LabPreview {
 		this.#effectCanvas.setAttribute(GOLDEN_FRAME_ATTRIBUTE, String(frameMs));
 	}
 
-	/** Drop accumulated render state so the next frame restarts the effect cleanly. */
-	resetParticles(): void {
-		this.#engine.reset();
+	/** Drop the cast in flight so the next frame restarts the effect cleanly. */
+	resetCast(): void {
+		this.#stage.reset();
 	}
 
 	#buildRing(values: Record<string, number>): RingInfo {
@@ -215,7 +226,7 @@ export class LabPreview {
 		this.#glyphCanvas.height = height;
 		this.#effectCanvas.width = width;
 		this.#effectCanvas.height = height;
-		this.resetParticles();
+		this.resetCast();
 	}
 
 	#frame(timestamp: number) {
@@ -236,6 +247,6 @@ export class LabPreview {
 			reading: state.reading
 		});
 		this.#drawSyntheticGlyph(ring, timestamp, state);
-		this.#engine.render(spellIR, ring, timestamp);
+		this.#stage.render(spellIR, ring, timestamp);
 	}
 }

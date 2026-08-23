@@ -22,7 +22,7 @@ import {
 	newStageClock,
 	type Performer
 } from '../src/lib/cast/stage/frames.js';
-import { hashSeed } from '../src/lib/cast/stage/rng.js';
+import { hashSeed } from '../src/lib/cast/rng.js';
 import { resolvePlan } from '../src/lib/compiler/plan/resolvePlan.js';
 import { readPresetSeal } from '../src/lib/ui/spellEffectLab.js';
 import { presetById } from '../src/lib/ui/spellEffectLabPresets.js';

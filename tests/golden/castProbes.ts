@@ -4,76 +4,33 @@
  * deliberately loose: a row pins the qualitative claim of its ruling, not today's
  * tuning constants.
  *
- * This is the whole probe table now. The field tier's rows died with
- * `sampleFieldForce`; the ones citing a real ruling were re-measured on parcels
- * and live here, and the ones citing `legacy` described the deleted engine.
+ * The rows used to be measured on the parcels a sim advected. They are measured
+ * on cell state now, because that is what performs a score. Most of them only
+ * changed instrument — "the beam lifts off the paper" is where its shaft ends
+ * rather than where its parcels averaged. The few whose reading died with the
+ * parcels carry a comment naming what they replaced; every ruling that had a row
+ * still has one.
  *
- * Most rows name a lab preset. The `pinwheel` fixture is the exception: R-05's
- * circulation `Gamma` is a **column-family** aggregate, and no lab preset draws
- * tangential columns, so the one arrangement the vortex exists for has to be
- * built here.
+ * Every subject is a lab preset. The hand-built `pinwheel` fixture retired when
+ * `column-pinwheel` joined the presets: R-05's circulation is a column-family
+ * aggregate, and that preset is now the seal that draws it.
  */
 
-import { compileScore } from '../../src/lib/cast/score/compileScore.js';
-import { resolvePlan } from '../../src/lib/compiler/plan/resolvePlan.js';
-import { classifyTwist } from '../../src/lib/compiler/reading/facing.js';
-import { readPresetSeal } from '../../src/lib/ui/spellEffectLab.js';
-import { LAB_PRESETS } from '../../src/lib/ui/spellEffectLabPresets.js';
-import { signedAngleDifferenceDeg, vectorFromAngleDeg } from '../../src/lib/utils/geometry.js';
-import { castSource } from './casts.js';
-import { GOLDEN_SIGIL } from './plans.js';
+import { LAB_PRESETS, type LabPreset } from '../../src/lib/ui/spellEffectLabPresets.js';
 import type { CastProbe } from './castProbeMetrics.js';
-import type { SignReading, SpellScore } from '../../src/lib/types.js';
 
-/** Inside the 980ms charge beat, on a whole simulation step. */
+/** Inside the 980ms charge beat, on a whole frame of the stage's step. */
 const CHARGE_MS = 850;
-/** Early in the body of a 4-second cast, while spawn positions still show. */
+/** Early in the body of a 4-second cast, while the strike's throw still shows. */
 const EARLY_BODY_MS = 1600;
-/** Late in the body of a 4-second cast, where the slow primitives have arrived. */
+/** Late in the body of a 4-second cast, where the slow forms have arrived. */
 const BODY_MS = 2600;
 /** Inside the release, where the drive has eased and a grip can take hold. */
 const RELEASE_MS = 3000;
 
-/** A column sign gated the way `readSeal` gates one. */
-function column(atDeg: number, facingDeg: number): SignReading {
-	return {
-		id: 'column',
-		manifestation: 'column',
-		at: vectorFromAngleDeg(atDeg),
-		length: 1,
-		facing: vectorFromAngleDeg(facingDeg),
-		facingClass: classifyTwist(signedAngleDifferenceDeg(atDeg + 180, facingDeg)),
-		facingSource: 'ml-pose',
-		facingTrust: 0.9,
-		power: 0.7
-	};
-}
-
-/** Four columns each pointing a quarter turn off their own arm: `P = 0, C = 0, Gamma = S`. */
-function pinwheelScore(): SpellScore {
-	const signs = [0, 90, 180, 270].map((atDeg) => column(atDeg, (atDeg + 90) % 360));
-	const reading = {
-		signs,
-		sigil: GOLDEN_SIGIL,
-		element: 'water' as const,
-		quality: 1,
-		symmetry: null,
-		notes: []
-	};
-	return compileScore(resolvePlan(reading), castSource('pinwheel'));
-}
-
 /** Every subject a row may name, by the name it names it with. */
-export function castSubjects(): Map<string, SpellScore> {
-	const subjects = new Map<string, SpellScore>();
-	for (const preset of LAB_PRESETS) {
-		subjects.set(
-			preset.id,
-			compileScore(resolvePlan(readPresetSeal(preset.signs, GOLDEN_SIGIL)), castSource(preset.id))
-		);
-	}
-	subjects.set('pinwheel', pinwheelScore());
-	return subjects;
+export function castSubjects(): Map<string, LabPreset> {
+	return new Map(LAB_PRESETS.map((preset) => [preset.id, preset]));
 }
 
 /** Rows that all probe one subject, so the name is written once per group. */
@@ -90,21 +47,23 @@ export const CAST_PROBES: CastProbe[] = [
 	...onEveryPreset({
 		atMs: CHARGE_MS,
 		of: 'medium',
-		expect: { metric: 'parcels', above: 0 },
+		expect: { metric: 'forms', above: 0 },
 		rulingId: 'R-10',
 		claim: 'the world holds a thin ambient medium whatever the seal manifests'
 	}),
+	// Replaces the parcels' inward `radialSpeed`: the medium is one haze and a few
+	// dozen strokes now, and how far it has drawn in is a number it carries.
 	...onEveryPreset({
 		atMs: CHARGE_MS,
 		of: 'medium',
-		expect: { metric: 'radialSpeed', below: 0 },
+		expect: { metric: 'uniform', form: 'ambient-motes', name: 'uInhale', above: 0.5 },
 		rulingId: 'R-01',
 		claim: 'and the charge beat is that medium drawing inward, not dead time'
 	}),
 	...onEveryPreset({
 		atMs: CHARGE_MS,
 		of: 'manifested',
-		expect: { metric: 'parcels', below: 1 },
+		expect: { metric: 'forms', below: 1 },
 		rulingId: 'R-02',
 		claim: 'while nothing the seal manifests may erupt before the portal has tilted'
 	}),
@@ -113,10 +72,9 @@ export const CAST_PROBES: CastProbe[] = [
 		{
 			atMs: BODY_MS,
 			of: 'jet',
-			expect: { metric: 'meanHeight', above: 0.2 },
+			expect: { metric: 'tip', form: 'beam-spine', length: 'uLength', axis: 'z', above: 0.5 },
 			rulingId: 'R-05',
-			claim:
-				'a balanced ring of columns clashes into a beam that lifts the population off the paper'
+			claim: 'a balanced ring of columns clashes into a beam that stands off the paper'
 		}
 	]),
 
@@ -124,7 +82,7 @@ export const CAST_PROBES: CastProbe[] = [
 		{
 			atMs: BODY_MS,
 			of: 'jet',
-			expect: { metric: 'meanX', below: -0.1 },
+			expect: { metric: 'tip', form: 'beam-spine', length: 'uLength', axis: 'x', below: -0.1 },
 			rulingId: 'R-05',
 			claim:
 				'the east sign faces inward, so the beam leans west, where the sign points, never toward the side carrying it'
@@ -133,20 +91,36 @@ export const CAST_PROBES: CastProbe[] = [
 
 	...on('column-levitation', [
 		{
-			atMs: BODY_MS,
+			atMs: EARLY_BODY_MS,
 			of: 'jet',
-			expect: { metric: 'maxHeight', above: 1.2 },
+			expect: { metric: 'tip', form: 'beam-spine', length: 'uLength', axis: 'z', above: 1.2 },
 			rulingId: 'R-18',
 			claim:
-				'drive wins while driven: a live beam fires straight through the grip, past its ceiling band, instead of being clipped mid-beam'
+				'drive wins while driven: a live beam stands past the grip closing on it instead of being clipped mid-beam'
 		},
 		{
 			atMs: RELEASE_MS,
 			of: 'jet',
-			expect: { metric: 'maxHeight', below: 1.7 },
+			expect: { metric: 'tip', form: 'beam-spine', length: 'uLength', axis: 'z', below: 1.3 },
 			rulingId: 'R-18',
 			claim:
-				'and grip wins on coast, so once the drive eases the hold takes the spent parcels instead of letting them coast away'
+				'and grip wins on coast, so once the drive eases the hold has the column at its own shell'
+		},
+		{
+			atMs: BODY_MS,
+			of: 'hold',
+			expect: { metric: 'ceiling', field: 'closed', above: 0.1 },
+			rulingId: 'R-18',
+			claim:
+				'the coupling is a ceiling and nothing else: the plan declared this capture, so the holder publishes a closed grip for the stage to carry'
+		},
+		{
+			atMs: BODY_MS,
+			of: 'hold',
+			expect: { metric: 'ceiling', field: 'radius', above: 0.1, below: 0.6 },
+			rulingId: 'R-13',
+			claim:
+				'and the ceiling is the ball it actually holds, so what was caught meets a shell rather than a stop at a point'
 		}
 	]),
 
@@ -154,7 +128,7 @@ export const CAST_PROBES: CastProbe[] = [
 		{
 			atMs: BODY_MS,
 			of: 'jet',
-			expect: { metric: 'meanHeight', above: 0.3 },
+			expect: { metric: 'tip', form: 'beam-spine', length: 'uLength', axis: 'z', above: 0.3 },
 			rulingId: 'R-14',
 			claim:
 				'unopposed convergence still leaves the paper: a half-ring is a diagonal geyser, never a ground-hugging surge'
@@ -162,36 +136,40 @@ export const CAST_PROBES: CastProbe[] = [
 		{
 			atMs: BODY_MS,
 			of: 'jet',
-			expect: { metric: 'meanX', below: -0.1 },
+			expect: { metric: 'tip', form: 'beam-spine', length: 'uLength', axis: 'x', below: -0.1 },
 			rulingId: 'R-14',
 			claim: 'and it leans off the open side of the ring, where the uncancelled flux points'
 		}
 	]),
 
+	// Replaces the burst's `axisDensity`: the shock is one annulus now and spreads
+	// isotropically by construction, so what a cancelled seal proves is that no ink
+	// steered anything — the beam standing is R-11's designed plume, not a column.
 	...on('column-cancelled', [
 		{
 			atMs: BODY_MS,
-			of: 'burst',
-			expect: { metric: 'axisDensity', radius: 0.3, below: 0.05 },
+			of: 'jet',
+			expect: { metric: 'tip', form: 'beam-spine', length: 'uLength', axis: 'z', below: 1.6 },
 			rulingId: 'R-15',
 			claim:
-				'cancelled ink leaves A = 0, so nothing steers the ring: it spreads isotropically instead of collimating'
+				'cancelled ink leaves A = 0, so nothing steers the ring: what stands is the designed default, not the column four signs would have thrown'
 		}
 	]),
 
 	...on('levitation-pinwheel', [
+		// Replaces the held parcels' `axisDensity`: a rotor is a hold that publishes
+		// no ceiling at all, which is the same claim read off the coupling itself.
 		{
 			atMs: BODY_MS,
 			of: 'hold',
-			expect: { metric: 'axisDensity', radius: 0.3, below: 0.05 },
+			expect: { metric: 'ceiling', field: 'closed', below: 0.01 },
 			rulingId: 'R-16',
-			claim:
-				'a rotor spins without a grip, so its mass rides a ring and leaves the hover axis empty, where a gripping hold packs it'
+			claim: 'a rotor spins without a grip, so it holds nothing and constrains nothing'
 		},
 		{
 			atMs: BODY_MS,
 			of: 'hold',
-			expect: { metric: 'meanHeight', above: 0.5 },
+			expect: { metric: 'origin', form: 'hold-shell', axis: 'z', above: 0.5 },
 			rulingId: 'R-16',
 			claim: 'and it still climbs to the rest height, because a gripless hold rises before it turns'
 		}
@@ -201,49 +179,60 @@ export const CAST_PROBES: CastProbe[] = [
 		{
 			atMs: BODY_MS,
 			of: 'hold',
-			expect: { metric: 'parcels', below: 1 },
+			expect: { metric: 'forms', below: 1 },
 			rulingId: 'R-17',
 			claim:
-				'outward levitation grips nothing, so a dud holds no mass at all rather than pressing or repelling'
+				'outward levitation grips nothing, so a dud builds no hold at all rather than pressing or repelling'
 		}
 	]),
 
+	// Both rows replace parcel geometry: a cell never sees the aperture the plan
+	// cut, so what R-19's fence leaves behind is the valve the score built for it —
+	// a gout raised off the paper, leaving along the axis the chevrons opened.
 	...on('region-pair', [
 		{
 			atMs: BODY_MS,
-			of: 'burst',
-			expect: { metric: 'meanRadius', above: 0.9 },
+			of: 'jet',
+			expect: { metric: 'origin', form: 'beam-spine', axis: 'z', above: 0.1 },
 			rulingId: 'R-19',
-			claim: 'two outward chevrons complete the fence, so the source is the moat and not the disc'
+			claim:
+				'two outward chevrons complete the fence, so the seal passes what it holds through a raised valve rather than off the open paper'
 		},
 		{
 			atMs: BODY_MS,
-			of: 'burst',
-			expect: { metric: 'axisDensity', radius: 0.5, below: 0.1 },
+			of: 'jet',
+			expect: { metric: 'tip', form: 'beam-spine', length: 'uLength', axis: 'radius', below: 0.2 },
 			rulingId: 'R-19',
-			claim: 'and the interior it fences off stays empty'
+			claim: 'and it exhausts up the axis, leaving the interior it fenced off alone'
 		}
 	]),
 
-	...on('pinwheel', [
+	...on('column-pinwheel', [
 		{
 			atMs: BODY_MS,
 			of: 'vortex',
-			expect: { metric: 'axisDensity', radius: 0.2, below: 0.02 },
+			expect: { metric: 'uniform', form: 'vortex-arms-ink', name: 'uFoot', above: 0.15 },
 			rulingId: 'R-05',
 			claim: 'a pinwheel of columns turns into a vortex, and its eye stays hollow'
 		},
 		{
 			atMs: BODY_MS,
 			of: 'vortex',
-			expect: { metric: 'axisDensity', radius: 0.8, above: 0.6 },
+			expect: {
+				metric: 'uniform',
+				form: 'vortex-arms-ink',
+				name: 'uCrown',
+				above: 0.4,
+				below: 1
+			},
 			rulingId: 'R-05',
-			claim: 'the funnel wall is where the population actually sits'
+			claim:
+				'the funnel wall stands inside the ring the columns were drawn on, where the mass rides'
 		},
 		{
 			atMs: BODY_MS,
 			of: 'vortex',
-			expect: { metric: 'meanHeight', above: 0.1 },
+			expect: { metric: 'uniform', form: 'vortex-arms-ink', name: 'uHeight', above: 0.5 },
 			rulingId: 'R-05',
 			claim: 'and the wall carries an updraft, so the cell climbs instead of stirring flat'
 		}
@@ -253,21 +242,23 @@ export const CAST_PROBES: CastProbe[] = [
 		{
 			atMs: BODY_MS,
 			of: 'hold',
-			expect: { metric: 'meanHeight', above: 0.6, below: 1.1 },
+			expect: { metric: 'origin', form: 'hold-shell', axis: 'z', above: 0.6, below: 1.1 },
 			rulingId: 'ground-truth-6',
 			claim: 'held magic settles into the hover band rather than climbing away'
 		},
 		{
 			atMs: BODY_MS,
 			of: 'hold',
-			expect: { metric: 'meanRadius', below: 0.5 },
+			expect: { metric: 'origin', form: 'hold-shell', axis: 'radius', below: 0.5 },
 			rulingId: 'ground-truth-6',
 			claim: 'and gathers onto the hover axis, so the grip reads as a blob and not a spray'
 		},
+		// Both R-20 rows replace parcel counts. R-20's fill lives in the cell as the
+		// grip the shell closes to, and in the ceiling that grip publishes.
 		{
 			atMs: RELEASE_MS,
 			of: 'hold',
-			expect: { metric: 'meanRadius', below: 0.35 },
+			expect: { metric: 'uniform', form: 'hold-shell', name: 'uGrip', above: 0.3 },
 			rulingId: 'R-20',
 			claim:
 				'by the release the ball has filled and closed its own feed, so it reads as a suspended mass rather than a column still being fed from the disk'
@@ -275,10 +266,10 @@ export const CAST_PROBES: CastProbe[] = [
 		{
 			atMs: RELEASE_MS,
 			of: 'hold',
-			expect: { metric: 'parcels', below: 40 },
+			expect: { metric: 'ceiling', field: 'closed', above: 0.3, below: 1 },
 			rulingId: 'R-20',
 			claim:
-				'and the held mass settles at a capacity set by the grip instead of growing with the clock'
+				'and the held mass settles at a capacity set by the grip, approaching it instead of growing with the clock'
 		}
 	]),
 
@@ -286,31 +277,39 @@ export const CAST_PROBES: CastProbe[] = [
 		{
 			atMs: BODY_MS,
 			of: 'intake',
-			expect: { metric: 'radialSpeed', below: 0 },
+			expect: { metric: 'uniform', form: 'intake-streamlines', name: 'uOutward', below: 0.5 },
 			rulingId: 'R-11',
 			claim: 'a pull-only seal manifests nothing, and what it shows is the medium streaming in'
 		},
 		{
 			atMs: BODY_MS,
 			of: 'intake',
-			expect: { metric: 'meanRadius', below: 0.8 },
+			expect: { metric: 'uniform', form: 'intake-streamlines', name: 'uTo', below: 0.9 },
 			rulingId: 'R-13',
+			claim: 'pull owns the intake verb: the strokes end gathered at the seal instead of dispersing'
+		},
+		// Replaces the arriving parcels' `axisDensity`: a pool and an eye are the
+		// same mouth on a streamline, and what tells them apart is the turn.
+		{
+			atMs: BODY_MS,
+			of: 'intake',
+			expect: {
+				metric: 'uniform',
+				form: 'intake-streamlines',
+				name: 'uTurn',
+				above: -0.01,
+				below: 0.01
+			},
+			rulingId: 'ground-truth-7',
 			claim:
-				'pull owns the intake verb: the population gathers toward the seal instead of dispersing'
+				'a straight pull does not turn on its way in, so arriving matter pools against the seal instead of winding into an eye'
 		},
 		{
 			atMs: BODY_MS,
 			of: 'intake',
-			expect: { metric: 'axisDensity', radius: 0.4, above: 0.1 },
+			expect: { metric: 'uniform', form: 'intake-streamlines', name: 'uLift', below: 0.05 },
 			rulingId: 'ground-truth-7',
-			claim: 'arriving matter pools against the seal instead of spiking through the center'
-		},
-		{
-			atMs: BODY_MS,
-			of: 'intake',
-			expect: { metric: 'meanHeight', below: 0.05 },
-			rulingId: 'ground-truth-7',
-			claim: 'a straight pull gains no twist, so its inflow stays flat on the paper'
+			claim: 'and it gains no twist, so its inflow stays flat on the paper'
 		}
 	]),
 
@@ -318,14 +317,14 @@ export const CAST_PROBES: CastProbe[] = [
 		{
 			atMs: BODY_MS,
 			of: 'intake',
-			expect: { metric: 'radialSpeed', above: 0 },
+			expect: { metric: 'uniform', form: 'intake-streamlines', name: 'uOutward', above: 0.5 },
 			rulingId: 'ground-truth-7',
 			claim: 'the same signed kernel un-reversed is a push: no second code path for inversion'
 		},
 		{
 			atMs: BODY_MS,
 			of: 'intake',
-			expect: { metric: 'meanHeight', below: 0.1 },
+			expect: { metric: 'uniform', form: 'intake-streamlines', name: 'uLift', below: 0.1 },
 			rulingId: 'R-07',
 			claim:
 				'an outward-facing pull carries no twist, so its push hugs the plane rather than climbing'
@@ -336,16 +335,18 @@ export const CAST_PROBES: CastProbe[] = [
 		{
 			atMs: BODY_MS,
 			of: 'fan',
-			expect: { metric: 'radialSpeed', above: 0.1 },
+			expect: { metric: 'uniform', form: 'fan-sheet', name: 'uOuter', above: 1 },
 			rulingId: 'R-07',
-			claim: 'dispersion gives C < 0: a radial fan away from the seal, on every side at once'
+			claim:
+				'dispersion gives C < 0: the sheet runs away from the seal, past the ring it was drawn on'
 		},
 		{
 			atMs: BODY_MS,
 			of: 'fan',
-			expect: { metric: 'meanHeight', below: 0.15 },
+			expect: { metric: 'uniform', form: 'fan-sheet', name: 'uLift', below: 0.35 },
 			rulingId: 'R-07',
-			claim: 'and the fan hugs the plane (canon Snugstone dispersal) rather than aiming out of it'
+			claim:
+				'and the fan hugs the plane (canon Snugstone dispersal): only its lip ever leaves the paper'
 		}
 	]),
 
@@ -353,26 +354,29 @@ export const CAST_PROBES: CastProbe[] = [
 		{
 			atMs: BODY_MS,
 			of: 'jet',
-			expect: { metric: 'meanX', above: 0.3 },
+			expect: { metric: 'tip', form: 'beam-spine', length: 'uLength', axis: 'x', above: 0.3 },
 			rulingId: 'R-09',
 			claim: 'row 10: collinear agreeing chevrons exhaust laterally along their facing, here east'
 		}
 	]),
 
+	// Both rows replace parcel geometry, for the reason `region-pair`'s do: the
+	// annulus the parcels spawned on is a plan fact the cell never reads, so what
+	// R-09 leaves measurable is the valve the opposed pair opened.
 	...on('region-ring', [
 		{
 			atMs: EARLY_BODY_MS,
 			of: 'jet',
-			expect: { metric: 'meanRadius', above: 0.6 },
+			expect: { metric: 'origin', form: 'beam-spine', axis: 'z', above: 0.1 },
 			rulingId: 'R-09',
-			claim: 'row 4: opposed pairs open an annulus, so what the valve passes sits on the ring line'
+			claim: 'row 4: opposed pairs open a valve, so what the seal passes leaves through it'
 		},
 		{
 			atMs: EARLY_BODY_MS,
 			of: 'jet',
-			expect: { metric: 'axisDensity', radius: 0.5, below: 0.1 },
+			expect: { metric: 'tip', form: 'beam-spine', length: 'uLength', axis: 'radius', below: 0.2 },
 			rulingId: 'R-09',
-			claim: 'and the interior is pinched off'
+			claim: 'and the flux runs up the one axis the pair left open, not across the interior'
 		}
 	]),
 
@@ -380,16 +384,17 @@ export const CAST_PROBES: CastProbe[] = [
 		{
 			atMs: BODY_MS,
 			of: 'intake',
-			expect: { metric: 'meanHeight', above: 0.05 },
+			expect: { metric: 'uniform', form: 'intake-streamlines', name: 'uLift', above: 0.1 },
 			rulingId: 'ground-truth-7',
 			claim: 'a slanted pull is helical inflow: only the twist lifts, and here it does'
 		},
 		{
 			atMs: BODY_MS,
 			of: 'intake',
-			expect: { metric: 'axisDensity', radius: 0.4, below: 0.02 },
+			expect: { metric: 'uniform', form: 'intake-streamlines', name: 'uTurn', below: -1 },
 			rulingId: 'ground-truth-7',
-			claim: 'and canon calls the slanted case a vortex, so its center is an eye and not a pool'
+			claim:
+				'and canon calls the slanted case a vortex, so its strokes wind an eye instead of pooling'
 		}
 	])
 ];

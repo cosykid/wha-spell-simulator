@@ -25,7 +25,7 @@
 
 import { createShockAnnulus } from './forms/shockAnnulus.js';
 import { createFlashColumn } from './forms/flashColumn.js';
-import { mulberry32 } from '../stage/rng.js';
+import { mulberry32 } from '../rng.js';
 import { clamp } from '../../utils/geometry.js';
 import * as THREE from 'three';
 import type { Cell, CellContext, CellFrame } from './cell.js';

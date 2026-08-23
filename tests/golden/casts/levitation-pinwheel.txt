@@ -1,0 +1,71 @@
+cast levitation-pinwheel
+
+@0850ms beat=charge beatT=0.8673
+track shimmer-ambient kind=shimmer look=skin population=ambient emission=21.7311 drive=1.0000
+  group cell-shimmer-ambient
+    form ambient-haze blend=normal at=(0.0000, 0.0000, 0.0200) uAlpha=0.1113 uCore=(0.216, 0.701, 1.000) uEdge=(0.006, 0.195, 0.701) uLobes=6.0000 uPeak=1.3654 uPhase=5.0243 uWidth=0.4239
+    form ambient-motes blend=add instances=25 uAlpha=0.3657 uCeiling=0.5000 uCore=(0.006, 0.195, 0.701) uEdge=(0.003, 0.048, 0.195) uInhale=0.7523 uRim=1.0000 uStretch=1.0000 uTime=0.8500 uWander=0.0765
+  ceiling none
+track burst kind=burst look=core population=own emission=0.0000 drive=0.0000
+  group cell-burst hidden
+  ceiling none
+track hold-levitation kind=hold look=body population=own emission=0.0000 drive=0.0000
+  group cell-hold-levitation hidden
+  ceiling none
+
+@1100ms beat=strike beatT=0.3750
+track shimmer-ambient kind=shimmer look=skin population=ambient emission=20.3055 drive=1.0000
+  group cell-shimmer-ambient
+    form ambient-haze blend=normal at=(0.0000, 0.0000, 0.0200) uAlpha=0.0917 uCore=(0.216, 0.701, 1.000) uEdge=(0.006, 0.195, 0.701) uLobes=6.0000 uPeak=1.3140 uPhase=5.6079 uWidth=0.3844
+    form ambient-motes blend=add instances=25 uAlpha=0.3012 uCeiling=0.5000 uCore=(0.006, 0.195, 0.701) uEdge=(0.003, 0.048, 0.195) uInhale=0.8313 uRim=1.0000 uStretch=0.4500 uTime=1.1000 uWander=0.0765
+  ceiling none
+track burst kind=burst look=core population=own emission=99.7790 drive=0.8738
+  group cell-burst
+    form burst-shock blend=add at=(0.0000, 0.0000, 0.0024) uAlpha=0.3328 uCore=(0.491, 0.855, 1.000) uEdge=(0.216, 0.701, 1.000) uInner=0.0000 uLobes=6.0000 uOuter=0.0787 uPhase=2.4127 uWaveAmplitude=0.0090
+    form burst-flash blend=add turn=(1.5708, 0.0000, 0.0000) size=(0.3400, 1.2739, 0.3400) uAlpha=0.5342 uCore=(0.491, 0.855, 1.000) uEdge=(0.216, 0.701, 1.000) uLicks=4.0000 uPhase=2.4127
+  ceiling none
+track hold-levitation kind=hold look=body population=own emission=51.9859 drive=1.0000
+  group cell-hold-levitation
+    group (unnamed) at=(0.0000, 0.0000, 0.8638)
+      form hold-shell blend=add size=(0.1560, 0.1560, 0.1560) uAlpha=0.0702 uContour=0.8500 uCore=(0.216, 0.701, 1.000) uEdge=(0.006, 0.195, 0.701) uEmissive=0.3500 uFill=0.6500 uGrip=0.0000 uPhase=0.1875 uPulse=0.3750 uUndulation=0.9000
+      form hold-rings blend=add uAlpha=0.5606 uBob=0.1875 uCore=(0.216, 0.701, 1.000) uDepth=0.7375 uEdge=(0.006, 0.195, 0.701) uLobes=7.0000 uRadius=0.1560 uSpin=-0.3914 uUndulation=0.9000 uWidth=0.0406
+    form hold-wisps blend=add uAlpha=0.2559 uArc=0.3170 uAt=(0.0000, 0.0000, 0.8638) uBeads=3.0000 uCore=(0.216, 0.701, 1.000) uEdge=(0.006, 0.195, 0.701) uPhase=-0.2039 uStop=0.1560 uWidth=0.0198
+  ceiling none
+
+@1600ms beat=body beatT=0.1974
+track shimmer-ambient kind=shimmer look=skin population=ambient emission=17.1013 drive=1.0000
+  group cell-shimmer-ambient
+    form ambient-haze blend=normal at=(0.0000, 0.0000, 0.0200) uAlpha=0.0414 uCore=(0.216, 0.701, 1.000) uEdge=(0.006, 0.195, 0.701) uLobes=6.0000 uPeak=1.5493 uPhase=4.0158 uWidth=0.5250
+    form ambient-motes blend=add instances=25 uAlpha=0.1361 uCeiling=0.5000 uCore=(0.006, 0.195, 0.701) uEdge=(0.003, 0.048, 0.195) uInhale=0.5500 uRim=1.0000 uStretch=0.1500 uTime=1.6000 uWander=0.0765
+  ceiling none
+track burst kind=burst look=core population=own emission=0.0000 drive=0.4396
+  group cell-burst
+    form burst-shock blend=add at=(0.0000, 0.0000, 0.0099) uAlpha=0.4976 uCore=(0.491, 0.855, 1.000) uEdge=(0.216, 0.701, 1.000) uInner=0.0000 uLobes=6.0000 uOuter=0.3306 uPhase=3.0173 uWaveAmplitude=0.0090
+    form burst-flash hidden
+  ceiling none
+track hold-levitation kind=hold look=body population=own emission=26.1546 drive=1.0000
+  group cell-hold-levitation
+    group (unnamed) at=(0.0000, 0.0000, 0.8733)
+      form hold-shell blend=add size=(0.1627, 0.1627, 0.1627) uAlpha=0.1125 uContour=0.8500 uCore=(0.216, 0.701, 1.000) uEdge=(0.006, 0.195, 0.701) uEmissive=0.3500 uFill=0.6500 uGrip=0.0000 uPhase=0.9375 uPulse=0.0000 uUndulation=0.9000
+      form hold-rings blend=add uAlpha=0.8982 uBob=0.9375 uCore=(0.216, 0.701, 1.000) uDepth=0.7375 uEdge=(0.006, 0.195, 0.701) uLobes=7.0000 uRadius=0.1627 uSpin=-1.9570 uUndulation=0.9000 uWidth=0.0406
+    form hold-wisps blend=add uAlpha=0.4101 uArc=0.3170 uAt=(0.0000, 0.0000, 0.8733) uBeads=3.0000 uCore=(0.216, 0.701, 1.000) uEdge=(0.006, 0.195, 0.701) uPhase=-1.0195 uStop=0.1627 uWidth=0.0198
+  ceiling none
+
+@2600ms beat=body beatT=0.8553
+track shimmer-ambient kind=shimmer look=skin population=ambient emission=7.2621 drive=1.0000
+  group cell-shimmer-ambient
+    form ambient-haze blend=normal at=(0.0000, 0.0000, 0.0200) uAlpha=0.0414 uCore=(0.216, 0.701, 1.000) uEdge=(0.006, 0.195, 0.701) uLobes=6.0000 uPeak=1.4817 uPhase=4.3658 uWidth=0.5250
+    form ambient-motes blend=add instances=25 uAlpha=0.1361 uCeiling=0.5000 uCore=(0.006, 0.195, 0.701) uEdge=(0.003, 0.048, 0.195) uInhale=0.5500 uRim=1.0000 uStretch=0.1500 uTime=2.6000 uWander=0.0765
+  ceiling none
+track burst kind=burst look=core population=own emission=0.0000 drive=0.0143
+  group cell-burst
+    form burst-shock blend=add at=(0.0000, 0.0000, 0.0141) uAlpha=0.3359 uCore=(0.491, 0.855, 1.000) uEdge=(0.216, 0.701, 1.000) uInner=0.1195 uLobes=6.0000 uOuter=0.4691 uPhase=3.3498 uWaveAmplitude=0.0090
+    form burst-flash hidden
+  ceiling none
+track hold-levitation kind=hold look=body population=own emission=0.8505 drive=1.0000
+  group cell-hold-levitation
+    group (unnamed) at=(0.0000, 0.0000, 0.8709)
+      form hold-shell blend=add size=(0.1610, 0.1610, 0.1610) uAlpha=0.1034 uContour=0.8500 uCore=(0.216, 0.701, 1.000) uEdge=(0.006, 0.195, 0.701) uEmissive=0.3500 uFill=0.6500 uGrip=0.0000 uPhase=2.4375 uPulse=0.0000 uUndulation=0.9000
+      form hold-rings blend=add uAlpha=0.8256 uBob=2.4375 uCore=(0.216, 0.701, 1.000) uDepth=0.7375 uEdge=(0.006, 0.195, 0.701) uLobes=7.0000 uRadius=0.1610 uSpin=-5.0882 uUndulation=0.9000 uWidth=0.0406
+    form hold-wisps blend=add uAlpha=0.3769 uArc=0.3170 uAt=(0.0000, 0.0000, 0.8709) uBeads=3.0000 uCore=(0.216, 0.701, 1.000) uEdge=(0.006, 0.195, 0.701) uPhase=-2.6507 uStop=0.1610 uWidth=0.0198
+  ceiling none

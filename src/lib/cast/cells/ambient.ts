@@ -23,7 +23,7 @@
 
 import { createHazeDisc } from './forms/hazeDisc.js';
 import { createMediumMotes, type MoteSeed } from './forms/mediumMotes.js';
-import { mulberry32, type Rng } from '../stage/rng.js';
+import { mulberry32, type Rng } from '../rng.js';
 import { clamp } from '../../utils/geometry.js';
 import * as THREE from 'three';
 import type { Cell, CellContext, CellFrame } from './cell.js';

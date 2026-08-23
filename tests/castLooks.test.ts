@@ -1,14 +1,14 @@
 /**
- * Law tests for the Paint layer's pure half: how a look is resolved, and the
- * arithmetic the painter turns a parcel into a sprite with.
+ * Law tests for the look table: how a row is resolved, and what the eight
+ * material profiles argue about the substances they dress a cell's forms in.
  *
  * The rulings are cited by id from `docs/animation-spec.md`; the rest pin the
  * contracts in `docs/animation-redesign.md` section 5, chief among them that
  * resolution never returns undefined, so no caller ever has cause to branch on
  * element.
  *
- * Drawing itself needs a canvas and belongs to the look golden tier. Everything
- * asserted here is a pure function.
+ * Drawing itself needs a GPU and belongs to the look golden tier. Everything
+ * asserted here is data or a pure function.
  */
 
 import assert from 'node:assert/strict';
@@ -23,14 +23,6 @@ import { EARTH_LOOKS } from '../src/lib/cast/looks/earth.js';
 import { LIGHT_LOOKS } from '../src/lib/cast/looks/light.js';
 import { WATER_LOOKS } from '../src/lib/cast/looks/water.js';
 import { WIND_LOOKS } from '../src/lib/cast/looks/wind.js';
-import {
-	depthAttenuation,
-	farthestFirst,
-	lifeProgress,
-	presenceAt,
-	sizeAt,
-	viewDistanceFor
-} from '../src/lib/cast/render/painter2d.js';
 import { SIGIL_OPTIONS } from '../src/lib/ui/spellEffectLab.js';
 import type { Look, LookRow, LookTable, MaterialProfile } from '../src/lib/cast/looks/look.js';
 import type { ElementId, LookRole } from '../src/lib/types.js';
@@ -357,60 +349,4 @@ test('R-11: the inert row is the faintest one, and its motion still reads', () =
 	for (const row of [WATER_LOOKS, EARTH_LOOKS, CRYSTAL_LOOKS]) {
 		assert.ok(INERT_LOOKS.material.trailPersistence > row.material.trailPersistence);
 	}
-});
-
-// ---------------------------------------------------------------------------
-// The painter's arithmetic
-// ---------------------------------------------------------------------------
-
-test('a parcel is fully present at birth and gone at retirement', () => {
-	assert.equal(lifeProgress({ ageS: 0, lifetimeS: 2 }), 0);
-	assert.equal(lifeProgress({ ageS: 1, lifetimeS: 2 }), 0.5);
-	// Past its lifetime a parcel is retired, never negatively present.
-	assert.equal(lifeProgress({ ageS: 5, lifetimeS: 2 }), 1);
-	assert.equal(lifeProgress({ ageS: 1, lifetimeS: 0 }), 1);
-
-	const decaying = LOOKS.fire.body;
-	assert.equal(decaying.fade, 'decay');
-	assert.equal(presenceAt(decaying, 0), 1);
-	assert.equal(presenceAt(decaying, 1), 0);
-});
-
-test('size is the look size range lerped by its own fade curve', () => {
-	const look = LOOKS.water.body;
-	const [min, max] = look.sizePx;
-	assert.equal(sizeAt(look, 1), max);
-	assert.equal(sizeAt(look, 0), min);
-	assert.equal(sizeAt(look, 0.5), (min + max) / 2);
-	// A decaying parcel therefore starts big and shrinks as it fades.
-	assert.ok(sizeAt(look, presenceAt(look, 0.1)) > sizeAt(look, presenceAt(look, 0.9)));
-});
-
-test('depth attenuation shrinks the far side of the seal and enlarges the near', () => {
-	const viewDistance = 8;
-	const centered = depthAttenuation(0, viewDistance);
-	assert.equal(centered, 1);
-	// `projectSeal` reports larger depth for farther, so the far rim reads smaller.
-	assert.ok(depthAttenuation(0.9, viewDistance) < centered);
-	assert.ok(depthAttenuation(-0.9, viewDistance) > centered);
-	// A parcel arriving at the camera is clamped rather than divided by zero.
-	assert.ok(Number.isFinite(depthAttenuation(-viewDistance, viewDistance)));
-	assert.ok(depthAttenuation(-100, viewDistance) <= 1.8);
-	assert.ok(depthAttenuation(100, viewDistance) >= 0.4);
-});
-
-test('the view distance is the portal own perspective, measured in ring radii', () => {
-	// A bigger ring on screen means the viewer is nearer it in seal units.
-	const near = viewDistanceFor({ center: { x: 0, y: 0 }, radiusX: 200, radiusY: 88, scaleY: 0.44 });
-	const far = viewDistanceFor({ center: { x: 0, y: 0 }, radiusX: 100, radiusY: 44, scaleY: 0.44 });
-	assert.ok(far > near);
-	assert.ok(near > 1, 'the viewer must stand outside the seal');
-});
-
-test('painter order draws the farthest parcel first', () => {
-	const sorted = [{ depth: -1 }, { depth: 2 }, { depth: 0.5 }].sort(farthestFirst);
-	assert.deepStrictEqual(
-		sorted.map((entry) => entry.depth),
-		[2, 0.5, -1]
-	);
 });

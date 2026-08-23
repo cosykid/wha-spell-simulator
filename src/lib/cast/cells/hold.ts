@@ -27,7 +27,7 @@
 import { createHoldShell } from './forms/holdShell.js';
 import { createOrbitRings, type RingPlacement } from './forms/orbitRings.js';
 import { createTetherWisps, type WispStrand } from './forms/tetherWisps.js';
-import { mulberry32, type Rng } from '../stage/rng.js';
+import { mulberry32, type Rng } from '../rng.js';
 import { clamp } from '../../utils/geometry.js';
 import * as THREE from 'three';
 import type { Cell, CellConstraint, CellContext, CellFrame } from './cell.js';
