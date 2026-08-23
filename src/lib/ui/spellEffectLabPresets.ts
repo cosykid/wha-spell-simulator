@@ -247,6 +247,17 @@ export const LAB_PRESETS: LabPreset[] = [
 		]
 	},
 	{
+		id: 'column-pinwheel',
+		label: 'Columns ×4 — tangential pinwheel',
+		description:
+			'R-05: four columns drawn across the ring instead of at it. Every lean cancels and every moment adds, so the fold spends the ink as circulation and the seal raises a vortex.',
+		signs: signsAt([0, 90, 180, 270], (angleDeg) => ({
+			id: 'column',
+			manifestation: 'column',
+			facingDeg: (angleDeg + 90) % 360
+		}))
+	},
+	{
 		id: 'levitation-pinwheel',
 		label: 'Levitation ×4 — rotor',
 		description:

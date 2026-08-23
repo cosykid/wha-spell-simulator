@@ -27,7 +27,8 @@
 
 	// Test-only: the look golden tier asks for one preset at one timestamp.
 	const goldenFrame = readGoldenFrameRequest(page.url);
-	// Migration-only: `?engine=stage` previews the cell stage. Default unchanged.
+	// The cell stage is the shipped engine. Migration-only: `?engine=cast` previews
+	// the 2D renderer it replaced, until step 5 deletes it.
 	const engineId = readLabEngineId(page.url);
 
 	let sigil = $state(goldenFrame?.sigil ?? DEFAULT_SIGIL);

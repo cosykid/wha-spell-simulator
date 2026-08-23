@@ -4,9 +4,10 @@
  *
  * What is pinned here is what `docs/animation-cells.md` rules and a screenshot
  * cannot catch: the charge is silent, the five beats differ, a replay is exact,
- * and the drawn arrangement reaches the form — three columns build three
- * converging strands where one column builds one, and the column they feed
- * stands well past the ring rather than dying inside it.
+ * the drawn arrangement reaches the form — three columns build three converging
+ * strands where one column builds one, and the column they feed stands well past
+ * the ring rather than dying inside it — and a declared coupling catches that
+ * column at the holder's shell.
  */
 
 import assert from 'node:assert/strict';
@@ -20,6 +21,7 @@ import { cellFor } from '../src/lib/cast/cells/registry.js';
 import {
 	STAGE,
 	advanceCells,
+	bindCouplings,
 	newStageClock,
 	type Performer
 } from '../src/lib/cast/stage/frames.js';
@@ -27,7 +29,7 @@ import { hashSeed } from '../src/lib/cast/stage/rng.js';
 import { resolvePlan } from '../src/lib/compiler/plan/resolvePlan.js';
 import { readPresetSeal } from '../src/lib/ui/spellEffectLab.js';
 import { presetById } from '../src/lib/ui/spellEffectLabPresets.js';
-import type { Beat, ScoreTrack, SpellScore } from '../src/lib/types.js';
+import type { Beat, ScoreTrack, SpellScore, Track } from '../src/lib/types.js';
 
 const SOURCE = { signature: 'test-directional', duration: 4 };
 
@@ -46,6 +48,17 @@ function performersFor(score: SpellScore): Performer[] {
 function steppedTo(score: SpellScore, stops: readonly number[]): Performer[] {
 	const performers = performersFor(score);
 	const clock = newStageClock();
+	for (const stop of stops) {
+		advanceCells(score, performers, clock, stop);
+	}
+	return performers;
+}
+
+/** The same cast with the score's declared couplings resolved, as the stage builds it. */
+function coupledTo(score: SpellScore, stops: readonly number[]): Performer[] {
+	const performers = performersFor(score);
+	const clock = newStageClock();
+	bindCouplings(performers);
 	for (const stop of stops) {
 		advanceCells(score, performers, clock, stop);
 	}
@@ -222,6 +235,27 @@ test('a balanced column stands well past the ring it was drawn in', () => {
 		const shaft = beamProbe(steppedTo(score, [midpointOf(score, beat)]));
 		assert.ok(shaft.length > 1.5, `the ${beat} beam only reached ${shaft.length} seal units`);
 	}
+});
+
+test('R-18: a declared hold catches the column at its shell', () => {
+	const score = scoreFor('column-levitation', 'water');
+	const at = midpointOf(score, 'body');
+	const free = beamProbe(steppedTo(score, [at]));
+	const caught = beamProbe(coupledTo(score, [at]));
+
+	const hold = scoreTracks(score).find((track) => track.kind === 'hold') as Track<'hold'>;
+	// The shell is the ball's own radius around the hover locus, so a column that
+	// is caught rather than clipped ends inside it and a free one runs past it.
+	const shell = hold.params.at.z + hold.params.radius * 2;
+	assert.ok(free.length > shell, `an uncaught column reached only ${free.length}`);
+	assert.ok(caught.length < shell, `the caught column ran to ${caught.length}`);
+	assert.ok(caught.length > hold.params.at.z * 0.5, 'it is caught at the grip, not switched off');
+	assert.ok(caught.tongue < free.tongue, 'and the tongue is not thrown past the grip');
+
+	// A ceiling reaches only what the plan declared captured, so an arrangement
+	// with no coupling in it renders identically either way.
+	const balanced = scoreFor('column-balanced', 'fire');
+	assert.deepEqual(beamProbe(coupledTo(balanced, [at])), beamProbe(steppedTo(balanced, [at])));
 });
 
 test('disposing a directional cell empties its group', () => {

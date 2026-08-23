@@ -2,11 +2,11 @@
  * @file The lab's effect engines, behind the one contract the preview's frame
  * loop calls: draw this frame, and forget the cast in flight.
  *
- * The app ships one engine and the no-second-engine law stands. The `stage`
- * entry below is the migration in `docs/animation-cells.md` step 1: the cell
- * stage, reachable **only here and only by URL**, so the three.js work can be
- * looked at beside the renderer it replaces. The default is unchanged, nothing
- * links to it, and step 4 ends it by making the stage the only engine there is.
+ * The app ships one engine and the no-second-engine law stands. Since the
+ * cutover (`docs/animation-cells.md` step 4) that engine is the cell stage, here
+ * and at the other two call sites alike. The `cast` entry below is the 2D
+ * renderer it replaced, reachable **only here and only by URL**, so the two can
+ * still be looked at side by side while the deletion in step 5 is pending.
  *
  * @example
  * const engine = createLabEngine(effectCanvas, { id: readLabEngineId(page.url) });
@@ -23,10 +23,10 @@ export interface LabEffectEngine {
 	reset(): void;
 }
 
-/** `cast` is the shipped 2D renderer; `stage` is the cell stage being built. */
+/** `stage` is the shipped cell stage; `cast` is the 2D renderer it replaced. */
 export type LabEngineId = 'cast' | 'stage';
 
-export const DEFAULT_LAB_ENGINE: LabEngineId = 'cast';
+export const DEFAULT_LAB_ENGINE: LabEngineId = 'stage';
 
 export interface LabEngineOptions {
 	id?: LabEngineId;
@@ -39,7 +39,7 @@ export interface LabEngineOptions {
 
 /** The engine this URL asks for. Anything unrecognized falls to the shipped one. */
 export function readLabEngineId(url: URL): LabEngineId {
-	return url.searchParams.get('engine') === 'stage' ? 'stage' : DEFAULT_LAB_ENGINE;
+	return url.searchParams.get('engine') === 'cast' ? 'cast' : DEFAULT_LAB_ENGINE;
 }
 
 export function createLabEngine(

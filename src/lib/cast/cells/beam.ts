@@ -21,6 +21,11 @@
  * | release   | it commits: the tongue lets go and flies, the strands give up. |
  * | afterglow | the ribbons feather away and the shaft fades where it stood.   |
  *
+ * Where the plan declares a hold over the jet, that holder's ceiling arrives
+ * through {@link Cell.bind} and stops the shaft at the shell, so
+ * `column-levitation` reads as a column caught in the grip rather than as one
+ * running through it.
+ *
  * @example
  * const beam = createBeamCell(track, { seed, look, quality });
  */
@@ -31,7 +36,7 @@ import { createBeamFeeders } from './forms/beamFeeders.js';
 import { mulberry32 } from '../stage/rng.js';
 import { clamp } from '../../utils/geometry.js';
 import * as THREE from 'three';
-import type { Cell, CellContext, CellFrame } from './cell.js';
+import type { Cell, CellConstraint, CellContext, CellFrame } from './cell.js';
 import type { Beat, Track } from '../../types.js';
 
 const BEAM_CELL = {
@@ -51,6 +56,15 @@ const BEAM_CELL = {
 	feederRise: 0.85,
 	/** Fraction of its own radius a strand closes to at the throat. */
 	feederThroat: 0.32,
+	/**
+	 * How closed a holder's grip has to be before it has the column outright. A
+	 * shaft is thin next to a funnel, so it does not take a brim-full ball to stop
+	 * one, and the four-sign levitation ring the coupling exists for settles at
+	 * about a third closed.
+	 */
+	caughtAt: 0.3,
+	/** How much of the tongue's throw a fully caught column gives up. */
+	caughtTongue: 0.7,
 	alpha: { spine: 0.95, ribbons: 0.85, feeders: 1 }
 } as const;
 
@@ -143,6 +157,37 @@ function shapeOf(value: number, gain: number): number {
 	return gain > 0 ? clamp(value / gain) : 0;
 }
 
+/**
+ * The shaft a holder's shell leaves room for. R-18's ceiling caps how far the
+ * column may stand and nothing else about it: the length is cut back to where
+ * the axis leaves the shell, and a grip still opening only cuts it part way, so
+ * the beam punches out at the strike and is reeled onto the shell as the ball
+ * fills rather than being switched off.
+ *
+ * The constraint arrives as a value each step. Nothing here reads the holder.
+ */
+function heldWithin(
+	length: number,
+	held: CellConstraint | null,
+	root: THREE.Vector3,
+	axis: THREE.Vector3
+): number {
+	if (!held || held.closed <= 0) {
+		return length;
+	}
+	const toX = held.at.x - root.x;
+	const toY = held.at.y - root.y;
+	const toZ = held.at.z - root.z;
+	const along = toX * axis.x + toY * axis.y + toZ * axis.z;
+	// Half the chord the axis cuts through the shell, and zero where it misses it
+	// entirely, which stops the shaft at the grip's own height instead.
+	const offAxisSq = Math.max(0, toX * toX + toY * toY + toZ * toZ - along * along);
+	const chord = Math.sqrt(Math.max(0, held.radius * held.radius - offAxisSq));
+	const ceiling = Math.max(0, along + chord);
+	const bite = clamp(held.closed / BEAM_CELL.caughtAt);
+	return length + (Math.min(length, ceiling) - length) * bite;
+}
+
 function variantOf(track: Track<'jet'>): BeamVariant {
 	if (track.id === 'jet-exhaust') {
 		return 'valve';
@@ -222,9 +267,14 @@ export function createBeamCell(track: Track<'jet'>, ctx: CellContext): Cell {
 
 	/** Seal units the beam has pushed. The cell's only accumulated state. */
 	let pushedUnits = 0;
+	/** The holder's ceiling, when the plan declared one. Never read across cells. */
+	let held: CellConstraint | null = null;
 
 	return {
 		group,
+		bind(constraint) {
+			held = constraint;
+		},
 		update(frame: CellFrame) {
 			// R-01: the charge belongs to the ambient medium, so a beam is not merely
 			// dark here, it is absent.
@@ -237,14 +287,18 @@ export function createBeamCell(track: Track<'jet'>, ctx: CellContext): Cell {
 			const flow = pushedUnits * BEAM_CELL.turnsPerUnit;
 			const density = 0.6 + 0.4 * shapeOf(frame.emission, track.emission.gain);
 			const presence = BEAM_PRESENCE[frame.beat](frame.beatT) * density * form.alpha;
-			const length = standing * BEAM_EXTENT[frame.beat](frame.beatT);
+			const reach = standing * BEAM_EXTENT[frame.beat](frame.beatT);
+			const length = heldWithin(reach, held, aimed.position, axis);
+			// How much of its own reach the ceiling took. A column caught at a shell
+			// is not also flying, so the tongue's throw goes with the length.
+			const caught = reach > 1e-6 ? 1 - length / reach : 0;
 			const girth = footprint * form.girth * BEAM_GIRTH[frame.beat](frame.beatT);
 
 			spine.setShaft({
 				length,
 				width: girth * BEAM_CELL.spineWidth,
 				alpha: presence * BEAM_CELL.alpha.spine,
-				tip: BEAM_TONGUE[frame.beat](frame.beatT),
+				tip: BEAM_TONGUE[frame.beat](frame.beatT) * (1 - BEAM_CELL.caughtTongue * caught),
 				flow
 			});
 			ribbons.setSheath({

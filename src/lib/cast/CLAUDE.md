@@ -4,8 +4,9 @@ The cast: a resolved `SpellPlan` performed as a finite, timed, replayable
 animation. Four layers, in order, each with one job:
 
 ```
-SpellPlan -> score/ -> SpellScore -> sim/ -> Parcel[] -> render/ -> pixels
-                                                looks/ (data, read by render/)
+SpellPlan -> score/ -> SpellScore -> stage/ -> pixels
+                              cells/ (one performer per track kind)
+                              looks/ (material profiles, read by cells)
 ```
 
 This directory replaced the force field and the six effect renderers the redesign
@@ -16,6 +17,14 @@ second engine, no ownership boolean and no fallback branch anywhere below
 [`../../../docs/animation-redesign.md`](../../../docs/animation-redesign.md) and
 [`../../../docs/animation-spec.md`](../../../docs/animation-spec.md) before
 changing anything here; every rule below is one of theirs.
+
+**Below the score, the performer is the cell stage** — see
+[`../../../docs/animation-cells.md`](../../../docs/animation-cells.md), whose
+step 4 pointed the three call sites at `CastStage`. Everything from the score up
+is unchanged in role, and the sections below still describe it. `sim/` and
+`render/` are the Canvas2D engine the stage replaced: they are reachable only
+through the lab's `?engine=cast` URL and step 5 deletes them, along with the
+parts of this file that describe them.
 
 Seal space, as everywhere below `SpellIR`: origin at the ring center, one unit =
 the ring radius, x right, y screen-down, z out of the paper (spec R-03).
@@ -31,7 +40,14 @@ the ring radius, x right, y screen-down, z out of the paper (spec R-03).
   surface, [`rng.ts`](sim/rng.ts), [`falloff.ts`](sim/falloff.ts),
   `primitives/{burst,jet,fan,vortex,hold,intake,shimmer}.ts` the kernels plus
   [`registry.ts`](sim/primitives/registry.ts), the one place kind is switched on.
-- `render/` — [`castRenderer.ts`](render/castRenderer.ts) the engine,
+- `stage/` — [`stage.ts`](stage/stage.ts) `CastStage`, the engine the three call
+  sites construct, over [`surface.ts`](stage/surface.ts) (the `WebGLRenderer` and
+  its canvas), [`frames.ts`](stage/frames.ts) (the fixed step and the couplings),
+  [`portalCamera.ts`](stage/portalCamera.ts) and [`sealRoot.ts`](stage/sealRoot.ts).
+- `cells/` — one performer per track kind, over [`cell.ts`](cells/cell.ts) the
+  contract and [`registry.ts`](cells/registry.ts), the one place kind is switched
+  on. `forms/` holds the geometry each cell is built from.
+- `render/` — [`castRenderer.ts`](render/castRenderer.ts) the old engine,
   [`painter2d.ts`](render/painter2d.ts) parcels to pixels,
   [`sprites.ts`](render/sprites.ts) the baked atlas: four shapes, each one
   gradient circle drawn under a list of scales, so a `streak` is a stretched

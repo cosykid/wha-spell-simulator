@@ -1,4 +1,4 @@
-import { CastRenderer } from '$lib/cast/render/castRenderer.js';
+import { CastStage } from '$lib/cast/stage/stage.js';
 import { CONFIG } from '$lib/config.js';
 import { emitMlDebug, ML_DEBUG_BUILD_ID } from '$lib/debug/mlDebug.js';
 import type { CanvasBehavior } from '$lib/ui/canvas/canvasBehavior.js';
@@ -38,8 +38,8 @@ interface SimulatorRuntimeOptions {
 export class SimulatorRuntime {
 	#input: SimulatorInputControllers | null = null;
 	#sizing: CanvasSizingController | null = null;
-	#castRenderer: CastRenderer | null = null;
-	#rendererEffectCanvas: HTMLCanvasElement | null = null;
+	#castStage: CastStage | null = null;
+	#stageEffectCanvas: HTMLCanvasElement | null = null;
 	#keyboardHandler: ((event: KeyboardEvent) => void) | null = null;
 	#attachedGlyphCanvas: HTMLCanvasElement | null = null;
 	#pendingGlyphDetach: object | null = null;
@@ -174,6 +174,10 @@ export class SimulatorRuntime {
 	 * spell is a cast and nothing else: there is no ownership flag and no fallback
 	 * engine here, because R-11 makes "manifests nothing" a look the cast paints.
 	 * The seal guides are the glyph scene's (`sealGuidesEntity`).
+	 *
+	 * The effect canvas belongs to the stage's WebGL context, and a canvas that
+	 * ever handed out a `2d` one can never give that back, so nothing else may
+	 * draw on it. The `ctx` this receives is the glyph canvas's.
 	 */
 	renderCanvasFrame = (_ctx: CanvasRenderingContext2D, timestamp: number) => {
 		const { recognition, ui } = this.#options;
@@ -181,12 +185,13 @@ export class SimulatorRuntime {
 			return;
 		}
 
-		if (!this.#castRenderer || this.#rendererEffectCanvas !== ui.effectCanvas) {
-			this.#castRenderer = new CastRenderer(ui.effectCanvas);
-			this.#rendererEffectCanvas = ui.effectCanvas;
+		if (!this.#castStage || this.#stageEffectCanvas !== ui.effectCanvas) {
+			this.#disposeCastStage();
+			this.#castStage = new CastStage(ui.effectCanvas);
+			this.#stageEffectCanvas = ui.effectCanvas;
 		}
 
-		this.#castRenderer.render(recognition.spellIR, recognition.ring, timestamp, {
+		this.#castStage.render(recognition.spellIR, recognition.ring, timestamp, {
 			portalFit: ui.portalFit
 		});
 	};
@@ -255,8 +260,14 @@ export class SimulatorRuntime {
 		this.#input?.disable();
 		this.#input = null;
 		this.#attachedGlyphCanvas = null;
-		this.#castRenderer = null;
-		this.#rendererEffectCanvas = null;
+		this.#disposeCastStage();
+	}
+
+	/** Hand the WebGL context back. The next frame builds a stage on whatever is mounted. */
+	#disposeCastStage() {
+		this.#castStage?.dispose();
+		this.#castStage = null;
+		this.#stageEffectCanvas = null;
 	}
 
 	#setupInputControllers() {

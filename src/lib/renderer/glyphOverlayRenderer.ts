@@ -6,10 +6,15 @@
  * spell behavior, so the redesign moved them here, onto the surface holding the
  * ink they annotate. Nothing here draws an active spell: that is `cast/`'s.
  *
+ * The charge beat's own event, the ink taking light stroke by stroke, is one
+ * concern over in [`sealIgnition.ts`](sealIgnition.ts). The glow below is what
+ * that hands off to.
+ *
  * Recognition labels are one concern down in
  * [`glyphDebugOverlay.ts`](glyphDebugOverlay.ts).
  */
 
+import { BEAT_MS } from '../cast/score/beats.js';
 import type { RingInfo, SpellIR, Stroke } from '../types.js';
 
 // ---------------------------------------------------------------------------
@@ -95,7 +100,9 @@ function drawSingleGlowingStroke(
 
 	const glow: GlowParams = {
 		pulse: 0.5 + Math.sin(timestamp * 0.004) * 0.5,
-		flicker: Math.random() * 0.08,
+		// Deterministic on purpose: the look golden tier screenshots this layer, and
+		// a random wobble makes every baseline a coin flip.
+		flicker: 0.04 + Math.sin(timestamp * 0.037) * 0.04,
 		glowAlpha
 	};
 
@@ -127,7 +134,11 @@ function glowAlphaAt(timestamp: number, activatedAt: number, duration: number): 
 		return 0;
 	}
 	const t = Math.min(1, elapsed / duration);
-	return Math.pow(1 - t, 2);
+	// R-01: the ink *brightens* through the charge rather than arriving already
+	// lit, so the glow swells over that first beat and cools across the rest of
+	// the cast. The swell is what the ignition front hands off to at the strike.
+	const kindling = Math.min(1, elapsed / BEAT_MS.charge);
+	return kindling * Math.pow(1 - t, 2);
 }
 
 export function drawGlowingStrokes(

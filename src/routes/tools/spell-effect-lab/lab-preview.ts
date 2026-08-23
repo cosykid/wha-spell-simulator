@@ -1,5 +1,6 @@
 import { CONFIG } from '$lib/config.js';
 import { drawGlowingStrokes } from '$lib/renderer/glyphOverlayRenderer.js';
+import { drawSealIgnition } from '$lib/renderer/sealIgnition.js';
 import type { ElementId, Recognition, RingInfo, SealReading } from '$lib/types.js';
 import { vectorFromAngleDeg } from '$lib/utils/geometry.js';
 import { buildSpellIR } from '$lib/ui/spellEffectLab.js';
@@ -157,6 +158,7 @@ export class LabPreview {
 			state.values.duration * 1000,
 			timestamp
 		);
+		drawSealIgnition(ctx, state.activatedAt, [ringStroke, sigilStroke], timestamp);
 
 		this.#drawSignMarkers(ring, state.presetSigns);
 	}

@@ -1,11 +1,16 @@
 /**
  * @file Canvas harness that replays a saved spell's effect for the library
  * book. Follows the Spell Effect Lab's preview pattern: the stored drawing is
- * inked onto a glyph canvas while the real {@link CastRenderer} plays the stored
- * IR over it, against a synthetic sealed ring. No recognition runs.
+ * inked onto a glyph canvas while the real {@link CastStage} plays the stored IR
+ * over it, against a synthetic sealed ring. No recognition runs.
+ *
+ * The effect canvas is the stage's own WebGL surface, so nothing else may take a
+ * `2d` context on it. A card's preview mounts and unmounts with the toggle, and
+ * a book holds many of them, so the teardown gives the context back.
  */
-import { CastRenderer } from '$lib/cast/render/castRenderer.js';
+import { CastStage } from '$lib/cast/stage/stage.js';
 import { totalMsFor } from '$lib/cast/score/beats.js';
+import { drawSealIgnition } from '$lib/renderer/sealIgnition.js';
 import { CONFIG } from '$lib/config.js';
 import { bakePlacementToStrokes } from '$lib/input/shapeBaker.js';
 import { inertPlan } from '$lib/compiler/plan/resolvePlan.js';
@@ -57,7 +62,7 @@ export class SpellPreviewDriver {
 	readonly #shell: HTMLElement;
 	readonly #ir: SpellIR;
 	readonly #onEnded: (() => void) | null;
-	readonly #effectRenderer: CastRenderer;
+	readonly #effectStage: CastStage;
 	readonly #glyphCtx: CanvasRenderingContext2D;
 	#strokes: Stroke[] = [];
 	#ring: RingInfo = { found: true, complete: true, center: { x: 0, y: 0 }, radius: 1 };
@@ -83,16 +88,21 @@ export class SpellPreviewDriver {
 		// as an active spell, stamped with a fresh activation each replay.
 		this.#ir = playableIr(options.previewIr);
 		this.#glyphCtx = options.glyphCanvas.getContext('2d')!;
-		this.#effectRenderer = new CastRenderer(options.effectCanvas);
+		this.#effectStage = new CastStage(options.effectCanvas);
 	}
 
-	/** Starts the replay loop. Returns a teardown that cancels the pending frame. */
+	/**
+	 * Starts the replay loop. Returns a teardown that cancels the pending frame
+	 * and disposes the stage, so a closed card's WebGL context goes back rather
+	 * than counting against the browser's handful of live ones.
+	 */
 	start(): () => void {
 		this.restart();
 		this.#rafId = requestAnimationFrame((timestamp) => this.#frame(timestamp));
 		return () => {
 			if (this.#rafId) cancelAnimationFrame(this.#rafId);
 			this.#rafId = null;
+			this.#effectStage.dispose();
 		};
 	}
 
@@ -100,7 +110,7 @@ export class SpellPreviewDriver {
 	restart(): void {
 		this.#activatedAt = performance.now();
 		this.#endedFired = false;
-		this.#effectRenderer.reset();
+		this.#effectStage.reset();
 	}
 
 	#resize(): void {
@@ -121,7 +131,7 @@ export class SpellPreviewDriver {
 		this.#ring = estimateRing(this.#strokes, size);
 	}
 
-	#drawInk(): void {
+	#drawInk(timestamp: number): void {
 		const ctx = this.#glyphCtx;
 		// Paint the paper first so the tilted glyph canvas reads as a lit sheet
 		// receding into the void, matching the activated simulator surface.
@@ -141,12 +151,15 @@ export class SpellPreviewDriver {
 			ctx.stroke();
 		}
 		ctx.restore();
+		// R-01's charge on the ink. The whole stored drawing is the seal here, so
+		// every stroke of it takes light, in the order it was drawn.
+		drawSealIgnition(ctx, this.#activatedAt, this.#strokes, timestamp);
 	}
 
 	#frame(timestamp: number): void {
 		this.#resize();
-		this.#drawInk();
-		this.#effectRenderer.render(
+		this.#drawInk(timestamp);
+		this.#effectStage.render(
 			{ ...this.#ir, activatedAt: this.#activatedAt },
 			this.#ring,
 			timestamp

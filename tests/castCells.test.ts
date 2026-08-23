@@ -171,19 +171,12 @@ test('a cell frame carries only its own track envelopes and where it sits in the
 	assert.ok(cellFrameFor(score, trackOf(score, 'shimmer'), 400).emission > 0);
 });
 
-test('every kind a score can hold resolves to a cell, and unbuilt ones say so', () => {
+test('every kind a score can hold resolves to a cell that names its own track', () => {
 	for (const presetId of ['column-balanced', 'pull-vortex', 'levitation', 'dispersion']) {
 		const score = scoreFor(presetId);
 		for (const { track, cell } of performersFor(score)) {
 			assert.ok(cell.group, `${track.kind} has no group`);
-			// A performed track names itself; a kind still waiting for its performer
-			// says which one it is standing in for and draws nothing.
-			if (cell.group.name.startsWith('unbuilt-')) {
-				assert.equal(cell.group.name, `unbuilt-${track.kind}`);
-				assert.equal(cell.group.visible, false);
-			} else {
-				assert.equal(cell.group.name, `cell-${track.id}`);
-			}
+			assert.equal(cell.group.name, `cell-${track.id}`);
 		}
 	}
 });
