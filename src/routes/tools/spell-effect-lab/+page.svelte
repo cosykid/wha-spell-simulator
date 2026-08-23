@@ -21,11 +21,14 @@
 	import { LabPreview } from './lab-preview.js';
 	import PlanPanel from './PlanPanel.svelte';
 	import { readGoldenFrameRequest } from './lab-goldens.js';
+	import { readLabEngineId } from './lab-engines.js';
 
 	const controlEntries = Object.entries(EFFECT_CONTROLS);
 
 	// Test-only: the look golden tier asks for one preset at one timestamp.
 	const goldenFrame = readGoldenFrameRequest(page.url);
+	// Migration-only: `?engine=stage` previews the cell stage. Default unchanged.
+	const engineId = readLabEngineId(page.url);
 
 	let sigil = $state(goldenFrame?.sigil ?? DEFAULT_SIGIL);
 	const element = $derived(elementForSigil(sigil));
@@ -96,14 +99,20 @@
 
 	onMount(() => {
 		activatedAt = performance.now();
-		preview = new LabPreview(glyphCanvas, effectCanvas, canvasShell, () => ({
-			values,
-			element,
-			sigil,
-			activatedAt,
-			reading,
-			presetSigns: preset.signs
-		}));
+		preview = new LabPreview(
+			glyphCanvas,
+			effectCanvas,
+			canvasShell,
+			() => ({
+				values,
+				element,
+				sigil,
+				activatedAt,
+				reading,
+				presetSigns: preset.signs
+			}),
+			{ id: engineId, scriptedClock: goldenFrame !== null }
+		);
 		if (goldenFrame) {
 			preview.renderGoldenFrame(goldenFrame.frameMs);
 			return;

@@ -5,7 +5,7 @@ import { vectorFromAngleDeg } from '$lib/utils/geometry.js';
 import { buildSpellIR } from '$lib/ui/spellEffectLab.js';
 import { renderPaper } from '$canvas/entities/paperEntity.js';
 import { drawGuides } from '$canvas/guideRenderer.js';
-import { createLabEngine, type LabEffectEngine } from './lab-engines.js';
+import { createLabEngine, type LabEffectEngine, type LabEngineOptions } from './lab-engines.js';
 import { GOLDEN_FRAME_ATTRIBUTE, GOLDEN_FRAME_STEP_MS } from './lab-goldens.js';
 
 /** Live control state the preview samples each animation frame. */
@@ -39,14 +39,15 @@ export class LabPreview {
 		glyphCanvas: HTMLCanvasElement,
 		effectCanvas: HTMLCanvasElement,
 		shell: HTMLElement,
-		getState: () => LabState
+		getState: () => LabState,
+		engine: LabEngineOptions = {}
 	) {
 		this.#glyphCanvas = glyphCanvas;
 		this.#effectCanvas = effectCanvas;
 		this.#shell = shell;
 		this.#getState = getState;
 		this.#glyphCtx = glyphCanvas.getContext('2d')!;
-		this.#engine = createLabEngine(effectCanvas);
+		this.#engine = createLabEngine(effectCanvas, engine);
 	}
 
 	/** Begin the animation loop; returns a teardown that cancels the pending frame. */
