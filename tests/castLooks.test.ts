@@ -62,13 +62,19 @@ const UNDERFOOT_LOOKS: LookRow = {
 };
 const WITH_SIGIL_ROW: LookTable = { ...LOOKS, 'wind-underfoot': UNDERFOOT_LOOKS };
 
+/** A row's five role looks, without the material profile riding beside them. */
+function roleLooks(row: LookRow): Look[] {
+	const { material: _, ...roles } = row;
+	return Object.values(roles);
+}
+
 function everyLook(): Look[] {
-	return [...Object.values(LOOKS), INERT_LOOKS].flatMap((row) => Object.values(row));
+	return [...Object.values(LOOKS), INERT_LOOKS].flatMap(roleLooks);
 }
 
 /** How heavily a whole row smears, summed over its roles. */
 function totalTrailFrames(row: LookRow): number {
-	return Object.values(row).reduce((total, look) => total + (look.trail?.frames ?? 0), 0);
+	return roleLooks(row).reduce((total, look) => total + (look.trail?.frames ?? 0), 0);
 }
 
 // ---------------------------------------------------------------------------

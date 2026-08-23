@@ -15,7 +15,7 @@
  * `leak` instead of decaying: a shard persists where a clod crumbles.
  */
 
-import type { LookRow } from './look.js';
+import { PLACEHOLDER_MATERIAL, type LookRow } from './look.js';
 
 /** The lit face, near white so the core-to-edge fall is the table's steepest. */
 const FACET = [236, 248, 255] as const;
@@ -25,6 +25,7 @@ const QUARTZ = [150, 198, 232] as const;
 const SEAM = [40, 66, 102] as const;
 
 export const CRYSTAL_LOOKS: LookRow = {
+	material: PLACEHOLDER_MATERIAL,
 	core: {
 		sprite: 'glint',
 		tint: { core: [255, 255, 255], edge: FACET },

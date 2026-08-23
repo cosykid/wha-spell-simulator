@@ -4,13 +4,14 @@
  * trails: a crowd of light parcels is supposed to bloom into one glow.
  */
 
-import type { LookRow } from './look.js';
+import { PLACEHOLDER_MATERIAL, type LookRow } from './look.js';
 
 const FLARE = [255, 252, 214] as const;
 const GLOW = [255, 249, 180] as const;
 const GOLD = [244, 214, 118] as const;
 
 export const LIGHT_LOOKS: LookRow = {
+	material: PLACEHOLDER_MATERIAL,
 	core: {
 		sprite: 'spark',
 		tint: { core: [255, 255, 255], edge: FLARE },

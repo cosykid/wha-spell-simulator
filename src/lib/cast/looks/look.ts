@@ -65,11 +65,61 @@ export interface Look {
 }
 
 /**
- * One sigil's or element's five roles. A row is complete on purpose: resolution
- * picks a whole row and then indexes it, so there is no half-resolved look and
- * no per-field fallback chain to reason about.
+ * How the cell stage renders this row's ink: everything about form and motion
+ * texture that sizes-and-tints could not say. Colors stay on the role `Look`s;
+ * a profile never repeats them. Specified in `docs/animation-cells.md`.
  */
-export type LookRow = Record<LookRole, Look>;
+export interface MaterialProfile {
+	/** 0..1, how much the form is its own light source; drives additive glow. */
+	emissive: number;
+	/** 0..1, the body's fill: earth is a mass, wind is barely there. */
+	opacity: number;
+	/** Ink edge treatment on ribbons and sheets. */
+	edge: 'crisp' | 'feather' | 'serrated';
+	/** Phase-locked stripe count on flowing surfaces; 0 is unbanded. */
+	bands: number;
+	/** Procedural break-up frequency, in seal units. */
+	noiseScale: number;
+	/** Base ribbon and tongue width, in seal units. */
+	ribbonWidth: number;
+	/** 0..1, spark and mote budget relative to the cell catalog's default. */
+	garnishDensity: number;
+	/** 0..1, afterimage lifetime scale. */
+	trailPersistence: number;
+	/** 0..1, high-frequency amplitude jitter: fire has it, water does not. */
+	flicker: number;
+	/** 0..1, low-frequency waviness of forms: water has it, crystal does not. */
+	undulation: number;
+	/** 0..1, apparent mass; biases attack and settle easing. */
+	weight: number;
+}
+
+/**
+ * A stand-in profile so every row compiles before its material is designed.
+ * Each row must replace this with values argued from its `sourceNotes`; when
+ * the last row does, delete this export.
+ */
+export const PLACEHOLDER_MATERIAL: MaterialProfile = {
+	emissive: 0.5,
+	opacity: 0.7,
+	edge: 'feather',
+	bands: 3,
+	noiseScale: 1,
+	ribbonWidth: 0.12,
+	garnishDensity: 0.5,
+	trailPersistence: 0.5,
+	flicker: 0.3,
+	undulation: 0.3,
+	weight: 0.5
+};
+
+/**
+ * One sigil's or element's five roles plus its material profile. A row is
+ * complete on purpose: resolution picks a whole row and then indexes it, so
+ * there is no half-resolved look and no per-field fallback chain to reason
+ * about.
+ */
+export type LookRow = Record<LookRole, Look> & { material: MaterialProfile };
 
 /** The table `table.ts` resolves against, keyed on sigil id with element rows as the fallback tier. */
 export type LookTable = Record<string, LookRow>;

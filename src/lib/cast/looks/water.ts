@@ -4,13 +4,14 @@
  * a surface rather than as light.
  */
 
-import type { LookRow } from './look.js';
+import { PLACEHOLDER_MATERIAL, type LookRow } from './look.js';
 
 const FOAM = [128, 218, 255] as const;
 const DEEP = [18, 122, 218] as const;
 const SHADOW = [10, 62, 122] as const;
 
 export const WATER_LOOKS: LookRow = {
+	material: PLACEHOLDER_MATERIAL,
 	core: {
 		sprite: 'spark',
 		tint: { core: [186, 238, 255], edge: FOAM },

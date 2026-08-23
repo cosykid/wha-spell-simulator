@@ -5,13 +5,14 @@
  * visible even when it manifests nothing itself (R-11).
  */
 
-import type { LookRow } from './look.js';
+import { PLACEHOLDER_MATERIAL, type LookRow } from './look.js';
 
 const AIR = [224, 248, 231] as const;
 const HAZE = [184, 232, 215] as const;
 const DUST = [140, 186, 178] as const;
 
 export const WIND_LOOKS: LookRow = {
+	material: PLACEHOLDER_MATERIAL,
 	core: {
 		sprite: 'spark',
 		tint: { core: [222, 252, 240], edge: AIR },

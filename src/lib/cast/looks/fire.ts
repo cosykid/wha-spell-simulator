@@ -7,13 +7,14 @@
  * cutover changes a spell's motion without changing its color.
  */
 
-import type { LookRow } from './look.js';
+import { PLACEHOLDER_MATERIAL, type LookRow } from './look.js';
 
 const HOT = [255, 242, 160] as const;
 const FLAME = [243, 116, 43] as const;
 const SMOKE = [120, 62, 38] as const;
 
 export const FIRE_LOOKS: LookRow = {
+	material: PLACEHOLDER_MATERIAL,
 	core: {
 		sprite: 'spark',
 		tint: { core: [255, 238, 186], edge: HOT },

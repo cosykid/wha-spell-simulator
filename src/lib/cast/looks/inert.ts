@@ -11,13 +11,14 @@
  * is what keeps the renderer's empty path from ever being written.
  */
 
-import type { LookRow } from './look.js';
+import { PLACEHOLDER_MATERIAL, type LookRow } from './look.js';
 
 const ASH = [206, 206, 199] as const;
 const SLATE = [126, 130, 132] as const;
 const VOID_INK = [58, 62, 66] as const;
 
 export const INERT_LOOKS: LookRow = {
+	material: PLACEHOLDER_MATERIAL,
 	core: {
 		sprite: 'spark',
 		tint: { core: [222, 224, 218], edge: ASH },

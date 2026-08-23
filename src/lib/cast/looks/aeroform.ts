@@ -17,7 +17,7 @@
  * widest `spread` of any sigil, the lowest `focus`, a positive `lifetimeBias`.
  */
 
-import type { LookRow } from './look.js';
+import { PLACEHOLDER_MATERIAL, type LookRow } from './look.js';
 
 /** The air it makes. Paler and greyer than wind's `AIR`, so the row reads as substance. */
 const VEIL = [214, 236, 236] as const;
@@ -27,6 +27,7 @@ const BLOOM = [186, 216, 224] as const;
 const MIST = [156, 186, 198] as const;
 
 export const AEROFORM_LOOKS: LookRow = {
+	material: PLACEHOLDER_MATERIAL,
 	core: {
 		sprite: 'disc',
 		tint: { core: [236, 250, 250], edge: VEIL },

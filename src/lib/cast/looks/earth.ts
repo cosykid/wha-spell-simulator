@@ -5,13 +5,14 @@
  * Trails are short, because a clod does not smear.
  */
 
-import type { LookRow } from './look.js';
+import { PLACEHOLDER_MATERIAL, type LookRow } from './look.js';
 
 const GRIT = [214, 189, 148] as const;
 const LOAM = [111, 83, 45] as const;
 const SHALE = [66, 50, 32] as const;
 
 export const EARTH_LOOKS: LookRow = {
+	material: PLACEHOLDER_MATERIAL,
 	core: {
 		sprite: 'spark',
 		tint: { core: [255, 210, 138], edge: GRIT },
