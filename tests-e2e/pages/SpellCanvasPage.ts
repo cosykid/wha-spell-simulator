@@ -1,4 +1,5 @@
 import { expect, type Locator, type Page } from '@playwright/test';
+import { CAST_READBACK_PARAM } from '../../src/lib/cast/stage/readback.js';
 import { type CastableSpell } from '../fixtures/sampleSpells.js';
 import * as castProbe from '../helpers/castProbe.js';
 import { circleStroke } from '../helpers/strokes.js';
@@ -111,9 +112,16 @@ export class SpellCanvasPage {
 
 	// --- Navigation / readiness ---------------------------------------------
 
-	/** Loads the simulator and waits until the canvas accepts strokes. */
+	/**
+	 * Loads the simulator and waits until the canvas accepts strokes.
+	 *
+	 * Always with `?castReadback=1`, the one thing an e2e page asks the app for
+	 * that production does not: the effect canvas is WebGL and drops its frame at
+	 * composite, so without it every pixel a spec reads back is blank. It is the
+	 * whole difference between the page under test and the shipped one.
+	 */
 	async goto(): Promise<void> {
-		await this.page.goto('/');
+		await this.page.goto(`/?${CAST_READBACK_PARAM}=1`);
 		await this.waitForReady();
 	}
 

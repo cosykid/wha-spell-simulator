@@ -19,12 +19,12 @@ second engine, no ownership boolean and no fallback branch anywhere below
 changing anything here; every rule below is one of theirs.
 
 **Below the score, the performer is the cell stage** — see
-[`../../../docs/animation-cells.md`](../../../docs/animation-cells.md), whose
-step 4 pointed the three call sites at `CastStage`. Everything from the score up
-is unchanged in role, and the sections below still describe it. `sim/` and
-`render/` are the Canvas2D engine the stage replaced: they are reachable only
-through the lab's `?engine=cast` URL and step 5 deletes them, along with the
-parts of this file that describe them.
+[`../../../docs/animation-cells.md`](../../../docs/animation-cells.md), which
+pointed the three call sites at `CastStage`. Everything from the score up is
+unchanged in role. The Canvas2D engine the stage replaced is gone: `sim/`'s
+parcels and kernels and `render/`'s painter and baked sprite atlas were deleted
+at cutover, so the no-second-engine law holds below `SpellIR` as well as above
+it.
 
 Seal space, as everywhere below `SpellIR`: origin at the ring center, one unit =
 the ring radius, x right, y screen-down, z out of the paper (spec R-03).
@@ -35,11 +35,6 @@ the ring radius, x right, y screen-down, z out of the paper (spec R-03).
   [`beats.ts`](score/beats.ts) the R-01 clock, [`envelopes.ts`](score/envelopes.ts)
   the six curves, `tracks/{burst,jet,fan,vortex,hold,intake,shimmer}.ts` one
   builder per primitive, `tracks/gain.ts` the shared saturation.
-- `sim/` — [`cast.ts`](sim/cast.ts) the fixed-step loop and `CastState`,
-  [`parcel.ts`](sim/parcel.ts), [`aperture.ts`](sim/aperture.ts) the R-09 spawn
-  surface, [`rng.ts`](sim/rng.ts), [`falloff.ts`](sim/falloff.ts),
-  `primitives/{burst,jet,fan,vortex,hold,intake,shimmer}.ts` the kernels plus
-  [`registry.ts`](sim/primitives/registry.ts), the one place kind is switched on.
 - `stage/` — [`stage.ts`](stage/stage.ts) `CastStage`, the engine the three call
   sites construct, over [`surface.ts`](stage/surface.ts) (the `WebGLRenderer` and
   its canvas), [`frames.ts`](stage/frames.ts) (the fixed step and the couplings),
@@ -47,15 +42,10 @@ the ring radius, x right, y screen-down, z out of the paper (spec R-03).
 - `cells/` — one performer per track kind, over [`cell.ts`](cells/cell.ts) the
   contract and [`registry.ts`](cells/registry.ts), the one place kind is switched
   on. `forms/` holds the geometry each cell is built from.
-- `render/` — [`castRenderer.ts`](render/castRenderer.ts) the old engine,
-  [`painter2d.ts`](render/painter2d.ts) parcels to pixels,
-  [`sprites.ts`](render/sprites.ts) the baked atlas: four shapes, each one
-  gradient circle drawn under a list of scales, so a `streak` is a stretched
-  `disc` and a `glint` is two thin lobes crossed.
 - `looks/` — [`look.ts`](looks/look.ts) the contract,
   [`table.ts`](looks/table.ts) `LOOKS` and resolution, one file per row
   (`fire`, `water`, `wind`, `earth`, `light`, `crystal`, `aeroform`, `inert`).
-- [`vec3.ts`](vec3.ts) — the seal-space vector math the score and sim run on.
+- [`vec3.ts`](vec3.ts) — the seal-space vector math the score and cells run on.
   `utils/geometry.ts` owns the in-plane `Vector` helpers.
 
 Types live in [`../types/spell-score.ts`](../types/spell-score.ts), so a shape
@@ -72,18 +62,15 @@ Two tracks are unconditional: `shimmer-ambient` (R-10's medium) and `burst`
 plan asking for one is routed into a fan with a `routed-vessel` note rather than
 dropped.
 
-**Sim.** `stepTo(score, state, targetMs)` advances a `CastState` in whole
-`CAST.stepMs` steps. Each step emits per track, steers every parcel onto its own
-track's kernel, moves it, then constrains it. Parcels leave when they age out or
-pass `CAST.bounds`.
-
-**Paint.** `CastRenderer.render(spellIR, ring, timestamp, options)` kept the
+**Stage.** `CastStage.render(spellIR, ring, timestamp, options)` kept the
 argument list of the renderer it replaced, which is what made the cutover a swap.
-It compiles the score once per `spellIR.signature`, maps wall clock to cast time
-from `activatedAt`, steps the state, and hands the parcels to `paintCast`. The
-painter projects each parcel through [`../portal/`](../portal/CLAUDE.md), sorts
-by `depth`, sizes it from the look's range and its own `fade` curve, attenuates
-by depth, stretches it along the projected velocity, and blits the baked sprite.
+It compiles the score once per `spellIR.signature`, builds one cell per track
+against the resolved look row, maps wall clock to cast time from `activatedAt`,
+and advances every cell in whole `STAGE.stepMs` steps. Each cell performs its own
+track's envelopes as macroscopic form under the seal-space root, the holder's
+ceiling is handed to what it captures, and the portal camera reproduces
+[`../portal/`](../portal/CLAUDE.md)'s projection so the effect and the paper stay
+in one perspective.
 
 ## Invariants and gotchas
 
@@ -111,13 +98,13 @@ can see it.
 
 **Stepping fresh to a timestamp is bit-identical to stepping there
 incrementally.** The clock is `steps * stepMs`, a product and never a running
-sum; `parcel.ageS` is derived from `bornStep` and never accumulated; the only
-randomness is `state.rng`, seeded from the score. The golden tiers stand on this.
-If you add state to the sim, it has to survive the same test in
-[`../../../tests/castSim.test.ts`](../../../tests/castSim.test.ts).
+sum; every cell derives its state from `frame.tMs` rather than accumulating it;
+the only randomness is each cell's own seeded `Rng`. The golden tiers stand on
+this. If you add state to a cell, it has to survive the same test in
+[`../../../tests/golden/cast.test.ts`](../../../tests/golden/cast.test.ts).
 
-**Never call `Math.random` or read a clock below `render/`.** The renderer owns
-the only `timestamp`, and it converts it to cast time immediately.
+**Never call `Math.random` or read a clock below `stage/`.** The stage owns the
+only `timestamp`, and it converts it to cast time immediately.
 
 **Only `body` stretches (R-02).** A longer spell buys body time and nothing else.
 No emission envelope may reach into `release`.
@@ -136,7 +123,7 @@ law too: `docs/ground-truth.md` section 7 exempts the spell's own manifestation
 from the pull field, or grasping wind would swallow its own burst. Those two are
 the only tracks that ignore `plan.mode`.
 
-**Looks may not import from `compiler/plan/` or `cast/sim/`.** One
+**Looks may not import from `compiler/plan/`, `cast/cells/` or `cast/stage/`.** One
 `no-restricted-imports` rule in [`../../../eslint.config.js`](../../../eslint.config.js)
 enforces it. Looks are data, and the moment data can reach behavior an art fix
 starts arriving as a physics term again, which is the root cause the table
@@ -180,17 +167,15 @@ renderer paints nothing, and both are ordinary early returns, not special cases.
   sigil's dictionary `sourceNotes` in its `@file` block, and pin the argument in
   [`../../../tests/castLooks.test.ts`](../../../tests/castLooks.test.ts) so a
   later tuning pass cannot quietly undo it.
-- **New sprite shape:** add the id to `SpriteId` and a row to each of
-  `CORE_STOP`, `ASPECT` and `LOBES` in `render/sprites.ts` (all three are
-  exhaustive records, so TypeScript names what you missed). A shape is a list of
-  scales on the one gradient circle, never a second gradient.
+- **New form:** a module in `cells/forms/` returning geometry and material, built
+  along local +Z if it is a shaft. Forms are shapes; a cell is what performs one.
 - **New primitive (`vessel` is the last one left):** add its params to
   `PrimitiveParams` in `types/spell-score.ts`, add it to the `ScoreTrack` union,
-  write a kernel in `sim/primitives/`, add three rows in
-  `sim/primitives/registry.ts` (the switches are exhaustive, so TypeScript names
-  the ones you missed), add a track builder in `score/tracks/`, and delete its
-  `routed-*` stand-in from `compileScore.ts`. The painter needs no change: a new
-  track picks an existing `LookRole`.
+  write a cell in `cells/`, add one case in
+  [`cells/registry.ts`](cells/registry.ts) (the switch is exhaustive, so
+  TypeScript names the one you missed), add a track builder in `score/tracks/`,
+  and delete its `routed-*` stand-in from `compileScore.ts`. The stage needs no
+  change: a new track picks an existing `LookRole`.
 - **New role:** add it to `LookRole`, then every row in `looks/` stops
   type-checking until it is filled in. That is the point.
 - **Iterate visually:** `/tools/spell-effect-lab`. The scripted-clock hook the
