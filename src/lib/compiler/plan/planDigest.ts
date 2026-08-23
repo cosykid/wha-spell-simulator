@@ -21,6 +21,8 @@ import type {
 	Coupling,
 	HoldSpec,
 	IntakeSpec,
+	PlanSites,
+	Site,
 	SpellPlan,
 	Vec3,
 	VesselSpec,
@@ -66,6 +68,16 @@ function apertureDigest(aperture: Aperture): string {
 	}
 }
 
+/**
+ * Both families, in plan order. A site moving less than a hundredth of a ring
+ * radius tunes in place, the same granularity every other component keeps.
+ */
+function sitesDigest(sites: PlanSites): string {
+	const family = (list: Site[]) =>
+		list.length ? list.map((site) => `${vec2(site.at)}>${vec2(site.facing)}`).join('+') : ABSENT;
+	return `${family(sites.column)}|${family(sites.dispersion)}`;
+}
+
 function holdDigest(hold: HoldSpec | null): string {
 	return hold
 		? `${vec3(hold.at)}/${number(hold.grip)}/${number(hold.spin)}/${number(hold.budget)}`
@@ -98,8 +110,10 @@ export function planDigest(plan: SpellPlan): string {
 		`a${vec3(plan.aim)}`,
 		`d${number(plan.dispersion)}`,
 		`c${number(plan.circulation)}`,
+		`s${sitesDigest(plan.sites)}`,
 		`f${number(plan.focus)}`,
 		`q${number(plan.quality)}`,
+		`n${plan.symmetry ?? ABSENT}`,
 		apertureDigest(plan.aperture),
 		`x${vec3(plan.exhaust)}`,
 		`h${number(plan.hardness)}`,

@@ -18,6 +18,7 @@ import { resolveFocus } from './focus.js';
 import { holdFailure, resolveHold } from './hold.js';
 import { resolveIntake } from './intake.js';
 import { resolveRegion } from './region.js';
+import { resolveSites } from './sites.js';
 import { planFingerprint, snapPlan } from './snap.js';
 import type {
 	Coupling,
@@ -225,6 +226,9 @@ export function resolvePlan(reading: SealReading): SpellPlan {
 		// R-13 keeps the families' budgets apart. This one is the burst's: column
 		// ink, plus ink whose only ruled contribution is power.
 		budget: columns.budget + power,
+		// The ink the fold above just flattened, kept as drawn so the cast can give
+		// three columns three beams. It pays no magnitude anywhere (R-05).
+		sites: resolveSites(budgets.column),
 		aperture: region.aperture,
 		exhaust: region.exhaust,
 		hardness: region.hardness,
@@ -235,6 +239,7 @@ export function resolvePlan(reading: SealReading): SpellPlan {
 		vessel: null,
 		focus: resolveFocus(budgets.convergence),
 		quality: reading.quality,
+		symmetry: reading.symmetry,
 		couplings: [],
 		notes: []
 	};

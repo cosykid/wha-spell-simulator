@@ -76,7 +76,10 @@ export function circulationVortex(plan: SpellPlan, population: Population): Trac
 			height: VORTEX_TUNING.height * aboveFloor(VORTEX_TUNING.heightFloor, strength),
 			updraft: VORTEX_TUNING.lift * Math.abs(spin),
 			feed: VORTEX_TUNING.feed * Math.abs(spin),
-			spill: VORTEX_TUNING.spill * Math.abs(spin)
+			spill: VORTEX_TUNING.spill * Math.abs(spin),
+			// A pinwheel of four columns should be able to turn on four arms. The
+			// fold behind `spin` already spent their count (R-05); this is the shape.
+			symmetry: plan.symmetry
 		},
 		// A cell has to be seen going round, so the vortex emits across the whole
 		// body and drives flat: R-02 stops it at the top of release like everything else.

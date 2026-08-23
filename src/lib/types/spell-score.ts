@@ -10,7 +10,7 @@
 
 import type { Vec3, Vector } from './geometry.js';
 import type { ElementId } from './dictionary.js';
-import type { Aperture } from './spell-plan.js';
+import type { Aperture, Site } from './spell-plan.js';
 
 /** R-01. The five beats of a cast, in order. */
 export type Beat = 'charge' | 'strike' | 'body' | 'release' | 'afterglow';
@@ -70,6 +70,14 @@ export interface JetParams {
 	converge: number;
 	/** Seal units along the axis where the beam has spent half its push. */
 	reach: number;
+	/**
+	 * The column ink this jet was aimed by, as it was drawn. Form only: `speed`
+	 * and the emission gain already carry everything count pays for (R-05). Empty
+	 * on a jet no drawn column stands behind.
+	 */
+	sites: Site[];
+	/** The plan's n-fold snap, for a performer that wants to repeat itself around the seal. */
+	symmetry: number | null;
 }
 
 /** R-07. Plane-hugging radial dispersion, and the swirl a routed vessel stirs into it. */
@@ -84,9 +92,24 @@ export interface FanParams {
 	core: number;
 	/** Seal units above the paper the fan is allowed to climb to. */
 	ceiling: number;
+	/**
+	 * The dispersion ink this fan spreads from, as it was drawn. Form only, the
+	 * same way {@link JetParams.sites} is. Empty on a fan no dispersion sign asked
+	 * for, such as R-13's routed vessel.
+	 */
+	sites: Site[];
+	/** The plan's n-fold snap, for a sheet that wants to repeat itself around the seal. */
+	symmetry: number | null;
 }
 
-/** The strike-beat impulse every cast opens with: a ring thrown off the aperture. */
+/**
+ * The strike-beat impulse every cast opens with: a ring thrown off the aperture.
+ *
+ * It carries no `symmetry`, unlike the jet, fan and vortex. R-15 rules that at
+ * the burst a cancelling seal is indistinguishable from an unmarked ring, and a
+ * fold here would tell a cancelled quadrupole from a bare one. Whether a strike
+ * may read its seal's fold at all is a canon question, so the burst waits for it.
+ */
 export interface BurstParams {
 	/** Seal units per second at the ring's birth. */
 	speed: number;
@@ -119,6 +142,8 @@ export interface VortexParams {
 	feed: number;
 	/** Seal units per second the crown sheds out and down, closing the cell. */
 	spill: number;
+	/** The plan's n-fold snap, for arms that want to match the ink that turned them. */
+	symmetry: number | null;
 }
 
 /**

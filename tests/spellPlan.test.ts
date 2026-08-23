@@ -14,7 +14,11 @@ import { aimVector, dispersionScalar, foldAggregate } from '../src/lib/compiler/
 import { resolvePlan } from '../src/lib/compiler/plan/resolvePlan.js';
 import { resolveRegion } from '../src/lib/compiler/plan/region.js';
 import { planFingerprint, snapPlan } from '../src/lib/compiler/plan/snap.js';
-import { signedAngleDifferenceDeg, vectorFromAngleDeg } from '../src/lib/utils/geometry.js';
+import {
+	angleDegFromCenter,
+	signedAngleDifferenceDeg,
+	vectorFromAngleDeg
+} from '../src/lib/utils/geometry.js';
 import { readRealDictionary } from './dictionaryFixtures.js';
 import type { SealReading, SignReading, Vec3 } from '../src/lib/types.js';
 
@@ -151,6 +155,68 @@ test('[R-08] dispersion contributes the same geometry and differs only in timing
 	assert.equal(dispersions.budget, columns.budget);
 	assert.ok(dispersions.notes.includes('dispersion-leak'), 'the score reads the leak from here');
 	assert.ok(!columns.notes.includes('dispersion-leak'));
+});
+
+// ---------------------------------------------------------------------------
+// The geometry the plan keeps beside the fold. Ruled in `docs/animation-cells.md`
+// as additive and ruling-neutral: sites shape form, and R-05 still pays for it.
+// ---------------------------------------------------------------------------
+
+test('[R-05] sites keep the arrangement the fold flattens, and buy nothing with it', () => {
+	const signs = [0, 120, 240].map((atDeg) => sign({ atDeg }));
+	const plan = resolvePlan(reading(signs));
+
+	assert.equal(plan.sites.column.length, 3, 'three columns are three sites');
+	assert.deepEqual(
+		roundVec3(plan.aim),
+		roundVec3(aimVector(foldAggregate(signs))),
+		'the aim is still the fold and only the fold'
+	);
+	assert.equal(round(plan.budget), 3, 'count still pays magnitude through the budget alone');
+	// A site is a placement, not a second budget. Give it a length or a power and
+	// there are two places the same ink can be spent from.
+	assert.deepEqual(Object.keys(plan.sites.column[0]).sort(), ['at', 'facing']);
+});
+
+test('[R-08] a site belongs to the manifestation that was drawn', () => {
+	// The fold cannot separate the two, so the authored manifestation is the cut:
+	// the fan performs dispersion ink and the jet performs the column's.
+	const plan = resolvePlan(
+		reading([
+			sign({ manifestation: 'column', atDeg: 0 }),
+			sign({ manifestation: 'dispersion', atDeg: 180, facingDeg: 180 })
+		])
+	);
+
+	assert.equal(plan.sites.column.length, 1);
+	assert.equal(plan.sites.dispersion.length, 1);
+	assert.equal(round(plan.sites.column[0].at.x), 1, 'the column sat east');
+	assert.equal(round(plan.sites.dispersion[0].at.x), -1, 'the dispersion sign sat west');
+});
+
+test('sites are ordered around the seal, so stroke order cannot move a plan', () => {
+	const bearings = [0, 90, 180, 270];
+	const drawn = resolvePlan(reading(bearings.map((atDeg) => sign({ atDeg }))));
+	const redrawn = resolvePlan(reading([180, 270, 0, 90].map((atDeg) => sign({ atDeg }))));
+
+	assert.deepEqual(redrawn.sites, drawn.sites, 'one arrangement serializes one way');
+	assert.deepEqual(
+		drawn.sites.column.map((site) => round(angleDegFromCenter(site.at, { x: 0, y: 0 }))),
+		bearings,
+		'counter-clockwise from east, the bearing the whole plan layer reads in'
+	);
+});
+
+test('[R-06] an untrusted sign leaves a site a position, never a direction', () => {
+	const plan = resolvePlan(reading([sign({ atDeg: 0, facingTrust: FACING_TRUST_FLOOR - 0.01 })]));
+
+	assert.equal(plan.sites.column.length, 1, 'its ink is still on the seal');
+	assert.deepEqual(plan.sites.column[0].facing, { x: 0, y: 0 }, 'and its facing is not evidence');
+});
+
+test('the plan carries the reading n-fold snap unchanged', () => {
+	assert.equal(resolvePlan(reading([sign()], { symmetry: 4 })).symmetry, 4);
+	assert.equal(resolvePlan(reading([sign()])).symmetry, null, 'uneven spacing snaps to nothing');
 });
 
 test('[R-09] rule 1: a seal with no chevrons emits from the whole disc', () => {

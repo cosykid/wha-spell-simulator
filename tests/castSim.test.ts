@@ -190,7 +190,9 @@ test('a parcel belongs to exactly one track and feels only that track kernel', (
 		speed: 2,
 		footprint: 0.45,
 		converge: 0.6,
-		reach: 1.6
+		reach: 1.6,
+		sites: [],
+		symmetry: null
 	};
 	assert.deepStrictEqual(JET.velocity(params, at, 0), JET.velocity(params, at, 0));
 });
@@ -204,7 +206,15 @@ test('R-05: a jet leans where the ink points, not toward where the ink sits', ()
 });
 
 test('R-07: a fan hugs the plane it spreads across', () => {
-	const params = { speed: 1.5, swirl: 0, rise: 0.18, core: 0.4, ceiling: 0.35 };
+	const params = {
+		speed: 1.5,
+		swirl: 0,
+		rise: 0.18,
+		core: 0.4,
+		ceiling: 0.35,
+		sites: [],
+		symmetry: null
+	};
 	const low = FAN.velocity(params, { x: 0.5, y: 0, z: 0 }, 0);
 	const high = FAN.velocity(params, { x: 0.5, y: 0, z: 0.35 }, 0);
 	assert.ok(low.x > 0, 'the fan must push outward');

@@ -13,7 +13,7 @@
 import { aboveFloor, saturate } from './gain.js';
 import { isPresent, magnitude3, normalize3, SEAL_UP } from '../../vec3.js';
 import { clamp } from '../../../utils/geometry.js';
-import type { Population, SpellPlan, Track, Vec3 } from '../../../types.js';
+import type { Population, Site, SpellPlan, Track, Vec3 } from '../../../types.js';
 
 const JET_TUNING = {
 	/** Aim magnitude at which a jet reads half as strong as it can get. */
@@ -44,6 +44,9 @@ interface JetShape {
 	speed: number;
 	reach: number;
 	look: Track['look'];
+	/** The drawn columns behind this beam, empty where none stand behind it. */
+	sites: Site[];
+	symmetry: number | null;
 }
 
 /** One jet, with the timing every jet shares. */
@@ -58,7 +61,9 @@ function jetTrack(shape: JetShape, plan: SpellPlan, population: Population): Tra
 			// R-13's lens packs the beam tighter; a sloppy drawing drafts less firmly.
 			footprint: JET_TUNING.footprint / Math.max(plan.focus, 1),
 			converge: JET_TUNING.converge * clamp(plan.quality),
-			reach: shape.reach
+			reach: shape.reach,
+			sites: shape.sites,
+			symmetry: shape.symmetry
 		},
 		emission: { from: 'strike', to: 'body', curve: 'attack', gain: shape.rate },
 		drive: { from: 'strike', to: 'body', curve: 'hold', gain: 1 },
@@ -79,7 +84,11 @@ export function aimJet(plan: SpellPlan, population: Population): Track<'jet'> | 
 			rate: JET_TUNING.rate * strength,
 			speed: JET_TUNING.speed * aboveFloor(JET_TUNING.speedFloor, strength),
 			reach: JET_TUNING.reach,
-			look: 'body'
+			look: 'body',
+			// The columns that aimed it, so a three-column seal can be performed as
+			// three beams. Their count already paid for the rate above (R-05).
+			sites: plan.sites.column,
+			symmetry: plan.symmetry
 		},
 		plan,
 		population
@@ -99,7 +108,11 @@ export function exhaustJet(plan: SpellPlan, population: Population): Track<'jet'
 			rate: JET_TUNING.rate * JET_TUNING.exhaustRateScale * strength,
 			speed: JET_TUNING.speed * aboveFloor(JET_TUNING.speedFloor, strength),
 			reach: JET_TUNING.reach * plan.reach,
-			look: 'body'
+			look: 'body',
+			// A valve exhausts through its aperture, not out of the chevrons that
+			// opened it, so this beam stands on no site of its own.
+			sites: [],
+			symmetry: plan.symmetry
 		},
 		plan,
 		population
@@ -110,6 +123,10 @@ export function exhaustJet(plan: SpellPlan, population: Population): Track<'jet'
  * R-11. "Manifests nothing" is a look, not an absence: a plan that resolved to
  * no primitive at all still gets a faint upward plume, so the renderer has no
  * empty path to fall into.
+ *
+ * The plume is designed rather than drawn, so it carries neither sites nor the
+ * fold. R-15 wants seals that manifest nothing to be indistinguishable from each
+ * other, and a cancelled quadrupole's four sites would tell it from a blank ring.
  */
 export function defaultJet(plan: SpellPlan, population: Population): Track<'jet'> {
 	return jetTrack(
@@ -119,7 +136,9 @@ export function defaultJet(plan: SpellPlan, population: Population): Track<'jet'
 			rate: JET_TUNING.defaultRate,
 			speed: JET_TUNING.defaultSpeed,
 			reach: JET_TUNING.reach,
-			look: 'wisp'
+			look: 'wisp',
+			sites: [],
+			symmetry: null
 		},
 		plan,
 		population
