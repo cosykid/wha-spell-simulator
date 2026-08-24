@@ -9,17 +9,17 @@
  * the spell `manifested` out of it, and a row may also name one primitive when
  * the claim is about that cell in particular.
  *
- * The readings are the cell's own load-bearing state and nothing else: whether a
- * form is inking, how bright it is, one named uniform, where a form sits in seal
- * space, where the far end of a shaft lands, and the ceiling a holder publishes.
- * The parcels the rows used to be measured on died with the sim; what each row
- * pins is unchanged, and every row that had to change its reading says so.
+ * Since the hybrid rework the readings are a cell's own {@link CellReport}: how
+ * loudly it paints, where its mass stands, where the form it declares is rooted
+ * and where it reaches, how many marks it has laid, one named scalar its
+ * archetype publishes, and the ceiling a holder publishes. The scene graph the
+ * rows used to be measured on is gone; what each row pins is unchanged.
  */
 
-import * as THREE from 'three';
 import type { HeadlessCast } from './cellHarness.js';
 import type { Performer } from '../../src/lib/cast/stage/frames.js';
-import type { PrimitiveKind } from '../../src/lib/types.js';
+import type { CellReport } from '../../src/lib/cast/cells/cell.js';
+import type { PrimitiveKind, Vec3 } from '../../src/lib/types.js';
 
 /**
  * A ruling in docs/animation-spec.md, or a section of docs/ground-truth.md for a
@@ -66,34 +66,31 @@ interface Bounds {
 export type CastExpectation = Bounds &
 	(
 		| {
-				/** How many of the selection's forms are inking. The count a `parcels` row used to take. */
-				metric: 'forms';
+				/** How loudly the selection is painting, 0..1. Zero is silence. */
+				metric: 'ink';
 		  }
 		| {
-				/** The brightest of them. How present the selection is, 0..1. */
-				metric: 'alpha';
+				/** Live brush marks across the selection. */
+				metric: 'marks';
 		  }
 		| {
-				/** One number the cell wrote into one form. */
-				metric: 'uniform';
-				form: string;
+				/** One named scalar the archetype publishes. */
+				metric: 'detail';
 				name: string;
 		  }
 		| {
-				/** Where a form sits in seal space. */
-				metric: 'origin';
-				form: string;
+				/** Where the selection's mass stands: the centroid of its live marks. */
+				metric: 'mass';
 				axis: SealAxis;
 		  }
 		| {
-				/**
-				 * The far end of a shaft-shaped form, in seal space: its own local +Z at
-				 * the length uniform named by `length`. Every shaft in `cells/forms/` is
-				 * built along local +Z and aimed by the group above it.
-				 */
+				/** Where the form the cell declares is rooted. */
+				metric: 'root';
+				axis: SealAxis;
+		  }
+		| {
+				/** The far end of that form, in seal space. */
 				metric: 'tip';
-				form: string;
-				length: string;
 				axis: SealAxis;
 		  }
 		| {
@@ -128,108 +125,66 @@ export function select(probe: CastProbe, cast: HeadlessCast): Performer[] {
 	});
 }
 
-/** A form's own alpha, or 1 for a form the cell gave no alpha to fade. */
-function alphaOf(mesh: THREE.Mesh): number {
-	const material = mesh.material as THREE.Material;
-	if (!(material instanceof THREE.ShaderMaterial)) {
-		return 1;
-	}
-	const alpha = material.uniforms.uAlpha?.value;
-	return typeof alpha === 'number' ? alpha : 1;
-}
-
-/** Every mesh of the selection that reaches a pixel: visible all the way up, and not faded out. */
-function inkingForms(performers: Performer[]): THREE.Mesh[] {
-	const forms: THREE.Mesh[] = [];
-	for (const { cell } of performers) {
-		cell.group.updateMatrixWorld(true);
-		cell.group.traverseVisible((object) => {
-			if (object instanceof THREE.Mesh && alphaOf(object) > 0) {
-				forms.push(object);
-			}
-		});
-	}
-	return forms;
-}
-
-/** The named form, wherever it sits under the selection. Null when nothing built one. */
-function formNamed(performers: Performer[], name: string): THREE.Mesh | null {
-	for (const { cell } of performers) {
-		cell.group.updateMatrixWorld(true);
-		const found = cell.group.getObjectByName(name);
-		if (found instanceof THREE.Mesh) {
-			return found;
-		}
-	}
-	return null;
-}
-
-function uniformOf(mesh: THREE.Mesh, name: string): number | null {
-	const material = mesh.material as THREE.Material;
-	if (!(material instanceof THREE.ShaderMaterial)) {
-		return null;
-	}
-	const value = material.uniforms[name]?.value;
-	return typeof value === 'number' ? value : null;
-}
-
-function component(point: THREE.Vector3, axis: SealAxis): number {
+function component(point: Vec3, axis: SealAxis): number {
 	return axis === 'radius' ? Math.hypot(point.x, point.y) : point[axis];
 }
 
 /** A number, or why the row could not be measured at all. */
 type Reading = { value: number } | { missing: string };
 
+/** The largest reading across the selection, or zero where the selection is empty. */
+function loudest(reports: CellReport[], of: (report: CellReport) => number): Reading {
+	return { value: reports.length ? Math.max(...reports.map(of)) : 0 };
+}
+
 function measure(probe: CastProbe, cast: HeadlessCast): Reading {
 	const performers = select(probe, cast);
+	const reports = performers.map(({ cell }) => cell.report());
 	const expect = probe.expect;
 
-	if (expect.metric === 'forms') {
-		return { value: inkingForms(performers).length };
-	}
-	if (expect.metric === 'alpha') {
-		const alphas = inkingForms(performers).map(alphaOf);
-		return { value: alphas.length ? Math.max(...alphas) : 0 };
-	}
-	if (expect.metric === 'ceiling') {
-		const ceilings = performers
-			.map(({ cell }) => cell.constraint?.())
-			.filter((one) => one !== null);
-		if (ceilings.length === 0) {
-			return { value: 0 };
+	switch (expect.metric) {
+		case 'ink':
+			return loudest(reports, (report) => report.ink);
+		case 'marks':
+			return { value: reports.reduce((sum, report) => sum + report.marks, 0) };
+		case 'mass':
+			return loudest(reports, (report) => component(report.at, expect.axis));
+		case 'root':
+			return loudest(reports, (report) => component(report.from, expect.axis));
+		case 'tip':
+			return loudest(reports, (report) => component(report.tip, expect.axis));
+		case 'detail': {
+			const named = reports.filter((report) => expect.name in report.detail);
+			if (named.length === 0) {
+				// An absent cell reads as zero, which is what "no hold at all" means
+				// (R-17), but a cell that is there and publishes no such scalar is a
+				// row pointing at nothing.
+				return reports.length === 0
+					? { value: 0 }
+					: { missing: `no cell of this selection publishes "${expect.name}"` };
+			}
+			return loudest(named, (report) => report.detail[expect.name]);
 		}
-		return {
-			value: Math.max(
-				...ceilings.map((one) =>
-					expect.field === 'closed'
-						? one!.closed
-						: expect.field === 'radius'
-							? one!.radius
-							: one!.at.z
+		case 'ceiling': {
+			const ceilings = performers
+				.map(({ cell }) => cell.constraint?.())
+				.filter((one) => one !== null && one !== undefined);
+			if (ceilings.length === 0) {
+				return { value: 0 };
+			}
+			return {
+				value: Math.max(
+					...ceilings.map((one) =>
+						expect.field === 'closed'
+							? one.closed
+							: expect.field === 'radius'
+								? one.radius
+								: one.at.z
+					)
 				)
-			)
-		};
+			};
+		}
 	}
-
-	const form = formNamed(performers, expect.form);
-	if (!form) {
-		return { missing: `no form named "${expect.form}" is on stage` };
-	}
-	if (expect.metric === 'uniform') {
-		const value = uniformOf(form, expect.name);
-		return value === null
-			? { missing: `"${expect.form}" has no uniform ${expect.name}` }
-			: { value };
-	}
-	if (expect.metric === 'origin') {
-		return { value: component(form.getWorldPosition(new THREE.Vector3()), expect.axis) };
-	}
-	const length = uniformOf(form, expect.length);
-	if (length === null) {
-		return { missing: `"${expect.form}" has no uniform ${expect.length}` };
-	}
-	const tip = new THREE.Vector3(0, 0, length).applyMatrix4(form.matrixWorld);
-	return { value: component(tip, expect.axis) };
 }
 
 export interface ProbeResult {
@@ -241,12 +196,14 @@ export interface ProbeResult {
 /** How a row reads out loud, for a failure message. */
 function reading(expect: CastExpectation): string {
 	switch (expect.metric) {
-		case 'uniform':
-			return `${expect.form}.${expect.name}`;
-		case 'origin':
-			return `${expect.form} ${expect.axis}`;
+		case 'detail':
+			return `detail ${expect.name}`;
+		case 'mass':
+			return `mass ${expect.axis}`;
+		case 'root':
+			return `root ${expect.axis}`;
 		case 'tip':
-			return `${expect.form} tip ${expect.axis}`;
+			return `tip ${expect.axis}`;
 		case 'ceiling':
 			return `ceiling ${expect.field}`;
 		default:

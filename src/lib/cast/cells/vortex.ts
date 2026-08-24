@@ -1,99 +1,69 @@
 /**
- * @file The vortex cell: R-05's circulation, performed as the Rankine funnel the
- * abandoned `tc-field-canvas-rework` branch proved out.
+ * @file The vortex cell: R-05's circulation, performed as a swirl-dominant flow
+ * with a hollow eye.
  *
- * The branch's physics is ported as **form**. A core that flares with height,
- * helical arms on the funnel wall, a calm hollow eye, a boundary layer feeding
- * the foot along the paper, and a crown that folds out and down to close the
- * circulation cell. What changed is where it lives: none of it is a force term
- * any more, so a spell that is not a whirl has nothing here to retune.
+ * | beat      | the cell                                                        |
+ * | --------- | --------------------------------------------------------------- |
+ * | charge    | nothing. R-01 lets only the ambient medium manifest here.        |
+ * | strike    | the funnel is thrown up past where it settles, and spins up.     |
+ * | body      | it stands and turns, dense and fed from the floor.               |
+ * | release   | it commits: lets go of the floor, stretches taller and thinner.   |
+ * | afterglow | it unwinds, widening and losing its wall as it goes.             |
  *
- * One phase turns everything. The arms' helices, the stripes on them and the
- * floor's streaks all read `spinPhase`, which is advanced by the drive envelope
- * and by nothing else. That is the branch's one non-negotiable rule.
+ * Strength arrives as one number — the height the score asked for — and it buys
+ * stature, tightness of foot and winding together, so a weak swirl is a flat
+ * wide whirl and a strong one a tall tight column.
  *
- * What each beat looks like:
- *
- * | beat      | the cell                                                       |
- * | --------- | -------------------------------------------------------------- |
- * | charge    | nothing. R-01 lets only the ambient medium manifest here.       |
- * | strike    | the funnel is thrown up past where it settles, and spins up.    |
- * | body      | it stands and turns, every arm lit, breathing on its lean.      |
- * | release   | it commits: lets go of the floor, stretches taller and thinner. |
- * | afterglow | it unwinds, widening and losing arms as it goes.                |
+ * The flare is the pinch run backwards. A column's boundary narrows with height;
+ * a funnel's widens, which is the same term with a negative `narrow`, and it is
+ * why the marks torn off it lie tangentially instead of pointing out.
  */
 
-import { createVortexArms } from './forms/vortexArms.js';
-import { createVortexFloor } from './forms/vortexFloor.js';
+import { burnAt, punchAt, shapeAt, shapeOf, sootAt, type BeatShape } from './arc.js';
+import { hushed, reportOf } from './perform.js';
+import { SPAWN } from '../hybrid/flow.js';
+import { FLOW, MARK } from '../hybrid/tuning.js';
 import { mulberry32 } from '../rng.js';
 import { clamp } from '../../utils/geometry.js';
-import * as THREE from 'three';
-import type { Cell, CellConstraint, CellContext, CellFrame } from './cell.js';
-import type { Beat, Track } from '../../types.js';
+import type { Cell, CellConstraint, CellContext, CellReport } from './cell.js';
+import type { Track, Vec3 } from '../../types.js';
 
-const VORTEX_CELL = {
-	/** Arms a funnel may turn on. Two read as a stir; more than six as a brush. */
-	arms: { min: 3, max: 6 },
-	/** Seal units: a funnel taller than this has stood all the way up. */
-	standingHeight: 1.5,
-	/** How much wider a flat whirl runs at the foot and at the crown, at zero stature. */
-	flatten: { foot: 0.34, crown: 0.55 },
-	/** Turns of winding from foot to crown, plus what a flat whirl adds to them. */
-	turns: { base: 1, flat: 0.7 },
-	/** Seal units the crown leans by at full undulation, and radians per second of that lean. */
-	sway: 0.18,
-	swayRate: 1.1,
-	/** The share of the arms lit before emission adds any of its own. */
-	litFloor: 0.6,
-	/** Seal units of paper the boundary layer is drawn across. */
-	floorReach: 1.35,
-	/** Peak alpha of the arms and of the floor. Additive ink piles up; nothing is opaque. */
-	armAlpha: 0.95,
-	floorAlpha: 0.62,
-	/** How far past its settled height the strike throws a weightless funnel. */
-	overshoot: 0.5,
-	/** Fraction of the spin the funnel coasts at once the drive envelope has closed. */
-	coast: 0.4,
-	/** Radians the floor's streaks bend across the disc, per arm. */
-	curl: 1.6
-} as const;
-
-/** How present the funnel is through each beat. */
-const FUNNEL_PRESENCE: Record<Beat, (beatT: number) => number> = {
-	charge: () => 0,
-	strike: (t) => t * (2 - t),
-	body: () => 1,
-	release: (t) => 1 - 0.4 * t,
-	afterglow: (t) => 0.6 * (1 - t) * (1 - t)
-};
+/** The funnel stands on the seal, however far its crown flares. */
+const SEAL_ORIGIN: Vec3 = { x: 0, y: 0, z: 0 };
 
 /**
- * How tall it stands in each beat, as a multiple of the height the track asked
- * for. Only the strike reads `overshoot`, which is how far past the mark the
- * throw carries: light matter sails past it and heavy matter barely does.
+ * How tall the funnel stands, as a multiple of the height the score asked for.
+ * The strike throws it up past where it settles, the body holds it, and the
+ * release lets it stretch as it lets go of the floor.
  */
-const FUNNEL_STATURE: Record<Beat, (beatT: number, overshoot: number) => number> = {
+const STATURE: BeatShape = {
 	charge: () => 0,
-	// Thrown up, over the mark, and back onto it by the time the body opens.
-	strike: (t, overshoot) => Math.pow(t, 0.35) * (1 + overshoot * Math.sin(Math.PI * t)),
-	body: () => 1,
-	release: (t) => 1 + 0.32 * t,
-	afterglow: (t) => 1.32 + 0.34 * t
+	strike: (t) => 0.45 + 1.5 * Math.sin(Math.PI * t) + 0.65 * t,
+	body: (t) => 1.1 + 0.2 * t,
+	release: (t) => 1.3 + 0.35 * t,
+	afterglow: (t) => 1.65 * (1 - 0.5 * t)
 };
 
-/** How wide its crown runs in each beat. A dying whirl spreads before it goes. */
-const FUNNEL_SPREAD: Record<Beat, (beatT: number) => number> = {
-	charge: () => 1,
-	strike: (t) => 0.66 + 0.34 * t,
+/** How far the crown flares. A spun body widens as it unwinds. */
+const FLARE: BeatShape = {
+	charge: () => 0,
+	strike: (t) => 0.7 + 0.3 * t,
 	body: () => 1,
-	release: (t) => 1 + 0.16 * t,
-	afterglow: (t) => 1.16 + 0.6 * t
+	release: (t) => 1 + 0.25 * t,
+	afterglow: (t) => 1.25 + 0.5 * t
 };
 
-/** An envelope's curve value, 0..1, with its gain divided back out. */
-function shapeOf(value: number, gain: number): number {
-	return gain > 0 ? clamp(value / gain) : 0;
-}
+/** How much of the wall is in the air. */
+const PRESENCE: BeatShape = {
+	charge: () => 0,
+	strike: (t) => 0.5 + 0.5 * t,
+	body: () => 1,
+	release: (t) => 1 - 0.45 * t,
+	afterglow: (t) => 0.55 * (1 - t)
+};
+
+/** Past the drive envelope a spun body still turns, slower. */
+const COAST = 0.4;
 
 /**
  * A reach the holder's shell allows. R-18's ceiling caps how far the form may
@@ -107,120 +77,114 @@ function heldWithin(reach: number, held: CellConstraint | null): number {
 	return reach + (Math.min(reach, held.radius) - reach) * clamp(held.closed);
 }
 
-/**
- * How many ribbons the funnel turns on. R-05 already spent the sign count on the
- * spin, so the drawing's fold only says how the form repeats; a material with no
- * banding of its own falls back to the fewest arms a funnel still reads with.
- */
-function armCount(symmetry: number | null, bands: number): number {
-	return Math.round(clamp(symmetry ?? bands, VORTEX_CELL.arms.min, VORTEX_CELL.arms.max));
-}
-
-/**
- * The circulation as a standing, turning body. Strength arrives as one number —
- * the height the score asked for — and it buys stature, tightness of foot and
- * winding together, so a weak swirl is a flat wide whirl and a strong one is a
- * tall tight column.
- */
 export function createVortexCell(track: Track<'vortex'>, ctx: CellContext): Cell {
+	const params = track.params;
+	const { channel } = ctx;
 	const rng = mulberry32(ctx.seed);
-	const { params } = track;
-	const look = ctx.look[track.look];
-	const material = ctx.look.material;
-
-	const arms = armCount(params.symmetry, material.bands);
-	const seeds = Array.from({ length: arms }, () => rng());
+	const lobePhase = rng() * Math.PI * 2;
 	const swaySeed = rng() * Math.PI * 2;
-
-	// Sense of rotation is the param's sign, all the way through: the phase turns
-	// that way, the arms wind that way, and the floor's streaks sweep that way.
 	const sense = Math.sign(params.spin) || 1;
-	const stature = clamp(params.height / VORTEX_CELL.standingHeight);
-	// A standing funnel is tight at the paper and flared at the crown; a whirl
-	// that never stood up is a broad shallow bowl instead.
-	const foot = params.footRadius * (1 + VORTEX_CELL.flatten.foot * (1 - stature));
-	// A funnel that sheds more than it lifts opens wider at the top.
-	const spillShare = clamp(params.spill / Math.max(1e-6, params.updraft));
-	const crown =
-		params.crownRadius * (1 + VORTEX_CELL.flatten.crown * (1 - stature)) * (0.6 + 0.5 * spillShare);
-	const pitch =
-		sense * Math.PI * 2 * (VORTEX_CELL.turns.base + VORTEX_CELL.turns.flat * (1 - stature));
-	// Solid body inside the core: one angular rate for the whole funnel, taken
-	// from the tangential rate on the wall it acts at.
+	const stature = clamp(params.height / 1.5);
+	const foot = params.footRadius * (1 + 0.34 * (1 - stature));
+	const crown = params.crownRadius * (1 + 0.55 * (1 - stature));
+	// Radians per second on the wall. One phase, and everything reads it.
 	const omega = params.spin / Math.max(0.12, (foot + crown) / 2);
-	// The floor is only as present as the feed that draws it, against the lift.
-	const feedShare = 0.55 + 0.45 * clamp(params.feed / Math.max(1e-6, params.feed + params.updraft));
-	// How present the ink is: its own fill, plus whatever light it makes. The floor
-	// is high because even wind, the faintest row in the table, has to read as a
-	// turning body rather than as a smudge.
-	const inkAlpha = clamp(0.5 + 0.35 * material.opacity + 0.5 * material.emissive, 0.55, 1);
-	const overshoot = VORTEX_CELL.overshoot * (1 - 0.35 * clamp(material.weight));
-
-	const funnel = createVortexArms({ look, material, arms, seeds });
-	const floor = createVortexFloor({ look, material, arms });
-
-	const group = new THREE.Group();
-	group.name = `cell-${track.id}`;
-	group.add(floor.mesh, funnel.object);
-
-	/** Radians of spin, and of the lean's own cycle. The cell's only state. */
+	const arms = Math.round(clamp(params.symmetry ?? ctx.look.material.bands, 3, 6));
 	let spinPhase = 0;
 	let swayPhase = swaySeed;
-	/** The holder's ceiling, when the plan declared one. Never read across cells. */
 	let held: CellConstraint | null = null;
+	const tip: Vec3 = { x: 0, y: 0, z: 0 };
+
+	const shape = channel.shape;
+	shape.spawn = SPAWN.swirl;
+	shape.axisX = 0;
+	shape.axisY = 0;
+	shape.axisZ = 1;
+	shape.lobePhase = lobePhase;
+	shape.markFloor = 0.1;
+	shape.footprint = foot;
+	// The flare: a negative pinch widens the boundary with height where a
+	// column's narrows it.
+	shape.narrow = -Math.max(0, crown / Math.max(foot, 1e-3) - 1);
+	// Light. The pinch is only here to catch what strays outside the wall: a hard
+	// converge fights the foot's own ring attractor and fills the eye back in, and
+	// a funnel with a solid middle reads as a plume that happens to be spinning.
+	shape.converge = 0.22;
+	shape.wander = FLOW.boundaryWander * (0.6 + 0.5 * (1 - clamp(ctx.quality)));
+	shape.turbulence = FLOW.turbulence * channel.ink.turbulence * 0.9;
+	// A whirl is read from how far a parcel travels around it, so its matter has
+	// to live long enough to go round: short lives make a fountain of any field.
+	// Population is capped by emission rather than by lifetime, so a longer life
+	// buys arc length instead of density.
+	shape.drag = FLOW.drag * 0.36;
+	shape.lifeS = 1.3;
+	shape.lifeSpreadS = 1.5;
+	// The wall the mass rides, between the foot and the crown.
+	shape.pool = (foot + crown) / 2;
+	shape.veil = 0.95;
+	shape.grain = 0.95;
 
 	return {
-		group,
+		update(frame) {
+			if (hushed(frame, channel)) {
+				return;
+			}
+			const seconds = frame.dtMs / 1000;
+			const punch = punchAt(frame);
+			const presence = shapeAt(PRESENCE, frame);
+			const turn = Math.max(frame.drive, COAST * presence);
+			spinPhase += omega * turn * seconds;
+			swayPhase += 1.1 * turn * seconds;
+
+			const height = heldWithin(params.height * shapeAt(STATURE, frame), held);
+			const spread = heldWithin(crown * shapeAt(FLARE, frame), held);
+			shape.reach = Math.max(0.12, height);
+			shape.footprint = foot * (1 + 0.12 * Math.sin(swayPhase) * ctx.look.material.undulation);
+			shape.narrow = -Math.max(0, spread / Math.max(shape.footprint, 1e-3) - 1);
+			shape.speed = Math.abs(params.spin) * frame.drive;
+			shape.swirl = omega * turn * 1.9;
+			// A whirl turns more than it climbs. The updraft only has to carry matter
+			// up the wall, and any more than that reads as a fountain.
+			shape.buoyancy = FLOW.buoyancy * 0.32 * params.updraft * frame.drive;
+			// The floor boundary layer, as the one signed radial term: matter is
+			// drawn in at the foot and thrown up the wall.
+			shape.sink = params.feed * 1.1 * frame.drive;
+			shape.punch = punch;
+			shape.burn = burnAt(frame);
+			shape.heat = 0.95;
+			shape.emission = Math.min(
+				0.92,
+				shapeOf(frame.emission, track.emission.gain) * presence + 0.45 * punch
+			);
+			tip.z = height;
+
+			channel.arc.drive = frame.drive;
+			channel.arc.punch = punch;
+			channel.arc.soot = sootAt(frame);
+			channel.arc.rate = MARK.rate * shape.emission + MARK.punchRate * 0.5 * punch;
+			channel.perform(frame.tMs, seconds);
+		},
 		bind(constraint) {
 			held = constraint;
 		},
-		update(frame: CellFrame) {
-			// R-01: the charge belongs to the ambient medium, so a cell that
-			// performs the seal's own circulation is absent rather than dark.
-			group.visible = frame.beat !== 'charge';
-			if (!group.visible) {
-				return;
-			}
-
-			const presence = FUNNEL_PRESENCE[frame.beat](frame.beatT);
-			// Past the drive envelope the funnel still turns, slower, the way a
-			// spun body does. Presence carries it down to a stop.
-			const turn = Math.max(frame.drive, VORTEX_CELL.coast * presence);
-			const dtS = frame.dtMs / 1000;
-			spinPhase += omega * turn * dtS;
-			swayPhase += VORTEX_CELL.swayRate * turn * dtS;
-
-			const spread = FUNNEL_SPREAD[frame.beat](frame.beatT);
-			const lit =
-				VORTEX_CELL.litFloor +
-				(1 - VORTEX_CELL.litFloor) * shapeOf(frame.emission, track.emission.gain);
-
-			funnel.setFunnel({
-				phase: spinPhase,
-				foot,
-				crown: heldWithin(crown * spread, held),
-				height: heldWithin(
-					params.height * FUNNEL_STATURE[frame.beat](frame.beatT, overshoot),
-					held
-				),
-				pitch,
-				sway: VORTEX_CELL.sway * material.undulation,
-				swayPhase,
-				alpha: presence * VORTEX_CELL.armAlpha * inkAlpha,
-				lit
-			});
-			floor.setInflow({
-				eye: foot,
-				reach: heldWithin(VORTEX_CELL.floorReach * spread, held),
-				phase: spinPhase,
-				curl: sense * VORTEX_CELL.curl * arms,
-				alpha: presence * feedShare * VORTEX_CELL.floorAlpha * inkAlpha
-			});
+		report(): CellReport {
+			return reportOf(
+				channel,
+				clamp(shape.emission),
+				SEAL_ORIGIN,
+				{ ...tip },
+				{
+					foot: shape.footprint,
+					crown: shape.footprint * (1 - shape.narrow),
+					height: tip.z,
+					spin: spinPhase,
+					pitch: sense * (1 + 0.7 * (1 - stature)),
+					arms
+				}
+			);
 		},
 		dispose() {
-			group.clear();
-			funnel.dispose();
-			floor.dispose();
+			channel.reset();
 		}
 	};
 }

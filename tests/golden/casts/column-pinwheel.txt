@@ -2,70 +2,128 @@ cast column-pinwheel
 
 @0850ms beat=charge beatT=0.8673
 track shimmer-ambient kind=shimmer look=skin population=ambient emission=21.7311 drive=1.0000
-  group cell-shimmer-ambient
-    form ambient-haze blend=normal at=(0.0000, 0.0000, 0.0200) uAlpha=0.1113 uCore=(0.216, 0.701, 1.000) uEdge=(0.006, 0.195, 0.701) uLobes=7.0000 uPeak=1.3654 uPhase=5.0243 uWidth=0.4239
-    form ambient-motes blend=add instances=25 uAlpha=0.3657 uCeiling=0.5000 uCore=(0.006, 0.195, 0.701) uEdge=(0.003, 0.048, 0.195) uInhale=0.7523 uRim=1.0000 uStretch=1.0000 uTime=0.8500 uWander=0.0765
+  ink=0.0086 marks=4 born=4 parcels=2048
+  at=(-0.0221, -0.6891, 0.2030) tip=(0.0000, 0.0000, 0.5000)
+  detail cap=0.1000 inhale=0.7523 presence=0.1232 reach=3.7736 speed=0.2534
+  field
+    at (0.0000, 0.0000, 0.3000) -> (-0.1069, 0.0775, 0.0645)
+    at (0.7000, 0.0000, 0.1500) -> (-0.1742, -0.4648, 0.2724)
+    at (0.0000, -0.5000, 0.9000) -> (0.6609, -0.2253, -1.7278)
+    at (0.5000, 0.5000, 1.5000) -> (0.5228, -0.8353, -6.3650)
   ceiling none
 track burst kind=burst look=core population=own emission=0.0000 drive=0.0000
-  group cell-burst hidden
+  ink=0.0000 marks=0 born=0 parcels=6400
+  at=(0.0000, 0.0000, 0.0000) tip=(0.0000, 0.0000, 0.0000)
+  detail front=0.0000 reach=0.0000 speed=0.0000
+  field
+    at (0.0000, 0.0000, 0.3000) -> (-0.2979, 0.2161, -0.0012)
+    at (0.7000, 0.0000, 0.1500) -> (-0.7710, -1.1984, 0.6328)
+    at (0.0000, -0.5000, 0.9000) -> (2.4558, -0.8082, 2.0872)
+    at (0.5000, 0.5000, 1.5000) -> (1.8967, -2.3802, -1.4250)
   ceiling none
 track vortex-circulation kind=vortex look=body population=own emission=0.0000 drive=0.0000
-  group cell-vortex-circulation hidden
+  ink=0.0000 marks=0 born=0 parcels=7936
+  at=(0.0000, 0.0000, 0.0000) tip=(0.0000, 0.0000, 0.0000)
+  detail arms=4.0000 crown=0.7741 foot=0.3409 height=0.0000 pitch=1.1347 reach=0.0000 speed=0.0000 spin=0.0000
+  field
+    at (0.0000, 0.0000, 0.3000) -> (-0.2235, 0.1621, -0.0009)
+    at (0.7000, 0.0000, 0.1500) -> (-0.9402, -0.7833, 0.4746)
+    at (0.0000, -0.5000, 0.9000) -> (1.9244, 0.2124, 1.5654)
+    at (0.5000, 0.5000, 1.5000) -> (0.5508, -2.4919, -1.0688)
   ceiling none
 
 @1100ms beat=strike beatT=0.3750
 track shimmer-ambient kind=shimmer look=skin population=ambient emission=20.3055 drive=1.0000
-  group cell-shimmer-ambient
-    form ambient-haze blend=normal at=(0.0000, 0.0000, 0.0200) uAlpha=0.0917 uCore=(0.216, 0.701, 1.000) uEdge=(0.006, 0.195, 0.701) uLobes=7.0000 uPeak=1.3140 uPhase=5.6079 uWidth=0.3844
-    form ambient-motes blend=add instances=25 uAlpha=0.3012 uCeiling=0.5000 uCore=(0.006, 0.195, 0.701) uEdge=(0.003, 0.048, 0.195) uInhale=0.8313 uRim=1.0000 uStretch=0.4500 uTime=1.1000 uWander=0.0765
+  ink=0.0066 marks=6 born=6 parcels=2048
+  at=(0.2354, -0.4738, 0.2133) tip=(0.0000, 0.0000, 0.5000)
+  detail cap=0.1000 inhale=0.8313 presence=0.0948 reach=3.8322 speed=0.3293
+  field
+    at (0.0000, 0.0000, 0.3000) -> (-0.0419, -0.5977, 0.2437)
+    at (0.7000, 0.0000, 0.1500) -> (-0.0532, -0.7220, 0.3410)
+    at (0.0000, -0.5000, 0.9000) -> (0.1595, -0.6816, -1.1908)
+    at (0.5000, 0.5000, 1.5000) -> (0.1501, -0.1561, -6.6307)
   ceiling none
 track burst kind=burst look=core population=own emission=562.7827 drive=0.8738
-  group cell-burst
-    form burst-shock blend=add at=(0.0000, 0.0000, 0.0040) uAlpha=0.3328 uCore=(0.491, 0.855, 1.000) uEdge=(0.216, 0.701, 1.000) uInner=0.0000 uLobes=6.0000 uOuter=0.1337 uPhase=3.4019 uWaveAmplitude=0.0090
-    form burst-flash blend=add turn=(1.5708, 0.0000, 0.0000) size=(0.3400, 1.2739, 0.3400) uAlpha=0.5342 uCore=(0.491, 0.855, 1.000) uEdge=(0.216, 0.701, 1.000) uLicks=4.0000 uPhase=3.4019
+  ink=0.9400 marks=116 born=116 parcels=6400
+  at=(-0.0081, 0.0295, 0.3381) tip=(0.1337, 0.0000, 0.0040)
+  detail front=0.1337 reach=0.9118 speed=2.2789
+  field
+    at (0.0000, 0.0000, 0.3000) -> (-0.2458, -3.5066, 1.2885)
+    at (0.7000, 0.0000, 0.1500) -> (-0.8932, -3.7992, 1.9178)
+    at (0.0000, -0.5000, 0.9000) -> (0.8235, -2.5513, 4.5174)
+    at (0.5000, 0.5000, 1.5000) -> (0.5741, -0.1424, -2.3884)
   ceiling none
 track vortex-circulation kind=vortex look=body population=own emission=9.4824 drive=0.9767
-  group cell-vortex-circulation
-    form vortex-floor blend=add uAlpha=0.2547 uArms=4.0000 uCore=(0.216, 0.701, 1.000) uCurl=6.4000 uEdge=(0.006, 0.195, 0.701) uEye=0.3409 uEyeWidth=0.0700 uNoise=0.3000 uPhase=0.3932 uReach=1.0631
-    group vortex-arms
-      form vortex-arms-ghost blend=add uAlpha=0.0627 uArms=4.0000 uBands=7.0000 uCore=(0.216, 0.701, 1.000) uCrown=0.5351 uEdge=(0.006, 0.195, 0.701) uEdgeSoft=0.3000 uEmissive=0.3500 uFlicker=0.0000 uFoot=0.3409 uHeight=1.1701 uLit=0.6505 uNoise=0.3000 uPhase=0.0532 uPitch=7.1297 uSerrate=0.0000 uShred=0.8840 uSway=0.1620 uSwayPhase=4.3160 uWidth=0.2925
-      form vortex-arms-ink blend=add uAlpha=0.5225 uArms=4.0000 uBands=7.0000 uCore=(0.216, 0.701, 1.000) uCrown=0.5351 uEdge=(0.006, 0.195, 0.701) uEdgeSoft=0.3000 uEmissive=0.3500 uFlicker=0.0000 uFoot=0.3409 uHeight=1.1701 uLit=0.6505 uNoise=0.3000 uPhase=0.3932 uPitch=7.1297 uSerrate=0.0000 uShred=0.8840 uSway=0.1620 uSwayPhase=4.3160 uWidth=0.1950
+  ink=0.2018 marks=61 born=61 parcels=7936
+  at=(0.0142, 0.0609, 0.8638) tip=(0.0000, 0.0000, 2.5190)
+  detail arms=4.0000 crown=0.6290 foot=0.3643 height=2.5190 pitch=1.1347 reach=2.7630 speed=2.0704 spin=0.3598
+  field
+    at (0.0000, 0.0000, 0.3000) -> (-0.0726, -1.0354, 1.0510)
+    at (0.7000, 0.0000, 0.1500) -> (-0.8467, -5.2618, 1.4214)
+    at (0.0000, -0.5000, 0.9000) -> (-2.1542, -0.6414, 3.2887)
+    at (0.5000, 0.5000, 1.5000) -> (1.9073, -3.8624, -1.1418)
   ceiling none
 
 @1600ms beat=body beatT=0.1974
 track shimmer-ambient kind=shimmer look=skin population=ambient emission=17.1013 drive=1.0000
-  group cell-shimmer-ambient
-    form ambient-haze blend=normal at=(0.0000, 0.0000, 0.0200) uAlpha=0.0414 uCore=(0.216, 0.701, 1.000) uEdge=(0.006, 0.195, 0.701) uLobes=7.0000 uPeak=1.5493 uPhase=4.0158 uWidth=0.5250
-    form ambient-motes blend=add instances=25 uAlpha=0.1361 uCeiling=0.5000 uCore=(0.006, 0.195, 0.701) uEdge=(0.003, 0.048, 0.195) uInhale=0.5500 uRim=1.0000 uStretch=0.1500 uTime=1.6000 uWander=0.0765
+  ink=0.0025 marks=6 born=8 parcels=2048
+  at=(0.6744, 0.1426, 0.3042) tip=(0.0000, 0.0000, 0.5000)
+  detail cap=0.1000 inhale=0.5500 presence=0.0361 reach=1.7579 speed=0.3028
+  field
+    at (0.0000, 0.0000, 0.3000) -> (-0.0574, -0.5118, 0.1254)
+    at (0.7000, 0.0000, 0.1500) -> (0.0601, -0.5703, 0.2757)
+    at (0.0000, -0.5000, 0.9000) -> (-0.6230, -1.1474, -0.8021)
+    at (0.5000, 0.5000, 1.5000) -> (-0.2175, -1.0157, -6.1854)
   ceiling none
 track burst kind=burst look=core population=own emission=0.0000 drive=0.4396
-  group cell-burst
-    form burst-shock blend=add at=(0.0000, 0.0000, 0.0166) uAlpha=0.4976 uCore=(0.491, 0.855, 1.000) uEdge=(0.216, 0.701, 1.000) uInner=0.2159 uLobes=6.0000 uOuter=0.5530 uPhase=4.4082 uWaveAmplitude=0.0090
-    form burst-flash hidden
+  ink=0.0000 marks=2 born=169 parcels=6400
+  at=(0.0825, 0.0012, 0.1540) tip=(0.5530, 0.0000, 0.0166)
+  detail front=0.5530 reach=0.5263 speed=0.4291
+  field
+    at (0.0000, 0.0000, 0.3000) -> (-0.2807, -2.5026, 0.4416)
+    at (0.7000, 0.0000, 0.1500) -> (-0.0092, -2.2044, 1.1111)
+    at (0.0000, -0.5000, 0.9000) -> (-1.9462, -4.0814, 5.3755)
+    at (0.5000, 0.5000, 1.5000) -> (-0.6783, -3.0354, -0.6953)
   ceiling none
 track vortex-circulation kind=vortex look=body population=own emission=42.1114 drive=0.8727
-  group cell-vortex-circulation
-    form vortex-floor blend=add uAlpha=0.4179 uArms=4.0000 uCore=(0.216, 0.701, 1.000) uCurl=6.4000 uEdge=(0.006, 0.195, 0.701) uEye=0.3409 uEyeWidth=0.0700 uNoise=0.3000 uPhase=1.8653 uReach=1.3500
-    group vortex-arms
-      form vortex-arms-ghost blend=add uAlpha=0.1029 uArms=4.0000 uBands=7.0000 uCore=(0.216, 0.701, 1.000) uCrown=0.6795 uEdge=(0.006, 0.195, 0.701) uEdgeSoft=0.3000 uEmissive=0.3500 uFlicker=0.0000 uFoot=0.3409 uHeight=1.2113 uLit=0.8241 uNoise=0.3000 uPhase=1.5253 uPitch=7.1297 uSerrate=0.0000 uShred=0.8840 uSway=0.1620 uSwayPhase=4.8246 uWidth=0.2925
-      form vortex-arms-ink blend=add uAlpha=0.8574 uArms=4.0000 uBands=7.0000 uCore=(0.216, 0.701, 1.000) uCrown=0.6795 uEdge=(0.006, 0.195, 0.701) uEdgeSoft=0.3000 uEmissive=0.3500 uFlicker=0.0000 uFoot=0.3409 uHeight=1.2113 uLit=0.8241 uNoise=0.3000 uPhase=1.8653 uPitch=7.1297 uSerrate=0.0000 uShred=0.8840 uSway=0.1620 uSwayPhase=4.8246 uWidth=0.1950
+  ink=0.5604 marks=129 born=166 parcels=7936
+  at=(-0.0486, 0.0338, 1.1577) tip=(0.0000, 0.0000, 1.3802)
+  detail arms=4.0000 crown=0.7741 foot=0.3474 height=1.3802 pitch=1.1347 reach=3.2261 speed=1.2024 spin=1.7071
+  field
+    at (0.0000, 0.0000, 0.3000) -> (-0.1214, -1.0822, 0.7901)
+    at (0.7000, 0.0000, 0.1500) -> (-0.4832, -4.4122, 1.1473)
+    at (0.0000, -0.5000, 0.9000) -> (-3.7926, -2.3289, 4.6080)
+    at (0.5000, 0.5000, 1.5000) -> (0.9723, -5.4615, -0.0482)
   ceiling none
 
 @2600ms beat=body beatT=0.8553
 track shimmer-ambient kind=shimmer look=skin population=ambient emission=7.2621 drive=1.0000
-  group cell-shimmer-ambient
-    form ambient-haze blend=normal at=(0.0000, 0.0000, 0.0200) uAlpha=0.0414 uCore=(0.216, 0.701, 1.000) uEdge=(0.006, 0.195, 0.701) uLobes=7.0000 uPeak=1.4817 uPhase=4.3658 uWidth=0.5250
-    form ambient-motes blend=add instances=25 uAlpha=0.1361 uCeiling=0.5000 uCore=(0.006, 0.195, 0.701) uEdge=(0.003, 0.048, 0.195) uInhale=0.5500 uRim=1.0000 uStretch=0.1500 uTime=2.6000 uWander=0.0765
+  ink=0.0011 marks=1 born=9 parcels=2048
+  at=(-0.8058, 1.1864, 0.2379) tip=(0.0000, 0.0000, 0.5000)
+  detail cap=0.1000 inhale=0.5500 presence=0.0153 reach=1.4538 speed=0.1474
+  field
+    at (0.0000, 0.0000, 0.3000) -> (0.0780, -0.0075, 0.1247)
+    at (0.7000, 0.0000, 0.1500) -> (0.2669, 0.1757, 0.1898)
+    at (0.0000, -0.5000, 0.9000) -> (-1.0147, 1.1175, -2.9571)
+    at (0.5000, 0.5000, 1.5000) -> (-0.0190, 1.0129, -4.8856)
   ceiling none
 track burst kind=burst look=core population=own emission=0.0000 drive=0.0143
-  group cell-burst
-    form burst-shock blend=add at=(0.0000, 0.0000, 0.0234) uAlpha=0.3359 uCore=(0.491, 0.855, 1.000) uEdge=(0.216, 0.701, 1.000) uInner=0.4754 uLobes=6.0000 uOuter=0.7786 uPhase=4.9496 uWaveAmplitude=0.0090
-    form burst-flash hidden
+  ink=0.0000 marks=0 born=169 parcels=6400
+  at=(0.0000, 0.0000, 0.0000) tip=(0.7786, 0.0000, 0.0234)
+  detail front=0.7786 reach=0.0000 speed=0.0000
+  field
+    at (0.0000, 0.0000, 0.3000) -> (0.3632, -0.0348, 0.4246)
+    at (0.7000, 0.0000, 0.1500) -> (0.8917, 1.1412, 0.6889)
+    at (0.0000, -0.5000, 0.9000) -> (-3.2892, 3.9455, -2.0098)
+    at (0.5000, 0.5000, 1.5000) -> (0.0052, 3.9228, 3.7611)
   ceiling none
 track vortex-circulation kind=vortex look=body population=own emission=74.0745 drive=0.6139
-  group cell-vortex-circulation
-    form vortex-floor blend=add uAlpha=0.4179 uArms=4.0000 uCore=(0.216, 0.701, 1.000) uCurl=6.4000 uEdge=(0.006, 0.195, 0.701) uEye=0.3409 uEyeWidth=0.0700 uNoise=0.3000 uPhase=4.2523 uReach=1.3500
-    group vortex-arms
-      form vortex-arms-ghost blend=add uAlpha=0.1029 uArms=4.0000 uBands=7.0000 uCore=(0.216, 0.701, 1.000) uCrown=0.6795 uEdge=(0.006, 0.195, 0.701) uEdgeSoft=0.3000 uEmissive=0.3500 uFlicker=0.0000 uFoot=0.3409 uHeight=1.2113 uLit=0.9943 uNoise=0.3000 uPhase=3.9123 uPitch=7.1297 uSerrate=0.0000 uShred=0.8840 uSway=0.1620 uSwayPhase=5.6493 uWidth=0.2925
-      form vortex-arms-ink blend=add uAlpha=0.8574 uArms=4.0000 uBands=7.0000 uCore=(0.216, 0.701, 1.000) uCrown=0.6795 uEdge=(0.006, 0.195, 0.701) uEdgeSoft=0.3000 uEmissive=0.3500 uFlicker=0.0000 uFoot=0.3409 uHeight=1.2113 uLit=0.9943 uNoise=0.3000 uPhase=4.2523 uPitch=7.1297 uSerrate=0.0000 uShred=0.8840 uSway=0.1620 uSwayPhase=5.6493 uWidth=0.1950
+  ink=0.9200 marks=314 born=572 parcels=7936
+  at=(0.0515, -0.0499, 1.3238) tip=(0.0000, 0.0000, 1.5396)
+  detail arms=4.0000 crown=0.7741 foot=0.3187 height=1.5396 pitch=1.1347 reach=4.1661 speed=1.0001 spin=3.8915
+  field
+    at (0.0000, 0.0000, 0.3000) -> (0.1512, -0.0145, 0.5819)
+    at (0.7000, 0.0000, 0.1500) -> (-0.4049, -1.7219, 0.7414)
+    at (0.0000, -0.5000, 0.9000) -> (-4.0838, 3.2173, -1.1298)
+    at (0.5000, 0.5000, 1.5000) -> (0.7517, 0.4562, 3.1567)
   ceiling none

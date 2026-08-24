@@ -1,191 +1,164 @@
 /**
- * @file The fan cell: R-07's plane-hugging dispersion, performed as a sector
- * sheet, and R-13's routed vessel performed by the same cell off its own params.
+ * @file The fan cell: R-07's plane-hugging dispersion, and R-13's routed vessel.
  *
- * A sheet per dispersion sign, pointed where that sign faced, spreading outward
- * from the aperture core with a serrated leading edge and radial streaks that
- * scroll on the same advance the edge runs on. R-08 is why it looks unhurried:
- * the fan's drive is a `leak`, so the front is still moving when a jet's has
- * stopped.
+ * | beat      | the cell                                                      |
+ * | --------- | ------------------------------------------------------------- |
+ * | charge    | nothing. R-01 lets only the ambient medium manifest here.      |
+ * | strike    | the sheet snaps open and its lip rears into a bow wave.        |
+ * | body      | it runs outward and thins, shedding marks off its own front.   |
+ * | release   | it commits: the root lets go and the sheet becomes a band.     |
+ * | afterglow | the band fades where it stands.                                |
  *
- * What each beat looks like:
+ * R-08 lives here as timing, not as shape. A dispersion sign contributes to
+ * `(S, P, C, Gamma)` exactly as a column does, so the two cannot be told apart in
+ * space; the score tells them apart by giving a fan the `leak` curve, and this
+ * cell simply performs the envelope it is handed.
  *
- * | beat      | the cell                                                    |
- * | --------- | ----------------------------------------------------------- |
- * | charge    | nothing. R-01 lets only the ambient medium manifest here.    |
- * | strike    | the sheet snaps open and its lip rears into a bow wave.      |
- * | body      | it runs outward and thins, shedding slivers off the front.   |
- * | release   | it commits: the root lets go and the sheet becomes a band.   |
- * | afterglow | the band fades where it stands and the garnish goes out.     |
- *
- * @example
- * const fan = createFanCell(track, { seed, look, quality });
+ * R-13's vessel is param-driven rather than id-driven: a fan no sign asked for
+ * carries no sites, so it opens the whole seal, and its `swirl` stirs what it
+ * cannot spread.
  */
 
-import { createFanSheet, type FanSector } from './forms/fanSheet.js';
-import { createFanSparks } from './forms/fanSparks.js';
+import { burnAt, punchAt, shapeAt, shapeOf, sootAt, type BeatShape } from './arc.js';
+import { hushed, reportOf } from './perform.js';
+import { SPAWN } from '../hybrid/flow.js';
+import { FLOW, MARK } from '../hybrid/tuning.js';
 import { mulberry32 } from '../rng.js';
 import { clamp } from '../../utils/geometry.js';
-import * as THREE from 'three';
-import type { Cell, CellContext, CellFrame } from './cell.js';
-import type { Beat, Site, Track } from '../../types.js';
+import type { Cell, CellContext, CellReport } from './cell.js';
+import type { Track, Vec3 } from '../../types.js';
 
-const FAN_CELL = {
-	/** Seal units of sheet behind the front before it has run anywhere. */
-	band: 0.7,
-	/** Fraction of the aperture core the sheet's root sits at. */
-	rootCore: 0.55,
-	/** Turns of radial pattern per seal unit the front advances. */
-	turnsPerUnit: 0.7,
-	/** How much further the lip rides per seal unit the front has run. */
-	liftPerUnit: 0.3,
-	/** How much of its share of the seal one sector actually opens. */
-	sectorFill: 0.62,
-	/** Ridges around the seal before the fold snaps them. */
-	streaks: 9,
-	/** Below this a facing is the reading's "not trusted" zero (R-06). */
-	facingFloor: 1e-3,
-	alpha: { sheet: 0.85, sparks: 0.8 }
-} as const;
+/** A sheet spreads from the seal itself, whichever arc of it emits. */
+const SEAL_ORIGIN: Vec3 = { x: 0, y: 0, z: 0 };
 
-/** How present the sheet is through each beat. */
-const FAN_PRESENCE: Record<Beat, (t: number) => number> = {
+/** How much of the sheet is in the air. */
+const PRESENCE: BeatShape = {
 	charge: () => 0,
-	strike: (t) => t * (2 - t),
-	body: (t) => 1 - 0.25 * t,
-	release: (t) => 0.75 + 0.15 * t,
-	afterglow: (t) => 0.9 * (1 - t) * (1 - t)
+	strike: (t) => 0.55 + 0.45 * t,
+	body: () => 1,
+	release: (t) => 1 - 0.5 * t,
+	afterglow: (t) => 0.5 * (1 - t)
 };
 
-/** Where the sheet's inner edge sits, as a fraction of the way out to the front. */
-const FAN_ROOT: Record<Beat, (t: number) => number> = {
+/** How high the lip rears. R-07 caps the climb; this only says when it peaks. */
+const LIP: BeatShape = {
 	charge: () => 0,
-	strike: () => 0,
-	body: (t) => 0.12 * t,
-	release: (t) => 0.12 + 0.5 * t,
-	afterglow: (t) => 0.62 + 0.3 * t
+	strike: (t) => 0.4 + 1.4 * Math.sin(Math.PI * t),
+	body: (t) => 1 - 0.35 * t,
+	release: (t) => 0.65 - 0.3 * t,
+	afterglow: () => 0.3
 };
 
-/** How hard the lip rears off the paper, as a multiple of the track's own `rise`. */
-const FAN_LIP: Record<Beat, (t: number) => number> = {
-	charge: () => 0,
-	strike: (t) => 0.35 + 0.85 * t,
-	body: (t) => 1.2 - 0.45 * t,
-	release: (t) => 0.75 - 0.2 * t,
-	afterglow: (t) => 0.55 - 0.35 * t
-};
+/** Below this a facing is the reading's "not trusted" zero (R-06). */
+const FACING_FLOOR = 1e-3;
 
-/** An envelope's curve value, 0..1, with its gain divided back out. */
-function shapeOf(value: number, gain: number): number {
-	return gain > 0 ? clamp(value / gain) : 0;
-}
-
-/** Which way one dispersion sign pours: where it faced, or where it sat when it was not trusted. */
-function bearingOf(site: Site): number {
-	const trusted = Math.hypot(site.facing.x, site.facing.y) > FAN_CELL.facingFloor;
-	const heading = trusted ? site.facing : site.at;
-	return Math.atan2(heading.y, heading.x);
-}
-
-/**
- * One sector per drawn dispersion sign. A fan no sign asked for (R-13's routed
- * vessel) opens the whole seal instead, because it has no arrangement to honor.
- */
-function sectorsFor(sites: readonly Site[]): FanSector[] {
-	if (sites.length === 0) {
-		return [{ bearing: 0, halfAngle: Math.PI }];
-	}
-	const halfAngle = Math.min(Math.PI, (Math.PI / sites.length) * FAN_CELL.sectorFill);
-	return sites.map((site) => ({ bearing: bearingOf(site), halfAngle }));
-}
-
-/** Ridges around the seal, snapped onto the plan's fold so they land on the ink. */
-function streaksFor(symmetry: number | null): number {
-	if (!symmetry || symmetry < 1) {
-		return FAN_CELL.streaks;
-	}
-	return Math.max(symmetry, Math.round(FAN_CELL.streaks / symmetry) * symmetry);
-}
+/** Seal units the front may reach. Past two ring radii it has left the shot. */
+const FAN_REACH = 2;
 
 export function createFanCell(track: Track<'fan'>, ctx: CellContext): Cell {
-	const rng = mulberry32(ctx.seed);
-	const look = ctx.look[track.look];
-	const material = ctx.look.material;
 	const params = track.params;
-	const sectors = sectorsFor(params.sites);
-
-	const sheet = createFanSheet({
-		look,
-		material,
-		sectors,
-		streaks: streaksFor(params.symmetry),
-		sideFade: params.sites.length > 0 ? 1 : 0
-	});
-	// The look table's own word for a fleck thrown off the body, which is what a
-	// sliver leaving the front is.
-	const sparks = createFanSparks({ look: ctx.look.ember, material, sectors, rng });
-	sheet.mesh.name = 'fan-sheet';
-	sparks.mesh.name = 'fan-sparks';
-
-	const group = new THREE.Group();
-	group.name = `cell-${track.id}`;
-	group.add(sheet.mesh, sparks.mesh);
-
-	const sparkSize = material.ribbonWidth * 0.9;
-	// A sloppier seal throws its garnish further off the edge. Quality buys form
-	// here and nothing else: the score already paid for strength.
-	const sparkLift = params.ceiling * (0.5 + 0.5 * (1 - clamp(ctx.quality)));
-
-	/** Seal units the front has run, and turns the sheet has been stirred through. */
+	const { channel } = ctx;
+	const rng = mulberry32(ctx.seed);
+	const lobePhase = rng() * Math.PI * 2;
 	let spreadUnits = 0;
 	let swirlTurns = 0;
+	const tip: Vec3 = { x: 0, y: 0, z: 0 };
+
+	const shape = channel.shape;
+	shape.spawn = SPAWN.sector;
+	shape.axisX = 0;
+	shape.axisY = 0;
+	shape.axisZ = 1;
+	shape.lobePhase = lobePhase;
+	// A fan is all foot: its marks are born anywhere along it, unlike a column's,
+	// which have nothing to tear off down at the plate.
+	shape.markFloor = 0;
+	shape.converge = -0.05;
+	shape.wander = FLOW.boundaryWander * 0.8;
+	shape.turbulence = FLOW.turbulence * channel.ink.turbulence * 0.72;
+	shape.pool = Math.max(0.2, params.core);
+	shape.veil = 0.72;
+	shape.grain = 1.25;
+	shape.ceiling = params.ceiling;
+	shape.siteCount = Math.min(4, params.sites.length);
+	for (let i = 0; i < shape.siteCount; i += 1) {
+		const site = params.sites[i];
+		// R-06: a facing the reading did not trust is a zero, and a site with no
+		// facing points the only way it can, outward from where it stands.
+		const trusted = Math.hypot(site.facing.x, site.facing.y) > FACING_FLOOR;
+		shape.sites[i * 4] = site.at.x;
+		shape.sites[i * 4 + 1] = site.at.y;
+		shape.sites[i * 4 + 2] = trusted ? site.facing.x : 0;
+		shape.sites[i * 4 + 3] = trusted ? site.facing.y : 0;
+	}
 
 	return {
-		group,
-		update(frame: CellFrame) {
-			// R-01: nothing the seal manifests shows in the charge.
-			group.visible = frame.beat !== 'charge';
-			if (!group.visible) {
+		update(frame) {
+			if (hushed(frame, channel)) {
 				return;
 			}
-
 			const seconds = frame.dtMs / 1000;
-			spreadUnits += params.speed * frame.drive * seconds;
+			const punch = punchAt(frame);
+			const presence = shapeAt(PRESENCE, frame);
+			spreadUnits += Math.abs(params.speed) * frame.drive * seconds;
 			swirlTurns += (params.swirl * frame.drive * seconds) / (Math.PI * 2);
-			// R-13's stand-in stirs rather than spreads, and a stirred sheet's pattern
-			// turns with the geometry it is drawn on.
-			group.rotation.z = swirlTurns * Math.PI * 2;
 
-			const flow = spreadUnits * FAN_CELL.turnsPerUnit;
-			const density = 0.6 + 0.4 * shapeOf(frame.emission, track.emission.gain);
-			const presence = FAN_PRESENCE[frame.beat](frame.beatT) * density;
-			const outer = params.core + FAN_CELL.band + spreadUnits;
-			const root = FAN_ROOT[frame.beat](frame.beatT);
+			// The sheet runs past the ring and then spends itself. Uncapped it walks
+			// off the paper and stops being a spell on a seal.
+			const outer = Math.min(FAN_REACH, params.core + 0.7 + spreadUnits);
+			// R-07: the fan hugs the plane however far it runs, and only its lip
+			// ever leaves the paper.
+			const lift = Math.min(params.rise * shapeAt(LIP, frame), params.ceiling);
+			shape.footprint = outer;
+			shape.reach = Math.max(0.18, params.ceiling * 1.6 + lift);
+			// The whole sheet is short and wide, so its boundary barely narrows.
+			shape.narrow = 0.18;
+			shape.speed = Math.abs(params.speed) * frame.drive * (1 + 0.8 * punch);
+			shape.buoyancy = FLOW.buoyancy * 0.16 * (0.3 + lift);
+			// A negative sink is the outward push: one signed term serves the fan
+			// running out and the vessel stirring in place.
+			shape.sink = -Math.abs(params.speed) * frame.drive * 0.45;
+			shape.swirl = params.swirl;
+			shape.punch = punch;
+			shape.burn = burnAt(frame);
+			shape.heat = 0.72;
+			// It thins as it runs: the same mass over a widening ring.
+			const thinning = 1 - 0.5 * clamp(spreadUnits / FAN_REACH);
+			shape.emission = Math.min(
+				0.55,
+				(shapeOf(frame.emission, track.emission.gain) * presence + 0.4 * punch) * thinning
+			);
+			tip.x = outer;
+			tip.z = lift;
 
-			const lip = FAN_LIP[frame.beat](frame.beatT) * (1 + FAN_CELL.liftPerUnit * spreadUnits);
-			sheet.setSweep({
-				inner: params.core * FAN_CELL.rootCore * (1 - root) + outer * root,
-				outer,
-				// R-07 caps the climb at the ceiling: a fan hugs the plane however far
-				// it runs, and only its lip ever leaves the paper.
-				lift: Math.min(params.rise * lip, params.ceiling),
-				alpha: presence * FAN_CELL.alpha.sheet,
-				flow
-			});
-			sparks.setSpray({
-				outer,
-				lift: sparkLift,
-				size: sparkSize,
-				alpha: presence * FAN_CELL.alpha.sparks,
-				// The rim's whole travel, radial and tangential, so a stirred vessel
-				// still throws slivers off an edge that is going somewhere.
-				flow: flow + Math.abs(swirlTurns)
-			});
+			channel.arc.drive = frame.drive;
+			channel.arc.punch = punch;
+			channel.arc.soot = sootAt(frame);
+			// A sheet pools rather than tearing: a crowd of tongues on a plane reads
+			// as a starburst pointing away from the seal.
+			channel.arc.tongueShare = 0.68;
+			// A sheet running out across the paper has no edge facing the viewer to
+			// outline, so it carries almost none of the row's ink.
+			channel.arc.inkShare = channel.ink.inkShare * 0.2;
+			channel.arc.rate = MARK.rate * 0.4 * shape.emission + MARK.punchRate * 0.3 * punch;
+			channel.perform(frame.tMs, seconds);
+		},
+		report(): CellReport {
+			return reportOf(
+				channel,
+				clamp(shape.emission),
+				SEAL_ORIGIN,
+				{ ...tip },
+				{
+					outer: shape.footprint,
+					lift: tip.z,
+					spread: spreadUnits,
+					stir: swirlTurns
+				}
+			);
 		},
 		dispose() {
-			group.clear();
-			sheet.dispose();
-			sparks.dispose();
+			channel.reset();
 		}
 	};
 }

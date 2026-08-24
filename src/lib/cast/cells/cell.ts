@@ -1,31 +1,37 @@
 /**
- * @file The cell contract, from `docs/animation-cells.md`. A parcel belonged to
- * exactly one track; a **cell is one track**, performing that track's envelopes
- * as macroscopic animated form.
+ * @file The cell contract. A parcel belonged to exactly one track; **a cell is
+ * one track**, and what it performs is a choreography rather than a shape.
  *
- * Four rules, inherited and new:
+ * Since the hybrid rework a cell owns no geometry at all. It owns the flow shape
+ * its parcels feel, the arc its brush marks are laid at, and whatever it
+ * accumulates of its own; the pigment is one shared substrate
+ * (`cast/hybrid/`). An archetype is a field shape plus a spawn program plus a
+ * mark behaviour, which is why seven of them can look like one hand drew them.
+ * See `docs/animation-hybrid.md`.
+ *
+ * Four rules, inherited and unchanged:
  *
  * - **A cell feels only its own track.** No cell reads another cell, the score,
- *   or the wall clock. Couplings arrive the way they did in the sim: the stage
- *   applies the holder's constraint to a captured cell's declared bound.
+ *   or the wall clock. Couplings arrive as a value: the stage applies the
+ *   holder's constraint to a captured cell's declared bound.
  * - **Deterministic replay.** `update` is a function of (track, ctx, frames so
  *   far). Seeded RNG only, from `ctx.seed`; `Math.random` and `Date.now` are
- *   banned below `stage/` exactly as they were below `render/`.
- * - **Phase-locked patterning.** A procedural surface pattern must be driven by
- *   the same phase its geometry moves by, or the form reads as mush.
+ *   banned below `stage/`.
+ * - **Phase-locked patterning.** Anything a cell writes that patterns the mass
+ *   is driven by the same phase the mass moves by. The brush marks integrate the
+ *   very field the parcels do, which is that rule taken as far as it goes.
  * - **Beats are visible.** Every cell states what it does in charge (nothing
  *   non-ambient manifests, R-01), strike (impulse), body (sustain, the one beat
  *   that stretches, R-02), release (commit) and afterglow (dissipate). A cell
  *   whose five beats look identical is a bug.
  *
  * @example
- * const cell = cellFor(track, { seed, look, quality });
- * sealRoot.add(cell.group);
+ * const cell = cellFor(track, { seed, look, quality, channel });
  */
 
-import type * as THREE from 'three';
 import type { Beat, ScoreTrack, Vec3 } from '../../types.js';
 import type { LookRow } from '../looks/look.js';
+import type { Channel } from '../hybrid/substrate.js';
 
 /** What a cell is built with. Fixed for the life of the cell. */
 export interface CellContext {
@@ -33,8 +39,10 @@ export interface CellContext {
 	seed: number;
 	/** The resolved material profile, indexed by the track's own `look` role. */
 	look: LookRow;
-	/** The seal's drawing quality, 0..1. Form roughness, never magnitude: the score already paid for strength. */
+	/** The seal's drawing quality, 0..1. Form roughness, never magnitude. */
 	quality: number;
+	/** This cell's own seat at the shared substrate. Its whole output surface. */
+	channel: Channel;
 }
 
 /** One fixed step of the cast, as the cell sees it. */
@@ -67,12 +75,34 @@ export interface CellConstraint {
 	closed: number;
 }
 
+/**
+ * What a cell reached, as plain numbers. This is the whole of what the golden
+ * tier and the probe table may read, and it is deliberately CPU-only: the mass
+ * itself lives in a GPU texture no assertion can see, so what is asserted on is
+ * the choreography that put it there.
+ */
+export interface CellReport {
+	/** How loudly this cell is painting, 0..1. Zero is silence, which R-01 requires. */
+	ink: number;
+	/** Where the mass stands: the seal-space centroid of the cell's live marks. */
+	at: Vec3;
+	/** Where the form the cell declares is rooted, in seal space. */
+	from: Vec3;
+	/** The point that form reaches to, along its own axis. */
+	tip: Vec3;
+	/** Live brush marks, and every mark this cell has ever laid. */
+	marks: number;
+	born: number;
+	/** Named scalars this kind publishes. One entry is one claim a probe can pin. */
+	detail: Record<string, number>;
+}
+
 /** One track's performer. */
 export interface Cell {
-	/** Parented under the stage's seal-space root, so its transform is seal space. */
-	readonly group: THREE.Group;
 	update(frame: CellFrame): void;
-	/** Every geometry, material and texture the cell made. */
+	/** What this cell reached at the last {@link Cell.update}. */
+	report(): CellReport;
+	/** Give back whatever the cell holds. Its channel stops painting. */
 	dispose(): void;
 	/**
 	 * Holder side of a coupling, optional. What this cell imposes on what it holds,

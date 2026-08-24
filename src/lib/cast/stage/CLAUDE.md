@@ -7,8 +7,9 @@ and data; below it every cell draws its own form and nothing else.
 `CastStage.render(spellIR, ring, timestamp, options)` kept the argument list of
 the Canvas2D engine it replaced, which is what made the cutover a swap at its
 three hosts rather than a rewrite of them. Read
-[`../../../../docs/animation-cells.md`](../../../../docs/animation-cells.md),
-the ruling this layer executes, before changing anything here.
+[`../../../../docs/animation-cells.md`](../../../../docs/animation-cells.md) and
+then [`../../../../docs/animation-hybrid.md`](../../../../docs/animation-hybrid.md),
+the two rulings this layer executes, before changing anything here.
 
 Seal space everywhere (spec R-03): origin at the ring center, one unit = the ring
 radius, x right, y screen-down, z out of the paper. This directory is the one
@@ -17,7 +18,7 @@ place it becomes three.js world space.
 ## File map
 
 - [`stage.ts`](stage.ts) — `CastStage`: the running cast, the signature it is
-  keyed on, and the frame.
+  keyed on, the frame, and the paint budget.
 - [`surface.ts`](surface.ts) — the `WebGLRenderer`, the canvas it is allowed to
   use, size bookkeeping and context loss. Knows nothing about a score.
 - [`frames.ts`](frames.ts) — the fixed step (`STAGE`), the score-to-`CellFrame`
@@ -30,15 +31,17 @@ place it becomes three.js world space.
 
 A frame is four steps. Match the drawing buffer to the canvas. Decide whether
 this is a cast at all (active, valid, not prepared, past `activatedAt`, inside
-`score.totalMs`) and clear if it is not. Advance every cell to
-`timestamp - activatedAt`. Aim the camera at the portal this ring makes, and
-render.
+`score.totalMs`) and clear if it is not. Aim the camera at the portal this ring
+makes. Then advance every cell to `timestamp - activatedAt`, stepping the
+substrate's parcel field with each one and painting the steps the accumulation
+can still be showing.
 
 The cast itself is built once per `spellIR.signature`: compile the score, resolve
-one look row for the whole spell, build one cell per track seeded from
-`` `${signature}:${index}` ``, parent them under the seal root, and resolve the
-score's declared couplings into performer pairs. A changed signature disposes all
-of it and builds again from the strike.
+one look row for the whole spell, build **one substrate for the whole cast** with
+its pool divided among the tracks, build one cell per track seeded from
+`` `${signature}:${index}` `` over its own channel, parent the substrate's meshes
+under the seal root, and resolve the score's declared couplings into performer
+pairs. A changed signature disposes all of it and builds again from the strike.
 
 ## Invariants and gotchas
 
@@ -56,6 +59,23 @@ pinned until the portal's own fit becomes projective.
 so a cell that integrates anything integrates it the same way at every frame
 rate. Stepping fresh to a timestamp is identical to stepping there incrementally,
 which is the contract both golden tiers stand on.
+
+**The paint budget is counted in steps, never in frames.** The trail deposits
+once per `PAINT_EVERY` steps of the product clock, so how much smear a cast
+carries follows the step count rather than the display's rate; and one call may
+deposit at most `PAINT_BURST` times however far behind it is, because a call that
+painted every step it simulated would take longer than the frame it was already
+late for and be later still next time. A frame that advanced no step
+re-composites what already stands rather than fading the buffer again.
+
+**The pigment is built once, on the first frame the stage ever draws.** Nothing
+in [`../hybrid/`](../hybrid/CLAUDE.md) depends on a score, so `warm` compiles its
+programs and bakes its stamp atlases long before a seal is closed, and a cast
+only calls `attach`. On a software device that compile is most of a second, and
+it used to land on the strike.
+
+**The camera is aimed before the cells are advanced**, because every painted step
+of the call billboards its brush marks against it.
 
 **Seeded rng only.** `Math.random` and `Date.now` are banned below this
 directory. The stage owns the only `timestamp` and converts it to cast time
@@ -88,8 +108,13 @@ overlay of its own that copies its box and stacking, so the effect still lands
 where the canvas it stands in for did.
 
 **Seal space is left-handed, so the root matrix has determinant -1.** Every
-triangle under it winds the other way. Cells declare `side: THREE.DoubleSide`
-rather than reversing their own indices.
+triangle under it winds the other way. The substrate's meshes declare
+`side: THREE.DoubleSide` rather than reversing their own indices.
+
+**A cell owns no geometry, so `reset()` disposes the substrate.** What a cell
+holds is a seat at it; what holds textures and buffers is
+[`../hybrid/substrateStage.ts`](../hybrid/CLAUDE.md), and it is the thing parented
+under the seal root.
 
 ## Extending
 
@@ -104,6 +129,9 @@ rather than reversing their own indices.
   [`../cells/cell.ts`](../cells/cell.ts) and sample it in `cellFrameFor`. A cell
   may only know its own track, so if the value is not on that track it is a
   coupling question instead.
+- **New per-step work below the cells:** `advanceCells` takes a `StepListener`,
+  and the stage is its only caller. The headless golden tier passes none, which
+  is what keeps a cast performable in plain Node.
 - **Never from here:** a cell's internals (the stage reads `group`, `update`,
   `dispose`, and the two optional coupling members, and nothing else) and the
   look table (data, behind an ESLint wall — [`../CLAUDE.md`](../CLAUDE.md)).
@@ -112,7 +140,8 @@ rather than reversing their own indices.
 ## Related
 
 - [`../CLAUDE.md`](../CLAUDE.md) — the cast, and the score this performs ·
-  [`../cells/CLAUDE.md`](../cells/CLAUDE.md) — the performers.
+  [`../cells/CLAUDE.md`](../cells/CLAUDE.md) — the performers ·
+  [`../hybrid/CLAUDE.md`](../hybrid/CLAUDE.md) — the substrate they paint with.
 - [`../../portal/CLAUDE.md`](../../portal/CLAUDE.md) — the tilted paper and the
   projection this camera reproduces.
 - [`../../renderer/CLAUDE.md`](../../renderer/CLAUDE.md) — the glyph overlay

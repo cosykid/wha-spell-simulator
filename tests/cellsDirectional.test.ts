@@ -1,274 +1,181 @@
 /**
- * The two directional cells: the beam that performs an aimed column (R-05) and
+ * The two directional cells: the jet that performs an aimed column (R-05) and
  * the fan that performs dispersion (R-07, R-08).
  *
- * What is pinned here is what `docs/animation-cells.md` rules and a screenshot
- * cannot catch: the charge is silent, the five beats differ, a replay is exact,
- * the drawn arrangement reaches the form — three columns build three converging
- * strands where one column builds one, and the column they feed stands well past
- * the ring rather than dying inside it — and a declared coupling catches that
- * column at the holder's shell.
+ * What is pinned here is what a screenshot cannot catch: the charge is silent,
+ * the five beats differ, a replay is exact, the drawn arrangement reaches the
+ * flow shape — three columns feed three sites where one column feeds one — and a
+ * declared coupling catches the column at the holder's shell (R-18).
  */
 
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import type * as THREE from 'three';
 
-import { compileScore, scoreTracks } from '../src/lib/cast/score/compileScore.js';
 import { BEAT_ORDER } from '../src/lib/cast/score/beats.js';
-import { lookRow } from '../src/lib/cast/looks/table.js';
-import { cellFor } from '../src/lib/cast/cells/registry.js';
+import { STAGE } from '../src/lib/cast/stage/frames.js';
 import {
-	STAGE,
-	advanceCells,
-	bindCouplings,
-	newStageClock,
-	type Performer
-} from '../src/lib/cast/stage/frames.js';
-import { hashSeed } from '../src/lib/cast/rng.js';
-import { resolvePlan } from '../src/lib/compiler/plan/resolvePlan.js';
-import { readPresetSeal } from '../src/lib/ui/spellEffectLab.js';
-import { presetById } from '../src/lib/ui/spellEffectLabPresets.js';
+	castFor,
+	disposeCast,
+	performerOf,
+	reportOf,
+	reportsOf,
+	scoreFor,
+	steppedTo
+} from './castHarness.js';
+import type { HeadlessCast } from './castHarness.js';
 import type { Beat, ScoreTrack, SpellScore, Track } from '../src/lib/types.js';
 
 const SOURCE = { signature: 'test-directional', duration: 4 };
 
-function scoreFor(presetId: string, sigil: string): SpellScore {
-	return compileScore(resolvePlan(readPresetSeal(presetById(presetId).signs, sigil)), SOURCE);
+function score(presetId: string, sigil = 'fire'): SpellScore {
+	return scoreFor(presetId, sigil, SOURCE);
 }
 
-function performersFor(score: SpellScore): Performer[] {
-	const look = lookRow({ sigil: score.sigil, element: score.element });
-	return scoreTracks(score).map((track, index) => ({
-		track,
-		cell: cellFor(track, { seed: hashSeed(`${score.signature}:${index}`), look, quality: 0.8 })
-	}));
+/** The middle of each beat, on a whole step. */
+function beatStops(built: SpellScore, beats: readonly Beat[]): number[] {
+	return beats.map((beat) => {
+		const window = built.beats[beat];
+		return Math.round((window.startMs + window.endMs) / 2 / STAGE.stepMs) * STAGE.stepMs;
+	});
 }
 
-function steppedTo(score: SpellScore, stops: readonly number[]): Performer[] {
-	const performers = performersFor(score);
-	const clock = newStageClock();
-	for (const stop of stops) {
-		advanceCells(score, performers, clock, stop);
-	}
-	return performers;
-}
-
-/** The same cast with the score's declared couplings resolved, as the stage builds it. */
-function coupledTo(score: SpellScore, stops: readonly number[]): Performer[] {
-	const performers = performersFor(score);
-	const clock = newStageClock();
-	bindCouplings(performers);
-	for (const stop of stops) {
-		advanceCells(score, performers, clock, stop);
-	}
-	return performers;
-}
-
-function cellOf(performers: Performer[], kind: ScoreTrack['kind']) {
-	const performer = performers.find((candidate) => candidate.track.kind === kind);
-	assert.ok(performer, `expected a ${kind} track`);
-	return performer.cell;
-}
-
-function uniformsOf(group: THREE.Group, name: string): Record<string, { value: unknown }> {
-	const mesh = group.getObjectByName(name) as THREE.Mesh | undefined;
-	assert.ok(mesh, `expected a ${name} mesh`);
-	return (mesh.material as THREE.ShaderMaterial).uniforms;
-}
-
-function numberAt(group: THREE.Group, name: string, uniform: string): number {
-	return uniformsOf(group, name)[uniform].value as number;
-}
-
-/** How many distinct values one baked attribute holds: the form's structural fold. */
-function distinctValues(group: THREE.Group, name: string, attribute: string): number {
-	const mesh = group.getObjectByName(name) as THREE.Mesh;
-	const buffer = mesh.geometry.getAttribute(attribute);
-	const seen = new Set<string>();
-	for (let index = 0; index < buffer.count; index += 1) {
-		const parts: number[] = [];
-		for (let item = 0; item < buffer.itemSize; item += 1) {
-			parts.push(Math.round(buffer.getComponent(index, item) * 1e4));
-		}
-		seen.add(parts.join(':'));
-	}
-	return seen.size;
-}
-
-/** Everything the beam accumulated, read off the forms it built. */
-function beamProbe(performers: Performer[]) {
-	const group = cellOf(performers, 'jet').group;
+function jetProbe(cast: HeadlessCast) {
+	const report = reportOf(cast, 'jet');
 	return {
-		visible: group.visible,
-		length: numberAt(group, 'beam-spine', 'uLength'),
-		width: numberAt(group, 'beam-spine', 'uWidth'),
-		alpha: numberAt(group, 'beam-spine', 'uAlpha'),
-		tongue: numberAt(group, 'beam-spine', 'uTip'),
-		flow: numberAt(group, 'beam-spine', 'uFlow'),
-		sheath: numberAt(group, 'beam-ribbons', 'uAlpha'),
-		feather: numberAt(group, 'beam-ribbons', 'uFeather'),
-		feeders: numberAt(group, 'beam-feeders', 'uAlpha')
+		ink: Number(report.ink.toFixed(5)),
+		standing: Number(report.detail.standing.toFixed(5)),
+		girth: Number(report.detail.girth.toFixed(5)),
+		tipZ: Number(report.tip.z.toFixed(5))
 	};
 }
 
-/** Everything the fan accumulated, read off its sheet. */
-function fanProbe(performers: Performer[]) {
-	const group = cellOf(performers, 'fan').group;
+function fanProbe(cast: HeadlessCast) {
+	const report = reportOf(cast, 'fan');
 	return {
-		visible: group.visible,
-		inner: numberAt(group, 'fan-sheet', 'uInner'),
-		outer: numberAt(group, 'fan-sheet', 'uOuter'),
-		lift: numberAt(group, 'fan-sheet', 'uLift'),
-		alpha: numberAt(group, 'fan-sheet', 'uAlpha'),
-		flow: numberAt(group, 'fan-sheet', 'uFlow'),
-		sparks: numberAt(group, 'fan-sparks', 'uAlpha')
+		ink: Number(report.ink.toFixed(5)),
+		outer: Number(report.detail.outer.toFixed(5)),
+		lift: Number(report.detail.lift.toFixed(5)),
+		stir: Number(report.detail.stir.toFixed(5))
 	};
 }
 
-/** The middle of a beat, on the cast clock. */
-function midpointOf(score: SpellScore, beat: Beat): number {
-	const window = score.beats[beat];
-	return window.startMs + (window.endMs - window.startMs) / 2;
+/** The flow shape a kind's cell wrote, which is its whole output to the pigment. */
+function shapeOf(cast: HeadlessCast, kind: ScoreTrack['kind']) {
+	const index = cast.performers.indexOf(performerOf(cast, kind));
+	return cast.substrate.channels[index].shape;
 }
 
-test('R-01: neither cell manifests anything through the charge', () => {
-	const beam = scoreFor('column-balanced', 'fire');
-	const fan = scoreFor('dispersion', 'light');
-	for (const stop of [200, 600, beam.beats.charge.endMs - STAGE.stepMs]) {
-		const shaft = beamProbe(steppedTo(beam, [stop]));
-		assert.equal(shaft.visible, false, `the beam showed at ${stop}ms`);
-		assert.equal(shaft.length, 0);
-		assert.equal(shaft.alpha, 0);
+test('R-01: neither directional cell manifests during the charge', () => {
+	const beam = steppedTo(score('column-balanced'), [600]);
+	assert.equal(reportOf(beam, 'jet').ink, 0);
+	assert.equal(reportOf(beam, 'jet').detail.standing, 0);
 
-		const sheet = fanProbe(steppedTo(fan, [stop]));
-		assert.equal(sheet.visible, false, `the fan showed at ${stop}ms`);
-		assert.equal(sheet.alpha, 0);
-	}
+	const fan = steppedTo(score('dispersion'), [600]);
+	assert.equal(reportOf(fan, 'fan').ink, 0);
+	assert.equal(reportOf(fan, 'fan').marks, 0);
 });
 
-test('the strike is an impulse: the tongue overshoots and the lip rears', () => {
-	const beam = scoreFor('column-balanced', 'fire');
-	const strike = beamProbe(steppedTo(beam, [midpointOf(beam, 'strike')]));
-	const body = beamProbe(steppedTo(beam, [midpointOf(beam, 'body')]));
-	assert.equal(strike.visible, true);
-	assert.ok(strike.alpha > 0, 'the strike is lit');
-	assert.ok(strike.tongue > body.tongue, 'the tongue is thrown hardest at the strike');
-	assert.ok(strike.width > body.width, 'and the shaft flares while it punches');
+test('the strike is an impulse: the mouth flares and the front rears', () => {
+	const built = score('column-balanced');
+	const [strike, body] = beatStops(built, ['strike', 'body']);
+	assert.ok(jetProbe(steppedTo(built, [strike])).girth > jetProbe(steppedTo(built, [body])).girth);
 
-	const fan = scoreFor('dispersion', 'light');
-	const wave = fanProbe(steppedTo(fan, [fan.beats.strike.endMs - STAGE.stepMs]));
-	const settled = fanProbe(steppedTo(fan, [fan.beats.body.endMs - STAGE.stepMs]));
-	assert.ok(wave.lift > 0, 'the sheet leaves the paper as it snaps open');
-	assert.ok(wave.lift > settled.lift, 'and its lip rears highest at the strike');
+	const spread = score('dispersion');
+	const [fanStrike, fanBody] = beatStops(spread, ['strike', 'body']);
+	const wave = fanProbe(steppedTo(spread, [fanStrike]));
+	assert.ok(wave.lift > 0, 'the lip never left the paper');
+	assert.ok(wave.lift > fanProbe(steppedTo(spread, [fanBody])).lift);
 });
 
-test('every beat after the charge reads differently, for both cells', () => {
-	const played = BEAT_ORDER.filter((beat) => beat !== 'charge');
+test('all five beats of a column and a sheet read differently', () => {
+	const built = score('column-balanced');
+	const stops = beatStops(built, BEAT_ORDER);
+	const shafts = stops.map((_, index) => jetProbe(steppedTo(built, stops.slice(0, index + 1))));
+	assert.equal(new Set(shafts.map((one) => JSON.stringify(one))).size, shafts.length);
+	// The charge is absent, the release commits and stretches, the afterglow fades.
+	assert.equal(shafts[0].ink, 0);
+	assert.ok(shafts[3].standing > shafts[2].standing, 'the release does not commit');
+	assert.ok(shafts[4].ink < shafts[2].ink, 'the afterglow does not fade');
 
-	const beam = scoreFor('column-half-ring', 'water');
-	const shafts = played.map((beat) => beamProbe(steppedTo(beam, [midpointOf(beam, beat)])));
-	for (const [index, shaft] of shafts.entries()) {
-		assert.equal(shaft.visible, true, `${played[index]} should be on screen`);
-		assert.ok(shaft.length > 0, `${played[index]} should stand`);
+	const spread = score('dispersion');
+	const fanStops = beatStops(spread, BEAT_ORDER);
+	const sheets = fanStops.map((_, index) =>
+		fanProbe(steppedTo(spread, fanStops.slice(0, index + 1)))
+	);
+	assert.equal(new Set(sheets.map((one) => JSON.stringify(one))).size, sheets.length);
+	for (let i = 2; i < sheets.length; i += 1) {
+		assert.ok(sheets[i].outer >= sheets[i - 1].outer, 'the front drew back');
 	}
-	assert.equal(new Set(shafts.map((shaft) => JSON.stringify(shaft))).size, shafts.length);
-	// R-02 gives the body the sustain, and the release the commit: the ribbons
-	// feather back off the shaft only once the beam has let go.
-	assert.ok(shafts[2].feather < shafts[1].feather, 'the sheath feathers through the release');
-	assert.ok(shafts[3].alpha < shafts[1].alpha, 'and the afterglow dissipates');
-
-	const fan = scoreFor('dispersion', 'light');
-	const sheets = played.map((beat) => fanProbe(steppedTo(fan, [midpointOf(fan, beat)])));
-	assert.equal(new Set(sheets.map((sheet) => JSON.stringify(sheet))).size, sheets.length);
-	for (let index = 1; index < sheets.length; index += 1) {
-		assert.ok(sheets[index].outer >= sheets[index - 1].outer, 'the front never draws back');
-	}
-	// The commit: the sheet lets go of its root and travels as a band.
-	assert.ok(sheets[2].inner > sheets[1].inner, 'the release lets go of the root');
 });
 
 test('stepping fresh to a timestamp matches stepping there incrementally', () => {
-	const beam = scoreFor('column-half-ring', 'water');
-	assert.deepEqual(
-		beamProbe(steppedTo(beam, [2600])),
-		beamProbe(steppedTo(beam, [400, 1100, 1150, 2000, 2600]))
-	);
-
-	const fan = scoreFor('dispersion', 'light');
-	assert.deepEqual(
-		fanProbe(steppedTo(fan, [3000])),
-		fanProbe(steppedTo(fan, [500, 1200, 2400, 3000]))
-	);
-});
-
-test('the same score always builds the same forms', () => {
-	const score = scoreFor('column-balanced', 'fire');
-	assert.deepEqual(beamProbe(steppedTo(score, [1600])), beamProbe(steppedTo(score, [1600])));
-});
-
-test('R-05: the drawn arrangement reaches the form, three columns as three strands', () => {
-	const three = steppedTo(scoreFor('column-half-ring', 'water'), [1600]);
-	const one = steppedTo(scoreFor('column-unbalanced', 'wind'), [1600]);
-
-	assert.equal(distinctValues(cellOf(three, 'jet').group, 'beam-feeders', 'aRoot'), 3);
-	assert.equal(distinctValues(cellOf(one, 'jet').group, 'beam-feeders', 'aRoot'), 1);
-	assert.ok(beamProbe(three).feeders > 0, 'the strands are lit while the beam runs');
-
-	// R-09's valve exhausts through its aperture rather than out of a drawn column,
-	// so it stands on no strand at all and its root is thrown clear of the center.
-	const valve = steppedTo(scoreFor('region-sector', 'fire'), [1600]);
-	const aimed = cellOf(valve, 'jet').group.getObjectByName('beam-aimed') as THREE.Group;
-	assert.equal(distinctValues(cellOf(valve, 'jet').group, 'beam-feeders', 'aRoot'), 0);
-	assert.ok(aimed.position.length() > 0.5, 'the gout leaves the rim, not the center');
-});
-
-test('R-07: one sector of sheet per drawn dispersion sign', () => {
-	const fan = steppedTo(scoreFor('dispersion', 'light'), [1600]);
-	assert.equal(distinctValues(cellOf(fan, 'fan').group, 'fan-sheet', 'aSeed'), 2);
-	assert.ok(fanProbe(fan).sparks > 0, 'the leading edge is throwing garnish');
-});
-
-test('a balanced column stands well past the ring it was drawn in', () => {
-	const score = scoreFor('column-balanced', 'fire');
-	for (const beat of ['strike', 'body', 'release'] as const) {
-		const shaft = beamProbe(steppedTo(score, [midpointOf(score, beat)]));
-		assert.ok(shaft.length > 1.5, `the ${beat} beam only reached ${shaft.length} seal units`);
+	for (const presetId of ['column-balanced', 'dispersion']) {
+		const built = score(presetId);
+		const fresh = steppedTo(built, [2600]);
+		const walked = steppedTo(built, [400, 1100, 1600, 2200, 2600]);
+		assert.deepEqual(reportsOf(fresh), reportsOf(walked), presetId);
 	}
 });
 
-test('R-18: a declared hold catches the column at its shell', () => {
-	const score = scoreFor('column-levitation', 'water');
-	const at = midpointOf(score, 'body');
-	const free = beamProbe(steppedTo(score, [at]));
-	const caught = beamProbe(coupledTo(score, [at]));
-
-	const hold = scoreTracks(score).find((track) => track.kind === 'hold') as Track<'hold'>;
-	// The shell is the ball's own radius around the hover locus, so a column that
-	// is caught rather than clipped ends inside it and a free one runs past it.
-	const shell = hold.params.at.z + hold.params.radius * 2;
-	assert.ok(free.length > shell, `an uncaught column reached only ${free.length}`);
-	assert.ok(caught.length < shell, `the caught column ran to ${caught.length}`);
-	assert.ok(caught.length > hold.params.at.z * 0.5, 'it is caught at the grip, not switched off');
-	assert.ok(caught.tongue < free.tongue, 'and the tongue is not thrown past the grip');
-
-	// A ceiling reaches only what the plan declared captured, so an arrangement
-	// with no coupling in it renders identically either way.
-	const balanced = scoreFor('column-balanced', 'fire');
-	assert.deepEqual(beamProbe(coupledTo(balanced, [at])), beamProbe(steppedTo(balanced, [at])));
+test('the same score builds the same forms twice', () => {
+	const built = score('column-balanced');
+	assert.deepEqual(reportsOf(steppedTo(built, [1600])), reportsOf(steppedTo(built, [1600])));
 });
 
-test('disposing a directional cell empties its group', () => {
-	for (const [presetId, sigil] of [
-		['column-balanced', 'fire'],
-		['dispersion', 'light'],
-		['none', 'light']
-	] as const) {
-		const score = scoreFor(presetId, sigil);
-		const performers = steppedTo(score, [1600]);
-		for (const { cell } of performers) {
-			cell.dispose();
-			assert.equal(cell.group.children.length, 0);
+test('R-05/R-09: the drawn arrangement reaches the flow shape', () => {
+	// Three columns feed three sites; one column feeds one.
+	assert.equal(shapeOf(steppedTo(score('column-half-ring'), [1600]), 'jet').siteCount, 3);
+	assert.equal(shapeOf(steppedTo(score('column-unbalanced'), [1600]), 'jet').siteCount, 1);
+	// R-09's valve exhausts through its aperture, not out of the chevrons that
+	// opened it, so it stands on no site and its root is thrown clear of centre.
+	const valve = steppedTo(score('region-sector'), [1600]);
+	assert.equal(shapeOf(valve, 'jet').siteCount, 0);
+	const root = reportOf(valve, 'jet').from;
+	assert.ok(Math.hypot(root.x, root.y) > 0.5, 'the valve is rooted at the seal centre');
+});
+
+test('R-07: one sector per dispersion sign, and the sheet leaves the ring', () => {
+	const cast = steppedTo(score('dispersion'), [2600]);
+	assert.equal(shapeOf(cast, 'fan').siteCount, 2);
+	assert.ok(reportOf(cast, 'fan').detail.outer > 1, 'the sheet stayed inside the ring');
+});
+
+test('a balanced column stands well past the ring for the whole cast', () => {
+	const built = score('column-balanced');
+	for (const beat of ['strike', 'body', 'release'] as const) {
+		const [stop] = beatStops(built, [beat]);
+		assert.ok(jetProbe(steppedTo(built, [stop])).standing > 1.5, `${beat} stands short`);
+	}
+});
+
+test('R-18: a declared coupling catches the column at the holder shell', () => {
+	const built = score('column-levitation');
+	const hold = built.layers[0].tracks.find(
+		(track): track is Track<'hold'> => track.kind === 'hold'
+	)!;
+	const shell = hold.params.at.z + hold.params.radius * 2;
+	const stops = [1100, 1600, 2600, 3000];
+
+	const free = steppedTo(built, stops, { couple: false });
+	const caught = steppedTo(built, stops);
+	assert.ok(jetProbe(free).tipZ > shell, 'an uncoupled column should overrun the shell');
+	assert.ok(jetProbe(caught).tipZ < shell, 'a coupled column should be reeled in');
+	assert.ok(jetProbe(caught).tipZ > hold.params.at.z * 0.5, 'caught at the grip, not switched off');
+
+	// A preset the plan declared no coupling for performs identically either way.
+	const balanced = score('column-balanced');
+	assert.deepEqual(
+		reportsOf(steppedTo(balanced, stops)),
+		reportsOf(steppedTo(balanced, stops, { couple: false }))
+	);
+});
+
+test('dispose stops every channel', () => {
+	for (const presetId of ['column-balanced', 'dispersion', 'none']) {
+		const cast = castFor(score(presetId));
+		disposeCast(cast);
+		for (const report of reportsOf(cast)) {
+			assert.equal(report.marks, 0);
 		}
 	}
 });

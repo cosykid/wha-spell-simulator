@@ -31,6 +31,11 @@ export interface StageSurfaceOptions {
 export interface StageSurface {
 	/** The canvas actually rendered to. Not always the one that was asked for. */
 	readonly canvas: HTMLCanvasElement;
+	/**
+	 * The renderer itself, for the one caller that needs more than `render`: the
+	 * substrate drives its own accumulation and bloom chain through it.
+	 */
+	readonly renderer: THREE.WebGLRenderer;
 	/** True between `webglcontextlost` and `webglcontextrestored`. */
 	readonly lost: boolean;
 	/** Match the drawing buffer to the canvas the owner sized. */
@@ -119,6 +124,7 @@ export function createStageSurface(
 
 	return {
 		canvas,
+		renderer,
 		get lost() {
 			return lost;
 		},

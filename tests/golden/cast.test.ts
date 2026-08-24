@@ -79,7 +79,7 @@ test('the charge beat holds the ambient medium and nothing the seal manifests', 
 				...ask(
 					preset.id,
 					LATE_CHARGE_MS,
-					of === 'medium' ? { metric: 'forms', above: 0 } : { metric: 'forms', below: 1 }
+					of === 'medium' ? { metric: 'ink', above: 0 } : { metric: 'ink', below: 1e-9 }
 				),
 				of
 			};
@@ -160,7 +160,7 @@ test('a cast probe selector is R-10 vocabulary, and the two halves partition the
 	const cast = newPresetCast(castSubjects().get('pull-vortex')!);
 	advanceCastTo(cast, 2600);
 	const halves = (['medium', 'manifested'] as const).map(
-		(of) => select({ ...ask('pull-vortex', 2600, { metric: 'forms' }), of }, cast).length
+		(of) => select({ ...ask('pull-vortex', 2600, { metric: 'ink' }), of }, cast).length
 	);
 	assert.equal(halves[0] + halves[1], cast.performers.length);
 });

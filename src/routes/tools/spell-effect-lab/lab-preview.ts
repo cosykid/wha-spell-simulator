@@ -81,6 +81,12 @@ export class LabPreview {
 	 * screenshot lands on the same frame every run. Test-only; the interactive
 	 * lab always calls {@link start} instead.
 	 *
+	 * The clock is walked at sixty frames a second rather than jumped, because
+	 * that is what a baseline is a picture of. Both engines carry state a frame
+	 * builds on: classic steps a particle system once per call, and the stage
+	 * accumulates a trail whose deposits are capped per call so a slow frame
+	 * cannot spiral. Jumping would give the stage a frame no display ever shows.
+	 *
 	 * @example
 	 * preview.renderGoldenFrame(600); // the frame 600ms into the cast
 	 */

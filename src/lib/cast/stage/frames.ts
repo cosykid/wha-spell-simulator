@@ -95,6 +95,16 @@ export function cellFrameFor(score: SpellScore, track: ScoreTrack, tMs: number):
 }
 
 /**
+ * What the pigment does with a step the cells have just taken. The stage passes
+ * one; the headless golden tier passes none, because in plain Node there is no
+ * GPU to advance and no buffer to paint into.
+ *
+ * `stepsLeft` is how many steps of this call are still to come, which is the one
+ * thing only the loop knows and the only thing a paint budget needs.
+ */
+export type StepListener = (clock: StageClock, stepsLeft: number) => void;
+
+/**
  * Advance every cell to `targetMs` in whole steps. Stepping there in one call or
  * in several is the same state, which is what makes a screenshot independent of
  * the frames sampled before it.
@@ -103,7 +113,8 @@ export function advanceCells(
 	score: SpellScore,
 	performers: readonly Performer[],
 	clock: StageClock,
-	targetMs: number
+	targetMs: number,
+	onStep?: StepListener
 ): void {
 	const target = stepsFor(targetMs);
 	while (clock.steps < target) {
@@ -120,5 +131,6 @@ export function advanceCells(
 				cell.bind?.(holder.cell.constraint?.() ?? null);
 			}
 		}
+		onStep?.(clock, target - clock.steps);
 	}
 }

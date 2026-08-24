@@ -1,7 +1,7 @@
 /**
- * @file The one place a track's kind is switched on, as `sim/primitives/registry.ts`
- * was for the sim. Every other line of the stage is kind-agnostic, so adding a
- * cell is one row here and one file beside it.
+ * @file The one place a track's kind is switched on. Every other line of the
+ * stage is kind-agnostic, so adding a cell is one row here and one file beside
+ * it.
  *
  * It is a function rather than a lookup table because the params type follows the
  * kind: a `Track<'burst'>` may only be handed to the burst cell, and the switch
@@ -9,15 +9,15 @@
  * deferred `vessel`, so the switch is exhaustive without it.
  *
  * @example
- * const cell = cellFor(track, { seed, look, quality });
+ * const cell = cellFor(track, { seed, look, quality, channel });
  */
 
-import { createAmbientCell } from './ambient.js';
-import { createBeamCell } from './beam.js';
 import { createBurstCell } from './burst.js';
 import { createFanCell } from './fan.js';
 import { createHoldCell } from './hold.js';
 import { createIntakeCell } from './intake.js';
+import { createJetCell } from './jet.js';
+import { createShimmerCell } from './shimmer.js';
 import { createVortexCell } from './vortex.js';
 import type { Cell, CellContext } from './cell.js';
 import type { ScoreTrack } from '../../types.js';
@@ -33,9 +33,9 @@ export function cellFor(track: ScoreTrack, ctx: CellContext): Cell {
 		case 'hold':
 			return createHoldCell(track, ctx);
 		case 'shimmer':
-			return createAmbientCell(track, ctx);
+			return createShimmerCell(track, ctx);
 		case 'jet':
-			return createBeamCell(track, ctx);
+			return createJetCell(track, ctx);
 		case 'fan':
 			return createFanCell(track, ctx);
 	}

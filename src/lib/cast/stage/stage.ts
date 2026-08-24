@@ -1,7 +1,7 @@
 /**
- * @file The cell stage: `SpellIR` in, pixels out, through three.js. It keeps the
- * argument list of `render/castRenderer.ts` so the cutover is a swap, and every
- * rule that engine performed still holds here.
+ * @file The cast stage: `SpellIR` in, pixels out, through three.js. It keeps the
+ * argument list of the Canvas2D engine it replaced so every host is a swap, and
+ * every rule that engine performed still holds here.
  *
  * The clock starts at activation, not at the end of the portal tilt. R-01 makes
  * `charge` content rather than dead time, so the score's first beat spans the
@@ -20,10 +20,14 @@ import * as THREE from 'three';
 import { compileScore, scoreTracks } from '../score/compileScore.js';
 import { lookRow } from '../looks/table.js';
 import { cellFor } from '../cells/registry.js';
+import { Substrate } from '../hybrid/substrate.js';
+import { SubstrateStage } from '../hybrid/substrateStage.js';
+import { PAINT_BURST, PAINT_EVERY } from '../hybrid/tuning.js';
 import {
 	advanceCells,
 	bindCouplings,
 	newStageClock,
+	STAGE,
 	type Performer,
 	type StageClock
 } from './frames.js';
@@ -54,6 +58,12 @@ export class CastStage implements CastEngine {
 	readonly #scene = new THREE.Scene();
 	readonly #camera = createPortalCamera();
 	readonly #sealRoot = createSealRoot();
+	/**
+	 * The pigment every cast is painted with. It belongs to the stage rather than
+	 * to a cast, because nothing it holds depends on a score and building it once
+	 * is what keeps a shader compile off the first frame of a spell.
+	 */
+	readonly #pigment: SubstrateStage;
 	/** The compiled spell the running cast belongs to. A change restarts everything. */
 	#signature: string | null = null;
 	#cast: RunningCast | null = null;
@@ -65,6 +75,8 @@ export class CastStage implements CastEngine {
 			// than trusting what the last one left behind.
 			onContextRestored: () => this.reset()
 		});
+		this.#pigment = new SubstrateStage(this.#surface.renderer);
+		this.#sealRoot.add(this.#pigment.group);
 		this.#scene.add(this.#sealRoot);
 	}
 
@@ -78,6 +90,11 @@ export class CastStage implements CastEngine {
 			return;
 		}
 		this.#surface.syncSize();
+		// Compile and bake on the first frame the stage ever draws, which is long
+		// before a seal is closed. The parcel program takes the better part of a
+		// second to build on a software device, and the cast clock is already
+		// running by the time a score exists.
+		this.#pigment.warm(this.#scene, this.#camera);
 		if (!ring?.found || !isCasting(spellIR)) {
 			this.#surface.clear();
 			return;
@@ -92,21 +109,42 @@ export class CastStage implements CastEngine {
 			return;
 		}
 
-		advanceCells(score, performers, clock, tMs);
+		const canvas = this.#surface.canvas;
+		const pigment = this.#pigment;
+		pigment.resize(canvas.width, canvas.height);
+		// Aimed before the cells are advanced, because the steps of this call paint
+		// as they go and a paint billboards its marks against the camera.
 		aimPortalCamera(this.#camera, {
-			canvas: this.#surface.canvas,
+			canvas,
 			ring,
 			portalFit: options.portalFit
 		});
-		this.#surface.render(this.#scene, this.#camera);
+
+		let paints = 0;
+		advanceCells(score, performers, clock, tMs, (stepped, stepsLeft) => {
+			pigment.step(STAGE.stepMs / 1000, stepped.tMs / 1000, stepped.steps);
+			// The trail deposits once per two steps of the product clock, so the smear
+			// is a property of the step count rather than of the display's rate. A
+			// call that fell behind advances the whole flow and paints only its tail,
+			// which is the difference between catching up and never catching up.
+			const wanted = stepped.steps % PAINT_EVERY === 0;
+			if (!wanted || stepsLeft >= PAINT_BURST * PAINT_EVERY) {
+				return;
+			}
+			pigment.paint(this.#scene, this.#camera, stepped.tMs);
+			paints += 1;
+		});
+		if (paints === 0) {
+			pigment.present();
+		}
 	}
 
 	/** Drop the running cast so the next frame builds it from the strike. */
 	reset(): void {
 		for (const { cell } of this.#cast?.performers ?? []) {
-			this.#sealRoot.remove(cell.group);
 			cell.dispose();
 		}
+		this.#pigment.detach();
 		this.#signature = null;
 		this.#cast = null;
 	}
@@ -114,6 +152,7 @@ export class CastStage implements CastEngine {
 	/** Give back the context and everything on it. The stage is unusable after this. */
 	dispose(): void {
 		this.reset();
+		this.#pigment.dispose();
 		this.#surface.dispose();
 	}
 
@@ -129,17 +168,30 @@ export class CastStage implements CastEngine {
 		const score = compileScore(spellIR.plan, spellIR);
 		const look = lookRow({ sigil: score.sigil, element: score.element });
 		const quality = clamp(spellIR.quality);
-		const performers = scoreTracks(score).map((track, index) => ({
+		const tracks = scoreTracks(score);
+		// One substrate for the whole cast: the pool is shared and partitioned by
+		// what each track has to fill, so a five-track spell costs one budget.
+		const substrate = new Substrate(
+			tracks,
+			look,
+			{ sigil: score.sigil, element: score.element },
+			score.signature
+		);
+		const performers = tracks.map((track, index) => ({
 			track,
 			// One stream per track, so adding a cell cannot shift another's form.
-			cell: cellFor(track, { seed: hashSeed(`${score.signature}:${index}`), look, quality })
+			cell: cellFor(track, {
+				seed: hashSeed(`${score.signature}:${index}`),
+				look,
+				quality,
+				channel: substrate.channels[index]
+			})
 		}));
-		for (const { cell } of performers) {
-			this.#sealRoot.add(cell.group);
-		}
 		// The plan's declared couplings, resolved once. Every step after this hands
 		// each holder's ceiling to what it holds.
 		bindCouplings(performers);
+
+		this.#pigment.attach(substrate);
 		this.#signature = spellIR.signature;
 		this.#cast = { score, performers, clock: newStageClock() };
 		return this.#cast;

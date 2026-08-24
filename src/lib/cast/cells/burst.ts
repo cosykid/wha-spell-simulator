@@ -1,171 +1,129 @@
 /**
- * @file The burst cell: R-01's strike, made visible. A placeholder for quality
- * and the whole path for correctness — score to track to cell to a lit, moving
- * form in the portal's own perspective.
+ * @file The burst cell: R-01's strike, made visible. A punch-class radial splash
+ * thrown off the aperture, and nothing else.
  *
- * Two pieces of real geometry, no dots. An expanding shock annulus hugging the
- * seal plane carries the event through the cast, and a brief flared column
- * stands off the paper for the length of the strike.
+ * | beat      | the cell                                                     |
+ * | --------- | ------------------------------------------------------------ |
+ * | charge    | nothing. R-01 lets only the ambient medium manifest here.     |
+ * | strike    | the whole spend: a violent front born across the whole seal.  |
+ * | body      | what is left of it coasts outward and burns out.              |
+ * | release   | a thinning scorch where the front passed.                     |
+ * | afterglow | gone, with the front's own reach still recorded.              |
  *
- * What each beat looks like:
- *
- * | beat      | the cell                                                  |
- * | --------- | --------------------------------------------------------- |
- * | charge    | nothing. R-01 lets only the ambient medium manifest here.  |
- * | strike    | the flash blooms and the ring is thrown, at peak drive.    |
- * | body      | the ring keeps spreading and thinning as drive decays.     |
- * | release   | it commits: still spreading, letting go of its brightness. |
- * | afterglow | a scorch fading out where the shock passed.                |
- *
- * The look's material profile shapes all of it: `emissive` is how much light the
- * event is made of, `garnishDensity` is how many licks break its rim,
- * `flicker` is how ragged that rim runs, and `weight` is how hard the shock has
- * to lean to get moving and how soon it drags to a stop.
+ * It is brief on purpose. The score confines its emission to one hump inside the
+ * strike (R-01 gives that beat "the impulse: burst ring"), so a burst that were
+ * still arriving at the body would be a slug rather than a shock. The front it
+ * reached keeps growing after the last parcel dies, because that is the ring the
+ * mass was thrown along.
  */
 
-import { createShockAnnulus } from './forms/shockAnnulus.js';
-import { createFlashColumn } from './forms/flashColumn.js';
+import { burnAt, punchAt, shapeAt, shapeOf, sootAt, type BeatShape } from './arc.js';
+import { hushed, reportOf } from './perform.js';
+import { SPAWN } from '../hybrid/flow.js';
+import { FLOW, MARK } from '../hybrid/tuning.js';
 import { mulberry32 } from '../rng.js';
 import { clamp } from '../../utils/geometry.js';
-import * as THREE from 'three';
-import type { Cell, CellContext, CellFrame } from './cell.js';
-import type { Beat, Track } from '../../types.js';
+import type { Cell, CellContext, CellReport } from './cell.js';
+import type { Track, Vec3 } from '../../types.js';
 
-const BURST_CELL = {
-	/** Seal units of band behind a young front, and behind an old one. */
-	band: { near: 0.42, far: 0.12 },
-	/** Seal units of spread over which the band thins from `near` to `far`. */
-	bandFadeUnits: 2,
-	/** Seal units the shock climbs per unit it spreads, before the track's own rise. */
-	liftPerUnit: 0.06,
-	/** Ceiling on that climb. The shock hugs the plane; it never becomes a dome. */
-	maxLiftUnits: 0.14,
-	/** Radians of phase per seal unit of spread. The rim's licks turn as it grows. */
-	phasePerUnit: 2.4,
-	/** Scallops around the rim: the material's garnish density, jittered by the seed. */
-	lobes: { min: 4, max: 11 },
-	/** Licks up the flash column, at no garnish density and at full. */
-	flashLicks: { min: 3, max: 7 },
-	/** How hard a unit of weight drags on the front, per seal unit already spread. */
-	dragPerUnit: 0.32,
-	/** How much of the strike's advance a unit of weight holds back. */
-	attackLag: 0.4,
-	/** Seal units the flash flares to, and stands, at the peak of the strike. */
-	flash: { radius: 0.34, heightUnits: 1.35, restingHeight: 0.35 },
-	/** Peak alpha of the annulus. Additive ink piles up, so nothing here is opaque. */
-	shockAlpha: 0.85,
-	/** Peak alpha of the flash. */
-	flashAlpha: 0.9
-} as const;
+/** The strike is thrown off the aperture itself, so its form is rooted there. */
+const SEAL_ORIGIN: Vec3 = { x: 0, y: 0, z: 0 };
 
-/**
- * How present the shock is through each beat. This table is the cell's answer to
- * "beats are visible": the envelopes say how hard the seal pushes, and this says
- * what the form is doing while it is pushed.
- */
-const SHOCK_PRESENCE: Record<Beat, (beatT: number) => number> = {
+/** What is still in the air. The strike is everything and the rest is residue. */
+const PRESENCE: BeatShape = {
 	charge: () => 0,
-	strike: (t) => t * (2 - t),
-	body: (t) => 1 - 0.45 * t,
-	release: (t) => 0.55 - 0.25 * t,
-	afterglow: (t) => 0.3 * (1 - t) * (1 - t)
+	strike: (t) => 0.4 + 0.6 * Math.sin(Math.PI * Math.min(1, t * 1.35)),
+	body: (t) => 0.34 * (1 - t) ** 2,
+	release: (t) => 0.09 * (1 - t) ** 1.5,
+	// A scorch where the front passed, thinning to nothing. The score confines
+	// the burst's emission to the strike, so what shows here is the cell's own
+	// decay rather than anything the envelope reaches into (R-02).
+	afterglow: (t) => 0.03 * (1 - t)
 };
 
-/** An envelope's curve value, 0..1, with its gain divided back out. */
-function shapeOf(value: number, gain: number): number {
-	return gain > 0 ? clamp(value / gain) : 0;
-}
+/** How much of the drive a spent shock still carries. A wave does not stop dead. */
+const COAST = 0.22;
 
-/**
- * The strike as an expanding shell. The front is integrated from the drive
- * envelope in fixed steps, so it is a function of the frames it was given and
- * fresh-to-t agrees with incremental stepping.
- */
 export function createBurstCell(track: Track<'burst'>, ctx: CellContext): Cell {
+	const params = track.params;
+	const { channel } = ctx;
 	const rng = mulberry32(ctx.seed);
-	const look = ctx.look[track.look];
-	const material = ctx.look.material;
-	const garnish = clamp(material.garnishDensity);
-	const lobes = Math.round(
-		BURST_CELL.lobes.min + (BURST_CELL.lobes.max - BURST_CELL.lobes.min) * garnish + (rng() * 2 - 1)
-	);
-	const seedPhase = rng() * Math.PI * 2;
-	/** How much of the event is its own light, and how much is just displaced air. */
-	const glow = 0.45 + 0.55 * clamp(material.emissive);
-
-	const shock = createShockAnnulus({
-		look,
-		lobes,
-		// A sloppier seal breaks a rougher rim, and so does a material that
-		// flickers. The score already paid for strength, so both buy form here and
-		// nothing else.
-		roughness: clamp(0.25 + 0.45 * (1 - clamp(ctx.quality)) + 0.55 * clamp(material.flicker))
-	});
-	const flash = createFlashColumn({
-		look,
-		licks: Math.round(
-			BURST_CELL.flashLicks.min + (BURST_CELL.flashLicks.max - BURST_CELL.flashLicks.min) * garnish
-		)
-	});
-	shock.mesh.name = 'burst-shock';
-	flash.mesh.name = 'burst-flash';
-
-	const group = new THREE.Group();
-	group.name = `cell-${track.id}`;
-	group.add(shock.mesh, flash.mesh);
-
-	/** Seal units the shock front has travelled. The cell's only accumulated state. */
+	const lobePhase = rng() * Math.PI * 2;
 	let frontUnits = 0;
+	const tip: Vec3 = { x: 0, y: 0, z: 0 };
+
+	const shape = channel.shape;
+	shape.spawn = SPAWN.splash;
+	shape.axisX = 0;
+	shape.axisY = 0;
+	shape.axisZ = 1;
+	shape.lobePhase = lobePhase;
+	shape.markFloor = 0;
+	// A shock has no waist: it spreads. The negative pinch is what stops the
+	// splash reading as a column's foot.
+	shape.converge = -0.12;
+	shape.swirl = 0.22;
+	shape.wander = FLOW.boundaryWander * 1.35;
+	shape.turbulence = FLOW.turbulence * channel.ink.turbulence * 1.2;
+	// The impulse burns out where it stands rather than being carried anywhere.
+	shape.lifeS = 0.2;
+	shape.lifeSpreadS = 0.34;
+	// A blast is soft and wide: bigger, thinner parcels than the column's.
+	shape.veil = 0.85;
+	shape.grain = 1.3;
 
 	return {
-		group,
-		update(frame: CellFrame) {
-			// R-01: the charge is the ambient medium's beat alone, so the cell that
-			// performs the strike is not merely dark here, it is absent.
-			group.visible = frame.beat !== 'charge';
-			if (!group.visible) {
+		update(frame) {
+			if (hushed(frame, channel)) {
 				return;
 			}
+			const punch = punchAt(frame);
+			const presence = shapeAt(PRESENCE, frame);
+			// Weight is felt twice: it leans into the strike and then drags with
+			// distance, so a heavy element's shock is slower and shorter.
+			const material = ctx.look.material;
+			const attack = frame.beat === 'strike' ? 1 - material.weight * 0.4 * (1 - frame.beatT) : 1;
+			const drag = 1 / (1 + material.weight * 0.32 * frontUnits);
+			const carry = Math.max(frame.drive, COAST * presence);
+			frontUnits += params.speed * carry * attack * drag * (frame.dtMs / 1000);
 
-			// Weight is felt twice: a heavy shock leans into the strike before it
-			// moves, and then drags itself down the further it has spread.
-			const attack =
-				frame.beat === 'strike'
-					? 1 - material.weight * BURST_CELL.attackLag * (1 - frame.beatT)
-					: 1;
-			const drag = 1 / (1 + material.weight * BURST_CELL.dragPerUnit * frontUnits);
-			frontUnits += track.params.speed * frame.drive * attack * drag * (frame.dtMs / 1000);
-			const phase = seedPhase + frontUnits * BURST_CELL.phasePerUnit;
+			shape.footprint = 0.34 + frontUnits * 0.62;
+			shape.reach = Math.max(0.28, params.reach * 0.5 + frontUnits * 0.22);
+			shape.speed = params.speed * carry * (0.6 + 1.4 * punch);
+			shape.buoyancy = FLOW.buoyancy * 0.45 * params.rise * (0.4 + punch);
+			shape.punch = Math.max(punch, frame.beat === 'strike' ? 0.35 : 0);
+			shape.burn = burnAt(frame) * 1.4;
+			shape.heat = 1;
+			shape.emission = Math.min(
+				0.94,
+				shapeOf(frame.emission, track.emission.gain) * presence + 0.7 * punch
+			);
+			// The ring lifts a little as it spreads, so it is a wave and not a decal.
+			tip.z = Math.min(params.rise * frontUnits * 0.06, 0.14);
+			tip.x = frontUnits;
 
-			const thinning = clamp(frontUnits / BURST_CELL.bandFadeUnits);
-			const band = BURST_CELL.band.near + (BURST_CELL.band.far - BURST_CELL.band.near) * thinning;
-			shock.setRing({
-				inner: Math.max(0, frontUnits - band),
-				outer: frontUnits,
-				alpha: SHOCK_PRESENCE[frame.beat](frame.beatT) * BURST_CELL.shockAlpha * glow,
-				phase,
-				height: Math.min(
-					track.params.rise * frontUnits * BURST_CELL.liftPerUnit,
-					BURST_CELL.maxLiftUnits
-				)
-			});
-
-			// The emission envelope is one hump confined to the strike, which is
-			// exactly the flash's life: it needs no beat table of its own.
-			const bloom = shapeOf(frame.emission, track.emission.gain);
-			flash.setFlare({
-				radius: BURST_CELL.flash.radius,
-				height:
-					BURST_CELL.flash.restingHeight +
-					(BURST_CELL.flash.heightUnits - BURST_CELL.flash.restingHeight) * bloom,
-				alpha: bloom * BURST_CELL.flashAlpha * glow,
-				phase
-			});
+			channel.arc.drive = frame.drive;
+			channel.arc.punch = Math.max(punch, 0.12);
+			channel.arc.soot = sootAt(frame);
+			// A shock has no silhouette to outline and leaves no smoke: it is over,
+			// and marks that outlive it lie on the paper as dust.
+			channel.arc.inkShare = 0;
+			channel.arc.crownShare = 0;
+			channel.arc.life = 0.4;
+			channel.arc.rate = MARK.rate * 0.5 * shape.emission + MARK.punchRate * punch;
+			channel.perform(frame.tMs, frame.dtMs / 1000);
+		},
+		report(): CellReport {
+			return reportOf(
+				channel,
+				clamp(shape.emission),
+				SEAL_ORIGIN,
+				{ ...tip },
+				{ front: frontUnits }
+			);
 		},
 		dispose() {
-			group.clear();
-			shock.dispose();
-			flash.dispose();
+			channel.reset();
 		}
 	};
 }

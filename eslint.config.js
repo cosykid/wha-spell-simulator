@@ -58,10 +58,14 @@ export default defineConfig(
 								'**/cast/cells/**',
 								'**/cast/stage',
 								'**/cast/stage/**',
+								'**/cast/hybrid',
+								'**/cast/hybrid/**',
 								'../cells',
 								'../cells/**',
 								'../stage',
-								'../stage/**'
+								'../stage/**',
+								'../hybrid',
+								'../hybrid/**'
 							],
 							message: 'Looks are data: they may not import from the plan or the performers.'
 						}

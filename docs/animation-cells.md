@@ -240,3 +240,42 @@ carries one engine per style". The Canvas2D engine restored under
 spell, so the no-second-engine law holds in the form it was always protecting:
 no per-spell dispatch, no fallback, no ownership boolean. See the dated section
 at the end of `docs/animation-redesign.md`.
+
+## 2026-08-24 addendum: the form vocabulary is retired
+
+The cutover this document records stands, and everything it says about the
+score, the beat clock, the cell contract's _role_, the portal camera and the
+couplings is unchanged. What did not stand is the **form vocabulary** in
+"Cell catalog, round one": the beams, ribbons, sheets, shells, annuli and
+streamlines above.
+
+They were rejected on the day this ruling was marked executed, on four axes: too
+CG, too sparse and thin, motion too stiff, too glowy. The lesson this document
+drew from PR #76 — resolution rather than superposition, and the resolution has
+to reach the pixels — was right; the conclusion that resolution means _one
+bespoke mesh per archetype_ was not. A parametric mesh resolves the archetype and
+loses the hand, and the hand is what the page is drawn with.
+
+What replaced them is in [`animation-hybrid.md`](animation-hybrid.md): one shared
+substrate of GPU pigment parcels and CPU brush marks riding a single flow field,
+with an archetype expressed as a field shape plus a spawn program plus a mark
+behaviour. `cells/forms/` is deleted and a cell owns no geometry at all.
+
+Three claims of this document therefore read differently now, and the rest do
+not:
+
+- **"Form vocabulary is inked shapes."** It is pigment and drawn marks. "Dots may
+  not be the body of anything" survives with a sharper edge: a thin population at
+  full opacity is exactly the countable specks the rule was written against, so a
+  channel that wants to be faint runs _more_ parcels through a lower veil.
+- **"Looks v2: material profiles."** The eleven-number profile stands and is
+  still the whole surface a row has. It reaches the substrate as multipliers on
+  shared dials rather than as arguments to bespoke forms, and each row also
+  carries a pigment ramp derived from the six tints it already had.
+- **"The cast tier as cell-state text goldens."** Both of its laws stand. What it
+  serializes is no longer a scene graph — there is not one — but each cell's own
+  report, the field it wrote, and the ceiling it publishes.
+
+The verification rig is otherwise as described: the plan tier, the beat clock,
+the portal identity at 0.05px, the discriminative floor on the look tier, and the
+lab's scripted clock all survive unchanged.
