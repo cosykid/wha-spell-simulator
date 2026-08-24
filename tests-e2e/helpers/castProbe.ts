@@ -13,12 +13,18 @@
  * page starts sampling the moment it stamps activation, on its own rAF loop,
  * and the spec picks its timestamps out of the record.
  *
- * The effect canvas is the cell stage's WebGL surface, so a sample is
- * `readPixels` off the stage's own context rather than `getImageData`: a canvas
- * hosting WebGL never hands out a `2d` one, and its drawing buffer is thrown
- * away at composite unless the page asked to keep it. That is what
- * `?castReadback=1` is for, and `SpellCanvasPage.goto` always asks
- * (`src/lib/cast/stage/readback.ts`).
+ * How a sample is taken depends on which engine owns the canvas, and the probe
+ * is told rather than left to find out: **asking a canvas for a context it does
+ * not have yet creates one**, and a canvas that has handed out a `2d` context
+ * can never return WebGL. A `try webgl, else 2d` probe would therefore poison
+ * the canvas for whichever style loaded second. So the reader branches on the
+ * `data-effect-style` the host stamps on the element and never on a probe.
+ *
+ * On the stage that reader is `readPixels` off the stage's own context, and the
+ * drawing buffer is thrown away at composite unless the page asked to keep it —
+ * that is what `?castReadback=1` is for, and `SpellCanvasPage.goto` always asks
+ * (`src/lib/cast/stage/readback.ts`). On classic it is `getImageData`, and the
+ * readback flag is a no-op because a 2D canvas is always readable.
  */
 
 import type { Page } from '@playwright/test';
@@ -50,6 +56,16 @@ interface CastProbeWindow {
  * zeroes either way.
  */
 const INK_ALPHA = 32;
+
+/**
+ * The same threshold for the classic engine, which is the value the Canvas2D
+ * probe used before the cutover. It is lower because the argument for 32 does
+ * not transfer: that number is read off a premultiplied WebGL surface, where no
+ * colour channel can stand above the coverage that carried it. `getImageData`
+ * is not premultiplied, and classic has no ambient medium lying over the plane
+ * for a threshold to have to see past.
+ */
+const CLASSIC_INK_ALPHA = 8;
 
 /**
  * Frames between readings. A read is a stall of a few milliseconds against a
@@ -162,64 +178,125 @@ export async function readActivationLatency(page: Page, timeoutMs: number): Prom
 }
 
 /**
- * Installs the reader the recorder calls: the share of the stage's drawing
- * buffer the cast has lit. The context and the pixel buffer are resolved once
+ * Installs the reader the recorder calls: the share of the effect canvas the
+ * cast has lit. The context and the pixel buffer are resolved once per canvas
  * and reused, which costs about 3ms a read on a 1024px stage under SwiftShader.
+ *
+ * Two readers, picked by the style the host stamped on the element. They are
+ * resolved on first read of a given canvas and never before, because resolving
+ * one creates a context and only the engine may decide the attributes.
  */
 async function armInkReader(page: Page): Promise<void> {
-	await page.evaluate((inkAlpha: number) => {
-		const probe = window as unknown as CastProbeWindow;
-		if (probe.__castInk) {
-			return;
-		}
-
-		// The stage renders to the canvas it was handed, unless that canvas had
-		// already given out a `2d` context, in which case it inserts an overlay of
-		// its own beside it and renders there (`cast/stage/surface.ts`).
-		const stageCanvas = (): HTMLCanvasElement | null => {
-			const asked = document.querySelector<HTMLCanvasElement>('[data-testid="effect-canvas"]');
-			const overlay = asked?.parentElement?.querySelector<HTMLCanvasElement>(
-				'canvas[data-stage-overlay-for]'
-			);
-			return overlay ?? asked;
-		};
-
-		let gl: WebGL2RenderingContext | WebGLRenderingContext | null = null;
-		let pixels: Uint8Array | null = null;
-
-		probe.__castInk = () => {
-			const canvas = stageCanvas();
-			if (!canvas) {
-				throw new Error('No effect canvas on the page; the cast has nowhere to be read from.');
-			}
-			// Resolved on first read and never before: asking a canvas for a context
-			// it does not have yet creates one, and the stage has to be the caller
-			// that sets the attributes.
-			gl ??= canvas.getContext('webgl2') ?? canvas.getContext('webgl');
-			if (!gl) {
-				throw new Error('The effect canvas is not a WebGL surface; the stage never built on it.');
+	await page.evaluate(
+		({ inkAlpha, classicInkAlpha }: { inkAlpha: number; classicInkAlpha: number }) => {
+			const probe = window as unknown as CastProbeWindow;
+			if (probe.__castInk) {
+				return;
 			}
 
-			const width = gl.drawingBufferWidth;
-			const height = gl.drawingBufferHeight;
-			const bytes = width * height * 4;
-			if (!pixels || pixels.length !== bytes) {
-				pixels = new Uint8Array(bytes);
-			}
-			// The frame the stage drew last, kept readable by `?castReadback=1`. No
-			// framebuffer is bound here: the stage renders straight to the default
-			// one and three.js caches that binding.
-			gl.readPixels(0, 0, width, height, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
+			// The stage renders to the canvas it was handed, unless that canvas had
+			// already given out a `2d` context, in which case it inserts an overlay of
+			// its own beside it and renders there (`cast/stage/surface.ts`). Classic
+			// keeps the canvas it was given, so the overlay lookup is stage-only.
+			const stageReader = (asked: HTMLCanvasElement): (() => number) => {
+				const canvas =
+					asked.parentElement?.querySelector<HTMLCanvasElement>('canvas[data-stage-overlay-for]') ??
+					asked;
+				const gl = canvas.getContext('webgl2') ?? canvas.getContext('webgl');
+				if (!gl) {
+					throw new Error('The effect canvas is not a WebGL surface; the stage never built on it.');
+				}
+				let pixels: Uint8Array | null = null;
+				return () => {
+					const width = gl.drawingBufferWidth;
+					const height = gl.drawingBufferHeight;
+					const bytes = width * height * 4;
+					if (!pixels || pixels.length !== bytes) {
+						pixels = new Uint8Array(bytes);
+					}
+					// The frame the stage drew last, kept readable by `?castReadback=1`. No
+					// framebuffer is bound here: the stage renders straight to the default
+					// one and three.js caches that binding.
+					gl.readPixels(0, 0, width, height, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
 
-			// Alpha alone: the stage's surface is premultiplied, so no colour channel
-			// can stand above the coverage that carried it.
-			let painted = 0;
-			for (let index = 3; index < pixels.length; index += 4) {
-				if (pixels[index] > inkAlpha) painted += 1;
+					// Alpha alone: the stage's surface is premultiplied, so no colour
+					// channel can stand above the coverage that carried it.
+					let painted = 0;
+					for (let index = 3; index < pixels.length; index += 4) {
+						if (pixels[index] > inkAlpha) painted += 1;
+					}
+					return painted / (width * height);
+				};
+			};
+
+			// `getImageData` is top-down where `readPixels` is bottom-up, which the
+			// coverage share does not care about and anything positional would.
+			const classicReader = (canvas: HTMLCanvasElement): (() => number) => {
+				const ctx = canvas.getContext('2d');
+				if (!ctx) {
+					throw new Error('The effect canvas refused a 2d context; classic never built on it.');
+				}
+				return () => {
+					const { width, height } = canvas;
+					const data = ctx.getImageData(0, 0, width, height).data;
+					let painted = 0;
+					for (let index = 3; index < data.length; index += 4) {
+						if (data[index] > classicInkAlpha) painted += 1;
+					}
+					return painted / (width * height);
+				};
+			};
+
+			let bound: HTMLCanvasElement | null = null;
+			let read: (() => number) | null = null;
+
+			probe.__castInk = () => {
+				const asked = document.querySelector<HTMLCanvasElement>('[data-testid="effect-canvas"]');
+				if (!asked) {
+					throw new Error('No effect canvas on the page; the cast has nowhere to be read from.');
+				}
+				// A style switch mounts a fresh element, so the reader is rebound to
+				// whichever canvas is there rather than held from the first read.
+				if (asked !== bound) {
+					bound = asked;
+					read =
+						asked.dataset.effectStyle === 'classic' ? classicReader(asked) : stageReader(asked);
+				}
+				return read!();
+			};
+		},
+		{ inkAlpha: INK_ALPHA, classicInkAlpha: CLASSIC_INK_ALPHA }
+	);
+}
+
+/**
+ * The share of the effect canvas lit right now, read through whichever reader
+ * the live style needs. Unlike {@link sampleCast} this does not go through the
+ * record, so it still answers after a style switch has stopped the recorder.
+ */
+export async function readCastInk(page: Page): Promise<number> {
+	await armInkReader(page);
+	return page.evaluate(() => (window as unknown as CastProbeWindow).__castInk!());
+}
+
+/**
+ * Resolves once the live engine has painted something, on whichever canvas it
+ * owns. A style switch replaces that canvas, so a read is allowed to fail while
+ * the swap is in flight rather than failing the spec.
+ */
+export async function waitForCastInk(page: Page, timeoutMs: number): Promise<void> {
+	await armInkReader(page);
+	await page.waitForFunction(
+		() => {
+			try {
+				return ((window as unknown as CastProbeWindow).__castInk?.() ?? 0) > 0;
+			} catch {
+				return false;
 			}
-			return painted / (width * height);
-		};
-	}, INK_ALPHA);
+		},
+		undefined,
+		{ timeout: timeoutMs }
+	);
 }
 
 /** Resolves once the record reaches `tMs`, or the cast ends before it does. */

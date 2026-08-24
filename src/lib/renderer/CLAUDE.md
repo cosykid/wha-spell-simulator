@@ -8,11 +8,17 @@ The name is now wider than the contents — nothing here renders a spell, and
 mechanical change and not part of the deletion that emptied it; left as it is on
 purpose so this diff stays about what died.
 
-What died: `spellEffectRenderer.ts`, `effects/` (the field-driven renderer and
-the five per-element ones), and with them the ownership boolean and the fallback
-branch. The production effect path is [`../cast/`](../cast/CLAUDE.md), full stop.
-A spell that is active and valid is a cast; R-11 makes "manifests nothing" a look
-rather than an empty canvas, so there is nothing left to fall back to.
+What moved: `spellEffectRenderer.ts` and `effects/` (the field-driven renderer
+and the five per-element ones) live under
+[`../cast/classic/`](../cast/classic/CLAUDE.md) now, behind the same `CastEngine`
+seam as the stage and chosen by the user's `EffectStyle`.
+
+What died and stays dead: the ownership boolean, the per-spell fallback branch,
+and the guide drawing — the idle ring glow, the prepared pulse and the invalid
+flicker are this directory's `drawSealGuides`, on the glyph canvas. A spell that
+is active and valid is a cast; R-11 makes "manifests nothing" a look rather than
+an empty canvas, so there is nothing left to fall back to. `renderer/` still
+renders no spells.
 
 ## File map
 

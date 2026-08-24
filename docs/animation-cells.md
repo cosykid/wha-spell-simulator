@@ -233,3 +233,10 @@ All five landed on `animation-cells` in seven commits, ending at `1555135`.
 5. **Deletion** — `sim/`, `render/painter2d.ts`, `render/sprites.ts`,
    `render/castRenderer.ts` and their tests are gone; the branch carries one
    engine, honoring the no-second-engine law. _Done._
+
+**2026-08 addendum.** Step 5's "the branch carries one engine" is now "the branch
+carries one engine per style". The Canvas2D engine restored under
+`src/lib/cast/classic/` is chosen by a user preference at the canvas, never by a
+spell, so the no-second-engine law holds in the form it was always protecting:
+no per-spell dispatch, no fallback, no ownership boolean. See the dated section
+at the end of `docs/animation-redesign.md`.

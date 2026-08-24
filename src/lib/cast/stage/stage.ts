@@ -7,9 +7,9 @@
  * `charge` content rather than dead time, so the score's first beat spans the
  * tilt on purpose and only the ambient medium is allowed to show in it.
  *
- * There is no ownership flag and no fallback branch. A cast either has a clock,
- * in which case its cells perform it, or it has none and the stage paints
- * nothing. R-11 puts the "nothing" case in the look table instead.
+ * There is no ownership flag and no fallback branch within the stage. A cast
+ * either has a clock, in which case its cells perform it, or it has none and the
+ * stage paints nothing. R-11 puts the "nothing" case in the look table instead.
  *
  * @example
  * const stage = new CastStage(effectCanvas);
@@ -31,28 +31,15 @@ import { aimPortalCamera, createPortalCamera } from './portalCamera.js';
 import { createSealRoot } from './sealRoot.js';
 import { createStageSurface, type StageSurface } from './surface.js';
 import { hashSeed } from '../rng.js';
+import { isCasting, type CastEngine, type CastRenderOptions } from '../engine.js';
 import { clamp } from '../../utils/geometry.js';
 import type { RingInfo, SpellIR, SpellScore } from '../../types.js';
 
-/**
- * The same option bag `render/castRenderer.ts` takes. It is restated rather than
- * imported because that module is deleted at cutover and this one is not.
- */
-export interface CastRenderOptions {
-	/** Fraction of canvas height on screen; scales the portal to match the CSS. Defaults to 1. */
-	portalFit?: number;
-}
+export type { CastRenderOptions };
 
 export interface CastStageOptions {
 	/** Keep the last frame readable, for the scripted-clock path only. */
 	preserveDrawingBuffer?: boolean;
-}
-
-/** Whether a compiled spell has a cast clock at all. */
-function isCasting(spellIR: SpellIR | null | undefined): spellIR is SpellIR {
-	return Boolean(
-		spellIR?.active && spellIR.valid && !spellIR.prepared && typeof spellIR.activatedAt === 'number'
-	);
 }
 
 /** A cast in flight: the score being performed, who performs it, and how far in. */
@@ -62,7 +49,7 @@ interface RunningCast {
 	clock: StageClock;
 }
 
-export class CastStage {
+export class CastStage implements CastEngine {
 	readonly #surface: StageSurface;
 	readonly #scene = new THREE.Scene();
 	readonly #camera = createPortalCamera();

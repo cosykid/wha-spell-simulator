@@ -6,7 +6,9 @@ import { vectorFromAngleDeg } from '$lib/utils/geometry.js';
 import { buildSpellIR } from '$lib/ui/spellEffectLab.js';
 import { renderPaper } from '$canvas/entities/paperEntity.js';
 import { drawGuides } from '$canvas/guideRenderer.js';
-import { CastStage } from '$lib/cast/stage/stage.js';
+import type { CastEngine } from '$lib/cast/engine.js';
+import { createCastEngine } from '$lib/cast/selectEngine.js';
+import { DEFAULT_EFFECT_STYLE, type EffectStyle } from '$lib/structures/effectStyle.js';
 import { GOLDEN_FRAME_ATTRIBUTE, GOLDEN_FRAME_STEP_MS } from './lab-goldens.js';
 
 /** Live control state the preview samples each animation frame. */
@@ -28,12 +30,14 @@ export interface LabPreviewOptions {
 	 * buffer is blank.
 	 */
 	preserveFrames?: boolean;
+	/** Which engine performs the cast. Defaults to the app's default style. */
+	effectStyle?: EffectStyle;
 }
 
 /**
  * The Spell Effect Lab's canvas preview: a self-contained render harness driving two stacked
  * canvases (a synthetic glyph + the effect layer) from a {@link LabState} getter. It owns the
- * cast stage, the resize bookkeeping, and the animation loop; the page keeps
+ * cast engine, the resize bookkeeping, and the animation loop; the page keeps
  * the reactive control state and reads back through `resetCast`/`start`.
  */
 export class LabPreview {
@@ -42,7 +46,7 @@ export class LabPreview {
 	readonly #shell: HTMLElement;
 	readonly #getState: () => LabState;
 	readonly #glyphCtx: CanvasRenderingContext2D;
-	readonly #stage: CastStage;
+	readonly #engine: CastEngine;
 	#rafId: number | null = null;
 
 	constructor(
@@ -57,17 +61,18 @@ export class LabPreview {
 		this.#shell = shell;
 		this.#getState = getState;
 		this.#glyphCtx = glyphCanvas.getContext('2d')!;
-		this.#stage = new CastStage(effectCanvas, {
+		this.#engine = createCastEngine(effectCanvas, options.effectStyle ?? DEFAULT_EFFECT_STYLE, {
 			preserveDrawingBuffer: options.preserveFrames
 		});
 	}
 
-	/** Begin the animation loop; returns a teardown that cancels the pending frame. */
+	/** Begin the animation loop; returns a teardown that cancels the pending frame and disposes the engine. */
 	start(): () => void {
 		this.#rafId = requestAnimationFrame((timestamp) => this.#frame(timestamp));
 		return () => {
 			if (this.#rafId) cancelAnimationFrame(this.#rafId);
 			this.#rafId = null;
+			this.#engine.dispose();
 		};
 	}
 
@@ -90,7 +95,7 @@ export class LabPreview {
 
 	/** Drop the cast in flight so the next frame restarts the effect cleanly. */
 	resetCast(): void {
-		this.#stage.reset();
+		this.#engine.reset();
 	}
 
 	#buildRing(values: Record<string, number>): RingInfo {
@@ -218,7 +223,14 @@ export class LabPreview {
 		const rect = this.#shell.getBoundingClientRect();
 		const width = Math.max(1, Math.round(rect.width));
 		const height = Math.max(1, Math.round(rect.height));
-		if (this.#glyphCanvas.width === width && this.#glyphCanvas.height === height) {
+		// Both canvases are checked, not just the glyph: a style switch mounts a
+		// fresh effect canvas at its attribute size while the glyph already fits.
+		if (
+			this.#glyphCanvas.width === width &&
+			this.#glyphCanvas.height === height &&
+			this.#effectCanvas.width === width &&
+			this.#effectCanvas.height === height
+		) {
 			return;
 		}
 
@@ -247,6 +259,6 @@ export class LabPreview {
 			reading: state.reading
 		});
 		this.#drawSyntheticGlyph(ring, timestamp, state);
-		this.#stage.render(spellIR, ring, timestamp);
+		this.#engine.render(spellIR, ring, timestamp);
 	}
 }

@@ -9,8 +9,8 @@ interface CanvasSizingControllerOptions {
 	canvasShell: () => HTMLDivElement;
 	/** Glyph canvas whose backing store is resized. */
 	glyphCanvas: () => HTMLCanvasElement;
-	/** Effect canvas kept in sync with the glyph canvas. */
-	effectCanvas: () => HTMLCanvasElement;
+	/** Effect canvas kept in sync with the glyph canvas. Re-read every pass: a style switch replaces it. */
+	effectCanvas: () => HTMLCanvasElement | null;
 	/** Workspace element used to decide desktop canvas-height matching. */
 	workspace: () => HTMLElement;
 	/** Freehand stroke store scaled when the canvas backing store changes. */
@@ -40,7 +40,7 @@ export class CanvasSizingController {
 			elements: {
 				canvasShell: this.#options.canvasShell(),
 				glyphCanvas: this.#options.glyphCanvas(),
-				effectCanvas: this.#options.effectCanvas()
+				effectCanvas: this.#options.effectCanvas
 			},
 			store: this.#options.store,
 			onCanvasResized: ({ scale }) => this.#options.onCanvasScale(scale)

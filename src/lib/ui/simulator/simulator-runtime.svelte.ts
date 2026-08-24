@@ -1,6 +1,8 @@
+import type { CastEngine } from '$lib/cast/engine.js';
+import { createCastEngine } from '$lib/cast/selectEngine.js';
 import { castReadbackRequested } from '$lib/cast/stage/readback.js';
-import { CastStage } from '$lib/cast/stage/stage.js';
 import { CONFIG } from '$lib/config.js';
+import type { EffectStyle } from '$lib/structures/effectStyle.js';
 import { emitMlDebug, ML_DEBUG_BUILD_ID } from '$lib/debug/mlDebug.js';
 import type { CanvasBehavior } from '$lib/ui/canvas/canvasBehavior.js';
 import type { Scene } from '$lib/ui/canvas/scene.svelte.js';
@@ -39,8 +41,9 @@ interface SimulatorRuntimeOptions {
 export class SimulatorRuntime {
 	#input: SimulatorInputControllers | null = null;
 	#sizing: CanvasSizingController | null = null;
-	#castStage: CastStage | null = null;
-	#stageEffectCanvas: HTMLCanvasElement | null = null;
+	#castEngine: CastEngine | null = null;
+	#engineCanvas: HTMLCanvasElement | null = null;
+	#engineStyle: EffectStyle | null = null;
 	#keyboardHandler: ((event: KeyboardEvent) => void) | null = null;
 	#attachedGlyphCanvas: HTMLCanvasElement | null = null;
 	#pendingGlyphDetach: object | null = null;
@@ -172,13 +175,16 @@ export class SimulatorRuntime {
 
 	/**
 	 * Draws one frame of the cast onto the separate effect canvas. An active valid
-	 * spell is a cast and nothing else: there is no ownership flag and no fallback
-	 * engine here, because R-11 makes "manifests nothing" a look the cast paints.
-	 * The seal guides are the glyph scene's (`sealGuidesEntity`).
+	 * spell is a cast and nothing else: the user's `effectStyle` picks the engine,
+	 * the spell never does, and there is no ownership flag and no fallback engine
+	 * here. R-11 makes "manifests nothing" a look the cast paints. The seal guides
+	 * are the glyph scene's (`sealGuidesEntity`).
 	 *
-	 * The effect canvas belongs to the stage's WebGL context, and a canvas that
-	 * ever handed out a `2d` one can never give that back, so nothing else may
-	 * draw on it. The `ctx` this receives is the glyph canvas's.
+	 * The effect canvas belongs to whichever engine is live, and a canvas that
+	 * ever handed out a `2d` context can never host WebGL, so nothing else may
+	 * draw on it and a style change mounts a fresh element (`{#key}` in
+	 * `SimulatorCanvasPanel.svelte`). The `ctx` this receives is the glyph
+	 * canvas's.
 	 */
 	renderCanvasFrame = (_ctx: CanvasRenderingContext2D, timestamp: number) => {
 		const { recognition, ui } = this.#options;
@@ -186,17 +192,25 @@ export class SimulatorRuntime {
 			return;
 		}
 
-		if (!this.#castStage || this.#stageEffectCanvas !== ui.effectCanvas) {
-			this.#disposeCastStage();
-			this.#castStage = new CastStage(ui.effectCanvas, {
+		if (
+			!this.#castEngine ||
+			this.#engineCanvas !== ui.effectCanvas ||
+			this.#engineStyle !== ui.effectStyle
+		) {
+			this.#disposeCastEngine();
+			// A fresh canvas arrives at its attribute size, and the sizing observer
+			// only fires when the shell's box moves, so match the glyph canvas here.
+			this.#matchEffectCanvasSize();
+			this.#castEngine = createCastEngine(ui.effectCanvas, ui.effectStyle, {
 				// Test-only and absent in production: a spec reading the effect canvas
 				// back needs the frame to survive compositing (`stage/readback.ts`).
 				preserveDrawingBuffer: castReadbackRequested(window.location.search)
 			});
-			this.#stageEffectCanvas = ui.effectCanvas;
+			this.#engineCanvas = ui.effectCanvas;
+			this.#engineStyle = ui.effectStyle;
 		}
 
-		this.#castStage.render(recognition.spellIR, recognition.ring, timestamp, {
+		this.#castEngine.render(recognition.spellIR, recognition.ring, timestamp, {
 			portalFit: ui.portalFit
 		});
 	};
@@ -265,14 +279,28 @@ export class SimulatorRuntime {
 		this.#input?.disable();
 		this.#input = null;
 		this.#attachedGlyphCanvas = null;
-		this.#disposeCastStage();
+		this.#disposeCastEngine();
 	}
 
-	/** Hand the WebGL context back. The next frame builds a stage on whatever is mounted. */
-	#disposeCastStage() {
-		this.#castStage?.dispose();
-		this.#castStage = null;
-		this.#stageEffectCanvas = null;
+	/** Hand back whatever the engine held. The next frame builds one on what is mounted. */
+	#disposeCastEngine() {
+		this.#castEngine?.dispose();
+		this.#castEngine = null;
+		this.#engineCanvas = null;
+		this.#engineStyle = null;
+	}
+
+	/** The two stacked canvases share one backing store size, always. */
+	#matchEffectCanvasSize() {
+		const { ui } = this.#options;
+		const glyph = ui.glyphCanvas;
+		if (!glyph || !ui.effectCanvas) {
+			return;
+		}
+		if (ui.effectCanvas.width !== glyph.width || ui.effectCanvas.height !== glyph.height) {
+			ui.effectCanvas.width = glyph.width;
+			ui.effectCanvas.height = glyph.height;
+		}
 	}
 
 	#setupInputControllers() {

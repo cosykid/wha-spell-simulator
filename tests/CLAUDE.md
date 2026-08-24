@@ -27,7 +27,7 @@ Load-bearing coverage, largest first:
 - [`ringDetector.test.ts`](ringDetector.test.ts) — `detectRing` closure and multiple-ring rejection.
 - [`spellPreset.test.ts`](spellPreset.test.ts) — serialize/deserialize round trip and `cutRingGap`.
 
-The rest are small and single-subject: stroke erase and preview, spell summary, activation carry, the plan digest, the portal projection, shape placement, grouping proximity, the chamfer matcher, sample picking, password hashing, connection strings.
+The rest are small and single-subject: stroke erase and preview, spell summary, activation carry, the plan digest, the portal projection, shape placement, grouping proximity, the chamfer matcher, sample picking, password hashing, connection strings, the classic engine's field adapter ([`classicField.test.ts`](classicField.test.ts)) and the effect-style narrowing ([`effectStyle.test.ts`](effectStyle.test.ts)).
 
 [`dictionaryFixtures.ts`](dictionaryFixtures.ts) is a helper, not a suite. Helpers carry no `.test.ts` suffix.
 
@@ -37,6 +37,17 @@ The rest are small and single-subject: stroke erase and preview, spell summary, 
 [`../docs/animation-redesign.md`](../docs/animation-redesign.md). Two tiers, both pure Node, both
 keyed on the [lab presets](../src/lib/ui/spellEffectLabPresets.ts). The field motion tier that used to
 sit beside them died with `sampleFieldForce`.
+
+**Both golden tiers here are stage-only, and that is a decision rather than an
+omission.** The cast tier serializes a cell scene graph — per track, per form,
+every uniform a cell wrote — and the classic engine has no cells, no tracks and
+no forms to serialize. It also stands on a determinism contract classic cannot
+satisfy: classic calls `Math.random` about eighty times across its renderers and
+would not be classic if it stopped. What pixels can say about it is said by the
+look tier's `classic-*` baselines in
+[`../tests-e2e/golden-look.e2e.ts`](../tests-e2e/golden-look.e2e.ts), with
+`Math.random` seeded in the page; what its adapter says is unit-tested in
+[`classicField.test.ts`](classicField.test.ts).
 
 The **cast tier** is the motion tier now. [`casts.ts`](golden/casts.ts) compiles each lab preset's
 plan to a `SpellScore`, performs it through the real cells on a headless stage, and writes their

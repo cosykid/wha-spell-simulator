@@ -57,14 +57,21 @@ square; the stage centres it on the parchment.
 			onFrame={simulator.renderCanvasFrame}
 		/>
 	</div>
-	<canvas
-		id="effectCanvas"
-		data-testid="effect-canvas"
-		bind:this={ui.effectCanvas}
-		width="1000"
-		height="1000"
-		style="transform: scale({ui.zoomLevel});"
-	></canvas>
+	<!-- Keyed on the style: a canvas that has handed out a `2d` context can never
+	     host WebGL, and the failure is silent and permanent, so switching engines
+	     destroys this element and mounts a fresh one. `data-effect-style` says
+	     which engine owns it, so a test never has to probe for a context. -->
+	{#key ui.effectStyle}
+		<canvas
+			id="effectCanvas"
+			data-testid="effect-canvas"
+			data-effect-style={ui.effectStyle}
+			bind:this={ui.effectCanvas}
+			width="1000"
+			height="1000"
+			style="transform: scale({ui.zoomLevel});"
+		></canvas>
+	{/key}
 </div>
 
 <style>

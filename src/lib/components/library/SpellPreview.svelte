@@ -5,8 +5,9 @@ Replays a saved spell's effect on a small stacked-canvas stage, driven by
 only while its card's preview is toggled on.
 -->
 <script lang="ts">
-	import { onMount } from 'svelte';
 	import { SpellPreviewDriver } from '$lib/ui/library/spell-preview.js';
+	import { effectStyleFrom } from '$lib/structures/effectStyle.js';
+	import { loadSimulatorPreferences } from '$lib/ui/simulator/preferences.js';
 	import type { SpellPresetData } from '$lib/structures/spellPreset.js';
 	import type { SpellIR } from '$lib/types.js';
 
@@ -18,12 +19,23 @@ only while its card's preview is toggled on.
 
 	let { data, previewIr, onEnded }: Props = $props();
 
+	// The caster's own choice, read from the same key the simulator writes. This
+	// route has no control of its own: one setting per user, not two.
+	const effectStyle = effectStyleFrom(loadSimulatorPreferences().effectStyle);
+
 	let shell = $state<HTMLButtonElement>();
 	let glyphCanvas = $state<HTMLCanvasElement>();
 	let effectCanvas = $state<HTMLCanvasElement>();
 	let driver: SpellPreviewDriver | null = null;
 
-	onMount(() => {
+	// Read at call time, not at construction, so a parent re-render handing down a
+	// fresh arrow cannot restart the replay.
+	const handleEnded = () => onEnded?.();
+
+	// Not `onMount`: the effect canvas is keyed on the style, so the driver is
+	// rebuilt against whichever element is currently mounted. A canvas that has
+	// handed out a `2d` context can never host WebGL, and the reverse holds too.
+	$effect(() => {
 		if (!shell || !glyphCanvas || !effectCanvas) {
 			return;
 		}
@@ -33,7 +45,8 @@ only while its card's preview is toggled on.
 			shell,
 			data,
 			previewIr,
-			onEnded
+			effectStyle,
+			onEnded: handleEnded
 		});
 		return driver.start();
 	});
@@ -48,7 +61,9 @@ only while its card's preview is toggled on.
 	onclick={() => driver?.restart()}
 >
 	<canvas class="glyph" bind:this={glyphCanvas}></canvas>
-	<canvas class="effect" bind:this={effectCanvas}></canvas>
+	{#key effectStyle}
+		<canvas class="effect" data-effect-style={effectStyle} bind:this={effectCanvas}></canvas>
+	{/key}
 </button>
 
 <style>

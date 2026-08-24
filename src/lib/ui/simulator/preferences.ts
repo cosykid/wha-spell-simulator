@@ -6,6 +6,7 @@
  *
  * @packageDocumentation
  */
+import type { EffectStyle } from '$lib/structures/effectStyle.js';
 import type { CanvasTool } from './mode.js';
 
 const TOGGLE_PREFERENCES_STORAGE_KEY = 'wha-spell-simulator:toggle-preferences';
@@ -14,6 +15,8 @@ interface TogglePreferences {
 	showGuides: boolean;
 	showDiagnostics: boolean;
 	arrangeShapes: boolean;
+	/** Which engine performs a cast. Per-device display choice, like its neighbours. */
+	effectStyle: EffectStyle;
 }
 
 /**
@@ -38,16 +41,23 @@ export function loadSimulatorPreferences(): Partial<TogglePreferences> {
 export function saveSimulatorPreferences({
 	showGuides,
 	showDiagnostics,
-	activeTool
+	activeTool,
+	effectStyle
 }: {
 	showGuides: boolean;
 	showDiagnostics: boolean;
 	activeTool: CanvasTool;
+	effectStyle: EffectStyle;
 }) {
 	try {
 		localStorage.setItem(
 			TOGGLE_PREFERENCES_STORAGE_KEY,
-			JSON.stringify({ showGuides, showDiagnostics, arrangeShapes: activeTool === 'arrange' })
+			JSON.stringify({
+				showGuides,
+				showDiagnostics,
+				arrangeShapes: activeTool === 'arrange',
+				effectStyle
+			})
 		);
 	} catch {
 		// Preference persistence is best-effort.
