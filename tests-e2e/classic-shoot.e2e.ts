@@ -19,8 +19,13 @@ import { FIRE_SHOOT } from './fixtures/sampleSpells.js';
 import { PORTAL } from '../src/lib/portal/portal.js';
 import { TOTAL_MS_RANGE } from '../src/lib/cast/score/beats.js';
 
-/** Inside the portal tilt, which classic emits nothing during. */
-const TILT_AT_MS = 600;
+/**
+ * Inside the portal tilt, which classic emits nothing during. Mid-tilt, the
+ * same moment the classic look tier freezes, rather than late in it: the guard
+ * below only holds if a reading lands between here and the tilt's end, and a
+ * loaded CI runner needs that window as wide as the law allows.
+ */
+const TILT_AT_MS = 300;
 
 /** Past the tilt, with the effect developed. */
 const BODY_AT_MS = 1800;

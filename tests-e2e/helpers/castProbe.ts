@@ -68,12 +68,16 @@ const INK_ALPHA = 32;
 const CLASSIC_INK_ALPHA = 8;
 
 /**
- * Frames between readings. A read is a stall of a few milliseconds against a
- * frame of about twenty, so reading every frame would slow the cast being
- * watched; every third gives the record about 50ms of resolution, which is a
- * twentieth of the shortest beat.
+ * Cast time between readings. A read is a stall of a few milliseconds against a
+ * frame of about twenty, so reading every healthy frame would slow the cast
+ * being watched; 50ms of resolution is a twentieth of the shortest beat. The
+ * spacing is measured on the cast clock rather than counted in frames, because
+ * a loaded CI runner walks frames of 200ms and more and three of those step
+ * clean over a beat: under load every frame reads, and the record stays as
+ * fine as the frames the machine could actually produce. The first frame
+ * always reads, so the record opens as early as the cast can be seen at all.
  */
-const FRAMES_PER_READING = 3;
+const READING_INTERVAL_MS = 50;
 
 /** How long the recorder keeps going before it gives up on the cast ever emptying. */
 const RECORD_MS = 25_000;
@@ -100,7 +104,7 @@ export interface CastSample {
 export async function armCastClock(page: Page): Promise<void> {
 	await armInkReader(page);
 	await page.evaluate(
-		({ framesPerReading, recordMs }: { framesPerReading: number; recordMs: number }) => {
+		({ readingIntervalMs, recordMs }: { readingIntervalMs: number; recordMs: number }) => {
 			const status = document.querySelector('[data-testid="status-value"]');
 			const probe = window as unknown as CastProbeWindow;
 			probe.__sealUpAt = undefined;
@@ -114,14 +118,13 @@ export async function armCastClock(page: Page): Promise<void> {
 			const record = (activatedAt: number) => {
 				const track: CastReading[] = [];
 				probe.__castTrack = track;
-				let frame = 0;
 				let lit = false;
 				const step = () => {
 					// A second arming supersedes this loop rather than writing behind it.
 					if (probe.__castTrack !== track) return;
-					frame += 1;
-					if (frame % framesPerReading === 0) {
-						const tMs = performance.now() - activatedAt;
+					const tMs = performance.now() - activatedAt;
+					const last = track[track.length - 1];
+					if (last === undefined || tMs - last.tMs >= readingIntervalMs) {
 						const coverage = probe.__castInk!();
 						track.push({ tMs, coverage });
 						lit ||= coverage > 0;
@@ -154,7 +157,7 @@ export async function armCastClock(page: Page): Promise<void> {
 				{ once: true, capture: true }
 			);
 		},
-		{ framesPerReading: FRAMES_PER_READING, recordMs: RECORD_MS }
+		{ readingIntervalMs: READING_INTERVAL_MS, recordMs: RECORD_MS }
 	);
 }
 
