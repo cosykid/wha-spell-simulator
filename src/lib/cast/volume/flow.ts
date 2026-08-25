@@ -291,10 +291,13 @@ export function spawnAt(
 			return;
 		}
 		case SPAWN.sector: {
-			// Dispersion: born low along the drawn signs' bearings (or all around
-			// when no sign asked), running outward and hugging the plane.
+			// Dispersion: canon pours "out on all sides of the spell, like an
+			// overflowing bucket" — one connected ring pour, never wedges. The
+			// drawn signs still show: their bearings take the fuller share of the
+			// pour, but a ring backbone keeps the skirt one scalloped body
+			// instead of carving it into per-sign blades.
 			let bearing: number;
-			if (flow.siteCount > 0) {
+			if (flow.siteCount > 0 && rng() < 0.45) {
 				const pick = Math.floor(rng() * flow.siteCount);
 				const fx = flow.sites[pick * 4 + 2];
 				const fy = flow.sites[pick * 4 + 3];
@@ -302,7 +305,7 @@ export function spawnAt(
 				const base = trusted
 					? Math.atan2(fy, fx)
 					: Math.atan2(flow.sites[pick * 4 + 1], flow.sites[pick * 4]);
-				bearing = base + (rng() - 0.5) * 1.1;
+				bearing = base + (rng() - 0.5) * 1.3;
 			} else {
 				bearing = rng() * Math.PI * 2;
 			}
@@ -368,23 +371,59 @@ export function spawnAt(
 			return;
 		}
 		case SPAWN.sink: {
-			// The pull: the medium arrives as a few dense streams bending in to
-			// the mouth, not as a thin annulus — a population spread over the
-			// whole rim can never reach merge density, and unmerged deposits are
-			// chips. Four slowly precessing streams, born anywhere along their
-			// run. Reversed, the same streams are born at the mouth and pushed
-			// away: one signed kernel, two ends of one run.
+			// The pull: canon's Grasping Wind raises "a wind current" toward the
+			// seal — one current, so the medium travels a single arc that sweeps
+			// around the seal and bends in to the mouth. The whole budget lands
+			// on that one connected ribbon (merge density the old four streams
+			// bought with count, bought here with concentration), and the skin
+			// fuses it instead of polygonizing limbs. How tightly the arc winds
+			// follows the kind's own twist share: a straight pull is a gently
+			// bent lane, a slanted one arrives already wound — the two readings
+			// ground truth section 7 tells apart. Reversed, the same arc pours
+			// outward: one signed kernel, two ends of one run.
 			const inward = flow.sink >= 0;
-			const stream = Math.floor(rng() * 4);
-			const a =
-				(stream / 4) * Math.PI * 2 + flow.lobePhase + (tMs / 1000) * 0.22 + (rng() - 0.5) * 0.42;
-			const r = inward ? flow.pool + (2.0 - flow.pool) * rng() : flow.pool * (0.4 + 0.6 * rng());
-			out.x = Math.cos(a) * r;
-			out.y = Math.sin(a) * r;
+			const rim = 2.0;
+			const span = Math.max(0.4, rim - flow.pool);
+			const twist = Math.hypot(flow.sink, flow.swirl);
+			const share = twist > 1e-4 ? Math.abs(flow.swirl) / twist : 0;
+			const sense = Math.sign(flow.swirl) || (flow.lobePhase < Math.PI ? 1 : -1);
+			const wind = sense * (1.05 + 2.2 * share);
+			// Matter rides the current in knots: births crowd a front walking
+			// the run at a steady pace, so the ribbon visibly flows one wave
+			// after another. The pace is fixed, not the live drive: knots are
+			// texture, and a front keyed to a decaying envelope would slide.
+			const pace = (tMs / 1000) * 0.55;
+			const front = inward ? 1 - (pace % 1) : pace % 1;
+			const knotted = rng() < 0.32;
+			const u = knotted ? (front + (rng() - 0.5) * 0.32 + 1) % 1 : rng();
+			// The run: 0 at the mouth, out toward the rim, mass crowded toward
+			// the mouth — what has arrived billows into one collar (a collection
+			// reads as a cloud, canon says). How far the drawn current reaches
+			// follows the twist: a straight pull is a close tide swallowed at
+			// the mouth, with the ambient medium carrying the far-field lean,
+			// while a wound one walks its whole helical approach. Spreading a
+			// straight pull's budget up the full run only beads the tail. An
+			// outward pour is the bucket read the other way: born at the brim
+			// and spilling over.
+			// A faint pull hugs the mouth: the same few parcels spread up the
+			// full run would sit below the skin's deposit cutoff everywhere and
+			// the seal would show nothing at all.
+			const presence = 0.45 + 0.55 * Math.min(1, flow.emission / 0.3);
+			const maxRun = (0.35 + 0.65 * share) * presence;
+			const p = inward ? Math.pow(u, 1.7) * maxRun : u * 0.18 - 0.12;
+			const base = flow.lobePhase + sense * (tMs / 1000) * 0.22;
+			const theta = base + wind * p + (rng() - 0.5) * 0.16;
+			const r = flow.pool + span * p + (rng() - 0.5) * 0.14;
+			out.x = Math.cos(theta) * r;
+			out.y = Math.sin(theta) * r;
 			out.z = 0.02 + 0.08 * rng();
-			const lean = flow.speed * (0.45 + 0.4 * rng()) * (inward ? -1 : 1);
-			out.vx = Math.cos(a) * lean;
-			out.vy = Math.sin(a) * lean;
+			// Travel follows the drawn arc: the along-path tangent, inward or out.
+			const tx = span * Math.cos(theta) - r * wind * Math.sin(theta);
+			const ty = span * Math.sin(theta) + r * wind * Math.cos(theta);
+			const tn = Math.hypot(tx, ty) || 1;
+			const lean = (flow.speed * (0.45 + 0.4 * rng()) * (inward ? -1 : 1)) / tn;
+			out.vx = tx * lean;
+			out.vy = ty * lean;
 			out.vz = 0.02 * rng();
 			return;
 		}
