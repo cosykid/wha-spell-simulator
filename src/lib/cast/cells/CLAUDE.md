@@ -70,7 +70,7 @@ before adding one.
 | [`fan.ts`](fan.ts)         | `fan`     | Sectors along the drawn signs' bearings running outward under a ceiling, thinning as they run.               |
 | [`vortex.ts`](vortex.ts)   | `vortex`  | Born turning in the drawn fold's arms on a flaring wall, herded onto them as they precess on the spin phase. |
 | [`hold.ts`](hold.ts)       | `hold`    | Containment with weight and sway suspended: fills, breathes, spins — a gripless hold is R-16's flat rotor.   |
-| [`intake.ts`](intake.ts)   | `intake`  | The signed sink: the medium arriving as a few dense streams, or pushed out along them — one kernel.          |
+| [`intake.ts`](intake.ts)   | `intake`  | The signed sink: the medium condensing from all sides into the mouth, spun whole by the twist — one kernel.  |
 | [`shimmer.ts`](shimmer.ts) | `shimmer` | R-10's medium as a few large faint washes drifting in during the charge. Deposit zero: washes, never body.   |
 
 [`registry.ts`](registry.ts) is the one place kind is switched on, and it is

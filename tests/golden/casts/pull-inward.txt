@@ -35,9 +35,9 @@ track burst kind=burst look=core population=own emission=99.7790 drive=0.8738
   ceiling none
 track intake-pull kind=intake look=wisp population=ambient emission=150.3972 drive=0.6357
   ink=0.4500 marks=137 born=137 parcels=1385
-  at=(0.1010, 0.0798, 0.0505) tip=(0.4000, 0.0000, 0.0000)
-  detail flash=0.4864 from=2.0000 lift=0.0000 outward=0.0000 phase=0.0378 reach=1.9426 speed=0.3812 to=0.4000 turn=0.0000
-  tracers pooled=20 bands=[34.6 0.0 0.0 0.0] rings=[2.9 10.4 21.4] grid=eac696f9
+  at=(0.0442, 0.0525, 0.0505) tip=(0.4000, 0.0000, 0.0000)
+  detail flash=0.4864 from=2.0000 lift=0.0000 outward=0.0000 phase=0.0378 reach=1.2330 speed=0.2763 to=0.4000 turn=0.0000
+  tracers pooled=16 bands=[34.7 0.0 0.0 0.0] rings=[26.3 7.2 1.3] grid=3f9443d9
   ceiling none
 
 @1600ms beat=body beatT=0.1974
@@ -48,16 +48,16 @@ track shimmer-ambient kind=shimmer look=skin population=ambient emission=17.1013
   tracers pooled=150 bands=[175.7 0.0 0.0 0.0] rings=[0.0 43.3 132.4] grid=8a2eec18
   ceiling none
 track burst kind=burst look=core population=own emission=0.0000 drive=0.4396
-  ink=0.0000 marks=437 born=458 parcels=853
-  at=(0.0091, -0.0019, 0.0200) tip=(0.3306, 0.0000, 0.0099)
-  detail front=0.3306 reach=2.0939 speed=0.9496
-  tracers pooled=437 bands=[206.2 0.0 0.0 0.0] rings=[26.3 122.8 57.2] grid=9c48e918
+  ink=0.0000 marks=160 born=458 parcels=853
+  at=(-0.0461, -0.0224, 0.0200) tip=(0.3306, 0.0000, 0.0099)
+  detail front=0.3306 reach=1.8770 speed=0.8128
+  tracers pooled=160 bands=[23.5 0.0 0.0 0.0] rings=[5.8 15.5 2.2] grid=cc63cdc3
   ceiling none
 track intake-pull kind=intake look=wisp population=ambient emission=150.3972 drive=0.5680
   ink=0.4500 marks=428 born=428 parcels=1385
-  at=(0.0971, -0.0073, 0.0223) tip=(0.4000, 0.0000, 0.0000)
-  detail flash=0.2086 from=2.0000 lift=0.0000 outward=0.0000 phase=0.1792 reach=1.9774 speed=0.1902 to=0.4000 turn=0.0000
-  tracers pooled=349 bands=[289.1 0.0 0.0 0.0] rings=[24.7 92.7 171.6] grid=2a686362
+  at=(0.0181, 0.0394, 0.0222) tip=(0.4000, 0.0000, 0.0000)
+  detail flash=0.2086 from=2.0000 lift=0.0000 outward=0.0000 phase=0.1792 reach=1.2189 speed=0.1620 to=0.4000 turn=0.0000
+  tracers pooled=353 bands=[289.6 0.0 0.0 0.0] rings=[235.1 44.3 10.3] grid=808ba71a
   ceiling none
 
 @2600ms beat=body beatT=0.8553
@@ -68,14 +68,14 @@ track shimmer-ambient kind=shimmer look=skin population=ambient emission=7.2621 
   tracers pooled=280 bands=[175.0 0.0 0.0 0.0] rings=[0.0 23.5 151.5] grid=935a7639
   ceiling none
 track burst kind=burst look=core population=own emission=0.0000 drive=0.0143
-  ink=0.0000 marks=203 born=458 parcels=853
-  at=(-0.0348, -0.0361, 0.0200) tip=(0.4691, 0.0000, 0.0141)
-  detail front=0.4691 reach=2.0923 speed=0.3786
-  tracers pooled=203 bands=[29.5 0.0 0.0 0.0] rings=[0.0 7.4 22.2] grid=89952d4b
+  ink=0.0000 marks=0 born=458 parcels=853
+  at=(0.0000, 0.0000, 0.0000) tip=(0.4691, 0.0000, 0.0141)
+  detail front=0.4691 reach=0.0000 speed=0.0000
+  tracers pooled=0 bands=[0.0 0.0 0.0 0.0] rings=[0.0 0.0 0.0] grid=725c3305
   ceiling none
 track intake-pull kind=intake look=wisp population=ambient emission=150.3972 drive=0.3996
   ink=0.4500 marks=968 born=968 parcels=1385
-  at=(0.0466, -0.0270, 0.0208) tip=(0.4000, 0.0000, 0.0000)
-  detail flash=0.0376 from=2.0000 lift=0.0000 outward=0.0000 phase=0.4086 reach=1.9520 speed=0.1939 to=0.4000 turn=0.0000
-  tracers pooled=905 bands=[721.4 0.0 0.0 0.0] rings=[27.8 214.7 479.0] grid=5bb5dcff
+  at=(0.0192, 0.0239, 0.0210) tip=(0.4000, 0.0000, 0.0000)
+  detail flash=0.0376 from=2.0000 lift=0.0000 outward=0.0000 phase=0.4086 reach=1.4443 speed=0.2662 to=0.4000 turn=0.0000
+  tracers pooled=886 bands=[720.9 0.0 0.0 0.0] rings=[320.1 336.4 64.5] grid=d19da4c4
   ceiling none

@@ -291,10 +291,13 @@ export function spawnAt(
 			return;
 		}
 		case SPAWN.sector: {
-			// Dispersion: born low along the drawn signs' bearings (or all around
-			// when no sign asked), running outward and hugging the plane.
+			// Dispersion: canon pours "out on all sides of the spell, like an
+			// overflowing bucket" — one connected ring pour, never wedges. The
+			// drawn signs still show: their bearings take the fuller share of the
+			// pour, but a ring backbone keeps the skirt one scalloped body
+			// instead of carving it into per-sign blades.
 			let bearing: number;
-			if (flow.siteCount > 0) {
+			if (flow.siteCount > 0 && rng() < 0.45) {
 				const pick = Math.floor(rng() * flow.siteCount);
 				const fx = flow.sites[pick * 4 + 2];
 				const fy = flow.sites[pick * 4 + 3];
@@ -302,7 +305,7 @@ export function spawnAt(
 				const base = trusted
 					? Math.atan2(fy, fx)
 					: Math.atan2(flow.sites[pick * 4 + 1], flow.sites[pick * 4]);
-				bearing = base + (rng() - 0.5) * 1.1;
+				bearing = base + (rng() - 0.5) * 1.3;
 			} else {
 				bearing = rng() * Math.PI * 2;
 			}
@@ -368,23 +371,68 @@ export function spawnAt(
 			return;
 		}
 		case SPAWN.sink: {
-			// The pull: the medium arrives as a few dense streams bending in to
-			// the mouth, not as a thin annulus — a population spread over the
-			// whole rim can never reach merge density, and unmerged deposits are
-			// chips. Four slowly precessing streams, born anywhere along their
-			// run. Reversed, the same streams are born at the mouth and pushed
-			// away: one signed kernel, two ends of one run.
+			// The pull: a seal drinks from everywhere at once, so the medium is a
+			// halo condensing into the mouth — angle-uniform by law, because any
+			// bearing the births favor polygonizes as a limb the seal never drew
+			// (four streams read as a starfish, one stream as a tongue; both are
+			// anatomy). The gathered mass at the mouth is the body; the halo is
+			// atmosphere leaning in. The twist draws no spiral lane either: it
+			// spins the whole halo, so canon's slanted pull is one vortex turning
+			// as one body while a straight pull is a flat all-sides inflow — the
+			// two readings ground truth section 7 tells apart.
 			const inward = flow.sink >= 0;
-			const stream = Math.floor(rng() * 4);
-			const a =
-				(stream / 4) * Math.PI * 2 + flow.lobePhase + (tMs / 1000) * 0.22 + (rng() - 0.5) * 0.42;
-			const r = inward ? flow.pool + (2.0 - flow.pool) * rng() : flow.pool * (0.4 + 0.6 * rng());
-			out.x = Math.cos(a) * r;
-			out.y = Math.sin(a) * r;
+			const rim = 2.0;
+			const span = Math.max(0.4, rim - flow.pool);
+			const twist = Math.hypot(flow.sink, flow.swirl);
+			const share = twist > 1e-4 ? Math.abs(flow.swirl) / twist : 0;
+			const sense = Math.sign(flow.swirl) || 1;
+			const theta = rng() * Math.PI * 2;
+			// How far out the halo stands. A faint pull hugs the mouth (the same
+			// few parcels spread over the full annulus sit below the deposit
+			// cutoff everywhere and the seal shows nothing), and a twisted one
+			// reaches: a vortex is a field, a plain draw is a close tide with
+			// the ambient medium carrying the far lean.
+			const presence = 0.45 + 0.55 * Math.min(1, flow.emission / 0.3);
+			const run = presence * (0.55 + 0.45 * share);
+			// The halo drinks in waves: some births crowd an angle-uniform ring
+			// front walking the run at a fixed pace — "swallowed at the pool one
+			// wave after another", a surge, never a knot at one bearing. The
+			// pace ignores the live drive: a front keyed to a decaying envelope
+			// would slide.
+			// What has arrived is the pile: a share of births lands inside the
+			// mouth disc itself — the collection converting to its one cloud —
+			// or the ring attractor holds everything at the pool radius and the
+			// halo reads as a wreath of beads around a hole. The share yields
+			// to the twist, because a wound pull keeps its eye open.
+			const filled = inward && rng() < 0.5 * (1 - share);
+			const front = 1 - (((tMs / 1000) * 0.55) % 1);
+			const surged = inward && !filled && rng() < 0.3;
+			const u = surged ? Math.min(1, Math.max(0, front + (rng() - 0.5) * 0.3)) : rng();
+			// Radius crowds toward the mouth, so the halo billows into the pile
+			// and the tail thins to wash. An outward pour is the bucket read
+			// the other way: born at the brim, all around it, and spilling over.
+			// The crowd is steep on purpose: the mid-halo is the marginal band
+			// where deposits are dense enough to skin but too sparse to merge,
+			// and that band is where countable clods appear. Crowding it into
+			// the pile leaves the tail below the cutoff — atmosphere as wash.
+			const p = inward ? Math.pow(u, 2.1) * run : u * 0.18 - 0.12;
+			const r = filled
+				? Math.max(0.06, flow.pool * Math.sqrt(rng()))
+				: flow.pool + span * p + (rng() - 0.5) * 0.1;
+			out.x = Math.cos(theta) * r;
+			out.y = Math.sin(theta) * r;
 			out.z = 0.02 + 0.08 * rng();
-			const lean = flow.speed * (0.45 + 0.4 * rng()) * (inward ? -1 : 1);
-			out.vx = Math.cos(a) * lean;
-			out.vy = Math.sin(a) * lean;
+			// Travel is the same blend the field settles into: radial along the
+			// draw, tangential by the twist's share, so a birth is already part
+			// of the one motion instead of matter waiting to be collected.
+			const ux = Math.cos(theta);
+			const uy = Math.sin(theta);
+			const inrad = inward ? -1 : 1;
+			const mix = share * 0.85;
+			// Piled matter has already arrived: it settles instead of streaming.
+			const lean = flow.speed * (0.45 + 0.4 * rng()) * (filled ? 0.25 : 1);
+			out.vx = (ux * inrad * (1 - mix) - uy * sense * mix) * lean;
+			out.vy = (uy * inrad * (1 - mix) + ux * sense * mix) * lean;
 			out.vz = 0.02 * rng();
 			return;
 		}

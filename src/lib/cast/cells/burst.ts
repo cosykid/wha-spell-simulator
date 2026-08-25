@@ -6,7 +6,7 @@
  * | --------- | ------------------------------------------------------------ |
  * | charge    | nothing. R-01 lets only the ambient medium manifest here.     |
  * | strike    | the whole spend: a violent shell born across the whole seal.  |
- * | body      | what is left of it coasts outward and burns out.              |
+ * | body      | what is left coasts out and burns; its splash dries in place. |
  * | release   | a thinning residue where the front passed.                    |
  * | afterglow | gone, with the front's own reach still recorded.              |
  *
@@ -90,7 +90,16 @@ export function createBurstCell(track: Track<'burst'>, ctx: CellContext): Cell {
 			flow.sink = -params.speed * carry * 0.4;
 			flow.punch = Math.max(punch, frame.beat === 'strike' ? 0.35 : 0);
 			flow.burn = burnAt(frame) * 1.4;
-			flow.drain = frame.beat === 'afterglow' ? frame.beatT : 0;
+			// An impulse leaves no standing puddle: what the splash lands, the
+			// paper drinks through the body. Left to the element's own pool
+			// clock, the scattered drops ride the pool spread to its edge and
+			// stand the whole cast as a ring of countable beads.
+			flow.drain =
+				frame.beat === 'charge' || frame.beat === 'strike'
+					? 0
+					: frame.beat === 'body'
+						? 0.3 + 0.7 * frame.beatT
+						: 1;
 			flow.emission = Math.min(
 				0.94,
 				shapeOf(frame.emission, track.emission.gain) * presence + 0.7 * punch

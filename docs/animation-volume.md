@@ -369,3 +369,58 @@ a whirl is taller than it is wide, or it reads as a goblet. The lab preset
 `spun-column` pins the arrangement across all three golden tiers; only
 `column-pinwheel`'s baselines moved with the proportions, and the charge
 frame stayed byte-identical.
+
+**The condensing halo, the ring pour, and the drying splash (2026-08-25,
+after the manga pass; halo 2026-08-26).** The library's pull seals showed the same disease the
+firenado had, below the ruling layer this time: the sink mouth birthed the
+medium as four discrete precessing streams, so every pull — straight or
+slanted, strong or weak — wore radial supply branches, and the sector mouth
+carved dispersion into per-sign wedges. Canon draws neither. Grasping Wind
+raises "a wind current" toward the seal — one current, and slanted keystones
+make "a vortex", one vortex (manga ch. 14); a dispersion-signed spell pours
+"out on all sides … like an overflowing bucket" (ch. 10); and Billowing
+Collection turns what it gathers into a single cloud (ch. 7). Symmetry in a
+seal is syntax, not anatomy: the drawn signs say what the spell does, and the
+effect answers as one body, never as one limb per sign.
+
+Three changes carry that reading, all below the score:
+
+- The sink mouth births a condensing halo, angle-uniform by law. The first
+  fix here was one connected arc bending in to the mouth, and it was wrong
+  the same way the four streams were: a limb from one bearing is still
+  anatomy — a seal drinks from everywhere at once, so no bearing may be
+  favored, whether four or one. The mass sits in the radius instead: a share
+  of births lands inside the mouth disc itself (the collection converting to
+  its one cloud — otherwise the ring attractor parks every arrival at the
+  pool radius and the halo reads as a wreath of beads around a hole), the
+  rest crowd steeply toward it, and the tail thins below the skin's deposit
+  cutoff into wash. The steep crowd is load-bearing: the mid-halo is the
+  marginal band where deposits skin but do not merge, which is where
+  countable clods appear. The twist draws no spiral lane either — it spins
+  the whole halo (birth velocity blends radial draw with tangential twist by
+  §7's share, and the fill share yields to the twist so a wound pull keeps
+  its eye open): a straight pull is a flat all-sides inflow, a slanted one is
+  one vortex turning as one body. Reach follows emission, so a faint pull
+  hugs the mouth and still clears the cutoff. Some births crowd an
+  angle-uniform ring front walking inward at a fixed pace — swallowed one
+  wave after another, a surge, never a knot at one bearing. Reversed, the
+  halo is born at the brim all around and spills over: one signed kernel.
+  The inhaled medium's own churn is damped hard (`turbMul` 0.3, `gustMul`
+  0.35): left at full, the arrivals dwelling at the mouth get herded into
+  curl pockets and the one tide breaks into countable balls.
+- The sector mouth keeps a ring backbone: with drawn sites the pour is 45%
+  site-directed over a wider spread and 55% ring, so the skirt is one
+  scalloped body that fills toward the drawn signs rather than four blades.
+- The burst's splash now dries through the body (`drain` ramps from the
+  body's start instead of waiting for the afterglow). Left on the element's
+  own pool clock, the strike's scattered drops rode the pool spread to its
+  edge and stood the whole cast as a ring of countable beads — on column
+  seals the fed pool hides them, on pull seals they stood naked. The residue
+  is the ground wash's business, not the skin's.
+
+Every cast text moved (the burst is unconditional) and every stage look
+baseline was regenerated; the classic set is untouched. Drying the residue
+also exposed that `levitation-inverted` compiles to the identical quiet-plume
+score as `none`, `swirl-pushes` and `column-cancelled` — its distance to them
+had been splash-residue seed noise — so it joined the floor test's inert set
+where it always belonged.
