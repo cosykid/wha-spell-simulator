@@ -162,6 +162,33 @@ density, and unmerged deposits are chips. The hold suspends its element's
 weight (`weightMul 0.12`) — levitation is the suspension of weight, or a water
 ball sags through its own shell.
 
+### A swirl carries turning arms
+
+The marching-cubes skin of an axisymmetric mass shows **no rotation at all**,
+however fast its tracers orbit: the isosurface of a statistically uniform
+annulus is rotation-invariant, so the first build's vortex read as a bonfire
+that happened to have angular momentum, and R-16's rotor as a shivering pea.
+The fix is the phase-locked-patterning law taken literally. A flow may declare
+`arms` (the vortex snaps the drawn fold 3..6, a turning hold takes its row's
+banding), an `armPhase` the **cell** advances on the same spin phase the mass
+is driven by, an `armGain` (tangential herding toward the nearest arm — strong
+enough to beat the element's own churn, or the arms wash back out), and an
+`armPitch` that trails the pattern with height so a funnel reads wound the way
+it turns. The swirl and hover mouths sort birth azimuth into the arms, so
+matter arrives already patterned and the herding only keeps it. Two supporting
+terms came out of the same diagnosis: `gustMul` (a hold quiets its element's
+sway the way it suspends its weight, and a funnel halves it, or wind's ±4.2
+gusts shred the pattern) and `squash` (the hover mouth flattened toward its
+equator — R-16's rotor is a **flat** swirl, wide at 2.6× the gripped ball's
+stance, not a held pea). The vortex also drives coherence over churn now:
+`turbMul 0.35`, `pinchMul 0.55` (the pinch only acts outside the boundary, so
+it can never fill the eye), `sink ×1.9`, and birth on the local flared wall.
+`castVolume.test.ts` pins the mechanism — an armless swirl stays uniform
+(4-fold resultant < 0.15), an armed one concentrates (> 0.3), and the pattern
+angle tracks the phase to within 0.3 rad on the fold circle. A hold whose spin
+is under 0.3 rad/s keeps the round unpatterned shell, so a still water orb
+never stands lobed.
+
 ### What a frame costs
 
 The skin repolygonizes at most once per `render` call, on the 60Hz
@@ -290,3 +317,18 @@ is not under the other session's diff).
   next art pass.
 - **`vessel`** remains R-13's last unbuilt primitive and keeps its
   `routed-vessel` path.
+
+## 2026-08-25 addendum: the swirl rework
+
+The shipped vortex and rotor were judged not working ("swirl animation not
+working as intended"): measured, the vortex's mass was azimuthally uniform
+(8-sector histogram flat, 45% of it inside r 0.5 — no hollow, no visible
+turn) and the rotor's mean tangential speed was a tenth of its spin. The fix
+is the arm vocabulary above, plus the vortex retune and the rotor stance. It
+moved exactly two cast baselines (`column-pinwheel`, `levitation-pinwheel`)
+and their four strike/body look snapshots; every other baseline is
+byte-identical, which is the no-collateral proof. The lab now honours
+`?sigil=` (and a valid `?preset=`) on the live clock too, not only under the
+golden tier's scripted one — a live capture of a named cast needs no UI
+scripting beyond a value-changing preset select (a same-value select fires no
+change event and restarts nothing).

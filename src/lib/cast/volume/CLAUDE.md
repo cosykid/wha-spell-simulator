@@ -101,6 +101,17 @@ gathers matter at the `pool` radius and pushes it back out of the exact
 center, which is what keeps a vortex eye and an intake mouth open. A negative
 `sink` is a plain outward push. One signed term, no second kernel.
 
+**A swirl carries turning arms, or it does not read.** The skin of an
+axisymmetric mass shows no rotation however fast its tracers orbit. A flow
+that turns declares `arms`, an `armPhase` its cell advances on the same spin
+phase the mass moves by, an `armGain` herding matter tangentially onto the
+nearest arm, and an `armPitch` winding the pattern helical with height; the
+swirl and hover mouths sort birth azimuth into those arms. `gustMul` and
+`squash` are the same diagnosis: a hold quiets its element's sway the way it
+suspends its weight, and R-16's rotor is a flat disc, not a held pea.
+`castVolume.test.ts` pins that an armless swirl stays uniform, an armed one
+concentrates, and the pattern turns with the phase.
+
 **The heat axis is measured, not declared.** `heatBand` reads the vertical
 band the visible mass occupies, so a held ball is hot at its own base wherever
 it hovers and a column keeps its paper-to-crown axis. Do not replace it with

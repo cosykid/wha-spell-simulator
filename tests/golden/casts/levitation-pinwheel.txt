@@ -16,7 +16,7 @@ track burst kind=burst look=core population=own emission=0.0000 drive=0.0000
 track hold-levitation kind=hold look=body population=own emission=0.0000 drive=0.0000
   ink=0.0000 marks=0 born=0 parcels=1191
   at=(0.0000, 0.0000, 0.0000) tip=(0.0000, 0.0000, 0.8609)
-  detail closed=0.0000 fill=0.0000 grip=0.0000 radius=0.1540 reach=0.0000 speed=0.0000 spin=0.0000 turned=0.0000
+  detail closed=0.0000 fill=0.0000 grip=0.0000 radius=0.4004 reach=0.0000 speed=0.0000 spin=0.0000 turned=0.0000
   tracers pooled=0 bands=[0.0 0.0 0.0 0.0] rings=[0.0 0.0 0.0] grid=725c3305
   ceiling none
 
@@ -35,9 +35,9 @@ track burst kind=burst look=core population=own emission=99.7790 drive=0.8738
   ceiling none
 track hold-levitation kind=hold look=body population=own emission=51.9859 drive=1.0000
   ink=0.7703 marks=209 born=209 parcels=1191
-  at=(-0.0026, 0.0080, 0.8713) tip=(0.0000, 0.0000, 0.8629)
-  detail closed=0.0000 fill=0.0000 grip=0.0000 radius=0.1560 reach=1.0293 speed=0.1428 spin=-0.3914 turned=0.3914
-  tracers pooled=0 bands=[0.0 53.9 0.0 0.0] rings=[53.9 0.0 0.0] grid=304626ce
+  at=(0.0017, -0.0278, 0.8749) tip=(0.0000, 0.0000, 0.8662)
+  detail closed=0.0000 fill=0.0000 grip=0.0000 radius=0.4056 reach=1.0335 speed=0.2181 spin=-0.3914 turned=0.3914
+  tracers pooled=0 bands=[0.0 53.9 0.0 0.0] rings=[53.9 0.0 0.0] grid=0b961e81
   ceiling none
 
 @1600ms beat=body beatT=0.1974
@@ -55,9 +55,9 @@ track burst kind=burst look=core population=own emission=0.0000 drive=0.4396
   ceiling none
 track hold-levitation kind=hold look=body population=own emission=26.1546 drive=1.0000
   ink=0.7396 marks=760 born=760 parcels=1191
-  at=(0.0038, -0.0016, 0.8758) tip=(0.0000, 0.0000, 0.8701)
-  detail closed=0.0000 fill=0.0000 grip=0.0000 radius=0.1627 reach=1.0521 speed=0.1476 spin=-1.9570 turned=1.9570
-  tracers pooled=0 bands=[0.0 531.8 0.0 0.0] rings=[531.8 0.0 0.0] grid=bc1f9b33
+  at=(-0.0007, -0.0213, 0.8866) tip=(0.0000, 0.0000, 0.8848)
+  detail closed=0.0000 fill=0.0000 grip=0.0000 radius=0.4230 reach=1.0986 speed=0.3364 spin=-1.9570 turned=1.9570
+  tracers pooled=0 bands=[0.0 531.9 0.0 0.0] rings=[531.9 0.0 0.0] grid=a33db763
   ceiling none
 
 @2600ms beat=body beatT=0.8553
@@ -75,7 +75,7 @@ track burst kind=burst look=core population=own emission=0.0000 drive=0.0143
   ceiling none
 track hold-levitation kind=hold look=body population=own emission=0.8505 drive=1.0000
   ink=0.3143 marks=1191 born=1191 parcels=1191
-  at=(-0.0093, -0.0103, 0.7910) tip=(0.0000, 0.0000, 0.8682)
-  detail closed=0.0000 fill=0.0000 grip=0.0000 radius=0.1610 reach=1.0479 speed=0.3431 spin=-5.0882 turned=5.0882
-  tracers pooled=0 bands=[0.0 604.1 0.0 0.0] rings=[604.1 0.0 0.0] grid=6793e3bb
+  at=(-0.0089, -0.0016, 0.8045) tip=(0.0000, 0.0000, 0.8799)
+  detail closed=0.0000 fill=0.0000 grip=0.0000 radius=0.4185 reach=1.2650 speed=0.6064 spin=-5.0882 turned=5.0882
+  tracers pooled=0 bands=[3.2 603.8 0.0 0.0] rings=[361.3 245.8 0.0] grid=d50df137
   ceiling none

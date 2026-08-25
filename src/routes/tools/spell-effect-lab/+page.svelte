@@ -3,7 +3,6 @@
 	import { writeJson } from '$lib/debug/debugOverlay.js';
 	import { setStatus } from '$lib/state.svelte';
 	import {
-		DEFAULT_SIGIL,
 		EFFECT_CONTROLS,
 		SIGIL_OPTIONS,
 		buildSpellIR,
@@ -20,7 +19,7 @@
 	import { onMount, untrack } from 'svelte';
 	import { LabPreview } from './lab-preview.js';
 	import PlanPanel from './PlanPanel.svelte';
-	import { readGoldenFrameRequest } from './lab-goldens.js';
+	import { labSigilFrom, readGoldenFrameRequest } from './lab-goldens.js';
 	import { castReadbackRequested } from '$lib/cast/stage/readback.js';
 	import {
 		DEFAULT_EFFECT_STYLE,
@@ -46,9 +45,18 @@
 	const requestedStyle = effectStyleFromSearch(page.url.search);
 
 	let effectStyle = $state(requestedStyle ?? DEFAULT_EFFECT_STYLE);
-	let sigil = $state(goldenFrame?.sigil ?? DEFAULT_SIGIL);
+	// The sigil and preset honour the same precedence on the live clock, so a
+	// deep link (or a capture rig) lands on the cast it names without the
+	// scripted golden-frame clock.
+	const requestedPreset = page.url.searchParams.get('preset');
+	let sigil = $state(goldenFrame?.sigil ?? labSigilFrom(page.url.searchParams.get('sigil')));
 	const element = $derived(elementForSigil(sigil));
-	let presetId = $state(goldenFrame?.presetId ?? 'none');
+	let presetId = $state(
+		goldenFrame?.presetId ??
+			(requestedPreset && LAB_PRESETS.some((option) => option.id === requestedPreset)
+				? requestedPreset
+				: 'none')
+	);
 	const preset = $derived(presetById(presetId));
 	const reading = $derived(readPresetSeal(preset.signs, sigil));
 	const plan = $derived(resolvePlan(reading));

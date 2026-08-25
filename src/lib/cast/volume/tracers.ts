@@ -186,13 +186,24 @@ export class TracerPop {
 					vy += scratch.y * gain * dt;
 					vz += scratch.z * gain * 0.7 * dt;
 				}
-				if (spec.gust > 0) {
-					vx += spec.gust * Math.sin(t * 1.35 + pz * 1.1 + i * 0.013) * dt;
-					vy += spec.gust * 0.55 * Math.cos(t * 0.9 + pz * 0.8 + i * 0.007) * dt;
+				if (spec.gust > 0 && flow.gustMul > 0) {
+					const gust = spec.gust * flow.gustMul;
+					vx += gust * Math.sin(t * 1.35 + pz * 1.1 + i * 0.013) * dt;
+					vy += gust * 0.55 * Math.cos(t * 0.9 + pz * 0.8 + i * 0.007) * dt;
 				}
 				const swirl = spec.swirl + flow.swirl;
 				vx += -outy * swirl * radius * dt;
 				vy += outx * swirl * radius * dt;
+				// The arm herding: matter is drawn tangentially toward the nearest
+				// of the flow's standing arms, and the cell turns the pattern with
+				// the same phase the mass moves by. Without it a swirl is an
+				// axisymmetric field, and the skin of one shows no rotation at all.
+				if (flow.arms > 0 && flow.armGain > 0 && radius > 0.02) {
+					const rel = flow.arms * (Math.atan2(ry, rx) - flow.armPhase - flow.armPitch * hn);
+					const herd = -flow.armGain * Math.sin(rel);
+					vx += -outy * herd * dt;
+					vy += outx * herd * dt;
+				}
 				// The kind's ring term. Positive is the signed ring attractor: matter
 				// gathers at `pool` and is pushed back out of the exact center, which
 				// is what keeps an eye hollow. Negative is a plain outward push.

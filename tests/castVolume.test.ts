@@ -244,6 +244,68 @@ test('the sink is a ring attractor: matter gathers at the ring and the eye stays
 	assert.ok(inEye / live < 0.1, 'the ring attractor piled the medium into a stain');
 });
 
+test('the arm herding sorts a swirl into arms, and the pattern turns with the phase', () => {
+	// The k-fold resultant of the live population: 0 is azimuthally uniform,
+	// 1 is everything on one arm. The angle is where the pattern points.
+	const fold = (pop: TracerPop, k: number) => {
+		let re = 0;
+		let im = 0;
+		let mass = 0;
+		for (let i = 0; i < pop.capacity; i += 1) {
+			if (!pop.alive[i]) continue;
+			const a = Math.atan2(pop.pos[i * 3 + 1], pop.pos[i * 3]) * k;
+			re += Math.cos(a) * pop.fade[i];
+			im += Math.sin(a) * pop.fade[i];
+			mass += pop.fade[i];
+		}
+		return { strength: mass > 0 ? Math.hypot(re, im) / mass : 0, angle: Math.atan2(im, re) / k };
+	};
+	const swirlFlow = (arms: number) => {
+		const flow = blankFlow();
+		flow.spawn = SPAWN.swirl;
+		flow.emission = 0.7;
+		flow.speed = 1.2;
+		flow.footprint = 0.5;
+		flow.narrow = -0.5;
+		flow.reach = 1.2;
+		flow.swirl = 3;
+		flow.sink = 1.8;
+		flow.pool = 0.55;
+		flow.lifeMul = 1.5;
+		flow.arms = arms;
+		flow.armGain = arms > 0 ? 2.3 : 0;
+		return flow;
+	};
+	const RATE = 2.5;
+	const turned = (arms: number, seconds: number) => {
+		const pop = new TracerPop('fire', 500, 61);
+		const flow = swirlFlow(arms);
+		const steps = Math.round(seconds / STEP_S);
+		for (let s = 1; s <= steps; s += 1) {
+			// The cell's side of the contract: the pattern advances on the same
+			// phase the mass is driven by.
+			flow.armPhase = RATE * s * STEP_S;
+			pop.step(flow, s * STEP_S * 1000);
+		}
+		return pop;
+	};
+	// Armless, the same swirl is azimuthally uniform — the failure this law
+	// exists for: a mass whose skin cannot show its own rotation.
+	assert.ok(fold(turned(0, 2), 4).strength < 0.15, 'an unpatterned swirl grew arms');
+	const early = fold(turned(4, 2), 4);
+	const later = fold(turned(4, 2.4), 4);
+	assert.ok(early.strength > 0.3, `the herding left the mass uniform (${early.strength})`);
+	assert.ok(later.strength > 0.3, 'the arms washed out as the population aged');
+	// Between the two reads the phase advanced RATE * 0.4; the pattern must
+	// have turned with it, compared on the 4-fold circle.
+	const spacing = (Math.PI * 2) / 4;
+	const expected = (RATE * 0.4) % spacing;
+	let drift = (later.angle - early.angle - expected) % spacing;
+	if (drift > spacing / 2) drift -= spacing;
+	if (drift < -spacing / 2) drift += spacing;
+	assert.ok(Math.abs(drift) < 0.3, `the pattern slipped its phase by ${drift.toFixed(3)}`);
+});
+
 test('the gather contains a held population inside its shell', () => {
 	const flow = blankFlow();
 	flow.spawn = SPAWN.hover;

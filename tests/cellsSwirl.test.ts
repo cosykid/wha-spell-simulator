@@ -3,9 +3,9 @@
  * claims that are easy to break by accident: the charge beat, the sense of
  * rotation, the drawing's fold, the signed pull kernel, and replay.
  *
- * No lab preset compiles a `vortex` track (R-05's circulation is a column-family
- * aggregate and no preset draws tangential columns), so the funnel's tracks are
- * written out here the way `tests/golden/castProbes.ts` writes its pinwheel.
+ * The funnel's tracks are written out by hand so the overrides under test are
+ * explicit; `column-pinwheel` compiles the real one and the golden tier reads
+ * that.
  */
 
 import assert from 'node:assert/strict';

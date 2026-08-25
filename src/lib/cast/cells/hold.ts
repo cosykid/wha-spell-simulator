@@ -56,6 +56,13 @@ const GRIP_FLOOR = 0.01;
 /** What a shell with no grip in it keeps, so R-16's rotor still has a middle. */
 const GRIPLESS = 0.16;
 
+/**
+ * R-16's rotor stance. A gripless hold is a flat swirl at the hover height, not
+ * a held pea: it stands wider than the ball the same ink would grip, and its
+ * shell is squashed toward the equator so it reads as a turning disc.
+ */
+const ROTOR = { stance: 2.6, squash: 0.75 } as const;
+
 /** Past the drive envelope the rotor still turns, slower. */
 const COAST = 0.3;
 
@@ -71,11 +78,19 @@ export function createHoldCell(track: Track<'hold'>, ctx: CellContext): Cell {
 	// hard this hold grips.
 	const gripStrength = clamp(params.capacity / FULL_CAPACITY);
 	const grips = gripStrength >= GRIP_FLOOR;
+	const stance = grips ? 1 : ROTOR.stance;
 	const spinRate = params.spin / Math.max(params.radius, 1e-3);
+	// The turn has to be seen going round: the mass is born into arms and herded
+	// onto them, and the pattern advances on the ball's own spin phase. With no
+	// drawn fold to honour, the row's own banding decides the count — and a hold
+	// that barely turns keeps the round unpatterned shell, or a still water orb
+	// would stand lobed for no reason ink gave it.
+	const turning = Math.abs(spinRate) > 0.3;
+	const arms = turning ? Math.round(clamp(ctx.look.material.bands, 3, 6)) : 0;
 	let heldMass = 0;
 	let spinPhase = 0;
 	let bobPhase = 0;
-	let radius = params.radius * SHELL.empty;
+	let radius = params.radius * SHELL.empty * stance;
 	// Rewritten in place each step. The stage may read it; nothing may keep it.
 	const ceiling: CellConstraint = {
 		at: { x: params.at.x, y: params.at.y, z: params.at.z },
@@ -91,15 +106,22 @@ export function createHoldCell(track: Track<'hold'>, ctx: CellContext): Cell {
 	flow.originZ = params.at.z;
 	flow.lobePhase = lobePhase;
 	// A ball, not a shaft: no column boundary to pinch toward, and only the
-	// gentlest stir of the element's own turbulence inside the grip.
+	// gentlest stir of the element's own turbulence inside the grip. The rotor
+	// runs stiller yet, so its arms stay legible.
 	flow.pinchMul = 0;
-	flow.turbMul = 0.4;
+	flow.turbMul = grips ? 0.4 : 0.28;
+	// The grip quiets the element's own sway the way it suspends its weight, or
+	// a wind hold shivers apart and its turn never reads.
+	flow.gustMul = 0.25;
 	// Levitation is the suspension of weight: inside the grip the element's own
 	// gravity and buoyancy are all but cancelled, or a water ball sags through
 	// its shell and a fire ball floats off it.
 	flow.weightMul = 0.12;
 	flow.wander = BOUNDARY_WANDER * 0.55;
 	flow.lifeMul = HELD_LIFE;
+	flow.arms = arms;
+	flow.armPitch = 0;
+	flow.squash = grips ? 0 : ROTOR.squash;
 
 	return {
 		update(frame) {
@@ -120,7 +142,7 @@ export function createHoldCell(track: Track<'hold'>, ctx: CellContext): Cell {
 			spinPhase += spinRate * (COAST + (1 - COAST) * frame.drive) * seconds;
 			bobPhase += params.bobRate * seconds;
 			const breath = 1 + 0.07 * Math.sin(bobPhase);
-			radius = params.radius * (SHELL.empty + (SHELL.full - SHELL.empty) * fill) * breath;
+			radius = params.radius * (SHELL.empty + (SHELL.full - SHELL.empty) * fill) * breath * stance;
 
 			tip.z = params.at.z + radius * 0.07 * Math.sin(bobPhase);
 			flow.originZ = tip.z;
@@ -132,7 +154,14 @@ export function createHoldCell(track: Track<'hold'>, ctx: CellContext): Cell {
 			// Measured from the locus, not from the paper: what is held is held there.
 			flow.reach = Math.max(0.18, radius * 2.4);
 			flow.speed = params.lift * frame.drive * 0.55;
-			flow.swirl = spinRate * (COAST + (1 - COAST) * frame.drive);
+			// Driven under the pattern rate on purpose: matter that outruns its
+			// own arms streams through them and washes the turn back out. The
+			// herding carries trapped mass at the pattern's speed regardless.
+			flow.swirl = spinRate * 0.55 * (COAST + (1 - COAST) * frame.drive);
+			flow.armPhase = lobePhase + spinPhase;
+			// The rotor's herding has to out-pull the gather's own churn, or the
+			// arms smear back into the axisymmetric shell no turn can show on.
+			flow.armGain = (grips ? 1.2 : 3.4) * (COAST + (1 - COAST) * frame.drive);
 			flow.punch = punch;
 			flow.burn = burnAt(frame);
 			flow.drain = frame.beat === 'afterglow' ? frame.beatT : 0;

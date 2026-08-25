@@ -94,6 +94,7 @@ export function createVortexCell(track: Track<'vortex'>, ctx: CellContext): Cell
 	// Radians per second on the wall. One phase, and everything reads it.
 	const omega = params.spin / Math.max(0.12, (foot + crown) / 2);
 	const arms = Math.round(clamp(params.symmetry ?? ctx.look.material.bands, 3, 6));
+	const pitch = sense * (1 + 0.7 * (1 - stature));
 	let spinPhase = 0;
 	let swayPhase = swaySeed;
 	let held: CellConstraint | null = null;
@@ -106,12 +107,21 @@ export function createVortexCell(track: Track<'vortex'>, ctx: CellContext): Cell
 	// The flare: a negative narrow widens the boundary with height where a
 	// column's narrows it.
 	flow.narrow = -Math.max(0, crown / Math.max(foot, 1e-3) - 1);
-	// Light. A hard pinch fights the foot's own ring attractor and fills the eye
-	// back in, and a funnel with a solid middle reads as a plume that happens to
-	// be spinning.
-	flow.pinchMul = 0.15;
+	// Firm enough to hold the flared wall. The pinch only acts outside the
+	// boundary, so it can never fill the eye; the ring attractor keeps that.
+	flow.pinchMul = 0.55;
 	flow.wander = BOUNDARY_WANDER * (0.6 + 0.5 * (1 - clamp(ctx.quality)));
-	flow.turbMul = 0.9;
+	// A whirl is coherent circulation: its own turbulence has to lose to the
+	// turn, or the churn scatters mass back into the eye and the funnel reads
+	// as a bonfire that happens to have angular momentum. Gusts halve for the
+	// same reason, or a wind funnel's own sway washes its arms out.
+	flow.turbMul = 0.35;
+	flow.gustMul = 0.45;
+	// The visible turn. The mass is born into `arms` and herded onto them, and
+	// the pattern advances on the same spin phase the wall moves by, trailing
+	// with height so the funnel reads wound the way it turns.
+	flow.arms = arms;
+	flow.armPitch = -pitch;
 	// A whirl is read from how far a parcel travels around it, so its matter has
 	// to live long enough to go round: short lives make a fountain of any field.
 	flow.lifeMul = WHIRL_LIFE;
@@ -136,11 +146,13 @@ export function createVortexCell(track: Track<'vortex'>, ctx: CellContext): Cell
 			flow.footprint = foot * (1 + 0.12 * Math.sin(swayPhase) * ctx.look.material.undulation);
 			flow.narrow = -Math.max(0, spread / Math.max(flow.footprint, 1e-3) - 1);
 			// The updraft carries matter up the wall; the swirl mouth reads it.
-			flow.speed = params.updraft * frame.drive;
+			flow.speed = params.updraft * 1.25 * frame.drive;
 			flow.swirl = omega * turn * 1.9;
+			flow.armPhase = lobePhase + spinPhase;
+			flow.armGain = 2.3 * (0.35 + 0.65 * turn);
 			// The floor boundary layer, as the signed ring attractor: matter is
 			// drawn onto the wall at the foot and pushed back out of the eye.
-			flow.sink = params.feed * 1.1 * frame.drive;
+			flow.sink = params.feed * 1.9 * frame.drive;
 			flow.punch = punch;
 			flow.burn = burnAt(frame);
 			flow.drain = frame.beat === 'afterglow' ? frame.beatT : 0;
@@ -165,7 +177,7 @@ export function createVortexCell(track: Track<'vortex'>, ctx: CellContext): Cell
 					crown: flow.footprint * (1 - flow.narrow),
 					height: tip.z,
 					spin: spinPhase,
-					pitch: sense * (1 + 0.7 * (1 - stature)),
+					pitch,
 					arms
 				}
 			);

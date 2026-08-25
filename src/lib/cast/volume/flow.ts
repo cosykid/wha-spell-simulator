@@ -53,6 +53,20 @@ export interface TrackFlow {
 	drain: number;
 	/** Radians per second of kind-owned rotation about the axis, on top of the element's. */
 	swirl: number;
+	/**
+	 * Standing arms the mass organizes into about the axis. Zero is unpatterned.
+	 * A swirl needs them: the skin of an axisymmetric mass shows no rotation at
+	 * all, however fast its tracers orbit.
+	 */
+	arms: number;
+	/** Where the arm pattern points, radians. The cell turns it with its own phase. */
+	armPhase: number;
+	/** Tangential pull toward the nearest arm, seal units per second squared. */
+	armGain: number;
+	/** Radians the pattern trails per unit of height, winding the arms helical. */
+	armPitch: number;
+	/** 0..1 squash of the hover mouth toward its equator. A rotor is a disc. */
+	squash: number;
 	/** Signed radial acceleration toward the `pool` ring. Positive draws inward. */
 	sink: number;
 	/** Ring radius the sink gathers at. Matter is pushed back out of the exact center. */
@@ -68,6 +82,8 @@ export interface TrackFlow {
 	/** Multipliers on the element's pinch and turbulence, so a kind can soften them. */
 	pinchMul: number;
 	turbMul: number;
+	/** Multiplier on the element's gust sway. A hold quiets it like it quiets weight. */
+	gustMul: number;
 	/**
 	 * Multiplier on the element's gravity and buoyancy. The ambient medium is
 	 * near-weightless whatever its element weighs; everything else leaves it 1.
@@ -108,6 +124,11 @@ export function blankFlow(): TrackFlow {
 		burn: 1,
 		drain: 0,
 		swirl: 0,
+		arms: 0,
+		armPhase: 0,
+		armGain: 0,
+		armPitch: 0,
+		squash: 0,
 		sink: 0,
 		pool: 0.5,
 		gather: 0,
@@ -117,6 +138,7 @@ export function blankFlow(): TrackFlow {
 		driftY: 0,
 		pinchMul: 1,
 		turbMul: 1,
+		gustMul: 1,
 		weightMul: 1,
 		narrow: 0.62,
 		lifeMul: 1,
@@ -295,14 +317,26 @@ export function spawnAt(
 			return;
 		}
 		case SPAWN.swirl: {
-			// The whirl: born on the wall, already turning, with the updraft the
-			// kind wrote. The eye stays hollow because the wall is where birth is.
-			const a = rng() * Math.PI * 2;
-			const r = flow.footprint * (0.8 + 0.35 * rng());
+			// The whirl: born on the local wall, already turning, with the updraft
+			// the kind wrote. The eye stays hollow because the wall is where birth
+			// is, and birth lands inside the flow's turning arms, so the mass
+			// arrives already sorted into the pattern the herding then keeps.
+			out.z = 0.02 + 0.45 * rng() * flow.reach;
+			const hn = Math.min(1, out.z / Math.max(flow.reach, 1e-3));
+			let a: number;
+			if (flow.arms > 0) {
+				const width = (Math.PI * 2) / flow.arms;
+				const arm = Math.floor(rng() * flow.arms);
+				a = flow.armPhase + flow.armPitch * hn + arm * width + (rng() - 0.5) * width * 0.6;
+			} else {
+				a = rng() * Math.PI * 2;
+			}
+			// The wall at this height: the pinch boundary without its wobble.
+			const wall = flow.footprint * (1 - flow.narrow * smooth01(hn / 0.95)) + 0.04;
+			const r = wall * (0.85 + 0.3 * rng());
 			const sense = Math.sign(flow.swirl) || 1;
 			out.x = Math.cos(a) * r;
 			out.y = Math.sin(a) * r;
-			out.z = 0.02 + 0.3 * rng() * flow.reach;
 			const tangential = Math.abs(flow.swirl) * r * (0.7 + 0.5 * rng());
 			out.vx = -Math.sin(a) * tangential * sense;
 			out.vy = Math.cos(a) * tangential * sense;
@@ -311,9 +345,18 @@ export function spawnAt(
 		}
 		case SPAWN.hover: {
 			// The held ball: born through the shell around the locus, above and
-			// below alike, nearly at rest. The gather does the keeping.
-			const a = rng() * Math.PI * 2;
-			const cosb = 2 * rng() - 1;
+			// below alike, nearly at rest. The gather does the keeping. Arms sort
+			// birth azimuth so a turning ball shows its turn, and the squash
+			// flattens the shell into R-16's rotor disc.
+			let a: number;
+			if (flow.arms > 0) {
+				const width = (Math.PI * 2) / flow.arms;
+				const arm = Math.floor(rng() * flow.arms);
+				a = flow.armPhase + arm * width + (rng() - 0.5) * width * 0.7;
+			} else {
+				a = rng() * Math.PI * 2;
+			}
+			const cosb = (2 * rng() - 1) * (1 - flow.squash);
 			const sinb = Math.sqrt(Math.max(0, 1 - cosb * cosb));
 			const r = Math.max(0.05, flow.holdRadius) * (0.3 + 0.7 * Math.cbrt(rng()));
 			out.x = flow.originX + Math.cos(a) * sinb * r;

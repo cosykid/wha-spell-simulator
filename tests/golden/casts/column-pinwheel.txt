@@ -35,9 +35,9 @@ track burst kind=burst look=core population=own emission=562.7827 drive=0.8738
   ceiling none
 track vortex-circulation kind=vortex look=body population=own emission=9.4824 drive=0.9767
   ink=0.2018 marks=77 born=77 parcels=1316
-  at=(-0.0139, -0.0133, 0.2864) tip=(0.0000, 0.0000, 2.5190)
-  detail arms=4.0000 crown=0.6290 foot=0.3643 height=2.5190 pitch=1.1347 reach=0.8383 speed=2.0315 spin=0.3598
-  tracers pooled=0 bands=[20.2 0.8 0.0 0.0] rings=[20.1 0.8 0.0] grid=36b66737
+  at=(0.0068, 0.0390, 0.4131) tip=(0.0000, 0.0000, 2.5190)
+  detail arms=4.0000 crown=0.6290 foot=0.3643 height=2.5190 pitch=1.1347 reach=1.2256 speed=2.5766 spin=0.3598
+  tracers pooled=0 bands=[15.6 5.4 0.0 0.0] rings=[12.3 8.7 0.0] grid=f249272b
   ceiling none
 
 @1600ms beat=body beatT=0.1974
@@ -54,10 +54,10 @@ track burst kind=burst look=core population=own emission=0.0000 drive=0.4396
   tracers pooled=354 bands=[139.2 0.0 0.0 0.0] rings=[1.8 59.9 77.5] grid=c37adfea
   ceiling none
 track vortex-circulation kind=vortex look=body population=own emission=42.1114 drive=0.8727
-  ink=0.5604 marks=304 born=304 parcels=1316
-  at=(-0.0026, -0.0414, 0.3050) tip=(0.0000, 0.0000, 1.3802)
-  detail arms=4.0000 crown=0.7741 foot=0.3474 height=1.3802 pitch=1.1347 reach=1.6856 speed=2.0955 spin=1.7071
-  tracers pooled=18 bands=[167.7 26.7 0.0 0.0] rings=[49.4 90.7 54.3] grid=2196513c
+  ink=0.5604 marks=303 born=304 parcels=1316
+  at=(-0.0158, 0.0029, 0.4651) tip=(0.0000, 0.0000, 1.3802)
+  detail arms=4.0000 crown=0.7741 foot=0.3474 height=1.3802 pitch=1.1347 reach=2.1489 speed=2.5855 spin=1.7071
+  tracers pooled=6 bands=[119.5 69.8 4.0 0.0] rings=[11.5 98.5 83.4] grid=8498bd77
   ceiling none
 
 @2600ms beat=body beatT=0.8553
@@ -74,8 +74,8 @@ track burst kind=burst look=core population=own emission=0.0000 drive=0.0143
   tracers pooled=85 bands=[11.7 0.0 0.0 0.0] rings=[0.0 0.2 11.5] grid=4fc56ba0
   ceiling none
 track vortex-circulation kind=vortex look=body population=own emission=74.0745 drive=0.6139
-  ink=0.9200 marks=1128 born=1279 parcels=1316
-  at=(0.0088, 0.0106, 0.1270) tip=(0.0000, 0.0000, 1.5396)
-  detail arms=4.0000 crown=0.7741 foot=0.3187 height=1.5396 pitch=1.1347 reach=2.0978 speed=1.4324 spin=3.8915
-  tracers pooled=450 bands=[767.2 0.0 0.0 0.0] rings=[199.6 281.2 286.3] grid=79f97fee
+  ink=0.9200 marks=993 born=1279 parcels=1316
+  at=(0.0276, 0.0328, 0.2742) tip=(0.0000, 0.0000, 1.5396)
+  detail arms=4.0000 crown=0.7741 foot=0.3187 height=1.5396 pitch=1.1347 reach=2.1729 speed=1.9456 spin=3.8915
+  tracers pooled=199 bands=[556.2 108.9 0.0 0.0] rings=[68.3 299.1 297.7] grid=0650b14d
   ceiling none
