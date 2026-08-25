@@ -480,3 +480,77 @@ test('[PDF defect J] the canon snap seam ships as a passthrough', () => {
 	assert.deepEqual(snapPlan(planFingerprint(plan), plan), plan);
 	assert.ok(planFingerprint(plan).includes('aim:up'), 'the fingerprint reads classes, not numbers');
 });
+
+/** R-21's arrangement: an inward clash ringed by pulls slanted `twistDeg` from inward. */
+function spunSeal(twistDeg: number): SealReading {
+	return reading([
+		...[0, 90, 180, 270].map((atDeg) => sign({ atDeg })),
+		...[45, 135, 225, 315].map((atDeg) =>
+			sign({ manifestation: 'pull', atDeg, facingDeg: atDeg + 180 + twistDeg })
+		)
+	]);
+}
+
+test('[R-21] a helical intake feeding the clash spins the column into one vortex', () => {
+	const plan = resolvePlan(spunSeal(45));
+
+	assert.ok(Math.abs(plan.circulation) > 0.25, 'the fused whirl clears the vortex dead band');
+	assert.equal(round(plan.aim.z), 0, 'the clash is consumed');
+	assert.equal(plan.intake, null, 'the inflow is consumed');
+	assert.ok(plan.notes.includes('spun-column'), 'and the plan says where they went');
+	assert.ok(!plan.notes.includes('inert-quadrupole'), 'a whirl is not cancelled ink');
+});
+
+test('[R-21] the whirl turns the way the pulls slant', () => {
+	const swirlOf = (twistDeg: number) =>
+		foldAggregate(
+			[45, 135, 225, 315].map((atDeg) =>
+				sign({ manifestation: 'pull', atDeg, facingDeg: atDeg + 180 + twistDeg })
+			)
+		).circulation;
+	const one = resolvePlan(spunSeal(45));
+	const other = resolvePlan(spunSeal(-45));
+
+	assert.equal(Math.sign(one.circulation), Math.sign(swirlOf(45)));
+	assert.equal(Math.sign(other.circulation), Math.sign(swirlOf(-45)));
+	assert.ok(one.circulation * other.circulation < 0, 'opposite slants turn opposite ways');
+});
+
+test('[R-21] a straight inhale does not spin the column', () => {
+	const plan = resolvePlan(spunSeal(0));
+
+	assert.ok(plan.aim.z > 0, 'the clash column stands');
+	assert.ok(plan.intake, 'the inflow keeps its own track');
+	assert.equal(round(plan.circulation), 0);
+	assert.ok(!plan.notes.includes('spun-column'));
+});
+
+test('[R-21] hand residue below the swirl floor does not fuse', () => {
+	const plan = resolvePlan(spunSeal(4));
+
+	assert.ok(plan.intake, 'a barely slanted inflow stays an inflow');
+	assert.ok(plan.aim.z > 0);
+	assert.ok(!plan.notes.includes('spun-column'));
+});
+
+test('[R-21] an outward helical push feeds no column, so nothing fuses', () => {
+	const plan = resolvePlan(spunSeal(135));
+
+	assert.ok(plan.intake, 'the push keeps its unfused reading');
+	assert.ok(plan.intake && plan.intake.draw < 0, 'the fixture really does push outward');
+	assert.ok(plan.aim.z > 0, 'and the beam still stands');
+	assert.ok(!plan.notes.includes('spun-column'));
+});
+
+test('[R-21] a helix with no clash keeps its intake: Grasping Wind is untouched', () => {
+	// The pull-vortex arrangement: slanted pulls alone, no column to spin.
+	const plan = resolvePlan(
+		reading(
+			[0, 120, 240].map((atDeg) => sign({ manifestation: 'pull', atDeg, facingDeg: atDeg + 270 }))
+		)
+	);
+
+	assert.ok(plan.intake, 'the intake survives');
+	assert.equal(round(plan.circulation), 0);
+	assert.ok(plan.notes.includes('intake-only'));
+});

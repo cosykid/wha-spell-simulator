@@ -361,6 +361,25 @@ export const CAST_PROBES: CastProbe[] = [
 		}
 	]),
 
+	...on('spun-column', [
+		{
+			atMs: BODY_MS,
+			of: 'vortex',
+			expect: { metric: 'detail', name: 'height', above: 0.5 },
+			rulingId: 'R-21',
+			claim:
+				'a helical intake feeding the clash raises one whirl, never a beam standing in inflow branches'
+		},
+		{
+			atMs: BODY_MS,
+			of: 'vortex',
+			expect: { metric: 'detail', name: 'spin', below: -1 },
+			rulingId: 'R-21',
+			claim:
+				'and the fused column turns the way the pulls slant: this seal twists clockwise, so the spin phase runs negative'
+		}
+	]),
+
 	...on('pull-vortex', [
 		{
 			atMs: BODY_MS,

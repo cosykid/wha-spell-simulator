@@ -34,12 +34,14 @@ const VORTEX_TUNING = {
 	 * flares as it climbs (TWIST_R0 / TWIST_R1). Widened against the branch's
 	 * ratios, because there the funnel stood in a room and here it stands on a
 	 * seal one ring radius across: a foot near the salvaged `vortexEye` of 0.45
-	 * is what makes the hollow read at this scale.
+	 * is what makes the hollow read at this scale. The crown stays under the
+	 * height a strong whirl reaches, because a whirl is taller than it is wide
+	 * or it reads as a goblet rather than R-21's swirling cone.
 	 */
-	footRadius: 0.32,
-	crownRadius: 0.7,
+	footRadius: 0.3,
+	crownRadius: 0.58,
 	/** Seal units the crown stands at when the circulation is at full strength. */
-	height: 1.6,
+	height: 2.1,
 	heightFloor: 0.35,
 	/**
 	 * The cell's three gains, per unit of spin (TWIST_LIFT, TWIST_FEED,

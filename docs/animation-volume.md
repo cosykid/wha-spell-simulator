@@ -351,3 +351,21 @@ rotated signs — the template matcher alone drops anything past its ±15°
 frame) and resolves the plan under current canon before the card's driver is
 built. Modern rows pass through untouched, classic replays are unaffected,
 and a failed revival falls back to the stored row exactly as before.
+
+**The spun column (R-21).** The revived firenado exposed the next gap: its
+inward columns author a clash beam and its twisted pulls author helical
+intake, and the two rendered as parts — a beam standing in four discrete
+inflow branches crawling over the paper. Ruled as R-21 in
+`docs/animation-spec.md`: a strongly helical intake feeding a clash column
+spins the whole column into a single vortex. The fusion lives in
+`compiler/plan/spinUp.ts` — the clash, the draw and the swirl pay the
+circulation, the vertical aim and the `IntakeSpec` are consumed, and the plan
+notes `spun-column` — so the score compiles one vortex track where jet plus
+intake used to stand. The transfer gains are calibrated so a real hand-drawn
+whirl seal (magnitudes far below the synthetic lab corpus) lands where the
+lab's own pinwheel does on the vortex saturation curve. The vortex track also
+slimmed to tornado proportions (height 2.1, crown 0.58 against a 0.3 foot):
+a whirl is taller than it is wide, or it reads as a goblet. The lab preset
+`spun-column` pins the arrangement across all three golden tiers; only
+`column-pinwheel`'s baselines moved with the proportions, and the charge
+frame stayed byte-identical.

@@ -20,6 +20,7 @@ import { resolveIntake } from './intake.js';
 import { resolveRegion } from './region.js';
 import { resolveSites } from './sites.js';
 import { planFingerprint, snapPlan } from './snap.js';
+import { spinUpColumn } from './spinUp.js';
 import type {
 	Coupling,
 	ElementId,
@@ -165,7 +166,8 @@ function planNotes(
 	plan: SpellPlan,
 	reading: SealReading,
 	budgets: FamilyBudgets,
-	regionRow: number
+	regionRow: number,
+	spun: boolean
 ): PlanNote[] {
 	const notes: PlanNote[] = [];
 	const lateral = Math.hypot(plan.aim.x, plan.aim.y);
@@ -175,6 +177,10 @@ function planNotes(
 	}
 	if (budgets.leak) {
 		notes.push('dispersion-leak');
+	}
+	// R-21: the jet and the intake were consumed into the whirl, not never drawn.
+	if (spun) {
+		notes.push('spun-column');
 	}
 	// R-15: ink whose moments cancel keeps its budget and fires the bare
 	// shockwave, so "your drawing did nothing" is a designed look and the
@@ -244,10 +250,15 @@ export function resolvePlan(reading: SealReading): SpellPlan {
 		notes: []
 	};
 
+	// R-21: a strongly helical intake feeding the clash spins the whole column
+	// into a single vortex, consuming the jet and the intake it fused.
+	const spun = spinUpColumn(draft);
+	const resolved = spun ?? draft;
+
 	const plan: SpellPlan = {
-		...draft,
-		couplings: declareCouplings(draft),
-		notes: planNotes(draft, reading, budgets, region.row)
+		...resolved,
+		couplings: declareCouplings(resolved),
+		notes: planNotes(resolved, reading, budgets, region.row, spun !== null)
 	};
 	return snapPlan(planFingerprint(plan), plan);
 }

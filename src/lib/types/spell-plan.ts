@@ -143,6 +143,8 @@ export type PlanNote =
 	| 'levitation-inert'
 	/** Pull is the only budget-bearing family, so the seal manifests nothing of its own (R-11). */
 	| 'intake-only'
+	/** A helical intake spun the clash column into a single vortex, consuming both (R-21). */
+	| 'spun-column'
 	/** Chevrons in an arrangement R-09's table does not name; the default disc applies. */
 	| 'region-unruled'
 	/** A manifestation with no ruling yet. Its ink still pays into the budget (PDF defect I). */

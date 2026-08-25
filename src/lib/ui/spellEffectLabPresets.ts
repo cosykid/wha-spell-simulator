@@ -289,6 +289,24 @@ export const LAB_PRESETS: LabPreset[] = [
 			manifestation: 'directed',
 			facingDeg: angleDeg
 		}))
+	},
+	{
+		id: 'spun-column',
+		label: 'Columns ×4 + pulls ×4 — fire whirl',
+		description:
+			'R-21: an inward clash ringed by slanted pulls. The helical inflow spins the column it feeds, so the seal raises one turning whirl instead of a beam with intake branches.',
+		signs: [
+			...signsAt([0, 90, 180, 270], (angleDeg) => ({
+				id: 'column',
+				manifestation: 'column',
+				facingDeg: inward(angleDeg)
+			})),
+			...signsAt([45, 135, 225, 315], (angleDeg) => ({
+				id: 'pull',
+				manifestation: 'pull',
+				facingDeg: (inward(angleDeg) + 45) % 360
+			}))
+		]
 	}
 ];
 

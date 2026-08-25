@@ -50,7 +50,8 @@ resolve. Each family owns a different verb and its own budget, so nothing overri
   [`chevrons.ts`](plan/chevrons.ts) reads (count, radial position, quantized facing). Rows match on
   classes, never on a threshold over fused geometry.
 - [`hold.ts`](plan/hold.ts) the spring · [`intake.ts`](plan/intake.ts) the ambient coupling ·
-  [`focus.ts`](plan/focus.ts) the lens.
+  [`focus.ts`](plan/focus.ts) the lens · [`spinUp.ts`](plan/spinUp.ts) R-21's fusion: a helical
+  intake feeding a clash column resolves as one vortex, never a beam with inflow branches.
 - [`snap.ts`](plan/snap.ts) — the canon-snap seam, shipping empty. Its header documents the
   fingerprint scheme.
 - [`planText.ts`](plan/planText.ts) — the golden and lab-panel text form.
