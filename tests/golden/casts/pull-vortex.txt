@@ -35,9 +35,9 @@ track burst kind=burst look=core population=own emission=99.7790 drive=0.8738
   ceiling none
 track intake-pull kind=intake look=wisp population=ambient emission=167.0588 drive=0.6737
   ink=0.4500 marks=137 born=137 parcels=1401
-  at=(0.1328, -0.6644, 0.0526) tip=(0.4500, 0.0000, 0.7000)
-  detail flash=0.4864 from=2.0000 lift=0.7000 outward=0.0000 phase=0.0459 reach=2.0376 speed=0.3884 to=0.4500 turn=-3.7699
-  tracers pooled=19 bands=[34.6 0.0 0.0 0.0] rings=[2.1 20.2 12.4] grid=bf805c95
+  at=(-0.0118, 0.0305, 0.0505) tip=(0.4500, 0.0000, 0.7000)
+  detail flash=0.4864 from=2.0000 lift=0.7000 outward=0.0000 phase=0.0459 reach=1.9995 speed=0.3858 to=0.4500 turn=-3.7699
+  tracers pooled=18 bands=[34.9 0.0 0.0 0.0] rings=[4.1 21.0 9.8] grid=333ee164
   ceiling none
 
 @1600ms beat=body beatT=0.1974
@@ -55,9 +55,9 @@ track burst kind=burst look=core population=own emission=0.0000 drive=0.4396
   ceiling none
 track intake-pull kind=intake look=wisp population=ambient emission=167.0588 drive=0.6020
   ink=0.4500 marks=428 born=428 parcels=1401
-  at=(0.1119, -0.5152, 0.0220) tip=(0.4500, 0.0000, 0.7000)
-  detail flash=0.2086 from=2.0000 lift=0.7000 outward=0.0000 phase=0.2178 reach=2.0177 speed=0.2330 to=0.4500 turn=-3.7699
-  tracers pooled=353 bands=[289.4 0.0 0.0 0.0] rings=[51.3 142.9 95.2] grid=6f910778
+  at=(-0.0264, 0.0073, 0.0223) tip=(0.4500, 0.0000, 0.7000)
+  detail flash=0.2086 from=2.0000 lift=0.7000 outward=0.0000 phase=0.2178 reach=1.9812 speed=0.2854 to=0.4500 turn=-3.7699
+  tracers pooled=357 bands=[287.6 0.0 0.0 0.0] rings=[28.2 165.3 94.1] grid=60880f8d
   ceiling none
 
 @2600ms beat=body beatT=0.8553
@@ -75,7 +75,7 @@ track burst kind=burst look=core population=own emission=0.0000 drive=0.0143
   ceiling none
 track intake-pull kind=intake look=wisp population=ambient emission=167.0588 drive=0.4235
   ink=0.4500 marks=968 born=968 parcels=1401
-  at=(-0.0809, -0.5378, 0.0210) tip=(0.4500, 0.0000, 0.7000)
-  detail flash=0.0376 from=2.0000 lift=0.7000 outward=0.0000 phase=0.4965 reach=2.0219 speed=0.2407 to=0.4500 turn=-3.7699
-  tracers pooled=882 bands=[723.0 0.0 0.0 0.0] rings=[43.0 294.7 385.3] grid=ffc0d2b2
+  at=(0.0001, -0.0036, 0.0208) tip=(0.4500, 0.0000, 0.7000)
+  detail flash=0.0376 from=2.0000 lift=0.7000 outward=0.0000 phase=0.4965 reach=2.0190 speed=0.2631 to=0.4500 turn=-3.7699
+  tracers pooled=896 bands=[720.0 0.0 0.0 0.0] rings=[18.1 319.4 382.5] grid=366a735a
   ceiling none
