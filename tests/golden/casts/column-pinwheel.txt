@@ -3,8 +3,8 @@ cast column-pinwheel
 @0850ms beat=charge beatT=0.8673
 track shimmer-ambient kind=shimmer look=skin population=ambient emission=21.7311 drive=1.0000
   ink=0.0513 marks=157 born=157 parcels=306
-  at=(0.0830, -0.0185, 0.0991) tip=(0.0000, 0.0000, 0.5000)
-  detail cap=0.1000 inhale=0.7523 presence=0.2054 reach=1.5719 speed=0.2181
+  at=(0.0828, -0.0183, 0.0991) tip=(0.0000, 0.0000, 0.5000)
+  detail cap=0.1000 inhale=0.7523 presence=0.2054 reach=1.5719 speed=0.2186
   tracers pooled=27 bands=[103.6 0.0 0.0 0.0] rings=[0.0 27.4 76.2] grid=62f8022b
   ceiling none
 track burst kind=burst look=core population=own emission=0.0000 drive=0.0000
@@ -23,8 +23,8 @@ track vortex-circulation kind=vortex look=body population=own emission=0.0000 dr
 @1100ms beat=strike beatT=0.3750
 track shimmer-ambient kind=shimmer look=skin population=ambient emission=20.3055 drive=1.0000
   ink=0.0395 marks=217 born=217 parcels=306
-  at=(0.0967, -0.0540, 0.0899) tip=(0.0000, 0.0000, 0.5000)
-  detail cap=0.1000 inhale=0.8313 presence=0.1580 reach=1.6009 speed=0.2585
+  at=(0.0961, -0.0535, 0.0899) tip=(0.0000, 0.0000, 0.5000)
+  detail cap=0.1000 inhale=0.8313 presence=0.1580 reach=1.5763 speed=0.2548
   tracers pooled=56 bands=[147.2 0.0 0.0 0.0] rings=[0.0 38.9 108.3] grid=d31c7cb6
   ceiling none
 track burst kind=burst look=core population=own emission=562.7827 drive=0.8738
@@ -43,39 +43,39 @@ track vortex-circulation kind=vortex look=body population=own emission=9.4824 dr
 @1600ms beat=body beatT=0.1974
 track shimmer-ambient kind=shimmer look=skin population=ambient emission=17.1013 drive=1.0000
   ink=0.0150 marks=266 born=266 parcels=306
-  at=(0.0854, -0.0601, 0.0561) tip=(0.0000, 0.0000, 0.5000)
-  detail cap=0.1000 inhale=0.5500 presence=0.0601 reach=1.7387 speed=0.2863
-  tracers pooled=144 bands=[175.5 0.0 0.0 0.0] rings=[1.5 42.3 131.7] grid=f94669e7
+  at=(0.0843, -0.0579, 0.0561) tip=(0.0000, 0.0000, 0.5000)
+  detail cap=0.1000 inhale=0.5500 presence=0.0601 reach=1.5659 speed=0.2691
+  tracers pooled=144 bands=[175.5 0.0 0.0 0.0] rings=[1.5 42.3 131.7] grid=5b338630
   ceiling none
 track burst kind=burst look=core population=own emission=0.0000 drive=0.4396
   ink=0.0000 marks=357 born=458 parcels=978
-  at=(-0.0019, 0.0518, 0.0200) tip=(0.5530, 0.0000, 0.0166)
-  detail front=0.5530 reach=2.0823 speed=1.4102
+  at=(-0.0021, 0.0516, 0.0200) tip=(0.5530, 0.0000, 0.0166)
+  detail front=0.5530 reach=2.0726 speed=1.3910
   tracers pooled=354 bands=[139.2 0.0 0.0 0.0] rings=[1.8 59.9 77.5] grid=c37adfea
   ceiling none
 track vortex-circulation kind=vortex look=body population=own emission=42.1114 drive=0.8727
   ink=0.5604 marks=303 born=304 parcels=1316
   at=(-0.0158, 0.0029, 0.4651) tip=(0.0000, 0.0000, 1.3802)
-  detail arms=4.0000 crown=0.7741 foot=0.3474 height=1.3802 pitch=1.1347 reach=2.1489 speed=2.5855 spin=1.7071
+  detail arms=4.0000 crown=0.7741 foot=0.3474 height=1.3802 pitch=1.1347 reach=2.1489 speed=2.5854 spin=1.7071
   tracers pooled=6 bands=[119.5 69.8 4.0 0.0] rings=[11.5 98.5 83.4] grid=8498bd77
   ceiling none
 
 @2600ms beat=body beatT=0.8553
 track shimmer-ambient kind=shimmer look=skin population=ambient emission=7.2621 drive=1.0000
-  ink=0.0064 marks=304 born=306 parcels=306
-  at=(0.1212, -0.0185, 0.0276) tip=(0.0000, 0.0000, 0.5000)
-  detail cap=0.1000 inhale=0.5500 presence=0.0255 reach=2.0330 speed=0.3330
-  tracers pooled=270 bands=[163.6 0.0 0.0 0.0] rings=[0.9 24.2 138.5] grid=844d10ae
+  ink=0.0064 marks=306 born=306 parcels=306
+  at=(0.1214, -0.0171, 0.0276) tip=(0.0000, 0.0000, 0.5000)
+  detail cap=0.1000 inhale=0.5500 presence=0.0255 reach=1.5971 speed=0.2557
+  tracers pooled=272 bands=[165.0 0.0 0.0 0.0] rings=[0.9 24.2 139.8] grid=2d55f134
   ceiling none
 track burst kind=burst look=core population=own emission=0.0000 drive=0.0143
-  ink=0.0000 marks=85 born=458 parcels=978
-  at=(0.0420, 0.1670, 0.0200) tip=(0.7786, 0.0000, 0.0234)
-  detail front=0.7786 reach=2.0451 speed=0.4865
-  tracers pooled=85 bands=[11.7 0.0 0.0 0.0] rings=[0.0 0.2 11.5] grid=4fc56ba0
+  ink=0.0000 marks=96 born=458 parcels=978
+  at=(0.0389, 0.1994, 0.0200) tip=(0.7786, 0.0000, 0.0234)
+  detail front=0.7786 reach=2.0852 speed=0.3155
+  tracers pooled=96 bands=[12.7 0.0 0.0 0.0] rings=[0.0 0.2 12.5] grid=bc630701
   ceiling none
 track vortex-circulation kind=vortex look=body population=own emission=74.0745 drive=0.6139
-  ink=0.9200 marks=993 born=1279 parcels=1316
-  at=(0.0276, 0.0328, 0.2742) tip=(0.0000, 0.0000, 1.5396)
-  detail arms=4.0000 crown=0.7741 foot=0.3187 height=1.5396 pitch=1.1347 reach=2.1729 speed=1.9456 spin=3.8915
-  tracers pooled=199 bands=[556.2 108.9 0.0 0.0] rings=[68.3 299.1 297.7] grid=0650b14d
+  ink=0.9200 marks=1002 born=1279 parcels=1316
+  at=(0.0350, 0.0296, 0.2720) tip=(0.0000, 0.0000, 1.5396)
+  detail arms=4.0000 crown=0.7741 foot=0.3187 height=1.5396 pitch=1.1347 reach=2.1729 speed=1.9217 spin=3.8915
+  tracers pooled=208 bands=[561.9 108.9 0.0 0.0] rings=[68.3 299.1 303.5] grid=1956adf3
   ceiling none

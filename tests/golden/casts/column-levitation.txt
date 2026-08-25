@@ -3,8 +3,8 @@ cast column-levitation
 @0850ms beat=charge beatT=0.8673
 track shimmer-ambient kind=shimmer look=skin population=ambient emission=21.7311 drive=1.0000
   ink=0.0513 marks=157 born=157 parcels=235
-  at=(-0.0401, 0.0570, 0.0915) tip=(0.0000, 0.0000, 0.5000)
-  detail cap=0.1000 inhale=0.7523 presence=0.2054 reach=1.5746 speed=0.2236
+  at=(-0.0399, 0.0569, 0.0915) tip=(0.0000, 0.0000, 0.5000)
+  detail cap=0.1000 inhale=0.7523 presence=0.2054 reach=1.5746 speed=0.2227
   tracers pooled=22 bands=[105.7 0.0 0.0 0.0] rings=[0.0 19.9 85.8] grid=28244cb6
   ceiling none
 track burst kind=burst look=core population=own capturedBy=hold-levitation emission=0.0000 drive=0.0000
@@ -29,8 +29,8 @@ track hold-levitation kind=hold look=body population=own emission=0.0000 drive=0
 @1100ms beat=strike beatT=0.3750
 track shimmer-ambient kind=shimmer look=skin population=ambient emission=20.3055 drive=1.0000
   ink=0.0395 marks=217 born=217 parcels=235
-  at=(-0.0445, 0.0658, 0.0810) tip=(0.0000, 0.0000, 0.5000)
-  detail cap=0.1000 inhale=0.8313 presence=0.1580 reach=1.5921 speed=0.2479
+  at=(-0.0440, 0.0654, 0.0810) tip=(0.0000, 0.0000, 0.5000)
+  detail cap=0.1000 inhale=0.8313 presence=0.1580 reach=1.5858 speed=0.2446
   tracers pooled=57 bands=[149.6 0.0 0.0 0.0] rings=[0.0 32.1 117.5] grid=ab1420f3
   ceiling none
 track burst kind=burst look=core population=own capturedBy=hold-levitation emission=425.3307 drive=0.8738
@@ -55,15 +55,15 @@ track hold-levitation kind=hold look=body population=own emission=32.0321 drive=
 @1600ms beat=body beatT=0.1974
 track shimmer-ambient kind=shimmer look=skin population=ambient emission=17.1013 drive=1.0000
   ink=0.0150 marks=235 born=235 parcels=235
-  at=(-0.0472, -0.0019, 0.0451) tip=(0.0000, 0.0000, 0.5000)
-  detail cap=0.1000 inhale=0.5500 presence=0.0601 reach=1.7465 speed=0.2749
-  tracers pooled=159 bands=[160.5 0.0 0.0 0.0] rings=[0.7 39.8 120.0] grid=c99a8bc6
+  at=(-0.0462, -0.0029, 0.0451) tip=(0.0000, 0.0000, 0.5000)
+  detail cap=0.1000 inhale=0.5500 presence=0.0601 reach=1.5314 speed=0.2574
+  tracers pooled=159 bands=[160.5 0.0 0.0 0.0] rings=[0.7 39.8 120.0] grid=23d42852
   ceiling none
 track burst kind=burst look=core population=own capturedBy=hold-levitation emission=0.0000 drive=0.4396
   ink=0.0000 marks=372 born=458 parcels=730
   at=(-0.0664, -0.0167, 0.0200) tip=(0.4879, 0.0000, 0.0146)
-  detail front=0.4879 reach=2.0855 speed=1.2449
-  tracers pooled=368 bands=[160.6 0.0 0.0 0.0] rings=[7.5 79.6 73.5] grid=97efc34b
+  detail front=0.4879 reach=2.0819 speed=1.2303
+  tracers pooled=368 bands=[160.6 0.0 0.0 0.0] rings=[7.5 79.6 73.5] grid=1fd1360b
   ceiling none
 track jet-aim kind=jet look=body population=own capturedBy=hold-levitation emission=46.8077 drive=1.0000
   ink=0.5604 marks=255 born=321 parcels=1042
@@ -80,16 +80,16 @@ track hold-levitation kind=hold look=body population=own emission=16.1157 drive=
 
 @2600ms beat=body beatT=0.8553
 track shimmer-ambient kind=shimmer look=skin population=ambient emission=7.2621 drive=1.0000
-  ink=0.0064 marks=235 born=236 parcels=235
-  at=(-0.0566, -0.0195, 0.0202) tip=(0.0000, 0.0000, 0.5000)
-  detail cap=0.1000 inhale=0.5500 presence=0.0255 reach=2.0806 speed=0.3471
-  tracers pooled=234 bands=[125.1 0.0 0.0 0.0] rings=[0.0 13.0 112.1] grid=dc0543b0
+  ink=0.0064 marks=235 born=235 parcels=235
+  at=(-0.0566, -0.0153, 0.0200) tip=(0.0000, 0.0000, 0.5000)
+  detail cap=0.1000 inhale=0.5500 presence=0.0255 reach=1.5914 speed=0.2409
+  tracers pooled=235 bands=[125.3 0.0 0.0 0.0] rings=[0.0 13.0 112.3] grid=23a50b6e
   ceiling none
 track burst kind=burst look=core population=own capturedBy=hold-levitation emission=0.0000 drive=0.0143
-  ink=0.0000 marks=119 born=458 parcels=730
-  at=(0.0454, -0.1124, 0.0200) tip=(0.6884, 0.0000, 0.0207)
-  detail front=0.6884 reach=2.0811 speed=0.4702
-  tracers pooled=119 bands=[16.2 0.0 0.0 0.0] rings=[0.0 1.8 14.4] grid=3d0600c8
+  ink=0.0000 marks=137 born=458 parcels=730
+  at=(0.0107, -0.1474, 0.0200) tip=(0.6884, 0.0000, 0.0207)
+  detail front=0.6884 reach=2.0981 speed=0.3356
+  tracers pooled=137 bands=[17.8 0.0 0.0 0.0] rings=[0.0 1.8 16.0] grid=1a32ea22
   ceiling none
 track jet-aim kind=jet look=body population=own capturedBy=hold-levitation emission=82.3353 drive=1.0000
   ink=0.9400 marks=1042 born=1142 parcels=1042

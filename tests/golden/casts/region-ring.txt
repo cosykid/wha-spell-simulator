@@ -3,8 +3,8 @@ cast region-ring
 @0850ms beat=charge beatT=0.8673
 track shimmer-ambient kind=shimmer look=skin population=ambient emission=21.7311 drive=1.0000
   ink=0.0513 marks=157 born=157 parcels=321
-  at=(0.0135, -0.0753, 0.1003) tip=(0.0000, 0.0000, 0.5000)
-  detail cap=0.1000 inhale=0.7523 presence=0.2054 reach=1.5967 speed=0.2267
+  at=(0.0136, -0.0754, 0.1003) tip=(0.0000, 0.0000, 0.5000)
+  detail cap=0.1000 inhale=0.7523 presence=0.2054 reach=1.5967 speed=0.2266
   tracers pooled=20 bands=[103.7 0.0 0.0 0.0] rings=[0.0 26.8 76.9] grid=6c6779ef
   ceiling none
 track burst kind=burst look=core population=own emission=0.0000 drive=0.0000
@@ -23,8 +23,8 @@ track jet-exhaust kind=jet look=body population=own emission=0.0000 drive=0.0000
 @1100ms beat=strike beatT=0.3750
 track shimmer-ambient kind=shimmer look=skin population=ambient emission=20.3055 drive=1.0000
   ink=0.0395 marks=217 born=217 parcels=321
-  at=(0.0178, -0.0886, 0.0855) tip=(0.0000, 0.0000, 0.5000)
-  detail cap=0.1000 inhale=0.8313 presence=0.1580 reach=1.5883 speed=0.2570
+  at=(0.0180, -0.0890, 0.0855) tip=(0.0000, 0.0000, 0.5000)
+  detail cap=0.1000 inhale=0.8313 presence=0.1580 reach=1.5883 speed=0.2546
   tracers pooled=52 bands=[146.7 0.0 0.0 0.0] rings=[0.9 33.5 112.3] grid=8e758a1d
   ceiling none
 track burst kind=burst look=core population=own emission=99.7790 drive=0.8738
@@ -43,15 +43,15 @@ track jet-exhaust kind=jet look=body population=own emission=13.8020 drive=1.000
 @1600ms beat=body beatT=0.1974
 track shimmer-ambient kind=shimmer look=skin population=ambient emission=17.1013 drive=1.0000
   ink=0.0150 marks=266 born=266 parcels=321
-  at=(0.0032, -0.1000, 0.0529) tip=(0.0000, 0.0000, 0.5000)
-  detail cap=0.1000 inhale=0.5500 presence=0.0601 reach=1.6815 speed=0.2701
-  tracers pooled=157 bands=[175.1 0.0 0.0 0.0] rings=[0.0 47.5 127.7] grid=5027b85a
+  at=(0.0037, -0.1015, 0.0529) tip=(0.0000, 0.0000, 0.5000)
+  detail cap=0.1000 inhale=0.5500 presence=0.0601 reach=1.5884 speed=0.2558
+  tracers pooled=157 bands=[175.1 0.0 0.0 0.0] rings=[0.0 47.5 127.7] grid=e983cc3a
   ceiling none
 track burst kind=burst look=core population=own emission=0.0000 drive=0.4396
   ink=0.0000 marks=437 born=458 parcels=757
-  at=(-0.0448, -0.0034, 0.0200) tip=(0.3306, 0.0000, 0.0099)
-  detail front=0.3306 reach=2.0427 speed=0.9546
-  tracers pooled=437 bands=[206.9 0.0 0.0 0.0] rings=[28.0 119.7 59.2] grid=82a63c7d
+  at=(-0.0448, -0.0033, 0.0200) tip=(0.3306, 0.0000, 0.0099)
+  detail front=0.3306 reach=2.0327 speed=0.9451
+  tracers pooled=437 bands=[206.9 0.0 0.0 0.0] rings=[28.0 119.7 59.2] grid=addb6fa1
   ceiling none
 track jet-exhaust kind=jet look=body population=own emission=61.2950 drive=1.0000
   ink=0.5604 marks=319 born=321 parcels=1522
@@ -63,15 +63,15 @@ track jet-exhaust kind=jet look=body population=own emission=61.2950 drive=1.000
 @2600ms beat=body beatT=0.8553
 track shimmer-ambient kind=shimmer look=skin population=ambient emission=7.2621 drive=1.0000
   ink=0.0064 marks=320 born=320 parcels=321
-  at=(0.0356, -0.0950, 0.0307) tip=(0.0000, 0.0000, 0.5000)
-  detail cap=0.1000 inhale=0.5500 presence=0.0255 reach=2.0506 speed=0.3197
-  tracers pooled=286 bands=[175.8 0.0 0.0 0.0] rings=[0.0 26.2 149.6] grid=7cfd6799
+  at=(0.0378, -0.0978, 0.0307) tip=(0.0000, 0.0000, 0.5000)
+  detail cap=0.1000 inhale=0.5500 presence=0.0255 reach=1.5912 speed=0.2445
+  tracers pooled=286 bands=[175.8 0.0 0.0 0.0] rings=[0.0 26.2 149.6] grid=3f5a36aa
   ceiling none
 track burst kind=burst look=core population=own emission=0.0000 drive=0.0143
-  ink=0.0000 marks=197 born=458 parcels=757
-  at=(-0.1774, 0.0316, 0.0200) tip=(0.4691, 0.0000, 0.0141)
-  detail front=0.4691 reach=2.0299 speed=0.4455
-  tracers pooled=197 bands=[28.4 0.0 0.0 0.0] rings=[0.0 8.1 20.3] grid=9fadffbe
+  ink=0.0000 marks=206 born=458 parcels=757
+  at=(-0.1665, 0.0195, 0.0200) tip=(0.4691, 0.0000, 0.0141)
+  detail front=0.4691 reach=1.9846 speed=0.3741
+  tracers pooled=206 bands=[29.5 0.0 0.0 0.0] rings=[0.0 8.1 21.4] grid=eb816add
   ceiling none
 track jet-exhaust kind=jet look=body population=own emission=107.8187 drive=1.0000
   ink=0.9400 marks=1248 born=1302 parcels=1522

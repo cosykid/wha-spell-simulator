@@ -64,7 +64,13 @@ export const VOLUME = {
 	 */
 	cutoff: 0.42,
 	/** Fade below which a tracer is skipped before it is even weighed. */
-	fadeFloor: 0.08
+	fadeFloor: 0.08,
+	/**
+	 * Grid-normalized distance from an x/y wall inside which deposits fade
+	 * out. The polygonizer closes any nonzero field against the grid box as a
+	 * flat face, so matter reaching the wall renders as a straight glass edge.
+	 */
+	wallMargin: 0.06
 } as const;
 
 /** Grid footprint in seal units: x,y in [-SPAN/2, SPAN/2], z in [Z0, Z0+SPAN]. */

@@ -89,6 +89,9 @@ test('elements literally behave differently: the motion table is not a palette s
 	// Water spreads where earth piles, and earth's mound outlives water's puddle.
 	assert.ok(MOTION.water.pool!.spread > 4 * MOTION.earth.pool!.spread);
 	assert.ok(MOTION.earth.pool!.ageRate < MOTION.water.pool!.ageRate);
+	// Both pools stop spreading inside the volume grid, or a long fed cast
+	// grows its puddle to the walls and the skin clips it into a glass slab.
+	assert.ok(MOTION.water.pool!.edge < 1.9 && MOTION.earth.pool!.edge < 1.9);
 	// Wind is the gust row and moves fastest; aeroform is its slower cousin.
 	assert.ok(MOTION.wind.gust >= 4);
 	for (const element of ELEMENTS) {

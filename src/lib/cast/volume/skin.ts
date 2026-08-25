@@ -86,7 +86,12 @@ export class VolumeSkin {
 				const by = (pos[i * 3 + 1] + SPAN / 2) / SPAN;
 				const bz = (pos[i * 3 + 2] - Z0) / SPAN;
 				if (bx < 0 || bx > 1 || by < 0 || by > 1 || bz < 0 || bz > 1) continue;
-				const w = (0.16 + 0.84 * fade[i]) * weight;
+				// Matter dims out before the grid's x/y walls, so the surface can
+				// never be clipped into a straight glass edge there. The cutoff
+				// downstream turns the faded tail into no deposit at all.
+				const wall = Math.min(bx, 1 - bx, by, 1 - by);
+				const wallFade = wall >= VOLUME.wallMargin ? 1 : wall / VOLUME.wallMargin;
+				const w = (0.16 + 0.84 * fade[i]) * weight * wallFade;
 				this.#candPos[balls * 3] = bx;
 				this.#candPos[balls * 3 + 1] = by;
 				this.#candPos[balls * 3 + 2] = bz;

@@ -332,3 +332,22 @@ byte-identical, which is the no-collateral proof. The lab now honours
 golden tier's scripted one — a live capture of a named cast needs no UI
 scripting beyond a value-changing preset select (a same-value select fires no
 change event and restarts nothing).
+
+Two grid-hygiene laws followed the same day, found on a long fed library
+cast. A pool's settled spread now runs out at its row's `edge` (water 1.6,
+earth 1.15): without it the puddle grew without bound and the polygonizer
+clipped it against the grid box into a straight-edged glass slab. And
+deposits fade out inside `VOLUME.wallMargin` of the grid's x/y walls, so no
+surface can ever close against the box as a flat face. Every cast baseline
+moved a hash (the golden sigil is water, and water pools in every cast); the
+look tier moved nothing.
+
+**Library revival.** The shared library's rows all predate the Reading and
+Plan layers, and the stage engine replayed every one of them as R-11's inert
+plan — a gray puff regardless of ink. `src/lib/ui/library/reviveSpell.ts` now
+re-reads a legacy row's stored drawing through the same classifier the
+simulator runs (template pass plus the ML refinement, which is what reads
+rotated signs — the template matcher alone drops anything past its ±15°
+frame) and resolves the plan under current canon before the card's driver is
+built. Modern rows pass through untouched, classic replays are unaffected,
+and a failed revival falls back to the stored row exactly as before.

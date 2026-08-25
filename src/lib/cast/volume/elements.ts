@@ -47,6 +47,12 @@ export interface PoolSpec {
 	bounce: number;
 	/** Outward acceleration of the settled mass. Water spreads; earth does not. */
 	spread: number;
+	/**
+	 * Seal units where the settled spread runs out. Without it a long fed cast
+	 * grows its puddle to the volume grid's own walls, and the skin clips it
+	 * into a straight-edged glass slab.
+	 */
+	edge: number;
 	/** Per-second horizontal damping once settled. */
 	dragXY: number;
 	/** How fast settled mass ages relative to airborne mass. Low is persistent. */
@@ -154,6 +160,7 @@ export const MOTION: Record<VolumeElement, MotionSpec> = {
 			floorZ: 0.02,
 			bounce: 0.14,
 			spread: 0.85,
+			edge: 1.6,
 			dragXY: 2.1,
 			ageRate: 0.28,
 			drainAgeRate: 3.2
@@ -215,6 +222,7 @@ export const MOTION: Record<VolumeElement, MotionSpec> = {
 			floorZ: 0.03,
 			bounce: 0.22,
 			spread: 0.12,
+			edge: 1.15,
 			dragXY: 6,
 			ageRate: 0.06,
 			drainAgeRate: 2.6

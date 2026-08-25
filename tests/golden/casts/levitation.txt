@@ -3,8 +3,8 @@ cast levitation
 @0850ms beat=charge beatT=0.8673
 track shimmer-ambient kind=shimmer look=skin population=ambient emission=21.7311 drive=1.0000
   ink=0.0513 marks=157 born=157 parcels=425
-  at=(0.0362, 0.0150, 0.0968) tip=(0.0000, 0.0000, 0.5000)
-  detail cap=0.1000 inhale=0.7523 presence=0.2054 reach=1.5919 speed=0.2225
+  at=(0.0359, 0.0147, 0.0968) tip=(0.0000, 0.0000, 0.5000)
+  detail cap=0.1000 inhale=0.7523 presence=0.2054 reach=1.5919 speed=0.2208
   tracers pooled=27 bands=[105.2 0.0 0.0 0.0] rings=[0.0 28.4 76.8] grid=02cebfa0
   ceiling none
 track burst kind=burst look=core population=own capturedBy=hold-levitation emission=0.0000 drive=0.0000
@@ -23,8 +23,8 @@ track hold-levitation kind=hold look=body population=own emission=0.0000 drive=0
 @1100ms beat=strike beatT=0.3750
 track shimmer-ambient kind=shimmer look=skin population=ambient emission=20.3055 drive=1.0000
   ink=0.0395 marks=217 born=217 parcels=425
-  at=(0.0445, -0.0305, 0.0873) tip=(0.0000, 0.0000, 0.5000)
-  detail cap=0.1000 inhale=0.8313 presence=0.1580 reach=1.6001 speed=0.2529
+  at=(0.0440, -0.0309, 0.0873) tip=(0.0000, 0.0000, 0.5000)
+  detail cap=0.1000 inhale=0.8313 presence=0.1580 reach=1.5615 speed=0.2484
   tracers pooled=54 bands=[147.8 0.0 0.0 0.0] rings=[0.0 38.7 109.1] grid=50c2c022
   ceiling none
 track burst kind=burst look=core population=own capturedBy=hold-levitation emission=99.7790 drive=0.8738
@@ -43,14 +43,14 @@ track hold-levitation kind=hold look=body population=own emission=46.2267 drive=
 @1600ms beat=body beatT=0.1974
 track shimmer-ambient kind=shimmer look=skin population=ambient emission=17.1013 drive=1.0000
   ink=0.0150 marks=266 born=266 parcels=425
-  at=(0.0528, -0.0135, 0.0588) tip=(0.0000, 0.0000, 0.5000)
-  detail cap=0.1000 inhale=0.5500 presence=0.0601 reach=1.7410 speed=0.2784
+  at=(0.0516, -0.0137, 0.0588) tip=(0.0000, 0.0000, 0.5000)
+  detail cap=0.1000 inhale=0.5500 presence=0.0601 reach=1.5717 speed=0.2625
   tracers pooled=147 bands=[176.7 0.0 0.0 0.0] rings=[0.6 46.0 130.2] grid=4f11dda3
   ceiling none
 track burst kind=burst look=core population=own capturedBy=hold-levitation emission=0.0000 drive=0.4396
   ink=0.0000 marks=435 born=458 parcels=1002
-  at=(-0.0205, 0.0304, 0.0200) tip=(0.3306, 0.0000, 0.0099)
-  detail front=0.3306 reach=2.0470 speed=0.9756
+  at=(-0.0204, 0.0302, 0.0200) tip=(0.3306, 0.0000, 0.0099)
+  detail front=0.3306 reach=2.0243 speed=0.9634
   tracers pooled=435 bands=[202.8 0.0 0.0 0.0] rings=[21.2 125.1 56.5] grid=2b6c71ad
   ceiling none
 track hold-levitation kind=hold look=body population=own emission=23.2571 drive=1.0000
@@ -62,16 +62,16 @@ track hold-levitation kind=hold look=body population=own emission=23.2571 drive=
 
 @2600ms beat=body beatT=0.8553
 track shimmer-ambient kind=shimmer look=skin population=ambient emission=7.2621 drive=1.0000
-  ink=0.0064 marks=319 born=320 parcels=425
-  at=(0.0573, -0.0199, 0.0332) tip=(0.0000, 0.0000, 0.5000)
-  detail cap=0.1000 inhale=0.5500 presence=0.0255 reach=2.0807 speed=0.3237
-  tracers pooled=277 bands=[175.1 0.0 0.0 0.0] rings=[0.0 24.9 150.2] grid=6e3ade38
+  ink=0.0064 marks=320 born=320 parcels=425
+  at=(0.0623, -0.0129, 0.0332) tip=(0.0000, 0.0000, 0.5000)
+  detail cap=0.1000 inhale=0.5500 presence=0.0255 reach=1.5851 speed=0.2525
+  tracers pooled=278 bands=[175.8 0.0 0.0 0.0] rings=[0.0 24.9 150.9] grid=2fa0cf6b
   ceiling none
 track burst kind=burst look=core population=own capturedBy=hold-levitation emission=0.0000 drive=0.0143
-  ink=0.0000 marks=186 born=458 parcels=1002
-  at=(-0.0439, -0.0350, 0.0200) tip=(0.4691, 0.0000, 0.0141)
-  detail front=0.4691 reach=2.0937 speed=0.4518
-  tracers pooled=186 bands=[26.4 0.0 0.0 0.0] rings=[0.0 4.7 21.7] grid=f8891b9d
+  ink=0.0000 marks=190 born=458 parcels=1002
+  at=(-0.0475, -0.0285, 0.0200) tip=(0.4691, 0.0000, 0.0141)
+  detail front=0.4691 reach=2.0436 speed=0.3701
+  tracers pooled=190 bands=[26.6 0.0 0.0 0.0] rings=[0.0 4.7 22.0] grid=75c0be0e
   ceiling none
 track hold-levitation kind=hold look=body population=own emission=0.7563 drive=1.0000
   ink=0.6987 marks=1173 born=1173 parcels=1173

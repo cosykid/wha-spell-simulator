@@ -152,8 +152,11 @@ export class TracerPop {
 
 			if (this.pooled[i]) {
 				// The settled mass: water's puddle spreads, earth's mound holds.
-				vx += outx * pool!.spread * dt;
-				vy += outy * pool!.spread * dt;
+				// The spread runs out at the pool's edge, or a long fed cast
+				// grows its puddle to the grid walls and the skin clips it flat.
+				const room = smooth01((pool!.edge - radius) / 0.35);
+				vx += outx * pool!.spread * room * dt;
+				vy += outy * pool!.spread * room * dt;
 				const keep = Math.exp(-pool!.dragXY * dt);
 				vx *= keep;
 				vy *= keep;
