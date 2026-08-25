@@ -371,59 +371,68 @@ export function spawnAt(
 			return;
 		}
 		case SPAWN.sink: {
-			// The pull: canon's Grasping Wind raises "a wind current" toward the
-			// seal — one current, so the medium travels a single arc that sweeps
-			// around the seal and bends in to the mouth. The whole budget lands
-			// on that one connected ribbon (merge density the old four streams
-			// bought with count, bought here with concentration), and the skin
-			// fuses it instead of polygonizing limbs. How tightly the arc winds
-			// follows the kind's own twist share: a straight pull is a gently
-			// bent lane, a slanted one arrives already wound — the two readings
-			// ground truth section 7 tells apart. Reversed, the same arc pours
-			// outward: one signed kernel, two ends of one run.
+			// The pull: a seal drinks from everywhere at once, so the medium is a
+			// halo condensing into the mouth — angle-uniform by law, because any
+			// bearing the births favor polygonizes as a limb the seal never drew
+			// (four streams read as a starfish, one stream as a tongue; both are
+			// anatomy). The gathered mass at the mouth is the body; the halo is
+			// atmosphere leaning in. The twist draws no spiral lane either: it
+			// spins the whole halo, so canon's slanted pull is one vortex turning
+			// as one body while a straight pull is a flat all-sides inflow — the
+			// two readings ground truth section 7 tells apart.
 			const inward = flow.sink >= 0;
 			const rim = 2.0;
 			const span = Math.max(0.4, rim - flow.pool);
 			const twist = Math.hypot(flow.sink, flow.swirl);
 			const share = twist > 1e-4 ? Math.abs(flow.swirl) / twist : 0;
-			const sense = Math.sign(flow.swirl) || (flow.lobePhase < Math.PI ? 1 : -1);
-			const wind = sense * (1.05 + 2.2 * share);
-			// Matter rides the current in knots: births crowd a front walking
-			// the run at a steady pace, so the ribbon visibly flows one wave
-			// after another. The pace is fixed, not the live drive: knots are
-			// texture, and a front keyed to a decaying envelope would slide.
-			const pace = (tMs / 1000) * 0.55;
-			const front = inward ? 1 - (pace % 1) : pace % 1;
-			const knotted = rng() < 0.32;
-			const u = knotted ? (front + (rng() - 0.5) * 0.32 + 1) % 1 : rng();
-			// The run: 0 at the mouth, out toward the rim, mass crowded toward
-			// the mouth — what has arrived billows into one collar (a collection
-			// reads as a cloud, canon says). How far the drawn current reaches
-			// follows the twist: a straight pull is a close tide swallowed at
-			// the mouth, with the ambient medium carrying the far-field lean,
-			// while a wound one walks its whole helical approach. Spreading a
-			// straight pull's budget up the full run only beads the tail. An
-			// outward pour is the bucket read the other way: born at the brim
-			// and spilling over.
-			// A faint pull hugs the mouth: the same few parcels spread up the
-			// full run would sit below the skin's deposit cutoff everywhere and
-			// the seal would show nothing at all.
+			const sense = Math.sign(flow.swirl) || 1;
+			const theta = rng() * Math.PI * 2;
+			// How far out the halo stands. A faint pull hugs the mouth (the same
+			// few parcels spread over the full annulus sit below the deposit
+			// cutoff everywhere and the seal shows nothing), and a twisted one
+			// reaches: a vortex is a field, a plain draw is a close tide with
+			// the ambient medium carrying the far lean.
 			const presence = 0.45 + 0.55 * Math.min(1, flow.emission / 0.3);
-			const maxRun = (0.35 + 0.65 * share) * presence;
-			const p = inward ? Math.pow(u, 1.7) * maxRun : u * 0.18 - 0.12;
-			const base = flow.lobePhase + sense * (tMs / 1000) * 0.22;
-			const theta = base + wind * p + (rng() - 0.5) * 0.16;
-			const r = flow.pool + span * p + (rng() - 0.5) * 0.14;
+			const run = presence * (0.55 + 0.45 * share);
+			// The halo drinks in waves: some births crowd an angle-uniform ring
+			// front walking the run at a fixed pace — "swallowed at the pool one
+			// wave after another", a surge, never a knot at one bearing. The
+			// pace ignores the live drive: a front keyed to a decaying envelope
+			// would slide.
+			// What has arrived is the pile: a share of births lands inside the
+			// mouth disc itself — the collection converting to its one cloud —
+			// or the ring attractor holds everything at the pool radius and the
+			// halo reads as a wreath of beads around a hole. The share yields
+			// to the twist, because a wound pull keeps its eye open.
+			const filled = inward && rng() < 0.5 * (1 - share);
+			const front = 1 - (((tMs / 1000) * 0.55) % 1);
+			const surged = inward && !filled && rng() < 0.3;
+			const u = surged ? Math.min(1, Math.max(0, front + (rng() - 0.5) * 0.3)) : rng();
+			// Radius crowds toward the mouth, so the halo billows into the pile
+			// and the tail thins to wash. An outward pour is the bucket read
+			// the other way: born at the brim, all around it, and spilling over.
+			// The crowd is steep on purpose: the mid-halo is the marginal band
+			// where deposits are dense enough to skin but too sparse to merge,
+			// and that band is where countable clods appear. Crowding it into
+			// the pile leaves the tail below the cutoff — atmosphere as wash.
+			const p = inward ? Math.pow(u, 2.1) * run : u * 0.18 - 0.12;
+			const r = filled
+				? Math.max(0.06, flow.pool * Math.sqrt(rng()))
+				: flow.pool + span * p + (rng() - 0.5) * 0.1;
 			out.x = Math.cos(theta) * r;
 			out.y = Math.sin(theta) * r;
 			out.z = 0.02 + 0.08 * rng();
-			// Travel follows the drawn arc: the along-path tangent, inward or out.
-			const tx = span * Math.cos(theta) - r * wind * Math.sin(theta);
-			const ty = span * Math.sin(theta) + r * wind * Math.cos(theta);
-			const tn = Math.hypot(tx, ty) || 1;
-			const lean = (flow.speed * (0.45 + 0.4 * rng()) * (inward ? -1 : 1)) / tn;
-			out.vx = tx * lean;
-			out.vy = ty * lean;
+			// Travel is the same blend the field settles into: radial along the
+			// draw, tangential by the twist's share, so a birth is already part
+			// of the one motion instead of matter waiting to be collected.
+			const ux = Math.cos(theta);
+			const uy = Math.sin(theta);
+			const inrad = inward ? -1 : 1;
+			const mix = share * 0.85;
+			// Piled matter has already arrived: it settles instead of streaming.
+			const lean = flow.speed * (0.45 + 0.4 * rng()) * (filled ? 0.25 : 1);
+			out.vx = (ux * inrad * (1 - mix) - uy * sense * mix) * lean;
+			out.vy = (uy * inrad * (1 - mix) + ux * sense * mix) * lean;
 			out.vz = 0.02 * rng();
 			return;
 		}
