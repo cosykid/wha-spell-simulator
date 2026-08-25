@@ -6,6 +6,7 @@ only while its card's preview is toggled on.
 -->
 <script lang="ts">
 	import { SpellPreviewDriver } from '$lib/ui/library/spell-preview.js';
+	import { reviveSpellIr } from '$lib/ui/library/reviveSpell.js';
 	import { effectStyleFrom } from '$lib/structures/effectStyle.js';
 	import { loadSimulatorPreferences } from '$lib/ui/simulator/preferences.js';
 	import type { SpellPresetData } from '$lib/structures/spellPreset.js';
@@ -35,20 +36,35 @@ only while its card's preview is toggled on.
 	// Not `onMount`: the effect canvas is keyed on the style, so the driver is
 	// rebuilt against whichever element is currently mounted. A canvas that has
 	// handed out a `2d` context can never host WebGL, and the reverse holds too.
+	// The stage engine performs the plan, which a legacy row does not carry, so
+	// the stored drawing is revived first; classic reads the stored row as-is.
 	$effect(() => {
 		if (!shell || !glyphCanvas || !effectCanvas) {
 			return;
 		}
-		driver = new SpellPreviewDriver({
-			glyphCanvas,
-			effectCanvas,
-			shell,
-			data,
-			previewIr,
-			effectStyle,
-			onEnded: handleEnded
+		const stage = { shell, glyphCanvas, effectCanvas };
+		let cancelled = false;
+		let teardown: (() => void) | null = null;
+		const ready =
+			effectStyle === 'classic' ? Promise.resolve(previewIr) : reviveSpellIr(data, previewIr);
+		void ready.then((ir) => {
+			if (cancelled) {
+				return;
+			}
+			driver = new SpellPreviewDriver({
+				...stage,
+				data,
+				previewIr: ir,
+				effectStyle,
+				onEnded: handleEnded
+			});
+			teardown = driver.start();
 		});
-		return driver.start();
+		return () => {
+			cancelled = true;
+			teardown?.();
+			driver = null;
+		};
 	});
 </script>
 

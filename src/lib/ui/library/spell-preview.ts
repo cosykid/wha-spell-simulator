@@ -33,7 +33,9 @@ const END_GRACE_MS = 1600;
  * landed hold the scalars and the deleted force field but neither of those, and
  * the two engines perform one each, so an old row gets the inert plan and the
  * empty reading: R-11 says a seal that manifests nothing is a look, never a blank
- * canvas. Everything else about the replay is unchanged.
+ * canvas. `reviveSpell.ts` re-reads a legacy row's drawing before this driver is
+ * built, so these fallbacks are the last resort — a failed revival, or a caller
+ * that skipped it. Everything else about the replay is unchanged.
  */
 function playableIr(stored: SpellIR): SpellIR {
 	return {
