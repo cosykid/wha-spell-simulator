@@ -9,7 +9,12 @@ const CANVAS_ASPECT = 1; // 1:1 (square)
 interface CanvasSizingElements {
 	canvasShell: HTMLElement;
 	glyphCanvas: HTMLCanvasElement;
-	effectCanvas: HTMLCanvasElement;
+	/**
+	 * Read fresh on every pass, not captured: switching effect style destroys the
+	 * effect canvas and mounts another, so the element sized here is whichever one
+	 * is live rather than the one that was mounted when the observer attached.
+	 */
+	effectCanvas: () => HTMLCanvasElement | null;
 }
 
 export interface CanvasResizeInfo {
@@ -38,8 +43,15 @@ export function setupCanvasSizing({
 		const height = Math.max(1, Math.round(width / CANVAS_ASPECT));
 		const previousWidth = elements.glyphCanvas.width;
 		const previousHeight = elements.glyphCanvas.height;
+		const effectCanvas = elements.effectCanvas();
 
 		if (previousWidth === width && previousHeight === height) {
+			// The glyph canvas already fits, but a freshly mounted effect canvas may
+			// not, so it is sized on every pass rather than only on a real resize.
+			if (effectCanvas && (effectCanvas.width !== width || effectCanvas.height !== height)) {
+				effectCanvas.width = width;
+				effectCanvas.height = height;
+			}
 			return;
 		}
 
@@ -50,8 +62,10 @@ export function setupCanvasSizing({
 
 		elements.glyphCanvas.width = width;
 		elements.glyphCanvas.height = height;
-		elements.effectCanvas.width = width;
-		elements.effectCanvas.height = height;
+		if (effectCanvas) {
+			effectCanvas.width = width;
+			effectCanvas.height = height;
+		}
 
 		if (hadInk && previousWidth > 0 && previousHeight > 0) {
 			store.scale(scale, scale);

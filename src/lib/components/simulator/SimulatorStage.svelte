@@ -10,6 +10,7 @@ and the drawers each live one named click away.
 <script lang="ts">
 	import CanvasActionBar from './CanvasActionBar.svelte';
 	import CanvasIconButton from './CanvasIconButton.svelte';
+	import EffectStyleToggle from './EffectStyleToggle.svelte';
 	import ArcaneMenu from './icons/ArcaneMenu.svelte';
 	import ArcaneRecenter from './icons/ArcaneRecenter.svelte';
 	import ArcaneZoomIn from './icons/ArcaneZoomIn.svelte';
@@ -75,6 +76,7 @@ and the drawers each live one named click away.
 	<div class="chrome chrome-bc"><StatusReadout {simulator} /></div>
 
 	<div class="chrome chrome-br">
+		<EffectStyleToggle {simulator} />
 		{#if pan.isOffset}
 			<CanvasIconButton buttonClass="zoom-btn" label="Re-center" onclick={pan.recenter}>
 				<ArcaneRecenter aria-hidden="true" />

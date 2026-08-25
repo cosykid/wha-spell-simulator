@@ -25,7 +25,7 @@ import { intakeTrack } from './tracks/intake.js';
 import { aimJet, defaultJet, exhaustJet } from './tracks/jet.js';
 import { ambientShimmer } from './tracks/shimmer.js';
 import { circulationVortex } from './tracks/vortex.js';
-import { hashHex, hashSeed } from '../sim/rng.js';
+import { hashHex, hashSeed } from '../rng.js';
 import type {
 	Population,
 	ScoreLayer,

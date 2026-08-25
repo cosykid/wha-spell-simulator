@@ -67,6 +67,11 @@ function offset(reading: Awaited<ReturnType<typeof centroids>>): number {
 }
 
 test.describe('Canvas resize', () => {
+	// Thirteen strokes through real pointer input, then a full-canvas pixel scan on
+	// either side of the resize. The same declaration `fire-shoot` carries, for the
+	// same reason: the work is slow, not the waits.
+	test.slow();
+
 	test('keeps the seal guides on the ink and never faults recognition', async ({ page }) => {
 		const faults: string[] = [];
 		page.on('pageerror', (error) => faults.push(error.message));

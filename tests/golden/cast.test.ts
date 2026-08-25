@@ -1,11 +1,15 @@
 /**
- * @file The cast golden tier: every lab preset's score, simulated and rasterized
- * at three timestamps inside three different beats.
+ * @file The cast golden tier: every lab preset's score, performed by its cells
+ * and read back as text at four timestamps inside four different beats.
  *
  * The gate this tier exists for is the redesign's replayability contract:
- * stepping fresh to a timestamp must be bit-identical to stepping there
- * incrementally. Everything else here is a byte comparison against a committed
- * PNG, the same way the field motion tier works.
+ * stepping fresh to a timestamp must reach the same state as stepping there
+ * incrementally. Everything else here is a comparison against a committed
+ * baseline a reviewer can read.
+ *
+ * No pixels: the stage draws through WebGL and pure Node has no context, so the
+ * look tier in `tests-e2e/golden-look.e2e.ts` owns pixel truth. What is asserted
+ * here is what the cells did, which is what a renderer draws.
  */
 
 import assert from 'node:assert/strict';
@@ -19,19 +23,24 @@ import {
 	castFileName,
 	LAB_PRESETS,
 	landsOnStep,
-	presetScore,
+	newPresetCast,
 	renderPresetCast
 } from './casts.js';
+import { advanceCastTo } from './cellHarness.js';
+import { frameText } from './cellState.js';
 import { checkCastProbe, select } from './castProbeMetrics.js';
 import { CAST_PROBES, castSubjects } from './castProbes.js';
-import { newCast, simulateTo, stepTo } from '../../src/lib/cast/sim/cast.js';
-import { scoreTracks } from '../../src/lib/cast/score/compileScore.js';
 import type { CastProbe } from './castProbeMetrics.js';
 
 const UPDATE_HINT = 'run `npm run test:golden:update` after reviewing the change';
 
-/** The last whole simulation step still inside the 980ms charge beat. */
+/** The last whole step still inside the 980ms charge beat. */
 const LATE_CHARGE_MS = 975;
+
+/** An unsourced row, for a gate that asks the metric layer the same question a row would. */
+function ask(subject: string, atMs: number, expect: CastProbe['expect']): CastProbe {
+	return { subject, atMs, of: 'medium', expect, rulingId: 'R-10', claim: 'gate' };
+}
 
 test('every cast frame timestamp lands on a whole simulation step', () => {
 	for (const atMs of [...CAST_FRAME_MS, ...CAST_PROBES.map((probe) => probe.atMs)]) {
@@ -50,10 +59,8 @@ test('every cast probe row names a subject that exists', () => {
 });
 
 test('every committed cast baseline names a real preset', () => {
-	const expected = new Set(
-		LAB_PRESETS.flatMap((preset) => CAST_FRAME_MS.map((atMs) => castFileName(preset.id, atMs)))
-	);
-	for (const name of readdirSync(CAST_DIR).filter((file) => file.endsWith('.png'))) {
+	const expected = new Set(LAB_PRESETS.map((preset) => castFileName(preset.id)));
+	for (const name of readdirSync(CAST_DIR).filter((file) => file.endsWith('.txt'))) {
 		assert.ok(expected.has(name), `cast baseline "${name}" has no lab preset: ${UPDATE_HINT}`);
 	}
 });
@@ -64,17 +71,20 @@ test('the charge beat holds the ambient medium and nothing the seal manifests', 
 	// erupt until the tilt is over.
 	assert.ok(landsOnStep(LATE_CHARGE_MS), `${LATE_CHARGE_MS}ms is not a whole simulation step`);
 	for (const preset of LAB_PRESETS) {
-		const score = presetScore(preset);
-		assert.ok(LATE_CHARGE_MS < score.beats.charge.endMs, `${preset.id} charges past the tilt`);
-		const parcels = simulateTo(score, LATE_CHARGE_MS).parcels;
-		const kindOf = new Map(scoreTracks(score).map((track) => [track.id, track.kind]));
-		assert.ok(parcels.length > 0, `${preset.id} charges on an empty canvas`);
-		for (const parcel of parcels) {
-			assert.equal(
-				kindOf.get(parcel.trackId),
-				'shimmer',
-				`${preset.id} manifested ${parcel.trackId} during charge`
-			);
+		const cast = newPresetCast(preset);
+		assert.ok(LATE_CHARGE_MS < cast.score.beats.charge.endMs, `${preset.id} charges past the tilt`);
+		advanceCastTo(cast, LATE_CHARGE_MS);
+		for (const of of ['medium', 'manifested'] as const) {
+			const row: CastProbe = {
+				...ask(
+					preset.id,
+					LATE_CHARGE_MS,
+					of === 'medium' ? { metric: 'ink', above: 0 } : { metric: 'ink', below: 1e-9 }
+				),
+				of
+			};
+			const result = checkCastProbe(row, cast);
+			assert.ok(result.passed, `${preset.id}: ${result.message}`);
 		}
 	}
 });
@@ -84,37 +94,36 @@ test('stepping fresh to a timestamp matches stepping there incrementally', () =>
 	// which timestamps were sampled before it.
 	const last = CAST_FRAME_MS[CAST_FRAME_MS.length - 1];
 	for (const preset of LAB_PRESETS) {
-		const score = presetScore(preset);
-		const incremental = newCast(score);
+		const incremental = newPresetCast(preset);
 		for (const atMs of CAST_FRAME_MS) {
-			stepTo(score, incremental, atMs);
+			advanceCastTo(incremental, atMs);
 		}
-		const fresh = simulateTo(score, last);
-		assert.deepStrictEqual(incremental.parcels, fresh.parcels, `${preset.id} diverged`);
-		assert.equal(incremental.steps, fresh.steps, `${preset.id} clock diverged`);
+		const fresh = newPresetCast(preset);
+		advanceCastTo(fresh, last);
+		assert.equal(incremental.clock.steps, fresh.clock.steps, `${preset.id} clock diverged`);
+		assert.equal(frameText(incremental, last), frameText(fresh, last), `${preset.id} diverged`);
 	}
 });
 
-test('two runs of the same cast render the same bytes', () => {
+test('two runs of the same cast reach the same state', () => {
 	for (const preset of LAB_PRESETS) {
-		const first = renderPresetCast(preset);
-		const second = renderPresetCast(preset);
-		for (let i = 0; i < first.length; i += 1) {
-			assert.ok(first[i].png.equals(second[i].png), `${first[i].fileName} is not reproducible`);
-		}
+		assert.equal(
+			renderPresetCast(preset),
+			renderPresetCast(preset),
+			`${preset.id} is not reproducible`
+		);
 	}
 });
 
 for (const preset of LAB_PRESETS) {
 	test(`cast baseline: ${preset.id}`, () => {
-		for (const frame of renderPresetCast(preset)) {
-			const path = join(CAST_DIR, frame.fileName);
-			assert.ok(existsSync(path), `no baseline ${frame.fileName}: ${UPDATE_HINT}`);
-			assert.ok(
-				readFileSync(path).equals(frame.png),
-				`${frame.fileName} differs from its baseline: ${UPDATE_HINT}`
-			);
-		}
+		const path = join(CAST_DIR, castFileName(preset.id));
+		assert.ok(existsSync(path), `no baseline for ${preset.id}: ${UPDATE_HINT}`);
+		assert.equal(
+			renderPresetCast(preset),
+			readFileSync(path, 'utf8'),
+			`${preset.id} differs from its baseline: ${UPDATE_HINT}`
+		);
 	});
 }
 
@@ -134,12 +143,11 @@ function probesBySubject(): Map<string, CastProbe[]> {
 
 for (const [subject, rows] of probesBySubject()) {
 	test(`cast probes: ${subject}`, () => {
-		const score = castSubjects().get(subject)!;
-		const state = newCast(score);
+		const cast = newPresetCast(castSubjects().get(subject)!);
 		const failures: string[] = [];
 		for (const probe of rows) {
-			stepTo(score, state, probe.atMs);
-			const result = checkCastProbe(probe, score, state.parcels);
+			advanceCastTo(cast, probe.atMs);
+			const result = checkCastProbe(probe, cast);
 			if (!result.passed) {
 				failures.push(result.message);
 			}
@@ -149,18 +157,10 @@ for (const [subject, rows] of probesBySubject()) {
 }
 
 test('a cast probe selector is R-10 vocabulary, and the two halves partition the world', () => {
-	const score = castSubjects().get('pull-vortex')!;
-	const parcels = simulateTo(score, 2600).parcels;
-	const row = (of: CastProbe['of']): CastProbe => ({
-		subject: 'pull-vortex',
-		atMs: 2600,
-		of,
-		expect: { metric: 'parcels' },
-		rulingId: 'R-10',
-		claim: 'selector partition'
-	});
-	assert.equal(
-		select(row('medium'), score, parcels).length + select(row('manifested'), score, parcels).length,
-		parcels.length
+	const cast = newPresetCast(castSubjects().get('pull-vortex')!);
+	advanceCastTo(cast, 2600);
+	const halves = (['medium', 'manifested'] as const).map(
+		(of) => select({ ...ask('pull-vortex', 2600, { metric: 'ink' }), of }, cast).length
 	);
+	assert.equal(halves[0] + halves[1], cast.performers.length);
 });

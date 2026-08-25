@@ -9,7 +9,7 @@
  */
 
 import { aboveFloor, NEGLIGIBLE_INK, saturate } from './gain.js';
-import type { Population, SpellPlan, Track } from '../../../types.js';
+import type { Population, Site, SpellPlan, Track } from '../../../types.js';
 
 const FAN_TUNING = {
 	/** Dispersion magnitude at which a fan reads half as strong as it can get. */
@@ -41,6 +41,9 @@ interface FanShape {
 	rate: number;
 	driveGain: number;
 	look: Track['look'];
+	/** The drawn dispersion ink behind this sheet, empty where none stands behind it. */
+	sites: Site[];
+	symmetry: number | null;
 }
 
 /** One fan, with the R-08 timing every fan shares: emission over the body, drive that leaks. */
@@ -54,7 +57,9 @@ function fanTrack(shape: FanShape, population: Population): Track<'fan'> {
 			swirl: shape.swirl,
 			rise: FAN_TUNING.rise,
 			core: FAN_TUNING.core,
-			ceiling: FAN_TUNING.ceiling
+			ceiling: FAN_TUNING.ceiling,
+			sites: shape.sites,
+			symmetry: shape.symmetry
 		},
 		// R-08's long body in emission terms: a fan trickles at a steady rate for
 		// the whole cast where a jet front-loads its push and a burst is one hump.
@@ -77,7 +82,12 @@ export function dispersionFan(plan: SpellPlan, population: Population): Track<'f
 			swirl: 0,
 			rate: FAN_TUNING.rate * strength,
 			driveGain: FAN_TUNING.leakGain,
-			look: 'body'
+			look: 'body',
+			// The dispersion ink as drawn. R-07 also raises a fan out of outward
+			// column ink, and that arrangement stays under the plan's column sites,
+			// so this list is empty on a fan no dispersion sign asked for.
+			sites: plan.sites.dispersion,
+			symmetry: plan.symmetry
 		},
 		population
 	);
@@ -101,7 +111,11 @@ export function vesselFan(plan: SpellPlan, population: Population): Track<'fan'>
 			swirl: Math.sign(vessel.stir) * FAN_TUNING.speed * strength,
 			rate: FAN_TUNING.rate * FAN_TUNING.routedRateScale * strength,
 			driveGain: FAN_TUNING.routedDriveGain,
-			look: 'body'
+			look: 'body',
+			// A vessel is a contained orb, not an arrangement of chevrons, so the
+			// stand-in stirs no sites of its own.
+			sites: [],
+			symmetry: plan.symmetry
 		},
 		population
 	);

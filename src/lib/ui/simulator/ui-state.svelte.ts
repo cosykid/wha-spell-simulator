@@ -1,3 +1,8 @@
+import {
+	DEFAULT_EFFECT_STYLE,
+	effectStyleFrom,
+	type EffectStyle
+} from '$lib/structures/effectStyle.js';
 import { shouldMatchCanvasHeight } from './layout.js';
 import {
 	panEnabledForMode,
@@ -24,6 +29,8 @@ export class SimulatorUiState {
 	showGuides = $state(true);
 	/** Whether diagnostics overlays and sidebar details are shown. */
 	showDiagnostics = $state(false);
+	/** Which engine performs a cast. Read at the canvas, never per spell. */
+	effectStyle = $state<EffectStyle>(DEFAULT_EFFECT_STYLE);
 	/** Whether pointer input has been enabled after dictionary loading. */
 	inputReady = $state(false);
 	/** Active reference-drawer tab. */
@@ -63,7 +70,14 @@ export class SimulatorUiState {
 	/** Bound workspace element. */
 	workspace = $state<HTMLElement>(null!);
 
-	#preferencesLoaded = false;
+	/**
+	 * Reactive on purpose. The persistence `$effect` re-collects its dependencies
+	 * on every run, and on the first one this is false, so it returns without
+	 * reading a single saved field and subscribes to none of them. Making the flag
+	 * itself a dependency re-runs the effect the moment loading finishes, which is
+	 * when the fields below become subscriptions.
+	 */
+	#preferencesLoaded = $state(false);
 
 	constructor() {
 		$effect(() => {
@@ -75,7 +89,7 @@ export class SimulatorUiState {
 		});
 	}
 
-	/** Loads persisted guide, diagnostics, and arrange-mode preferences. */
+	/** Loads persisted guide, diagnostics, effect-style, and arrange-mode preferences. */
 	loadPreferences() {
 		const preferences = loadSimulatorPreferences();
 		if (typeof preferences.showGuides === 'boolean') {
@@ -87,8 +101,16 @@ export class SimulatorUiState {
 		if (preferences.arrangeShapes === true) {
 			this.canvasMode = 'arrange';
 		}
+		// A union has no `typeof` guard, so the narrowing helper is the validation
+		// and it already returns the default for a missing or unknown value.
+		this.effectStyle = effectStyleFrom(preferences.effectStyle);
 		this.#preferencesLoaded = true;
 	}
+
+	/** Swaps the engine the canvas performs a cast with. */
+	setEffectStyle = (style: EffectStyle) => {
+		this.effectStyle = style;
+	};
 
 	/** Increases canvas zoom by one configured step. */
 	zoomIn = () => {
@@ -154,11 +176,15 @@ export class SimulatorUiState {
 		this.canvasHeightMatched = shouldMatchCanvasHeight(this.workspace);
 	};
 
+	// Every field read here is a dependency of the persistence `$effect` in the
+	// constructor, which is the only thing that subscribes them. A preference
+	// saved anywhere else is a preference that never gets written.
 	#savePreferences() {
 		saveSimulatorPreferences({
 			showGuides: this.showGuides,
 			showDiagnostics: this.showDiagnostics,
-			activeTool: this.activeTool
+			activeTool: this.activeTool,
+			effectStyle: this.effectStyle
 		});
 	}
 }

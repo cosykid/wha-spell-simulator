@@ -52,6 +52,15 @@ circulation, aperture, quality) are continuous functions of the ink.
 
 ## The five layers
 
+**Layers 4 and 5 were superseded on 2026-08-24.** Everything below the score —
+`cast/sim/`, `cast/render/`, and the Canvas2D technology ruling further down —
+was replaced by the cell stage on branch `animation-cells`, per
+[`animation-cells.md`](animation-cells.md): one bespoke cell per track performs
+that track's envelopes as macroscopic form on a three.js stage, and the portal
+identity is kept rather than approximated. Layers 1 through 3 stand as written.
+The two sections below are the record of what was built first, and the module
+layout and fate tables that follow describe that same phase-5 shape.
+
 ### 1. Reading — `Recognition[] -> SealReading`
 
 Pure, in `compiler/reading/`. Contract: **downstream code never sees a raw
@@ -384,3 +393,34 @@ close PRs #74 and #76.
   pose head (the hierarchy makes its absence degrade, a second tier would
   raise the floor for every drawn spell).
 - The `check:filesize` CI step.
+
+## 2026-08 — classic restored as a selectable style
+
+The Canvas2D engine deleted in phase 5 is back, under
+[`src/lib/cast/classic/`](../src/lib/cast/classic/CLAUDE.md), as one of two
+styles a caster chooses between. This section is an addendum, not an edit: the
+rows above are a record of what the redesign found and should stay one.
+
+Both properties the record names are preserved.
+
+- **Root cause 7 — the boolean handoff.** Gone, and it does not come back. What
+  chose an engine used to be `spellIR.field.sources.length > 0`, read per spell,
+  per frame, inside the renderer. What chooses one now is a stored `EffectStyle`
+  read once at the canvas, by the person casting. No `SpellIR` reaches a
+  dispatch, neither engine can hand a cast to the other, and neither has a "it
+  drew nothing, try the other" path.
+- **Root cause 1 — forked behavior models.** Preserved for `stage/`, which is
+  where the rulings live and where canon develops. `classic/` is frozen: a new
+  ruling, primitive or look row lands in `stage/` and classic does not follow it.
+  A style that never changes cannot fork from anything.
+
+Two things the restoration did not preserve, both deliberate. Its per-source
+strength reads `SignReading.power` where `signInfluence` folded confidence in,
+because confidence-weighted force was one of the defects above; and its two
+foreshortening constants now come from `portal/` rather than from local copies
+that had drifted to 1.0 and 0.8 against the camera's 0.898.
+
+Verification splits the same way. The cast and plan golden tiers stay stage-only
+— classic has no cells to serialize and cannot satisfy their determinism
+contract — and classic is covered by its own look baselines with `Math.random`
+seeded in the page, an adapter unit suite, and one e2e spec of its own.

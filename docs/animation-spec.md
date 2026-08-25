@@ -361,6 +361,36 @@ never reaches capacity on a long cast — it swells for about three seconds and
 then evaporates, which is a worse failure than the breakage this question was
 raised about.
 
+## R-21 — The spun column `[ruled]`
+
+**A strongly helical intake feeding a clash column spins the whole column into a
+single vortex.** The plan consumes the jet and the intake and resolves one
+whirl: the clash, the draw and the swirl pay its circulation, the vertical aim
+and the `IntakeSpec` are gone, and a `spun-column` note says where they went.
+One seal, one body — never a beam standing in discrete crawling inflow
+branches.
+
+Ruled 2026-08-25, on the library's fire tornado seal: inward columns ringed by
+slanted pulls must read as one swirling conical body, not as parts.
+[`ground-truth.md`](ground-truth.md) section 7 already reads the slanted pull as
+helical inflow — canon's apple-plucking vortex — and a fire whirl is that same
+coupling with the column present: ambient angular momentum organizing a driven
+updraft into rotation. R-05's fold cannot see this, because pull is not column
+ink and its twist never reaches `Gamma`; R-13's separate budgets are exactly why
+the fusion has to be a ruling here rather than an accident of summation.
+
+The gates keep the scope narrow. The inflow must actually feed the column
+(`draw >= 0`), its swirl must clear the residue floor with a slant share that
+makes the helix deliberate, and the clash must stand above its own floor. Two
+neighbouring cases stay on the ruled jet-plus-intake reading rather than being
+answered in passing: an outward helical push (it feeds nothing), and intake
+swirl opposing circulation the columns drew themselves. Widening R-21 to either
+is a new ruling.
+
+A pull-only helix is untouched: with no clash there is no column to spin, so
+Grasping Wind keeps its intake track and its hollow climbing eye (R-13,
+`pull-vortex`).
+
 ## PDF defect register
 
 The original design PDF's defects (A through M), each with its resolution:

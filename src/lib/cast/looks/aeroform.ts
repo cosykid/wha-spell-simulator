@@ -15,6 +15,14 @@
  * passed. Every role wind decays, this row leaks. Only `ember`, a fleck thrown
  * off rather than air made, still decays. The entry's semantics agree — the
  * widest `spread` of any sigil, the lowest `focus`, a positive `lifetimeBias`.
+ *
+ * The material reads the same sentence as a volume. Aeroform carries the widest
+ * ribbon in the table against wind's narrowest, several times wind's fill, and
+ * more weight, because air that was made has some body to it. Everything that
+ * makes wind read as a path comes back down: a fraction of wind's flicker, a
+ * fraction of its break-up, and a shorter afterimage, since a veil hangs where a
+ * gust streaks. What survives is the swell, so undulation runs above wind's:
+ * the only motion left in air that was made and not moved is a slow one.
  */
 
 import type { LookRow } from './look.js';
@@ -27,6 +35,19 @@ const BLOOM = [186, 216, 224] as const;
 const MIST = [156, 186, 198] as const;
 
 export const AEROFORM_LOOKS: LookRow = {
+	material: {
+		emissive: 0.22,
+		opacity: 0.35,
+		edge: 'feather',
+		bands: 2,
+		noiseScale: 0.6,
+		ribbonWidth: 0.42,
+		garnishDensity: 0.18,
+		trailPersistence: 0.5,
+		flicker: 0.05,
+		undulation: 0.62,
+		weight: 0.32
+	},
 	core: {
 		sprite: 'disc',
 		tint: { core: [236, 250, 250], edge: VEIL },

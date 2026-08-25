@@ -8,17 +8,26 @@ The name is now wider than the contents — nothing here renders a spell, and
 mechanical change and not part of the deletion that emptied it; left as it is on
 purpose so this diff stays about what died.
 
-What died: `spellEffectRenderer.ts`, `effects/` (the field-driven renderer and
-the five per-element ones), and with them the ownership boolean and the fallback
-branch. The production effect path is [`../cast/`](../cast/CLAUDE.md), full stop.
-A spell that is active and valid is a cast; R-11 makes "manifests nothing" a look
-rather than an empty canvas, so there is nothing left to fall back to.
+What moved: `spellEffectRenderer.ts` and `effects/` (the field-driven renderer
+and the five per-element ones) live under
+[`../cast/classic/`](../cast/classic/CLAUDE.md) now, behind the same `CastEngine`
+seam as the stage and chosen by the user's `EffectStyle`.
+
+What died and stays dead: the ownership boolean, the per-spell fallback branch,
+and the guide drawing — the idle ring glow, the prepared pulse and the invalid
+flicker are this directory's `drawSealGuides`, on the glyph canvas. A spell that
+is active and valid is a cast; R-11 makes "manifests nothing" a look rather than
+an empty canvas, so there is nothing left to fall back to. `renderer/` still
+renders no spells.
 
 ## File map
 
 - [`glyphOverlayRenderer.ts`](glyphOverlayRenderer.ts) — activated-ink glow
   (`drawGlowingStrokes`), the seal guides (`drawSealGuides`), and the ring debug
   circle.
+- [`sealIgnition.ts`](sealIgnition.ts) — R-01's charge beat on the ink
+  (`drawSealIgnition`): a warm front runs the seal's strokes in the order they
+  were drawn and is spent by the strike, where the cast takes the frame.
 - [`glyphDebugOverlay.ts`](glyphDebugOverlay.ts) — the `showDiagnostics` layer:
   candidate boxes, recognizer verdicts, stroke ids.
 
@@ -26,9 +35,9 @@ rather than an empty canvas, so there is nothing left to fall back to.
 
 Two canvases are stacked. `#glyphCanvas` holds the ink and owns the only rAF
 loop; `#effectCanvas` sits above it and gets its frames through that loop's
-`onFrame` hook, which drives
-[`../cast/render/castRenderer.ts`](../cast/render/castRenderer.ts) and nothing
-else.
+`onFrame` hook, which drives [`../cast/stage/stage.ts`](../cast/stage/stage.ts)
+and nothing else. That canvas is WebGL now, so nothing on this side may take a
+`2d` context on it — a canvas that ever hands one out can never host a WebGL one.
 
 `drawSealGuides(ctx, spellIR, ring, timestamp)` reports how a seal reads _before_
 it casts, in three states: a faint amber ring glow on any idle ring, a teal pulse

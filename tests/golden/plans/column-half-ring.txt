@@ -6,8 +6,10 @@ budget      9.425
 aim         (-3.142, 0.000, 7.540)
 dispersion  0.000
 circulation 0.000
+sites       column=[(0.800, 0.000)>(-1.000, 0.000); (0.000, -0.800)>(0.000, 1.000); (0.000, 0.800)>(0.000, -1.000)] dispersion=[]
 focus       1.000
 quality     0.984
+symmetry    none
 aperture    disc
 exhaust     (0.000, 0.000, 0.000)
 hardness    0.000

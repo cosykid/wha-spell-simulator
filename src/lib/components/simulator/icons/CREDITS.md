@@ -14,3 +14,5 @@ from [game-icons.net](https://game-icons.net), by **Delapouite**, licensed under
 
 `ArcaneZoomIn.svelte` and `ArcaneZoomOut.svelte` are authored in-house (a filled
 magnifying glass with a plus/minus), since game-icons has no plus/minus lens.
+`ArcaneSparks.svelte` is authored in-house too (a four-pointed spark with two
+trailing it), for the effect-style control.

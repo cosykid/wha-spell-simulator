@@ -34,12 +34,14 @@ const VORTEX_TUNING = {
 	 * flares as it climbs (TWIST_R0 / TWIST_R1). Widened against the branch's
 	 * ratios, because there the funnel stood in a room and here it stands on a
 	 * seal one ring radius across: a foot near the salvaged `vortexEye` of 0.45
-	 * is what makes the hollow read at this scale.
+	 * is what makes the hollow read at this scale. The crown stays under the
+	 * height a strong whirl reaches, because a whirl is taller than it is wide
+	 * or it reads as a goblet rather than R-21's swirling cone.
 	 */
-	footRadius: 0.32,
-	crownRadius: 0.7,
+	footRadius: 0.3,
+	crownRadius: 0.58,
 	/** Seal units the crown stands at when the circulation is at full strength. */
-	height: 1.6,
+	height: 2.1,
 	heightFloor: 0.35,
 	/**
 	 * The cell's three gains, per unit of spin (TWIST_LIFT, TWIST_FEED,
@@ -76,7 +78,10 @@ export function circulationVortex(plan: SpellPlan, population: Population): Trac
 			height: VORTEX_TUNING.height * aboveFloor(VORTEX_TUNING.heightFloor, strength),
 			updraft: VORTEX_TUNING.lift * Math.abs(spin),
 			feed: VORTEX_TUNING.feed * Math.abs(spin),
-			spill: VORTEX_TUNING.spill * Math.abs(spin)
+			spill: VORTEX_TUNING.spill * Math.abs(spin),
+			// A pinwheel of four columns should be able to turn on four arms. The
+			// fold behind `spin` already spent their count (R-05); this is the shape.
+			symmetry: plan.symmetry
 		},
 		// A cell has to be seen going round, so the vortex emits across the whole
 		// body and drives flat: R-02 stops it at the top of release like everything else.

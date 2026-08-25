@@ -11,6 +11,7 @@ import {
 	drawRingDebug,
 	drawSealGuides
 } from '$lib/renderer/glyphOverlayRenderer.js';
+import { drawSealIgnition } from '$lib/renderer/sealIgnition.js';
 import { totalMsFor } from '$lib/cast/score/beats.js';
 import type { SimulatorDrawingState } from './drawing-state.svelte.js';
 import { visibleCanvasShortAxis } from './layout.js';
@@ -168,15 +169,25 @@ function activatedGlyphEntity({ drawing, recognition }: SimulatorGlyphSceneOptio
 				return;
 			}
 
+			const sealIds = activatedStrokeIds(recognition.pipeline);
+			const strokes = drawing.mergedStrokes();
 			// R-01: the ink brightens through the charge beat, so the glow runs from
 			// activation rather than from the end of the portal tilt, and it cools on
 			// the cast's own clock so the paper is done when the spell is.
 			drawGlowingStrokes(
 				ctx,
 				spellIR.activatedAt,
-				activatedStrokeIds(recognition.pipeline),
-				drawing.mergedStrokes(),
+				sealIds,
+				strokes,
 				totalMsFor(spellIR.duration),
+				timestamp
+			);
+			// The charge's own event, under the glow it swells into: the seal's ink
+			// takes light stroke by stroke, in the order it was drawn.
+			drawSealIgnition(
+				ctx,
+				spellIR.activatedAt,
+				strokes.filter((stroke) => sealIds.has(stroke.id)),
 				timestamp
 			);
 		}

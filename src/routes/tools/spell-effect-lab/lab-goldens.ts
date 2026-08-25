@@ -24,7 +24,7 @@ export interface GoldenFrameRequest {
 }
 
 /** Narrows an arbitrary string, so a URL cannot select a sigil the lab does not offer. */
-function labSigilFrom(value: string | null): string {
+export function labSigilFrom(value: string | null): string {
 	return value && SIGIL_OPTIONS.some((option) => option.id === value) ? value : DEFAULT_SIGIL;
 }
 

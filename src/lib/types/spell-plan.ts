@@ -45,6 +45,42 @@ export interface Region {
 	reach: number;
 }
 
+/**
+ * Where one contributing sign sat and which way it faced, in seal space. This is
+ * the drawn arrangement the fold flattens away, kept so a later layer can give
+ * three columns three beams instead of one averaged one.
+ *
+ * `facing` is the reading's in-plane unit `Vector` and not a `Vec3`, because a
+ * drawn sign only ever has an in-plane facing; the out-of-plane component of a
+ * plan is `aim.z`, which is the clash's output and belongs to no single sign. It
+ * is zero where the reading did not trust the facing, so R-06 holds here as it
+ * does in the fold: a sloppy sign contributes a position, not a direction.
+ *
+ * A site carries no length and no power. R-05 pays magnitude out of `budget` and
+ * nothing else, and a weight here would be a second place to pay it from.
+ */
+export interface Site {
+	at: Vector;
+	facing: Vector;
+}
+
+/**
+ * The two families whose drawn arrangement shapes form, each as its own list.
+ * R-08 folds dispersion ink into the same `(S, P, C, Gamma)` aggregate as column
+ * ink, so the fold cannot tell the two apart; the manifestation the dictionary
+ * authored can, and it is the split the score needs, because the fan is
+ * dispersion's track and the jet is the column's.
+ *
+ * The lists say what was drawn, never which scalar it ended up feeding. R-07
+ * raises a fan out of outward column ink too, and that ink stays under `column`,
+ * because a column is what the caster drew. Splitting on each sign's share of
+ * the convergence sum instead would be a classification no ruling names.
+ */
+export interface PlanSites {
+	column: Site[];
+	dispersion: Site[];
+}
+
 /** R-13. The levitation family as a spring: where it grips and how hard. */
 export interface HoldSpec {
 	/** Hover locus in seal space; `z` is height above the seal plane. */
@@ -107,6 +143,8 @@ export type PlanNote =
 	| 'levitation-inert'
 	/** Pull is the only budget-bearing family, so the seal manifests nothing of its own (R-11). */
 	| 'intake-only'
+	/** A helical intake spun the clash column into a single vortex, consuming both (R-21). */
+	| 'spun-column'
 	/** Chevrons in an arrangement R-09's table does not name; the default disc applies. */
 	| 'region-unruled'
 	/** A manifestation with no ruling yet. Its ink still pays into the budget (PDF defect I). */
@@ -126,6 +164,11 @@ export interface SpellPlan {
 	circulation: number;
 	/** R-05. The burst budget: column ink plus ink that only pays power (R-13). */
 	budget: number;
+	/**
+	 * The ink behind `aim`, `dispersion` and `circulation`, as drawn. Count keeps
+	 * paying magnitude through `budget` (R-05); sites only say where it sat.
+	 */
+	sites: PlanSites;
 	/** R-09. The four `Region` fields, spread flat so a text snapshot shows each one. */
 	aperture: Aperture;
 	exhaust: Vec3;
@@ -138,6 +181,8 @@ export interface SpellPlan {
 	focus: number;
 	/** The drawing's overall precision, carried from the reading. */
 	quality: number;
+	/** The n-fold snap, carried from the reading. Null where the signs are not evenly spaced. */
+	symmetry: number | null;
 	couplings: Coupling[];
 	notes: PlanNote[];
 }

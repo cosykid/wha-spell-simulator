@@ -6,8 +6,8 @@
  * abandoned 3D attempts is a look table, because it is what stops an art fix
  * from being smuggled in as a physics term. That only holds while the data
  * cannot reach the behavior, so this directory may not import from
- * `compiler/plan/` or `cast/sim/`, and one `no-restricted-imports` rule in
- * `eslint.config.js` says so out loud.
+ * `compiler/plan/`, `cast/cells/` or `cast/stage/`, and one
+ * `no-restricted-imports` rule in `eslint.config.js` says so out loud.
  *
  * The five roles a track may ask a row for:
  *
@@ -26,10 +26,11 @@ import type { CurveId, LookRole } from '../../types.js';
 export type Rgb = readonly [red: number, green: number, blue: number];
 
 /**
- * Which pre-baked sprite a look blits. `../render/sprites.ts` bakes one per
- * (sprite, tint). `glint` is the one anisotropic shape: a specular cross no
- * radial gradient can make, and the only way crystal's facets read as facets
- * rather than as small cool balls.
+ * Which shape a look's flecks take. The 2D painter baked one sprite per
+ * (sprite, tint); the cell stage draws real geometry, so this now records the
+ * row's intent rather than naming an atlas entry. `glint` is the one
+ * anisotropic shape: a specular cross no radial gradient can make, and the only
+ * way crystal's facets read as facets rather than as small cool balls.
  */
 export type SpriteId = 'disc' | 'spark' | 'streak' | 'glint';
 
@@ -65,11 +66,42 @@ export interface Look {
 }
 
 /**
- * One sigil's or element's five roles. A row is complete on purpose: resolution
- * picks a whole row and then indexes it, so there is no half-resolved look and
- * no per-field fallback chain to reason about.
+ * How the cell stage renders this row's ink: everything about form and motion
+ * texture that sizes-and-tints could not say. Colors stay on the role `Look`s;
+ * a profile never repeats them. Specified in `docs/animation-cells.md`.
  */
-export type LookRow = Record<LookRole, Look>;
+export interface MaterialProfile {
+	/** 0..1, how much the form is its own light source; drives additive glow. */
+	emissive: number;
+	/** 0..1, the body's fill: earth is a mass, wind is barely there. */
+	opacity: number;
+	/** Ink edge treatment on ribbons and sheets. */
+	edge: 'crisp' | 'feather' | 'serrated';
+	/** Phase-locked stripe count on flowing surfaces; 0 is unbanded. */
+	bands: number;
+	/** Procedural break-up frequency, in seal units. */
+	noiseScale: number;
+	/** Base ribbon and tongue width, in seal units. */
+	ribbonWidth: number;
+	/** 0..1, spark and mote budget relative to the cell catalog's default. */
+	garnishDensity: number;
+	/** 0..1, afterimage lifetime scale. */
+	trailPersistence: number;
+	/** 0..1, high-frequency amplitude jitter: fire has it, water does not. */
+	flicker: number;
+	/** 0..1, low-frequency waviness of forms: water has it, crystal does not. */
+	undulation: number;
+	/** 0..1, apparent mass; biases attack and settle easing. */
+	weight: number;
+}
+
+/**
+ * One sigil's or element's five roles plus its material profile. A row is
+ * complete on purpose: resolution picks a whole row and then indexes it, so
+ * there is no half-resolved look and no per-field fallback chain to reason
+ * about.
+ */
+export type LookRow = Record<LookRole, Look> & { material: MaterialProfile };
 
 /** The table `table.ts` resolves against, keyed on sigil id with element rows as the fallback tier. */
 export type LookTable = Record<string, LookRow>;

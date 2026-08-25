@@ -12,7 +12,16 @@
  * planText(resolvePlan(reading)); // 'plan v1\nsigil        water\n...'
  */
 
-import type { Aperture, Coupling, HoldSpec, IntakeSpec, SpellPlan, Vec3 } from '../../types.js';
+import type {
+	Aperture,
+	Coupling,
+	HoldSpec,
+	IntakeSpec,
+	PlanSites,
+	Site,
+	SpellPlan,
+	Vec3
+} from '../../types.js';
 
 const PRECISION = 3;
 const LABEL_WIDTH = 12;
@@ -50,6 +59,17 @@ function apertureText(aperture: Aperture): string {
 		case 'point':
 			return `point at=${vec2(aperture.at)}`;
 	}
+}
+
+/** One site as `position>facing`, the two things a drawn sign contributes to form. */
+function siteText(site: Site): string {
+	return `${vec2(site.at)}>${vec2(site.facing)}`;
+}
+
+/** Both families on one line, the way `hold` and `intake` each keep to one. */
+function sitesText(sites: PlanSites): string {
+	const family = (list: Site[]) => `[${list.map(siteText).join('; ')}]`;
+	return `column=${family(sites.column)} dispersion=${family(sites.dispersion)}`;
 }
 
 function holdText(hold: HoldSpec | null): string {
@@ -90,8 +110,10 @@ export function planText(plan: SpellPlan): string {
 		line('aim', vec3(plan.aim)),
 		line('dispersion', number(plan.dispersion)),
 		line('circulation', number(plan.circulation)),
+		line('sites', sitesText(plan.sites)),
 		line('focus', number(plan.focus)),
 		line('quality', number(plan.quality)),
+		line('symmetry', plan.symmetry === null ? 'none' : String(plan.symmetry)),
 		line('aperture', apertureText(plan.aperture)),
 		line('exhaust', vec3(plan.exhaust)),
 		line('hardness', number(plan.hardness)),

@@ -45,14 +45,17 @@ recomputes the summary.
 
 Rendering splits across two stacked canvases. The glyph `Scene` is built once and
 never mutated: each entity pulls live state through closures every frame. It
-carries the ink, the activated-ink glow, and the seal guides (`sealGuidesEntity`,
-gated on `ui.showGuides`). The effect canvas is not in the scene. It is driven by
-`Canvas`'s `onFrame` hook into `renderCanvasFrame`, which lazily builds a
-[`CastRenderer`](../../cast/CLAUDE.md) over `ui.effectCanvas`.
+carries the ink, the charge beat's seal ignition, the activated-ink glow, and the
+seal guides (`sealGuidesEntity`, gated on `ui.showGuides`). The effect canvas is
+not in the scene. It is driven by `Canvas`'s `onFrame` hook into
+`renderCanvasFrame`, which lazily builds a
+[`CastStage`](../../cast/CLAUDE.md) over `ui.effectCanvas`.
 
 ## Invariants and gotchas
 
-- **An active valid spell is a cast, and that is the whole dispatch.** `renderCanvasFrame` hands the IR to `CastRenderer` unconditionally: no ownership boolean, no fallback engine, no "did it draw anything" return value. R-11 makes "manifests nothing" a look, so the empty path the old renderer needed does not exist. The field engine it replaced is deleted, and [`../../renderer/`](../../renderer/CLAUDE.md) now holds the glyph overlay and nothing else.
+- **An active valid spell is a cast, and that is the whole dispatch.** `renderCanvasFrame` hands the IR to the one engine the user's `effectStyle` selected, unconditionally: the style picks the engine and the spell never does, so there is no ownership boolean, no fallback engine, and no "did it draw anything" return value. R-11 makes "manifests nothing" a look, so the empty path the old renderer needed does not exist. [`../../renderer/`](../../renderer/CLAUDE.md) holds the glyph overlay and nothing else.
+- **The effect canvas belongs to whichever engine took it, and only that engine may touch it.** A canvas that ever handed out a `2d` context can never host a WebGL one, and the failure is silent and permanent, so nothing else may call `getContext` on it — the `ctx` `renderCanvasFrame` receives is the glyph canvas's. A style change therefore **destroys the element and mounts a fresh one** (`{#key ui.effectStyle}` in `SimulatorCanvasPanel.svelte`), which trips the runtime's identity check on the next frame; the element carries `data-effect-style` so a test never has to probe for a context. The runtime disposes the engine when the canvas is swapped, the style changes, or the glyph canvas detaches, because a browser only allows a handful of live WebGL contexts.
+- **A freshly keyed effect canvas arrives at its attribute size.** The resize observer only fires when the shell's box moves, so `renderCanvasFrame` matches the new canvas to the glyph canvas when it builds the engine, and `canvasSizing.ts` re-reads the effect canvas through a getter rather than capturing it at mount.
 - **The effect canvas draws only casts.** Ring, prepared and invalid feedback are the glyph scene's, through `drawSealGuides`. They draw on flat, non-active states only, so the portal tilt never reaches them.
 - **Keep `carrySpellActivation`** ([`../../compiler/spellBuilder.ts`](../../compiler/spellBuilder.ts)). `#applyClassifiedDrawing` wraps every `compileSpell` in it. The template pass activates the spell and the ML pass recompiles it moments later, so a fresh `activatedAt` would restart the cast clock mid-performance and replay the charge beat. Any refactor that drops the wrap breaks casting in a way no unit test here catches.
 - **Recognition is sequence-guarded.** Each `recompute` takes `++#recomputeSeq`, `#applyClassifiedDrawing` drops results from an older sequence, and `cancelActiveRecognition()` bumps the counter to invalidate work already in flight. A superseded worker request rejects with `DrawingClassifierSupersededError`. Swallow it via `isDrawingClassifierSuperseded`, never surface it as a failure.

@@ -62,8 +62,8 @@ function levitation(atDeg: number, facingDeg = (atDeg + 180) % 360): SignReading
 	return { ...column(atDeg, facingDeg), id: 'levitation', manifestation: 'levitation' };
 }
 
-function reading(signs: SignReading[]): SealReading {
-	return { signs, sigil: SIGIL, element: 'water', quality: 1, symmetry: null, notes: [] };
+function reading(signs: SignReading[], symmetry: number | null = null): SealReading {
+	return { signs, sigil: SIGIL, element: 'water', quality: 1, symmetry, notes: [] };
 }
 
 /**
@@ -288,6 +288,69 @@ test('R-11: a seal that manifests nothing still gets a designed default', () => 
 		scoreTracks(score).map((track) => track.id),
 		['shimmer-ambient', 'burst', 'jet-default']
 	);
+});
+
+// ---------------------------------------------------------------------------
+// The drawn geometry the score threads through. Ruled in
+// `docs/animation-cells.md`: sites and the fold shape form and pay nothing.
+// ---------------------------------------------------------------------------
+
+test('the jet and the fan each carry their own family drawn sites', () => {
+	const beam = scoreTracks(scoreFor('column-balanced')).find((track) => track.kind === 'jet');
+	assert.ok(beam, 'three columns must score a beam');
+	assert.equal(beam.id, 'jet-aim');
+	assert.equal(beam.params.sites.length, 3, 'three columns reach the beam as three sites');
+	assert.equal(beam.params.symmetry, 3, 'and as a three-fold seal');
+
+	const sheet = scoreTracks(scoreFor('dispersion')).find((track) => track.kind === 'fan');
+	assert.ok(sheet, 'dispersion ink must score a fan');
+	assert.equal(sheet.id, 'fan-dispersion');
+	assert.equal(sheet.params.sites.length, 2, 'the fan performs the dispersion ink, not the column');
+	assert.equal(sheet.params.symmetry, 2);
+
+	// R-09's valve exhausts through its aperture rather than out of the chevrons
+	// that opened it, so its beam stands on no drawn site of its own.
+	const exhaust = scoreTracks(scoreFor('region-inside')).find((track) => track.kind === 'jet');
+	assert.ok(exhaust, 'an all-inward rim ring must score its exhaust');
+	assert.equal(exhaust.id, 'jet-exhaust');
+	assert.deepEqual(exhaust.params.sites, []);
+});
+
+test('R-05: the fold rides with the tracks that could perform it, and not with the strike', () => {
+	const pinwheel = resolvePlan(
+		reading(
+			[0, 90, 180, 270].map((atDeg) => column(atDeg, (atDeg + 90) % 360)),
+			4
+		)
+	);
+	const tracks = scoreTracks(compileScore(pinwheel, SOURCE));
+
+	const whirl = tracks.find((track) => track.kind === 'vortex');
+	assert.ok(whirl, 'a pinwheel of columns must score a vortex');
+	assert.equal(whirl.params.symmetry, 4, 'four arms of ink may turn on four arms');
+
+	// R-15 keeps the strike out of it: at the burst a cancelling seal must be
+	// indistinguishable from an unmarked ring, and a fold here would tell a
+	// cancelled quadrupole from a bare one. Whether a strike may read its seal's
+	// fold at all is a canon question, not a default to take quietly.
+	const strike = tracks.find((track) => track.kind === 'burst');
+	assert.ok(strike && !('symmetry' in strike.params));
+});
+
+test('R-11, R-15: the designed default carries neither sites nor the fold', () => {
+	// `column-cancelled` draws four columns and manifests nothing. Handing their
+	// arrangement to the default plume would let a cancelled quadrupole tell
+	// itself apart from a blank ring, which R-15 rules it may not.
+	const cancelled = resolvePlan(readPresetSeal(presetById('column-cancelled').signs, SIGIL));
+	assert.equal(cancelled.sites.column.length, 4, 'the arrangement is still legible on the plan');
+
+	const score = compileScore(cancelled, SOURCE);
+	assert.ok(score.notes.includes('manifests-nothing'));
+	const plume = scoreTracks(score).find((track) => track.kind === 'jet');
+	assert.ok(plume, 'a seal that manifests nothing still gets its plume');
+	assert.equal(plume.id, 'jet-default');
+	assert.deepEqual(plume.params.sites, []);
+	assert.equal(plume.params.symmetry, null);
 });
 
 test('R-13: every family that has a kernel gets its own primitive, not a stand-in', () => {

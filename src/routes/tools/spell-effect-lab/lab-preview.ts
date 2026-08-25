@@ -1,11 +1,14 @@
 import { CONFIG } from '$lib/config.js';
 import { drawGlowingStrokes } from '$lib/renderer/glyphOverlayRenderer.js';
+import { drawSealIgnition } from '$lib/renderer/sealIgnition.js';
 import type { ElementId, Recognition, RingInfo, SealReading } from '$lib/types.js';
 import { vectorFromAngleDeg } from '$lib/utils/geometry.js';
 import { buildSpellIR } from '$lib/ui/spellEffectLab.js';
 import { renderPaper } from '$canvas/entities/paperEntity.js';
 import { drawGuides } from '$canvas/guideRenderer.js';
-import { createLabEngine, type LabEffectEngine } from './lab-engines.js';
+import type { CastEngine } from '$lib/cast/engine.js';
+import { createCastEngine } from '$lib/cast/selectEngine.js';
+import { DEFAULT_EFFECT_STYLE, type EffectStyle } from '$lib/structures/effectStyle.js';
 import { GOLDEN_FRAME_ATTRIBUTE, GOLDEN_FRAME_STEP_MS } from './lab-goldens.js';
 
 /** Live control state the preview samples each animation frame. */
@@ -20,11 +23,22 @@ export interface LabState {
 	presetSigns: Recognition[];
 }
 
+export interface LabPreviewOptions {
+	/**
+	 * Keep the last frame readable after it is composited. Test-only: the
+	 * scripted-clock path renders once and stops, and a screenshot of a swapped
+	 * buffer is blank.
+	 */
+	preserveFrames?: boolean;
+	/** Which engine performs the cast. Defaults to the app's default style. */
+	effectStyle?: EffectStyle;
+}
+
 /**
  * The Spell Effect Lab's canvas preview: a self-contained render harness driving two stacked
  * canvases (a synthetic glyph + the effect layer) from a {@link LabState} getter. It owns the
- * effect engine, the resize bookkeeping, and the animation loop; the page keeps
- * the reactive control state and reads back through `resetParticles`/`start`.
+ * cast engine, the resize bookkeeping, and the animation loop; the page keeps
+ * the reactive control state and reads back through `resetCast`/`start`.
  */
 export class LabPreview {
 	readonly #glyphCanvas: HTMLCanvasElement;
@@ -32,29 +46,33 @@ export class LabPreview {
 	readonly #shell: HTMLElement;
 	readonly #getState: () => LabState;
 	readonly #glyphCtx: CanvasRenderingContext2D;
-	readonly #engine: LabEffectEngine;
+	readonly #engine: CastEngine;
 	#rafId: number | null = null;
 
 	constructor(
 		glyphCanvas: HTMLCanvasElement,
 		effectCanvas: HTMLCanvasElement,
 		shell: HTMLElement,
-		getState: () => LabState
+		getState: () => LabState,
+		options: LabPreviewOptions = {}
 	) {
 		this.#glyphCanvas = glyphCanvas;
 		this.#effectCanvas = effectCanvas;
 		this.#shell = shell;
 		this.#getState = getState;
 		this.#glyphCtx = glyphCanvas.getContext('2d')!;
-		this.#engine = createLabEngine(effectCanvas);
+		this.#engine = createCastEngine(effectCanvas, options.effectStyle ?? DEFAULT_EFFECT_STYLE, {
+			preserveDrawingBuffer: options.preserveFrames
+		});
 	}
 
-	/** Begin the animation loop; returns a teardown that cancels the pending frame. */
+	/** Begin the animation loop; returns a teardown that cancels the pending frame and disposes the engine. */
 	start(): () => void {
 		this.#rafId = requestAnimationFrame((timestamp) => this.#frame(timestamp));
 		return () => {
 			if (this.#rafId) cancelAnimationFrame(this.#rafId);
 			this.#rafId = null;
+			this.#engine.dispose();
 		};
 	}
 
@@ -62,6 +80,12 @@ export class LabPreview {
 	 * Render straight to `frameMs` on a scripted clock, then stop, so a golden
 	 * screenshot lands on the same frame every run. Test-only; the interactive
 	 * lab always calls {@link start} instead.
+	 *
+	 * The clock is walked at sixty frames a second rather than jumped, because
+	 * that is what a baseline is a picture of. Both engines carry state a frame
+	 * builds on: classic steps a particle system once per call, and the stage
+	 * accumulates a trail whose deposits are capped per call so a slow frame
+	 * cannot spiral. Jumping would give the stage a frame no display ever shows.
 	 *
 	 * @example
 	 * preview.renderGoldenFrame(600); // the frame 600ms into the cast
@@ -75,8 +99,8 @@ export class LabPreview {
 		this.#effectCanvas.setAttribute(GOLDEN_FRAME_ATTRIBUTE, String(frameMs));
 	}
 
-	/** Drop accumulated render state so the next frame restarts the effect cleanly. */
-	resetParticles(): void {
+	/** Drop the cast in flight so the next frame restarts the effect cleanly. */
+	resetCast(): void {
 		this.#engine.reset();
 	}
 
@@ -156,6 +180,7 @@ export class LabPreview {
 			state.values.duration * 1000,
 			timestamp
 		);
+		drawSealIgnition(ctx, state.activatedAt, [ringStroke, sigilStroke], timestamp);
 
 		this.#drawSignMarkers(ring, state.presetSigns);
 	}
@@ -204,7 +229,14 @@ export class LabPreview {
 		const rect = this.#shell.getBoundingClientRect();
 		const width = Math.max(1, Math.round(rect.width));
 		const height = Math.max(1, Math.round(rect.height));
-		if (this.#glyphCanvas.width === width && this.#glyphCanvas.height === height) {
+		// Both canvases are checked, not just the glyph: a style switch mounts a
+		// fresh effect canvas at its attribute size while the glyph already fits.
+		if (
+			this.#glyphCanvas.width === width &&
+			this.#glyphCanvas.height === height &&
+			this.#effectCanvas.width === width &&
+			this.#effectCanvas.height === height
+		) {
 			return;
 		}
 
@@ -212,7 +244,7 @@ export class LabPreview {
 		this.#glyphCanvas.height = height;
 		this.#effectCanvas.width = width;
 		this.#effectCanvas.height = height;
-		this.resetParticles();
+		this.resetCast();
 	}
 
 	#frame(timestamp: number) {

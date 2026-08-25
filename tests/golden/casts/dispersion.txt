@@ -1,0 +1,81 @@
+cast dispersion
+
+@0850ms beat=charge beatT=0.8673
+track shimmer-ambient kind=shimmer look=skin population=ambient emission=21.7311 drive=1.0000
+  ink=0.0513 marks=157 born=157 parcels=334
+  at=(0.0366, -0.0437, 0.0982) tip=(0.0000, 0.0000, 0.5000)
+  detail cap=0.1000 inhale=0.7523 presence=0.2054 reach=1.6010 speed=0.2207
+  tracers pooled=25 bands=[105.4 0.0 0.0 0.0] rings=[0.0 22.0 83.4] grid=dd2af356
+  ceiling none
+track burst kind=burst look=core population=own emission=0.0000 drive=0.0000
+  ink=0.0000 marks=0 born=0 parcels=1036
+  at=(0.0000, 0.0000, 0.0000) tip=(0.0000, 0.0000, 0.0000)
+  detail front=0.0000 reach=0.0000 speed=0.0000
+  tracers pooled=0 bands=[0.0 0.0 0.0 0.0] rings=[0.0 0.0 0.0] grid=725c3305
+  ceiling none
+track fan-dispersion kind=fan look=body population=own emission=0.0000 drive=0.0000
+  ink=0.0000 marks=0 born=0 parcels=1230
+  at=(0.0000, 0.0000, 0.0000) tip=(0.0000, 0.0000, 0.0000)
+  detail lift=0.0000 outer=0.4000 reach=0.0000 speed=0.0000 spread=0.0000 stir=0.0000
+  tracers pooled=0 bands=[0.0 0.0 0.0 0.0] rings=[0.0 0.0 0.0] grid=725c3305
+  ceiling none
+
+@1100ms beat=strike beatT=0.3750
+track shimmer-ambient kind=shimmer look=skin population=ambient emission=20.3055 drive=1.0000
+  ink=0.0395 marks=217 born=217 parcels=334
+  at=(0.0752, -0.0463, 0.0859) tip=(0.0000, 0.0000, 0.5000)
+  detail cap=0.1000 inhale=0.8313 presence=0.1580 reach=1.6046 speed=0.2480
+  tracers pooled=57 bands=[148.0 0.0 0.0 0.0] rings=[0.9 32.6 114.5] grid=3b44f013
+  ceiling none
+track burst kind=burst look=core population=own emission=425.3307 drive=0.8738
+  ink=0.9400 marks=236 born=236 parcels=1036
+  at=(-0.0067, -0.0242, 0.0814) tip=(0.1174, 0.0000, 0.0035)
+  detail front=0.1174 reach=1.1334 speed=3.1604
+  tracers pooled=0 bands=[71.3 0.0 0.0 0.0] rings=[36.0 34.8 0.5] grid=f1cc452c
+  ceiling none
+track fan-dispersion kind=fan look=body population=own emission=61.2549 drive=0.5372
+  ink=0.5500 marks=169 born=169 parcels=1230
+  at=(0.0022, 0.0674, 0.0632) tip=(1.1725, 0.0000, 0.3048)
+  detail lift=0.3048 outer=1.1725 reach=0.8431 speed=0.7800 spread=0.0725 stir=0.0000
+  tracers pooled=11 bands=[44.2 0.0 0.0 0.0] rings=[4.1 40.2 0.0] grid=06dce0a1
+  ceiling none
+
+@1600ms beat=body beatT=0.1974
+track shimmer-ambient kind=shimmer look=skin population=ambient emission=17.1013 drive=1.0000
+  ink=0.0150 marks=266 born=266 parcels=334
+  at=(0.0760, -0.0248, 0.0577) tip=(0.0000, 0.0000, 0.5000)
+  detail cap=0.1000 inhale=0.5500 presence=0.0601 reach=1.5377 speed=0.2589
+  tracers pooled=148 bands=[176.2 0.0 0.0 0.0] rings=[0.7 38.8 136.7] grid=c49d18dc
+  ceiling none
+track burst kind=burst look=core population=own emission=0.0000 drive=0.4396
+  ink=0.0000 marks=389 born=458 parcels=1036
+  at=(-0.0635, -0.0417, 0.0200) tip=(0.4879, 0.0000, 0.0146)
+  detail front=0.4879 reach=2.0793 speed=1.2738
+  tracers pooled=389 bands=[162.6 0.0 0.0 0.0] rings=[4.9 78.6 79.1] grid=fd1a298a
+  ceiling none
+track fan-dispersion kind=fan look=body population=own emission=61.2549 drive=0.4800
+  ink=0.5500 marks=525 born=525 parcels=1230
+  at=(0.0203, -0.0221, 0.0239) tip=(1.4441, 0.0000, 0.1676)
+  detail lift=0.1676 outer=1.4441 reach=1.2797 speed=0.5366 spread=0.3441 stir=0.0000
+  tracers pooled=415 bands=[366.5 0.0 0.0 0.0] rings=[3.7 300.5 62.3] grid=dfe430db
+  ceiling none
+
+@2600ms beat=body beatT=0.8553
+track shimmer-ambient kind=shimmer look=skin population=ambient emission=7.2621 drive=1.0000
+  ink=0.0064 marks=320 born=320 parcels=334
+  at=(0.0893, -0.0369, 0.0315) tip=(0.0000, 0.0000, 0.5000)
+  detail cap=0.1000 inhale=0.5500 presence=0.0255 reach=1.5933 speed=0.2405
+  tracers pooled=277 bands=[173.9 0.0 0.0 0.0] rings=[0.0 25.0 149.0] grid=6fdf0bb1
+  ceiling none
+track burst kind=burst look=core population=own emission=0.0000 drive=0.0143
+  ink=0.0000 marks=138 born=458 parcels=1036
+  at=(-0.1619, -0.1617, 0.0200) tip=(0.6884, 0.0000, 0.0207)
+  detail front=0.6884 reach=2.0880 speed=0.3160
+  tracers pooled=138 bands=[18.5 0.0 0.0 0.0] rings=[0.0 1.0 17.5] grid=b6dc5174
+  ceiling none
+track fan-dispersion kind=fan look=body population=own emission=61.2549 drive=0.3377
+  ink=0.5500 marks=1185 born=1185 parcels=1230
+  at=(0.0242, -0.0148, 0.0214) tip=(1.8845, 0.0000, 0.1261)
+  detail lift=0.1261 outer=1.8845 reach=1.6514 speed=0.4018 spread=0.7845 stir=0.0000
+  tracers pooled=1078 bands=[883.9 0.0 0.0 0.0] rings=[10.2 451.6 422.1] grid=937273c6
+  ceiling none

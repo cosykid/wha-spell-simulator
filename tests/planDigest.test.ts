@@ -23,6 +23,10 @@ const RICH: SpellPlan = {
 	dispersion: 0.75,
 	circulation: -1.25,
 	budget: 3.5,
+	sites: {
+		column: [{ at: { x: 1, y: 0 }, facing: { x: -1, y: 0 } }],
+		dispersion: [{ at: { x: 0, y: -1 }, facing: { x: 0, y: -1 } }]
+	},
 	aperture: { kind: 'annulus', inner: 0.85, outer: 1.05 },
 	exhaust: { x: 1, y: 0, z: 0.2 },
 	hardness: 0.68,
@@ -32,6 +36,7 @@ const RICH: SpellPlan = {
 	vessel: { at: { x: 0, y: 0, z: 1 }, radius: 0.4, stir: 0.6 },
 	focus: 1.8,
 	quality: 0.9,
+	symmetry: 4,
 	couplings: [{ holder: 'hold', captures: ['burst', 'jet'] }],
 	notes: ['dispersion-leak']
 };
@@ -45,6 +50,9 @@ const NUDGES: Record<Exclude<keyof SpellPlan, 'version'>, Partial<SpellPlan>> = 
 	dispersion: { dispersion: RICH.dispersion + 0.5 },
 	circulation: { circulation: -RICH.circulation },
 	budget: { budget: RICH.budget + 0.5 },
+	// A site moving is the arrangement changing, which is a different cast even
+	// where the fold above it is identical.
+	sites: { sites: { ...RICH.sites, column: [] } },
 	aperture: { aperture: { kind: 'disc' } },
 	exhaust: { exhaust: { ...RICH.exhaust, z: RICH.exhaust.z + 0.5 } },
 	hardness: { hardness: RICH.hardness + 0.2 },
@@ -54,6 +62,7 @@ const NUDGES: Record<Exclude<keyof SpellPlan, 'version'>, Partial<SpellPlan>> = 
 	vessel: { vessel: { ...RICH.vessel!, stir: -RICH.vessel!.stir } },
 	focus: { focus: RICH.focus + 0.5 },
 	quality: { quality: RICH.quality - 0.2 },
+	symmetry: { symmetry: 3 },
 	couplings: { couplings: [{ holder: 'hold', captures: ['jet'] }] },
 	notes: { notes: ['inert-quadrupole'] }
 };
@@ -71,11 +80,17 @@ test('every plan dial reaches the digest', () => {
 
 test('a dial dropping to absent reaches it too', () => {
 	const base = planDigest(RICH);
-	for (const patch of [{ hold: null }, { intake: null }, { vessel: null }] as const) {
+	for (const patch of [
+		{ hold: null },
+		{ intake: null },
+		{ vessel: null },
+		{ symmetry: null }
+	] as const) {
 		assert.notEqual(planDigest({ ...RICH, ...patch }), base);
 	}
 	assert.notEqual(planDigest({ ...RICH, couplings: [] }), base);
 	assert.notEqual(planDigest({ ...RICH, notes: [] }), base);
+	assert.notEqual(planDigest({ ...RICH, sites: { column: [], dispersion: [] } }), base);
 });
 
 test('the digest rounds to hundredths, the granularity the rest of the signature uses', () => {

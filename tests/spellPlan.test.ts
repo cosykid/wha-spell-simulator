@@ -14,7 +14,11 @@ import { aimVector, dispersionScalar, foldAggregate } from '../src/lib/compiler/
 import { resolvePlan } from '../src/lib/compiler/plan/resolvePlan.js';
 import { resolveRegion } from '../src/lib/compiler/plan/region.js';
 import { planFingerprint, snapPlan } from '../src/lib/compiler/plan/snap.js';
-import { signedAngleDifferenceDeg, vectorFromAngleDeg } from '../src/lib/utils/geometry.js';
+import {
+	angleDegFromCenter,
+	signedAngleDifferenceDeg,
+	vectorFromAngleDeg
+} from '../src/lib/utils/geometry.js';
 import { readRealDictionary } from './dictionaryFixtures.js';
 import type { SealReading, SignReading, Vec3 } from '../src/lib/types.js';
 
@@ -151,6 +155,68 @@ test('[R-08] dispersion contributes the same geometry and differs only in timing
 	assert.equal(dispersions.budget, columns.budget);
 	assert.ok(dispersions.notes.includes('dispersion-leak'), 'the score reads the leak from here');
 	assert.ok(!columns.notes.includes('dispersion-leak'));
+});
+
+// ---------------------------------------------------------------------------
+// The geometry the plan keeps beside the fold. Ruled in `docs/animation-cells.md`
+// as additive and ruling-neutral: sites shape form, and R-05 still pays for it.
+// ---------------------------------------------------------------------------
+
+test('[R-05] sites keep the arrangement the fold flattens, and buy nothing with it', () => {
+	const signs = [0, 120, 240].map((atDeg) => sign({ atDeg }));
+	const plan = resolvePlan(reading(signs));
+
+	assert.equal(plan.sites.column.length, 3, 'three columns are three sites');
+	assert.deepEqual(
+		roundVec3(plan.aim),
+		roundVec3(aimVector(foldAggregate(signs))),
+		'the aim is still the fold and only the fold'
+	);
+	assert.equal(round(plan.budget), 3, 'count still pays magnitude through the budget alone');
+	// A site is a placement, not a second budget. Give it a length or a power and
+	// there are two places the same ink can be spent from.
+	assert.deepEqual(Object.keys(plan.sites.column[0]).sort(), ['at', 'facing']);
+});
+
+test('[R-08] a site belongs to the manifestation that was drawn', () => {
+	// The fold cannot separate the two, so the authored manifestation is the cut:
+	// the fan performs dispersion ink and the jet performs the column's.
+	const plan = resolvePlan(
+		reading([
+			sign({ manifestation: 'column', atDeg: 0 }),
+			sign({ manifestation: 'dispersion', atDeg: 180, facingDeg: 180 })
+		])
+	);
+
+	assert.equal(plan.sites.column.length, 1);
+	assert.equal(plan.sites.dispersion.length, 1);
+	assert.equal(round(plan.sites.column[0].at.x), 1, 'the column sat east');
+	assert.equal(round(plan.sites.dispersion[0].at.x), -1, 'the dispersion sign sat west');
+});
+
+test('sites are ordered around the seal, so stroke order cannot move a plan', () => {
+	const bearings = [0, 90, 180, 270];
+	const drawn = resolvePlan(reading(bearings.map((atDeg) => sign({ atDeg }))));
+	const redrawn = resolvePlan(reading([180, 270, 0, 90].map((atDeg) => sign({ atDeg }))));
+
+	assert.deepEqual(redrawn.sites, drawn.sites, 'one arrangement serializes one way');
+	assert.deepEqual(
+		drawn.sites.column.map((site) => round(angleDegFromCenter(site.at, { x: 0, y: 0 }))),
+		bearings,
+		'counter-clockwise from east, the bearing the whole plan layer reads in'
+	);
+});
+
+test('[R-06] an untrusted sign leaves a site a position, never a direction', () => {
+	const plan = resolvePlan(reading([sign({ atDeg: 0, facingTrust: FACING_TRUST_FLOOR - 0.01 })]));
+
+	assert.equal(plan.sites.column.length, 1, 'its ink is still on the seal');
+	assert.deepEqual(plan.sites.column[0].facing, { x: 0, y: 0 }, 'and its facing is not evidence');
+});
+
+test('the plan carries the reading n-fold snap unchanged', () => {
+	assert.equal(resolvePlan(reading([sign()], { symmetry: 4 })).symmetry, 4);
+	assert.equal(resolvePlan(reading([sign()])).symmetry, null, 'uneven spacing snaps to nothing');
 });
 
 test('[R-09] rule 1: a seal with no chevrons emits from the whole disc', () => {
@@ -413,4 +479,78 @@ test('[PDF defect J] the canon snap seam ships as a passthrough', () => {
 
 	assert.deepEqual(snapPlan(planFingerprint(plan), plan), plan);
 	assert.ok(planFingerprint(plan).includes('aim:up'), 'the fingerprint reads classes, not numbers');
+});
+
+/** R-21's arrangement: an inward clash ringed by pulls slanted `twistDeg` from inward. */
+function spunSeal(twistDeg: number): SealReading {
+	return reading([
+		...[0, 90, 180, 270].map((atDeg) => sign({ atDeg })),
+		...[45, 135, 225, 315].map((atDeg) =>
+			sign({ manifestation: 'pull', atDeg, facingDeg: atDeg + 180 + twistDeg })
+		)
+	]);
+}
+
+test('[R-21] a helical intake feeding the clash spins the column into one vortex', () => {
+	const plan = resolvePlan(spunSeal(45));
+
+	assert.ok(Math.abs(plan.circulation) > 0.25, 'the fused whirl clears the vortex dead band');
+	assert.equal(round(plan.aim.z), 0, 'the clash is consumed');
+	assert.equal(plan.intake, null, 'the inflow is consumed');
+	assert.ok(plan.notes.includes('spun-column'), 'and the plan says where they went');
+	assert.ok(!plan.notes.includes('inert-quadrupole'), 'a whirl is not cancelled ink');
+});
+
+test('[R-21] the whirl turns the way the pulls slant', () => {
+	const swirlOf = (twistDeg: number) =>
+		foldAggregate(
+			[45, 135, 225, 315].map((atDeg) =>
+				sign({ manifestation: 'pull', atDeg, facingDeg: atDeg + 180 + twistDeg })
+			)
+		).circulation;
+	const one = resolvePlan(spunSeal(45));
+	const other = resolvePlan(spunSeal(-45));
+
+	assert.equal(Math.sign(one.circulation), Math.sign(swirlOf(45)));
+	assert.equal(Math.sign(other.circulation), Math.sign(swirlOf(-45)));
+	assert.ok(one.circulation * other.circulation < 0, 'opposite slants turn opposite ways');
+});
+
+test('[R-21] a straight inhale does not spin the column', () => {
+	const plan = resolvePlan(spunSeal(0));
+
+	assert.ok(plan.aim.z > 0, 'the clash column stands');
+	assert.ok(plan.intake, 'the inflow keeps its own track');
+	assert.equal(round(plan.circulation), 0);
+	assert.ok(!plan.notes.includes('spun-column'));
+});
+
+test('[R-21] hand residue below the swirl floor does not fuse', () => {
+	const plan = resolvePlan(spunSeal(4));
+
+	assert.ok(plan.intake, 'a barely slanted inflow stays an inflow');
+	assert.ok(plan.aim.z > 0);
+	assert.ok(!plan.notes.includes('spun-column'));
+});
+
+test('[R-21] an outward helical push feeds no column, so nothing fuses', () => {
+	const plan = resolvePlan(spunSeal(135));
+
+	assert.ok(plan.intake, 'the push keeps its unfused reading');
+	assert.ok(plan.intake && plan.intake.draw < 0, 'the fixture really does push outward');
+	assert.ok(plan.aim.z > 0, 'and the beam still stands');
+	assert.ok(!plan.notes.includes('spun-column'));
+});
+
+test('[R-21] a helix with no clash keeps its intake: Grasping Wind is untouched', () => {
+	// The pull-vortex arrangement: slanted pulls alone, no column to spin.
+	const plan = resolvePlan(
+		reading(
+			[0, 120, 240].map((atDeg) => sign({ manifestation: 'pull', atDeg, facingDeg: atDeg + 270 }))
+		)
+	);
+
+	assert.ok(plan.intake, 'the intake survives');
+	assert.equal(round(plan.circulation), 0);
+	assert.ok(plan.notes.includes('intake-only'));
 });

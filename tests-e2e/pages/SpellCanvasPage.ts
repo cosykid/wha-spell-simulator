@@ -1,4 +1,5 @@
 import { expect, type Locator, type Page } from '@playwright/test';
+import { CAST_READBACK_PARAM } from '../../src/lib/cast/stage/readback.js';
 import { type CastableSpell } from '../fixtures/sampleSpells.js';
 import * as castProbe from '../helpers/castProbe.js';
 import { circleStroke } from '../helpers/strokes.js';
@@ -77,6 +78,11 @@ export class SpellCanvasPage {
 		return this.page.getByTestId('effect-canvas');
 	}
 
+	/** The control that swaps which engine performs a cast. */
+	get effectStyleToggle(): Locator {
+		return this.page.getByTestId('effect-style-toggle');
+	}
+
 	get canvasShell(): Locator {
 		return this.page.getByTestId('canvas-shell');
 	}
@@ -111,9 +117,16 @@ export class SpellCanvasPage {
 
 	// --- Navigation / readiness ---------------------------------------------
 
-	/** Loads the simulator and waits until the canvas accepts strokes. */
+	/**
+	 * Loads the simulator and waits until the canvas accepts strokes.
+	 *
+	 * Always with `?castReadback=1`, the one thing an e2e page asks the app for
+	 * that production does not: the effect canvas is WebGL and drops its frame at
+	 * composite, so without it every pixel a spec reads back is blank. It is the
+	 * whole difference between the page under test and the shipped one.
+	 */
 	async goto(): Promise<void> {
-		await this.page.goto('/');
+		await this.page.goto(`/?${CAST_READBACK_PARAM}=1`);
 		await this.waitForReady();
 	}
 
@@ -270,6 +283,20 @@ export class SpellCanvasPage {
 	/** The effect canvas at each cast-relative timestamp, sampled in one page pass. */
 	async sampleCast(atMs: number[]): Promise<castProbe.CastSample[]> {
 		return castProbe.sampleCast(this.page, atMs);
+	}
+
+	/**
+	 * The share of the effect canvas lit right now, read through whichever engine
+	 * owns it. Unlike {@link sampleCast} this is a single look with no clock, which
+	 * is what a style switch mid-cast needs.
+	 */
+	async readCastInk(): Promise<number> {
+		return castProbe.readCastInk(this.page);
+	}
+
+	/** Resolves once the live engine has painted something. */
+	async waitForCastInk(timeoutMs = ACTIVATION_TIMEOUT_MS): Promise<void> {
+		await castProbe.waitForCastInk(this.page, timeoutMs);
 	}
 
 	/**

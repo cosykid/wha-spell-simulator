@@ -54,12 +54,20 @@ export default defineConfig(
 								'**/compiler/plan',
 								'**/compiler/plan/**',
 								'../../compiler/plan/**',
-								'**/cast/sim',
-								'**/cast/sim/**',
-								'../sim',
-								'../sim/**'
+								'**/cast/cells',
+								'**/cast/cells/**',
+								'**/cast/stage',
+								'**/cast/stage/**',
+								'**/cast/volume',
+								'**/cast/volume/**',
+								'../cells',
+								'../cells/**',
+								'../stage',
+								'../stage/**',
+								'../volume',
+								'../volume/**'
 							],
-							message: 'Looks are data: they may not import from the plan or the sim.'
+							message: 'Looks are data: they may not import from the plan or the performers.'
 						}
 					]
 				}

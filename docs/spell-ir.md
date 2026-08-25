@@ -93,7 +93,7 @@ The compiler derives the surface lean from sign direction. Force increases the t
 
 **`reading` is a `SealReading`**: the signs after recognition noise has been gated out. Each `SignReading` carries its dictionary `manifestation` (never inferred), its seal-space position and drawn `length`, a unit `facing` with the `facingClass` rules branch on, the `facingSource` that facing came from, a `facingTrust` in `0..1`, and a `power`. Trust is not power: a sloppy sign contributes length and nothing else (R-06). Facing comes from the ML pose head first, then template rotation, then stroke geometry, then canon inward, each at declining trust, so a missing ML verdict degrades instead of collapsing. Downstream spell code never sees a raw `Recognition`; it reads this.
 
-**`plan` is a `SpellPlan`**: the reading resolved into a finite, named list of motion primitives, and the only shape canon rulings are written into. Each sign family pays into its own budget and owns a different verb (R-13), so nothing overrides anything: column is the engine (`aim`, `dispersion`, `circulation`, `budget`), region is the valve (`aperture`, `exhaust`, `hardness`, `reach`), levitation is the spring (`hold`), pull is the ambient coupling (`intake`), convergence is the lens (`focus`), and `vessel` is deferred. `mode` is R-10's create-versus-manipulate call, `couplings` names every interaction the cast is allowed to make across primitives, and `notes` records the arrangement a plan came from when a ruling gives it a name. Both shapes are seal space: origin at the ring center, unit length one ring radius, `y` positive toward the screen bottom, `z` out of the paper.
+**`plan` is a `SpellPlan`**: the reading resolved into a finite, named list of motion primitives, and the only shape canon rulings are written into. Each sign family pays into its own budget and owns a different verb (R-13), so nothing overrides anything: column is the engine (`aim`, `dispersion`, `circulation`, `budget`), region is the valve (`aperture`, `exhaust`, `hardness`, `reach`), levitation is the spring (`hold`), pull is the ambient coupling (`intake`), convergence is the lens (`focus`), and `vessel` is deferred. `mode` is R-10's create-versus-manipulate call, `couplings` names every interaction the cast is allowed to make across primitives, and `notes` records the arrangement a plan came from when a ruling gives it a name. `sites` and `symmetry` are the drawn geometry the fold would otherwise discard, carried so the cast can shape form to the arrangement; they pay no magnitude, which stays R-05's job for `budget`. Both shapes are seal space: origin at the ring center, unit length one ring radius, `y` positive toward the screen bottom, `z` out of the paper.
 
 Field-by-field reference: [`src/lib/types/seal-reading.ts`](../src/lib/types/seal-reading.ts) and [`src/lib/types/spell-plan.ts`](../src/lib/types/spell-plan.ts). The rulings themselves are R-05 through R-13 in [`animation-spec.md`](animation-spec.md).
 
@@ -173,6 +173,10 @@ Missing or unsupported primary elements compile to invalid `SpellIR` with `statu
 		"dispersion": 0,
 		"circulation": 0,
 		"budget": 0.82,
+		"sites": {
+			"column": [{ "at": { "x": 0, "y": 0.8 }, "facing": { "x": 0, "y": -1 } }],
+			"dispersion": []
+		},
 		"aperture": { "kind": "disc" },
 		"exhaust": { "x": 0, "y": 0, "z": 0 },
 		"hardness": 0,
@@ -182,6 +186,7 @@ Missing or unsupported primary elements compile to invalid `SpellIR` with `statu
 		"vessel": null,
 		"focus": 1,
 		"quality": 0.76,
+		"symmetry": null,
 		"couplings": [],
 		"notes": []
 	},

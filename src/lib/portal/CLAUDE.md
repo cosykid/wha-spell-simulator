@@ -58,9 +58,11 @@ there for painter-order sorting and size attenuation, which is most of why flat
 
 ## Related
 
-- [`../renderer/CLAUDE.md`](../renderer/CLAUDE.md) — the effects that project
-  through this module.
+- [`../renderer/CLAUDE.md`](../renderer/CLAUDE.md) — the glyph overlay that
+  projects through this module.
 - [`../../../docs/animation-spec.md`](../../../docs/animation-spec.md) — R-01
   (beats), R-03 and R-04 (the canvas-to-world mapping).
+- [`../cast/stage/CLAUDE.md`](../cast/stage/CLAUDE.md) — the camera that
+  reproduces this projection, and the 0.05px test that holds it there.
 - [`../../../docs/animation-redesign.md`](../../../docs/animation-redesign.md) —
-  where `cast/` will consume `depth` for painter order and attenuation.
+  the redesign this module was carved out of.

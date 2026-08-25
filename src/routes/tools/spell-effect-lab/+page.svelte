@@ -3,7 +3,6 @@
 	import { writeJson } from '$lib/debug/debugOverlay.js';
 	import { setStatus } from '$lib/state.svelte';
 	import {
-		DEFAULT_SIGIL,
 		EFFECT_CONTROLS,
 		SIGIL_OPTIONS,
 		buildSpellIR,
@@ -17,19 +16,47 @@
 	import { resolvePlan } from '$lib/compiler/plan/resolvePlan.js';
 	import { roundDeep } from '$lib/utils/json.js';
 	import { page } from '$app/state';
-	import { onMount } from 'svelte';
+	import { onMount, untrack } from 'svelte';
 	import { LabPreview } from './lab-preview.js';
 	import PlanPanel from './PlanPanel.svelte';
-	import { readGoldenFrameRequest } from './lab-goldens.js';
+	import { labSigilFrom, readGoldenFrameRequest } from './lab-goldens.js';
+	import { castReadbackRequested } from '$lib/cast/stage/readback.js';
+	import {
+		DEFAULT_EFFECT_STYLE,
+		EFFECT_STYLES,
+		EFFECT_STYLE_LABELS,
+		effectStyleFrom,
+		effectStyleFromSearch
+	} from '$lib/structures/effectStyle.js';
+	import { loadSimulatorPreferences } from '$lib/ui/simulator/preferences.js';
 
 	const controlEntries = Object.entries(EFFECT_CONTROLS);
 
 	// Test-only: the look golden tier asks for one preset at one timestamp.
 	const goldenFrame = readGoldenFrameRequest(page.url);
+	// Test-only: a spec that reads pixels back off the effect canvas needs the
+	// frame to survive compositing, and so does the scripted clock's screenshot.
+	const preserveFrames = goldenFrame !== null || castReadbackRequested(page.url.search);
 
-	let sigil = $state(goldenFrame?.sigil ?? DEFAULT_SIGIL);
+	// Precedence, the same everywhere: query parameter, then stored preference,
+	// then the default. The URL is read once at init, not tracked; the stored
+	// half waits for the browser, so the server and the first client render agree
+	// and the `{#key}` below swaps the canvas once the preference arrives.
+	const requestedStyle = effectStyleFromSearch(page.url.search);
+
+	let effectStyle = $state(requestedStyle ?? DEFAULT_EFFECT_STYLE);
+	// The sigil and preset honour the same precedence on the live clock, so a
+	// deep link (or a capture rig) lands on the cast it names without the
+	// scripted golden-frame clock.
+	const requestedPreset = page.url.searchParams.get('preset');
+	let sigil = $state(goldenFrame?.sigil ?? labSigilFrom(page.url.searchParams.get('sigil')));
 	const element = $derived(elementForSigil(sigil));
-	let presetId = $state(goldenFrame?.presetId ?? 'none');
+	let presetId = $state(
+		goldenFrame?.presetId ??
+			(requestedPreset && LAB_PRESETS.some((option) => option.id === requestedPreset)
+				? requestedPreset
+				: 'none')
+	);
 	const preset = $derived(presetById(presetId));
 	const reading = $derived(readPresetSeal(preset.signs, sigil));
 	const plan = $derived(resolvePlan(reading));
@@ -37,9 +64,11 @@
 	let irInput = $state('');
 	let activatedAt = $state(0);
 
-	let glyphCanvas: HTMLCanvasElement;
-	let effectCanvas: HTMLCanvasElement;
-	let canvasShell: HTMLDivElement;
+	// Reactive refs, because the effect canvas is keyed on the style and the
+	// preview is rebuilt against whichever element is mounted.
+	let glyphCanvas = $state<HTMLCanvasElement | null>(null);
+	let effectCanvas = $state<HTMLCanvasElement | null>(null);
+	let canvasShell = $state<HTMLDivElement | null>(null);
 	let irPre = $state<HTMLPreElement | null>(null);
 	let preview: LabPreview | null = null;
 
@@ -55,7 +84,7 @@
 
 	function restartSpell() {
 		activatedAt = performance.now();
-		preview?.resetParticles();
+		preview?.resetCast();
 	}
 
 	function handleSlider(key: string, event: Event & { currentTarget: HTMLInputElement }) {
@@ -95,20 +124,48 @@
 	}
 
 	onMount(() => {
-		activatedAt = performance.now();
-		preview = new LabPreview(glyphCanvas, effectCanvas, canvasShell, () => ({
-			values,
-			element,
-			sigil,
-			activatedAt,
-			reading,
-			presetSigns: preset.signs
-		}));
-		if (goldenFrame) {
-			preview.renderGoldenFrame(goldenFrame.frameMs);
+		if (!requestedStyle) {
+			effectStyle = effectStyleFrom(loadSimulatorPreferences().effectStyle);
+		}
+	});
+
+	// Not `onMount`: switching style destroys the effect canvas and mounts another,
+	// and an engine has to be built against the element that is actually there.
+	//
+	// The body is untracked on purpose. The four elements above are the whole
+	// dependency list, and the preview's state getter reads `activatedAt`, which
+	// this same effect writes: tracked, the golden path's synchronous render would
+	// subscribe the effect to a value it had just set and loop.
+	$effect(() => {
+		const glyph = glyphCanvas;
+		const effect = effectCanvas;
+		const shell = canvasShell;
+		const style = effectStyle;
+		if (!glyph || !effect || !shell) {
 			return;
 		}
-		return preview.start();
+		return untrack(() => {
+			activatedAt = performance.now();
+			preview = new LabPreview(
+				glyph,
+				effect,
+				shell,
+				() => ({
+					values,
+					element,
+					sigil,
+					activatedAt,
+					reading,
+					presetSigns: preset.signs
+				}),
+				{ preserveFrames, effectStyle: style }
+			);
+			if (goldenFrame) {
+				preview.renderGoldenFrame(goldenFrame.frameMs);
+				return;
+			}
+			return preview.start();
+		});
 	});
 </script>
 
@@ -135,6 +192,16 @@
 					<option value={option.id}>{option.label}</option>
 				{/each}
 			</select>
+			<select
+				class="select-control"
+				bind:value={effectStyle}
+				title="Which engine performs the cast"
+				data-testid="lab-engine-select"
+			>
+				{#each EFFECT_STYLES as option (option)}
+					<option value={option}>{EFFECT_STYLE_LABELS[option]}</option>
+				{/each}
+			</select>
 			<button
 				type="button"
 				onclick={() => {
@@ -153,13 +220,19 @@
 				height="700"
 				data-testid="lab-glyph-canvas"
 			></canvas>
-			<canvas
-				bind:this={effectCanvas}
-				id="labEffectCanvas"
-				width="900"
-				height="700"
-				data-testid="lab-effect-canvas"
-			></canvas>
+			<!-- Keyed on the style: a canvas that has handed out a `2d` context can
+			     never host WebGL, so a switch mounts a fresh element rather than
+			     re-using this one. -->
+			{#key effectStyle}
+				<canvas
+					bind:this={effectCanvas}
+					id="labEffectCanvas"
+					width="900"
+					height="700"
+					data-effect-style={effectStyle}
+					data-testid="lab-effect-canvas"
+				></canvas>
+			{/key}
 		</div>
 	</section>
 

@@ -13,6 +13,18 @@
  * The entry's semantics point the same way — more focus, less spread, a positive
  * `lifetimeBias` — so the sizes sit tighter than earth's and the matter roles
  * `leak` instead of decaying: a shard persists where a clod crumbles.
+ *
+ * The material says the same two things again. Objects, so the fill sits just
+ * under earth's and the weight just under it too, a shard being heavy but
+ * smaller than a slab. Crystalline, so emission runs well above earth's without
+ * reaching the two light sources, the edge is serrated into facets, the ribbon
+ * is a narrow blade, and it breaks up more coarsely than any row that breaks up
+ * at all, because a facet is a wide flat plane and not a grain. Two numbers carry the row on their
+ * own: undulation is exactly zero, since a lattice that waves is not a lattice,
+ * and flicker is second only to fire's, because a facet either catches the light
+ * or it does not. Its bands are facet divisions turning past the eye rather than
+ * stripes on a flow, and its afterimage is the table's shortest, which is the
+ * `trail: null` argument the roles already make.
  */
 
 import type { LookRow } from './look.js';
@@ -25,6 +37,19 @@ const QUARTZ = [150, 198, 232] as const;
 const SEAM = [40, 66, 102] as const;
 
 export const CRYSTAL_LOOKS: LookRow = {
+	material: {
+		emissive: 0.55,
+		opacity: 0.88,
+		edge: 'serrated',
+		bands: 4,
+		noiseScale: 0.35,
+		ribbonWidth: 0.09,
+		garnishDensity: 0.55,
+		trailPersistence: 0.04,
+		flicker: 0.42,
+		undulation: 0,
+		weight: 0.85
+	},
 	core: {
 		sprite: 'glint',
 		tint: { core: [255, 255, 255], edge: FACET },
