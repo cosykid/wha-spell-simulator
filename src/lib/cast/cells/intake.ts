@@ -94,7 +94,11 @@ export function createIntakeCell(track: Track<'intake'>, ctx: CellContext): Cell
 	flow.spawn = SPAWN.sink;
 	flow.lobePhase = lobePhase;
 	flow.pinchMul = 0;
-	flow.turbMul = 0.55;
+	// A drawn-in medium is dominated by the pull: its element's own churn and
+	// gusting are damped hard, or the arrivals dwelling at the mouth get herded
+	// into curl pockets and the one tide breaks into countable balls.
+	flow.turbMul = 0.3;
+	flow.gustMul = 0.35;
 	flow.wander = BOUNDARY_WANDER * 0.9;
 	flow.pool = mouth;
 	flow.ceiling = params.ceiling;

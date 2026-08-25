@@ -48,10 +48,10 @@ track shimmer-ambient kind=shimmer look=skin population=ambient emission=17.1013
   tracers pooled=148 bands=[177.2 0.0 0.0 0.0] rings=[2.1 38.5 136.6] grid=c9ddcc33
   ceiling none
 track burst kind=burst look=core population=own emission=0.0000 drive=0.4396
-  ink=0.0000 marks=437 born=458 parcels=836
-  at=(-0.0005, 0.0069, 0.0200) tip=(0.3306, 0.0000, 0.0099)
-  detail front=0.3306 reach=2.0857 speed=0.9383
-  tracers pooled=437 bands=[210.2 0.0 0.0 0.0] rings=[26.7 131.1 52.4] grid=1c695f69
+  ink=0.0000 marks=166 born=458 parcels=836
+  at=(-0.0586, 0.0196, 0.0200) tip=(0.3306, 0.0000, 0.0099)
+  detail front=0.3306 reach=1.8010 speed=0.7841
+  tracers pooled=166 bands=[22.7 0.0 0.0 0.0] rings=[5.7 15.1 1.9] grid=74220b49
   ceiling none
 track jet-exhaust kind=jet look=body population=own emission=30.6475 drive=1.0000
   ink=0.5604 marks=321 born=321 parcels=1409
@@ -68,10 +68,10 @@ track shimmer-ambient kind=shimmer look=skin population=ambient emission=7.2621 
   tracers pooled=276 bands=[177.9 0.0 0.0 0.0] rings=[0.0 33.7 144.2] grid=f616c636
   ceiling none
 track burst kind=burst look=core population=own emission=0.0000 drive=0.0143
-  ink=0.0000 marks=211 born=458 parcels=836
-  at=(-0.0596, 0.0070, 0.0200) tip=(0.4691, 0.0000, 0.0141)
-  detail front=0.4691 reach=2.0457 speed=0.3750
-  tracers pooled=211 bands=[29.6 0.0 0.0 0.0] rings=[0.0 7.3 22.3] grid=96919a39
+  ink=0.0000 marks=0 born=458 parcels=836
+  at=(0.0000, 0.0000, 0.0000) tip=(0.4691, 0.0000, 0.0141)
+  detail front=0.4691 reach=0.0000 speed=0.0000
+  tracers pooled=0 bands=[0.0 0.0 0.0 0.0] rings=[0.0 0.0 0.0] grid=725c3305
   ceiling none
 track jet-exhaust kind=jet look=body population=own emission=53.9093 drive=1.0000
   ink=0.9400 marks=1287 born=1302 parcels=1409

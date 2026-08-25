@@ -189,19 +189,23 @@ const CHANNEL_DELTA = 16;
 /**
  * The seals whose plan has nothing to steer, which R-11 makes a look rather than
  * an empty canvas: `none` carries no signs, `swirl-pushes` resolves
- * `region-unruled` and `column-cancelled` an `inert-quadrupole`. All three land
- * on a plan with zero aim and zero circulation (`tests/golden/plans/`), so they
- * are *meant* to render the same designed default, and the floor is not asked of
- * a pair drawn from inside this set. Every pair with a manifesting seal on either
- * side still owes it, this set included.
+ * `region-unruled`, `column-cancelled` an `inert-quadrupole`, and
+ * `levitation-inverted` folds its levitation away to the same nothing. All four
+ * land on a plan with zero aim and zero circulation (`tests/golden/plans/`) and
+ * compile to the identical quiet-plume score, so they are *meant* to render the
+ * same designed default, and the floor is not asked of a pair drawn from inside
+ * this set. (Until the strike's splash residue learned to dry, seed noise in
+ * that residue kept `levitation-inverted` accidentally clear of the floor.)
+ * Every pair with a manifesting seal on either side still owes it, this set
+ * included.
  */
-const INERT_PRESETS = new Set(['none', 'swirl-pushes', 'column-cancelled']);
+const INERT_PRESETS = new Set(['none', 'swirl-pushes', 'column-cancelled', 'levitation-inverted']);
 
 /**
- * The share of the frame two presets must differ over. Today's closest pair is
- * `pull-inward` and `pull-inverted` at 0.0063 of the frame — the same intake
- * strokes run in and run out — so the floor sits at half of that. It fails long
- * before two seals converge, and no ordinary tuning pass walks into it.
+ * The share of the frame two presets must differ over. Today's closest
+ * manifesting pair is `none` and `pull-inverted` at 0.0096 of the frame, so the
+ * floor sits at under a third of that. It fails long before two seals converge,
+ * and no ordinary tuning pass walks into it.
  */
 const MIN_PRESET_DISTANCE = 0.003;
 
