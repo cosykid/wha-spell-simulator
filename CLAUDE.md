@@ -55,7 +55,8 @@ pipeline, in order:
 - [`src/lib/dictionary/`](src/lib/dictionary/CLAUDE.md) — the glyph corpus: sigil/sign JSON + SVG art
 - [`src/lib/compiler/`](src/lib/compiler/CLAUDE.md) — `GlyphAST` → `SpellIR`: the gated `reading`, the resolved `plan` (where canon rulings live), activation, signature
 - [`src/lib/cast/`](src/lib/cast/CLAUDE.md) — `SpellPlan` → pixels: score → cells → stage. The only effect path, in two user-selectable styles
-  - [`src/lib/cast/cells/`](src/lib/cast/cells/CLAUDE.md) — the performers: one bespoke cell per track kind, and the forms it is built from
+  - [`src/lib/cast/cells/`](src/lib/cast/cells/CLAUDE.md) — the performers: one choreographer cell per track kind
+  - [`src/lib/cast/volume/`](src/lib/cast/volume/CLAUDE.md) — the substrate the cells perform on: per-element tracer physics, the marching-cubes ink skin, the ground wash, the charge ambient
   - [`src/lib/cast/stage/`](src/lib/cast/stage/CLAUDE.md) — the three.js stage: the portal-true camera, the fixed step, the WebGL surface
   - [`src/lib/cast/classic/`](src/lib/cast/classic/CLAUDE.md) — the frozen Canvas2D engine restored from `b439a01`, behind the same seam
 
@@ -72,7 +73,9 @@ Around it:
 Everything below `SpellIR` was rebuilt by the animation redesign, specified in
 [`docs/animation-spec.md`](docs/animation-spec.md) (behavior rulings) and
 [`docs/animation-redesign.md`](docs/animation-redesign.md) (architecture and
-migration record). Read both before touching `compiler/plan/` or `cast/`.
+migration record); the current substrate below the score is ruled in
+[`docs/animation-volume.md`](docs/animation-volume.md). Read them before
+touching `compiler/plan/` or `cast/`.
 
 ## Environment gotchas
 

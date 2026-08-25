@@ -323,3 +323,23 @@ Until then the new directory is reachable from `cells/CLAUDE.md` and
   currently the global stand-in for, which needs a lane in the row map.
 - **`vessel`** remains R-13's last unbuilt primitive and keeps its `routed-fan`
   path.
+
+## 2026-08-25 addendum: the hybrid substrate is retired
+
+The rework this document records was itself replaced the day after it was
+marked executed. At production scale the parcel sprites and torn brush licks
+resolved into angular translucent chips — "jagged glass shards" — failing the
+very axes this document opens with. A second bake-off
+(`src/routes/tools/proto-volume`) approved **C, the inked volume**: a CPU
+tracer cloud skinned by marching cubes into one merged body per element,
+shaded as flat watercolor washes with a dark ink contour over a per-element
+ground wash.
+
+`cast/hybrid/` is deleted; its replacement is `cast/volume/`, ruled in
+[`animation-volume.md`](animation-volume.md). What this document ruled about
+everything ABOVE the substrate still stands and was carried over: the score
+and beats untouched, a cell as one track's choreography, the shared pool
+divided once, quality as roughness never magnitude, the strike's punch window,
+the ring attractor rather than a point sink, and the R-01/R-10 ambient laws.
+The "Pending `cast/CLAUDE.md` text" above is superseded by the equivalent
+section of `animation-volume.md`.

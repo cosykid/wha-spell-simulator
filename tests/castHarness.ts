@@ -14,7 +14,7 @@ import assert from 'node:assert/strict';
 import { compileScore, scoreTracks, type CastSource } from '../src/lib/cast/score/compileScore.js';
 import { lookRow } from '../src/lib/cast/looks/table.js';
 import { cellFor } from '../src/lib/cast/cells/registry.js';
-import { Substrate } from '../src/lib/cast/hybrid/substrate.js';
+import { VolumeSubstrate } from '../src/lib/cast/volume/substrate.js';
 import {
 	STAGE,
 	advanceCells,
@@ -36,7 +36,7 @@ export interface HeadlessCast {
 	score: SpellScore;
 	performers: Performer[];
 	clock: StageClock;
-	substrate: Substrate;
+	substrate: VolumeSubstrate;
 }
 
 /** The drawing quality every suite performs at, so no case is quietly special. */
@@ -57,9 +57,8 @@ export function castFor(
 ): HeadlessCast {
 	const look = lookRow({ sigil: score.sigil, element: score.element });
 	const tracks = options.tracks ?? scoreTracks(score);
-	const substrate = new Substrate(
+	const substrate = new VolumeSubstrate(
 		tracks,
-		look,
 		{ sigil: score.sigil, element: score.element },
 		score.signature
 	);

@@ -2,12 +2,12 @@
  * @file The cell contract. A parcel belonged to exactly one track; **a cell is
  * one track**, and what it performs is a choreography rather than a shape.
  *
- * Since the hybrid rework a cell owns no geometry at all. It owns the flow shape
- * its parcels feel, the arc its brush marks are laid at, and whatever it
- * accumulates of its own; the pigment is one shared substrate
- * (`cast/hybrid/`). An archetype is a field shape plus a spawn program plus a
- * mark behaviour, which is why seven of them can look like one hand drew them.
- * See `docs/animation-hybrid.md`.
+ * Since the volume rework a cell owns no geometry and no tracer loop. It
+ * writes its channel's `TrackFlow` — which mouth its matter is born from,
+ * where its form stands, the kind-shaped forces on top of the element's own
+ * physics — and the shared substrate (`cast/volume/`) advects the tracers and
+ * skins them as one merged body. An archetype is a mouth plus a flow, which is
+ * why seven of them can read as one medium. See `docs/animation-volume.md`.
  *
  * Four rules, inherited and unchanged:
  *
@@ -18,8 +18,9 @@
  *   far). Seeded RNG only, from `ctx.seed`; `Math.random` and `Date.now` are
  *   banned below `stage/`.
  * - **Phase-locked patterning.** Anything a cell writes that patterns the mass
- *   is driven by the same phase the mass moves by. The brush marks integrate the
- *   very field the parcels do, which is that rule taken as far as it goes.
+ *   is driven by the same phase the mass moves by. The skin is polygonized off
+ *   the very tracers the flow advects, which is that rule taken as far as it
+ *   goes.
  * - **Beats are visible.** Every cell states what it does in charge (nothing
  *   non-ambient manifests, R-01), strike (impulse), body (sustain, the one beat
  *   that stretches, R-02), release (commit) and afterglow (dissipate). A cell
@@ -31,7 +32,7 @@
 
 import type { Beat, ScoreTrack, Vec3 } from '../../types.js';
 import type { LookRow } from '../looks/look.js';
-import type { Channel } from '../hybrid/substrate.js';
+import type { VolumeChannel } from '../volume/substrate.js';
 
 /** What a cell is built with. Fixed for the life of the cell. */
 export interface CellContext {
@@ -42,7 +43,7 @@ export interface CellContext {
 	/** The seal's drawing quality, 0..1. Form roughness, never magnitude. */
 	quality: number;
 	/** This cell's own seat at the shared substrate. Its whole output surface. */
-	channel: Channel;
+	channel: VolumeChannel;
 }
 
 /** One fixed step of the cast, as the cell sees it. */
@@ -84,13 +85,13 @@ export interface CellConstraint {
 export interface CellReport {
 	/** How loudly this cell is painting, 0..1. Zero is silence, which R-01 requires. */
 	ink: number;
-	/** Where the mass stands: the seal-space centroid of the cell's live marks. */
+	/** Where the mass stands: the seal-space centroid of the cell's live tracers. */
 	at: Vec3;
 	/** Where the form the cell declares is rooted, in seal space. */
 	from: Vec3;
 	/** The point that form reaches to, along its own axis. */
 	tip: Vec3;
-	/** Live brush marks, and every mark this cell has ever laid. */
+	/** Live tracers, and every tracer this cell has ever spawned. */
 	marks: number;
 	born: number;
 	/** Named scalars this kind publishes. One entry is one claim a probe can pin. */

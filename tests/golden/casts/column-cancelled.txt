@@ -2,128 +2,80 @@ cast column-cancelled
 
 @0850ms beat=charge beatT=0.8673
 track shimmer-ambient kind=shimmer look=skin population=ambient emission=21.7311 drive=1.0000
-  ink=0.0086 marks=4 born=4 parcels=2432
-  at=(-0.4700, 0.1296, 0.2193) tip=(0.0000, 0.0000, 0.5000)
-  detail cap=0.1000 inhale=0.7523 presence=0.1232 reach=2.7808 speed=0.3922
-  field
-    at (0.0000, 0.0000, 0.3000) -> (-0.1069, 0.0775, 0.0645)
-    at (0.7000, 0.0000, 0.1500) -> (-0.1523, -0.4648, 0.2724)
-    at (0.0000, -0.5000, 0.9000) -> (0.6609, -0.2253, -1.7278)
-    at (0.5000, 0.5000, 1.5000) -> (0.5228, -0.8353, -6.3650)
+  ink=0.0513 marks=157 born=157 parcels=364
+  at=(0.0929, 0.0403, 0.1046) tip=(0.0000, 0.0000, 0.5000)
+  detail cap=0.1000 inhale=0.7523 presence=0.2054 reach=1.5882 speed=0.2261
+  tracers pooled=24 bands=[105.1 0.0 0.0 0.0] rings=[0.0 21.2 83.9] grid=f6d4d9a8
   ceiling none
 track burst kind=burst look=core population=own emission=0.0000 drive=0.0000
-  ink=0.0000 marks=0 born=0 parcels=5632
+  ink=0.0000 marks=0 born=0 parcels=858
   at=(0.0000, 0.0000, 0.0000) tip=(0.0000, 0.0000, 0.0000)
   detail front=0.0000 reach=0.0000 speed=0.0000
-  field
-    at (0.0000, 0.0000, 0.3000) -> (-0.2979, 0.2161, -0.0012)
-    at (0.7000, 0.0000, 0.1500) -> (-0.7710, -1.1984, 0.6328)
-    at (0.0000, -0.5000, 0.9000) -> (2.4558, -0.7987, 2.0872)
-    at (0.5000, 0.5000, 1.5000) -> (1.8955, -2.3815, -1.4250)
+  tracers pooled=0 bands=[0.0 0.0 0.0 0.0] rings=[0.0 0.0 0.0] grid=725c3305
   ceiling none
 track jet-default kind=jet look=wisp population=own emission=0.0000 drive=0.0000
-  ink=0.0000 marks=0 born=0 parcels=8320
+  ink=0.0000 marks=0 born=0 parcels=1378
   at=(0.0000, 0.0000, 0.0000) tip=(0.0000, 0.0000, 0.0000)
   detail girth=0.4000 reach=0.0000 speed=0.0000 standing=0.0000
-  field
-    at (0.0000, 0.0000, 0.3000) -> (-0.2483, 0.1801, -0.0010)
-    at (0.7000, 0.0000, 0.1500) -> (-3.1856, -1.2203, 0.5273)
-    at (0.0000, -0.5000, 0.9000) -> (1.8882, 1.3773, 1.7394)
-    at (0.5000, 0.5000, 1.5000) -> (-0.5804, -4.4613, -1.1875)
+  tracers pooled=0 bands=[0.0 0.0 0.0 0.0] rings=[0.0 0.0 0.0] grid=725c3305
   ceiling none
 
 @1100ms beat=strike beatT=0.3750
 track shimmer-ambient kind=shimmer look=skin population=ambient emission=20.3055 drive=1.0000
-  ink=0.0066 marks=6 born=6 parcels=2432
-  at=(-0.3880, 0.5284, 0.2977) tip=(0.0000, 0.0000, 0.5000)
-  detail cap=0.1000 inhale=0.8313 presence=0.0948 reach=2.8587 speed=0.3592
-  field
-    at (0.0000, 0.0000, 0.3000) -> (-0.0419, -0.5977, 0.2437)
-    at (0.7000, 0.0000, 0.1500) -> (-0.0142, -0.7220, 0.3410)
-    at (0.0000, -0.5000, 0.9000) -> (0.1595, -0.6816, -1.1908)
-    at (0.5000, 0.5000, 1.5000) -> (0.1501, -0.1561, -6.6307)
+  ink=0.0395 marks=217 born=217 parcels=364
+  at=(0.0555, 0.0303, 0.0930) tip=(0.0000, 0.0000, 0.5000)
+  detail cap=0.1000 inhale=0.8313 presence=0.1580 reach=1.6593 speed=0.2616
+  tracers pooled=51 bands=[147.9 0.0 0.0 0.0] rings=[0.7 33.3 113.9] grid=7cbe0b4b
   ceiling none
 track burst kind=burst look=core population=own emission=99.7790 drive=0.8738
-  ink=0.9400 marks=116 born=116 parcels=5632
-  at=(-0.0131, 0.0105, 0.2633) tip=(0.0787, 0.0000, 0.0024)
-  detail front=0.0787 reach=0.6937 speed=1.3166
-  field
-    at (0.0000, 0.0000, 0.3000) -> (-0.2477, -3.5338, 1.2967)
-    at (0.7000, 0.0000, 0.1500) -> (-0.9066, -3.8511, 1.9417)
-    at (0.0000, -0.5000, 0.9000) -> (0.8235, -2.5500, 4.5174)
-    at (0.5000, 0.5000, 1.5000) -> (0.5773, -0.1391, -2.3884)
+  ink=0.9400 marks=236 born=236 parcels=858
+  at=(0.0099, 0.0055, 0.0675) tip=(0.0787, 0.0000, 0.0024)
+  detail front=0.0787 reach=0.8537 speed=2.1656
+  tracers pooled=0 bands=[71.2 0.0 0.0 0.0] rings=[52.5 18.7 0.0] grid=560608b2
   ceiling none
 track jet-default kind=jet look=wisp population=own emission=5.6782 drive=1.0000
-  ink=0.1840 marks=54 born=54 parcels=8320
-  at=(-0.0275, -0.0352, 0.2568) tip=(0.0000, 0.0000, 0.7147)
-  detail girth=0.5240 reach=0.8720 speed=1.3603 standing=0.7147
-  field
-    at (0.0000, 0.0000, 0.3000) -> (-0.1862, -2.6566, 2.2143)
-    at (0.7000, 0.0000, 0.1500) -> (-2.6709, -3.0019, 2.6406)
-    at (0.0000, -0.5000, 0.9000) -> (0.5084, 0.1532, 4.6299)
-    at (0.5000, 0.5000, 1.5000) -> (-1.2695, -2.1729, -0.9850)
+  ink=0.1840 marks=85 born=85 parcels=1378
+  at=(0.0090, -0.0078, 0.1642) tip=(0.0000, 0.0000, 0.7147)
+  detail girth=0.3773 reach=0.2515 speed=1.4287 standing=0.7147
+  tracers pooled=0 bands=[24.0 0.0 0.0 0.0] rings=[24.0 0.0 0.0] grid=0aa6bc45
   ceiling none
 
 @1600ms beat=body beatT=0.1974
 track shimmer-ambient kind=shimmer look=skin population=ambient emission=17.1013 drive=1.0000
-  ink=0.0025 marks=7 born=8 parcels=2432
-  at=(-0.2064, 0.5385, 0.4184) tip=(0.0000, 0.0000, 0.5000)
-  detail cap=0.1000 inhale=0.5500 presence=0.0361 reach=3.0570 speed=0.2645
-  field
-    at (0.0000, 0.0000, 0.3000) -> (-0.0574, -0.5118, 0.1254)
-    at (0.7000, 0.0000, 0.1500) -> (0.1045, -0.5703, 0.2757)
-    at (0.0000, -0.5000, 0.9000) -> (-0.6230, -1.1474, -0.8021)
-    at (0.5000, 0.5000, 1.5000) -> (-0.2175, -1.0157, -6.1854)
+  ink=0.0150 marks=266 born=266 parcels=364
+  at=(0.0202, 0.0327, 0.0577) tip=(0.0000, 0.0000, 0.5000)
+  detail cap=0.1000 inhale=0.5500 presence=0.0601 reach=1.8325 speed=0.2833
+  tracers pooled=147 bands=[176.0 0.0 0.0 0.0] rings=[0.0 45.8 130.2] grid=7a689c02
   ceiling none
 track burst kind=burst look=core population=own emission=0.0000 drive=0.4396
-  ink=0.0000 marks=1 born=169 parcels=5632
-  at=(0.2417, 0.3200, 0.0977) tip=(0.3306, 0.0000, 0.0099)
-  detail front=0.3306 reach=0.4128 speed=0.0488
-  field
-    at (0.0000, 0.0000, 0.3000) -> (-0.2939, -2.6198, 0.4555)
-    at (0.7000, 0.0000, 0.1500) -> (-0.0122, -2.3258, 1.1682)
-    at (0.0000, -0.5000, 0.9000) -> (-1.9462, -4.0942, 5.3748)
-    at (0.5000, 0.5000, 1.5000) -> (-0.6596, -3.0168, -0.6953)
+  ink=0.0000 marks=431 born=458 parcels=858
+  at=(-0.0186, -0.0455, 0.0200) tip=(0.3306, 0.0000, 0.0099)
+  detail front=0.3306 reach=2.0815 speed=0.9377
+  tracers pooled=431 bands=[206.6 0.0 0.0 0.0] rings=[31.0 121.6 54.1] grid=5bd20762
   ceiling none
 track jet-default kind=jet look=wisp population=own emission=25.2168 drive=1.0000
-  ink=0.2802 marks=73 born=92 parcels=8320
-  at=(-0.0968, 0.0007, 0.7087) tip=(0.0000, 0.0000, 1.2956)
-  detail girth=0.4500 reach=2.2953 speed=0.7172 standing=1.2956
-  field
-    at (0.0000, 0.0000, 0.3000) -> (-0.1422, -1.2678, 1.5692)
-    at (0.7000, 0.0000, 0.1500) -> (-2.2202, -1.5274, 1.9736)
-    at (0.0000, -0.5000, 0.9000) -> (-1.7802, -1.2950, 5.8036)
-    at (0.5000, 0.5000, 1.5000) -> (-2.2453, -4.5263, 0.4772)
+  ink=0.2802 marks=207 born=207 parcels=1378
+  at=(0.0073, -0.0251, 0.2444) tip=(0.0000, 0.0000, 1.2956)
+  detail girth=0.3240 reach=0.6813 speed=0.5870 standing=1.2956
+  tracers pooled=0 bands=[133.8 4.6 0.0 0.0] rings=[138.3 0.0 0.0] grid=4643b513
   ceiling none
 
 @2600ms beat=body beatT=0.8553
 track shimmer-ambient kind=shimmer look=skin population=ambient emission=7.2621 drive=1.0000
-  ink=0.0011 marks=1 born=9 parcels=2432
-  at=(-1.1713, -0.8894, 0.4569) tip=(0.0000, 0.0000, 0.5000)
-  detail cap=0.1000 inhale=0.5500 presence=0.0153 reach=1.5400 speed=0.2908
-  field
-    at (0.0000, 0.0000, 0.3000) -> (0.0780, -0.0075, 0.1247)
-    at (0.7000, 0.0000, 0.1500) -> (0.3758, 0.1757, 0.1898)
-    at (0.0000, -0.5000, 0.9000) -> (-1.0147, 1.1175, -2.9571)
-    at (0.5000, 0.5000, 1.5000) -> (-0.0190, 1.0129, -4.8856)
+  ink=0.0064 marks=318 born=320 parcels=364
+  at=(0.0746, 0.0454, 0.0340) tip=(0.0000, 0.0000, 0.5000)
+  detail cap=0.1000 inhale=0.5500 presence=0.0255 reach=2.0762 speed=0.3180
+  tracers pooled=281 bands=[176.0 0.0 0.0 0.0] rings=[0.0 25.1 150.8] grid=4b0d9bd2
   ceiling none
 track burst kind=burst look=core population=own emission=0.0000 drive=0.0143
-  ink=0.0000 marks=0 born=169 parcels=5632
-  at=(0.0000, 0.0000, 0.0000) tip=(0.4691, 0.0000, 0.0141)
-  detail front=0.4691 reach=0.0000 speed=0.0000
-  field
-    at (0.0000, 0.0000, 0.3000) -> (0.3884, -0.0372, 0.4439)
-    at (0.7000, 0.0000, 0.1500) -> (0.9563, 1.2398, 0.7302)
-    at (0.0000, -0.5000, 0.9000) -> (-3.2892, 3.8848, -2.0137)
-    at (0.5000, 0.5000, 1.5000) -> (0.0315, 3.9491, 3.7611)
+  ink=0.0000 marks=205 born=458 parcels=858
+  at=(-0.0541, -0.1201, 0.0200) tip=(0.4691, 0.0000, 0.0141)
+  detail front=0.4691 reach=2.0936 speed=0.4478
+  tracers pooled=205 bands=[29.5 0.0 0.0 0.0] rings=[0.0 6.8 22.8] grid=1c8dce5a
   ceiling none
 track jet-default kind=jet look=wisp population=own emission=44.3567 drive=1.0000
-  ink=0.4929 marks=79 born=195 parcels=8320
-  at=(-0.0961, 0.0249, 1.0438) tip=(0.0000, 0.0000, 1.2290)
-  detail girth=0.4500 reach=3.0276 speed=0.6299 standing=1.2290
-  field
-    at (0.0000, 0.0000, 0.3000) -> (0.2022, -0.0194, 1.5746)
-    at (0.7000, 0.0000, 0.1500) -> (-2.2422, 0.4537, 1.7563)
-    at (0.0000, -0.5000, 0.9000) -> (-2.8993, 4.4353, -0.3562)
-    at (0.5000, 0.5000, 1.5000) -> (-1.8359, 1.1121, 4.1616)
+  ink=0.4929 marks=702 born=702 parcels=1378
+  at=(0.0158, -0.0178, 0.0762) tip=(0.0000, 0.0000, 1.2290)
+  detail girth=0.3240 reach=0.9451 speed=0.4520 standing=1.2290
+  tracers pooled=371 bands=[457.9 0.0 0.0 0.0] rings=[420.0 38.0 0.0] grid=fef16f8f
   ceiling none

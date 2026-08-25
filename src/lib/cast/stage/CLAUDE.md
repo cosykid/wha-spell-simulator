@@ -8,8 +8,8 @@ and data; below it every cell draws its own form and nothing else.
 the Canvas2D engine it replaced, which is what made the cutover a swap at its
 three hosts rather than a rewrite of them. Read
 [`../../../../docs/animation-cells.md`](../../../../docs/animation-cells.md) and
-then [`../../../../docs/animation-hybrid.md`](../../../../docs/animation-hybrid.md),
-the two rulings this layer executes, before changing anything here.
+then [`../../../../docs/animation-volume.md`](../../../../docs/animation-volume.md),
+the rulings this layer executes, before changing anything here.
 
 Seal space everywhere (spec R-03): origin at the ring center, one unit = the ring
 radius, x right, y screen-down, z out of the paper. This directory is the one
@@ -32,9 +32,9 @@ place it becomes three.js world space.
 A frame is four steps. Match the drawing buffer to the canvas. Decide whether
 this is a cast at all (active, valid, not prepared, past `activatedAt`, inside
 `score.totalMs`) and clear if it is not. Aim the camera at the portal this ring
-makes. Then advance every cell to `timestamp - activatedAt`, stepping the
-substrate's parcel field with each one and painting the steps the accumulation
-can still be showing.
+makes. Then advance every cell to `timestamp - activatedAt` in whole steps and paint
+the final state once: the volume skin is stateless per repolygonize, so a call
+that caught up simulates silently and paints only where it landed.
 
 The cast itself is built once per `spellIR.signature`: compile the score, resolve
 one look row for the whole spell, build **one substrate for the whole cast** with
@@ -60,22 +60,22 @@ so a cell that integrates anything integrates it the same way at every frame
 rate. Stepping fresh to a timestamp is identical to stepping there incrementally,
 which is the contract both golden tiers stand on.
 
-**The paint budget is counted in steps, never in frames.** The trail deposits
-once per `PAINT_EVERY` steps of the product clock, so how much smear a cast
-carries follows the step count rather than the display's rate; and one call may
-deposit at most `PAINT_BURST` times however far behind it is, because a call that
-painted every step it simulated would take longer than the frame it was already
-late for and be later still next time. A frame that advanced no step
-re-composites what already stands rather than fading the buffer again.
+**The paint budget is counted in steps, never in frames.** The skin
+repolygonizes once per `PAINT_EVERY` steps of the product clock and at most
+`PAINT_BURST` (one) time per call however far behind it fell, because a
+repolygonize per caught-up step is the catch-up spiral the prototype
+diagnosed. At display rates above the paint cadence the mesh may lag one sim
+step; it never interpolates. A frame that advanced no step redraws what
+already stands.
 
-**The pigment is built once, on the first frame the stage ever draws.** Nothing
-in [`../hybrid/`](../hybrid/CLAUDE.md) depends on a score, so `warm` compiles its
-programs and bakes its stamp atlases long before a seal is closed, and a cast
-only calls `attach`. On a software device that compile is most of a second, and
-it used to land on the strike.
+**The volume is built once; the element's program compiles in the charge.**
+The polygonizer's buffers, the blot atlas and the wash programs belong to the
+stage ([`../volume/`](../volume/CLAUDE.md)) and are warmed before a seal is
+closed; a cast's `attach` builds its element's ink material and compiles it
+inside the 980ms charge beat, which is the budget that stall belongs in.
 
-**The camera is aimed before the cells are advanced**, because every painted step
-of the call billboards its brush marks against it.
+**The camera is aimed before the cells are advanced**, because the paint at the
+end of the call billboards the ambient washes against it.
 
 **Seeded rng only.** `Math.random` and `Date.now` are banned below this
 directory. The stage owns the only `timestamp` and converts it to cast time
@@ -111,9 +111,9 @@ where the canvas it stands in for did.
 triangle under it winds the other way. The substrate's meshes declare
 `side: THREE.DoubleSide` rather than reversing their own indices.
 
-**A cell owns no geometry, so `reset()` disposes the substrate.** What a cell
-holds is a seat at it; what holds textures and buffers is
-[`../hybrid/substrateStage.ts`](../hybrid/CLAUDE.md), and it is the thing parented
+**A cell owns no geometry, so `reset()` detaches the substrate.** What a cell
+holds is a seat at it; what holds the mesh and the textures is
+[`../volume/volumeStage.ts`](../volume/CLAUDE.md), and it is the thing parented
 under the seal root.
 
 ## Extending
@@ -141,7 +141,7 @@ under the seal root.
 
 - [`../CLAUDE.md`](../CLAUDE.md) — the cast, and the score this performs ·
   [`../cells/CLAUDE.md`](../cells/CLAUDE.md) — the performers ·
-  [`../hybrid/CLAUDE.md`](../hybrid/CLAUDE.md) — the substrate they paint with.
+  [`../volume/CLAUDE.md`](../volume/CLAUDE.md) — the substrate they paint with.
 - [`../../portal/CLAUDE.md`](../../portal/CLAUDE.md) — the tilted paper and the
   projection this camera reproduces.
 - [`../../renderer/CLAUDE.md`](../../renderer/CLAUDE.md) — the glyph overlay

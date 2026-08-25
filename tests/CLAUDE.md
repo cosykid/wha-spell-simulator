@@ -18,7 +18,7 @@ The whole suite is ~250 tests in ~15s. Run it before you commit.
 Load-bearing coverage, largest first:
 
 - [`symbolRecognition.test.ts`](symbolRecognition.test.ts) — `recognizeCandidates` against the real dictionary: rotation invariance, sigil-versus-sign confusion, contamination.
-- [`castHybrid.test.ts`](castHybrid.test.ts) — the substrate's pure core: the flow field both populations ride, the anti-confetti law, the ring attractor, the pigment ramp, the shared pool and the brush population. Its GPU half is a transcription of the same arithmetic and the look tier owns its pixels.
+- [`castVolume.test.ts`](castVolume.test.ts) — the substrate's pure core: the per-element behavior matrix, the chip-law numbers, tracer replay determinism, water's pool against earth's mound, the ring attractor's hollow, the gather's containment and the shared pool. The marching-cubes skin is a pure function of this state and the look tier owns its pixels.
 - [`spellPlan.test.ts`](spellPlan.test.ts) — `resolvePlan` and its rule modules. **Law tests**: every test names the ruling id it pins from [`../docs/animation-spec.md`](../docs/animation-spec.md), so re-ruling canon is a visible edit here rather than a tuning drift.
 - [`spellScore.test.ts`](spellScore.test.ts), [`castCells.test.ts`](castCells.test.ts), [`castLooks.test.ts`](castLooks.test.ts) — the cast's three layers: the beat clock and track envelopes, the cell contract every performer keeps, and the look table. The per-cell law suites (`cellsDirectional`, `cellsHold`, `cellsSwirl`) sit beside them.
 - [`sealReading.test.ts`](sealReading.test.ts) — `readSeal`: the facing source hierarchy, dead band, hysteresis, symmetry snap.
@@ -55,9 +55,10 @@ plan to a `SpellScore`, performs it through the real cells on a headless substra
 state as text at 850ms, 1100ms, 1600ms and 2600ms: the ambient medium alone during the charge, one
 timestamp inside the strike, two inside the body of a 4-second cast. What it writes is each cell's
 own **report** (how loudly it paints, where its mass stands, where its declared form is rooted and
-reaches, its mark tallies, the scalars its archetype publishes), the **flow field** it wrote measured
-at four fixed seal-space points, and the **ceiling** a holder publishes. No pixels — the mass lives in
-a GPU texture and pure Node has no context, so pixel truth belongs to the look tier in
+reaches, its tracer tallies, the scalars its archetype publishes), the channel's **tracer digest**
+(quantized mass per height band and radial ring, plus a hash of the fine occupancy grid), and the
+**ceiling** a holder publishes. No pixels — the skin is a pure function of this CPU state and pixel
+truth belongs to the look tier in
 [`../tests-e2e/golden-look.e2e.ts`](../tests-e2e/golden-look.e2e.ts). It reads only the score's two
 inputs (a pinned duration and a pinned signature), so a compiler change cannot move a cast baseline
 and a score or cell change always does. Its gate is the redesign's replayability contract:

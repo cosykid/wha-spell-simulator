@@ -20,14 +20,13 @@ import * as THREE from 'three';
 import { compileScore, scoreTracks } from '../score/compileScore.js';
 import { lookRow } from '../looks/table.js';
 import { cellFor } from '../cells/registry.js';
-import { Substrate } from '../hybrid/substrate.js';
-import { SubstrateStage } from '../hybrid/substrateStage.js';
-import { PAINT_BURST, PAINT_EVERY } from '../hybrid/tuning.js';
+import { VolumeSubstrate } from '../volume/substrate.js';
+import { VolumeStage } from '../volume/volumeStage.js';
+import { PAINT_BURST, PAINT_EVERY } from '../volume/tuning.js';
 import {
 	advanceCells,
 	bindCouplings,
 	newStageClock,
-	STAGE,
 	type Performer,
 	type StageClock
 } from './frames.js';
@@ -59,11 +58,11 @@ export class CastStage implements CastEngine {
 	readonly #camera = createPortalCamera();
 	readonly #sealRoot = createSealRoot();
 	/**
-	 * The pigment every cast is painted with. It belongs to the stage rather than
-	 * to a cast, because nothing it holds depends on a score and building it once
-	 * is what keeps a shader compile off the first frame of a spell.
+	 * The volume every cast is skinned with. It belongs to the stage rather than
+	 * to a cast: the polygonizer's buffers are the same for every spell, and a
+	 * cast only attaches its element row.
 	 */
-	readonly #pigment: SubstrateStage;
+	readonly #pigment: VolumeStage;
 	/** The compiled spell the running cast belongs to. A change restarts everything. */
 	#signature: string | null = null;
 	#cast: RunningCast | null = null;
@@ -75,7 +74,7 @@ export class CastStage implements CastEngine {
 			// than trusting what the last one left behind.
 			onContextRestored: () => this.reset()
 		});
-		this.#pigment = new SubstrateStage(this.#surface.renderer);
+		this.#pigment = new VolumeStage(this.#surface.renderer);
 		this.#sealRoot.add(this.#pigment.group);
 		this.#scene.add(this.#sealRoot);
 	}
@@ -111,9 +110,8 @@ export class CastStage implements CastEngine {
 
 		const canvas = this.#surface.canvas;
 		const pigment = this.#pigment;
-		pigment.resize(canvas.width, canvas.height);
-		// Aimed before the cells are advanced, because the steps of this call paint
-		// as they go and a paint billboards its marks against the camera.
+		// Aimed before the cells are advanced, because the paint at the end of the
+		// call billboards the ambient washes against the camera.
 		aimPortalCamera(this.#camera, {
 			canvas,
 			ring,
@@ -122,11 +120,11 @@ export class CastStage implements CastEngine {
 
 		let paints = 0;
 		advanceCells(score, performers, clock, tMs, (stepped, stepsLeft) => {
-			pigment.step(STAGE.stepMs / 1000, stepped.tMs / 1000, stepped.steps);
-			// The trail deposits once per two steps of the product clock, so the smear
-			// is a property of the step count rather than of the display's rate. A
-			// call that fell behind advances the whole flow and paints only its tail,
-			// which is the difference between catching up and never catching up.
+			// The skin repolygonizes once per two steps of the product clock, and at
+			// most once per call however far behind it fell: the field is rebuilt
+			// from the live tracers every time, so a call that caught up simulates
+			// silently and paints only its final state. Painting every caught-up
+			// step is the catch-up spiral the prototype diagnosed.
 			const wanted = stepped.steps % PAINT_EVERY === 0;
 			if (!wanted || stepsLeft >= PAINT_BURST * PAINT_EVERY) {
 				return;
@@ -135,7 +133,7 @@ export class CastStage implements CastEngine {
 			paints += 1;
 		});
 		if (paints === 0) {
-			pigment.present();
+			pigment.present(this.#scene, this.#camera);
 		}
 	}
 
@@ -169,11 +167,11 @@ export class CastStage implements CastEngine {
 		const look = lookRow({ sigil: score.sigil, element: score.element });
 		const quality = clamp(spellIR.quality);
 		const tracks = scoreTracks(score);
-		// One substrate for the whole cast: the pool is shared and partitioned by
-		// what each track has to fill, so a five-track spell costs one budget.
-		const substrate = new Substrate(
+		// One substrate for the whole cast: the tracer pool is shared and
+		// partitioned by what each track has to fill, so a five-track spell costs
+		// one budget, and every track's matter merges into one body per element.
+		const substrate = new VolumeSubstrate(
 			tracks,
-			look,
 			{ sigil: score.sigil, element: score.element },
 			score.signature
 		);
@@ -191,7 +189,7 @@ export class CastStage implements CastEngine {
 		// each holder's ceiling to what it holds.
 		bindCouplings(performers);
 
-		this.#pigment.attach(substrate);
+		this.#pigment.attach(substrate, this.#scene, this.#camera);
 		this.#signature = spellIR.signature;
 		this.#cast = { score, performers, clock: newStageClock() };
 		return this.#cast;

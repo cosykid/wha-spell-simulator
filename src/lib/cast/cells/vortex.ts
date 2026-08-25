@@ -6,7 +6,7 @@
  * | --------- | --------------------------------------------------------------- |
  * | charge    | nothing. R-01 lets only the ambient medium manifest here.        |
  * | strike    | the funnel is thrown up past where it settles, and spins up.     |
- * | body      | it stands and turns, dense and fed from the floor.               |
+ * | body      | it stands and turns, dense on the wall and fed from the floor.   |
  * | release   | it commits: lets go of the floor, stretches taller and thinner.   |
  * | afterglow | it unwinds, widening and losing its wall as it goes.             |
  *
@@ -15,14 +15,15 @@
  * wide whirl and a strong one a tall tight column.
  *
  * The flare is the pinch run backwards. A column's boundary narrows with height;
- * a funnel's widens, which is the same term with a negative `narrow`, and it is
- * why the marks torn off it lie tangentially instead of pointing out.
+ * a funnel's widens, which is the same `narrow` term negative. The eye stays
+ * open because birth is on the wall and the ring attractor pushes matter back
+ * out of the exact center (R-16's hollow, the substrate's own law).
  */
 
-import { burnAt, punchAt, shapeAt, shapeOf, sootAt, type BeatShape } from './arc.js';
+import { burnAt, punchAt, shapeAt, shapeOf, type BeatShape } from './arc.js';
 import { hushed, reportOf } from './perform.js';
-import { SPAWN } from '../hybrid/flow.js';
-import { FLOW, MARK } from '../hybrid/tuning.js';
+import { SPAWN } from '../volume/flow.js';
+import { BOUNDARY_WANDER } from '../volume/tuning.js';
 import { mulberry32 } from '../rng.js';
 import { clamp } from '../../utils/geometry.js';
 import type { Cell, CellConstraint, CellContext, CellReport } from './cell.js';
@@ -65,6 +66,9 @@ const PRESENCE: BeatShape = {
 /** Past the drive envelope a spun body still turns, slower. */
 const COAST = 0.4;
 
+/** A whirl's matter lives longer than its element's default, so it completes arcs. */
+const WHIRL_LIFE = 1.5;
+
 /**
  * A reach the holder's shell allows. R-18's ceiling caps how far the form may
  * spread, never how fast it turns, and a grip that is only half closed only half
@@ -95,34 +99,24 @@ export function createVortexCell(track: Track<'vortex'>, ctx: CellContext): Cell
 	let held: CellConstraint | null = null;
 	const tip: Vec3 = { x: 0, y: 0, z: 0 };
 
-	const shape = channel.shape;
-	shape.spawn = SPAWN.swirl;
-	shape.axisX = 0;
-	shape.axisY = 0;
-	shape.axisZ = 1;
-	shape.lobePhase = lobePhase;
-	shape.markFloor = 0.1;
-	shape.footprint = foot;
-	// The flare: a negative pinch widens the boundary with height where a
+	const flow = channel.flow;
+	flow.spawn = SPAWN.swirl;
+	flow.lobePhase = lobePhase;
+	flow.footprint = foot;
+	// The flare: a negative narrow widens the boundary with height where a
 	// column's narrows it.
-	shape.narrow = -Math.max(0, crown / Math.max(foot, 1e-3) - 1);
-	// Light. The pinch is only here to catch what strays outside the wall: a hard
-	// converge fights the foot's own ring attractor and fills the eye back in, and
-	// a funnel with a solid middle reads as a plume that happens to be spinning.
-	shape.converge = 0.22;
-	shape.wander = FLOW.boundaryWander * (0.6 + 0.5 * (1 - clamp(ctx.quality)));
-	shape.turbulence = FLOW.turbulence * channel.ink.turbulence * 0.9;
+	flow.narrow = -Math.max(0, crown / Math.max(foot, 1e-3) - 1);
+	// Light. A hard pinch fights the foot's own ring attractor and fills the eye
+	// back in, and a funnel with a solid middle reads as a plume that happens to
+	// be spinning.
+	flow.pinchMul = 0.15;
+	flow.wander = BOUNDARY_WANDER * (0.6 + 0.5 * (1 - clamp(ctx.quality)));
+	flow.turbMul = 0.9;
 	// A whirl is read from how far a parcel travels around it, so its matter has
 	// to live long enough to go round: short lives make a fountain of any field.
-	// Population is capped by emission rather than by lifetime, so a longer life
-	// buys arc length instead of density.
-	shape.drag = FLOW.drag * 0.36;
-	shape.lifeS = 1.3;
-	shape.lifeSpreadS = 1.5;
+	flow.lifeMul = WHIRL_LIFE;
 	// The wall the mass rides, between the foot and the crown.
-	shape.pool = (foot + crown) / 2;
-	shape.veil = 0.95;
-	shape.grain = 0.95;
+	flow.pool = (foot + crown) / 2;
 
 	return {
 		update(frame) {
@@ -138,31 +132,24 @@ export function createVortexCell(track: Track<'vortex'>, ctx: CellContext): Cell
 
 			const height = heldWithin(params.height * shapeAt(STATURE, frame), held);
 			const spread = heldWithin(crown * shapeAt(FLARE, frame), held);
-			shape.reach = Math.max(0.12, height);
-			shape.footprint = foot * (1 + 0.12 * Math.sin(swayPhase) * ctx.look.material.undulation);
-			shape.narrow = -Math.max(0, spread / Math.max(shape.footprint, 1e-3) - 1);
-			shape.speed = Math.abs(params.spin) * frame.drive;
-			shape.swirl = omega * turn * 1.9;
-			// A whirl turns more than it climbs. The updraft only has to carry matter
-			// up the wall, and any more than that reads as a fountain.
-			shape.buoyancy = FLOW.buoyancy * 0.32 * params.updraft * frame.drive;
-			// The floor boundary layer, as the one signed radial term: matter is
-			// drawn in at the foot and thrown up the wall.
-			shape.sink = params.feed * 1.1 * frame.drive;
-			shape.punch = punch;
-			shape.burn = burnAt(frame);
-			shape.heat = 0.95;
-			shape.emission = Math.min(
+			flow.reach = Math.max(0.12, height);
+			flow.footprint = foot * (1 + 0.12 * Math.sin(swayPhase) * ctx.look.material.undulation);
+			flow.narrow = -Math.max(0, spread / Math.max(flow.footprint, 1e-3) - 1);
+			// The updraft carries matter up the wall; the swirl mouth reads it.
+			flow.speed = params.updraft * frame.drive;
+			flow.swirl = omega * turn * 1.9;
+			// The floor boundary layer, as the signed ring attractor: matter is
+			// drawn onto the wall at the foot and pushed back out of the eye.
+			flow.sink = params.feed * 1.1 * frame.drive;
+			flow.punch = punch;
+			flow.burn = burnAt(frame);
+			flow.drain = frame.beat === 'afterglow' ? frame.beatT : 0;
+			flow.emission = Math.min(
 				0.92,
 				shapeOf(frame.emission, track.emission.gain) * presence + 0.45 * punch
 			);
 			tip.z = height;
-
-			channel.arc.drive = frame.drive;
-			channel.arc.punch = punch;
-			channel.arc.soot = sootAt(frame);
-			channel.arc.rate = MARK.rate * shape.emission + MARK.punchRate * 0.5 * punch;
-			channel.perform(frame.tMs, seconds);
+			channel.perform(frame.tMs);
 		},
 		bind(constraint) {
 			held = constraint;
@@ -170,12 +157,12 @@ export function createVortexCell(track: Track<'vortex'>, ctx: CellContext): Cell
 		report(): CellReport {
 			return reportOf(
 				channel,
-				clamp(shape.emission),
+				clamp(flow.emission),
 				SEAL_ORIGIN,
 				{ ...tip },
 				{
-					foot: shape.footprint,
-					crown: shape.footprint * (1 - shape.narrow),
+					foot: flow.footprint,
+					crown: flow.footprint * (1 - flow.narrow),
 					height: tip.z,
 					spin: spinPhase,
 					pitch: sense * (1 + 0.7 * (1 - stature)),

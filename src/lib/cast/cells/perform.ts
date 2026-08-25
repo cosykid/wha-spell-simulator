@@ -4,12 +4,12 @@
  *
  * Silence is a law rather than a convenience. R-01 gives the charge beat to the
  * ambient medium alone, so a cell that manifests anything is _absent_ there, not
- * merely dark: it asks its channel for no parcels and lays no marks, which also
- * keeps every accumulator at zero until the strike.
+ * merely dark: it asks its channel for no tracers, which also keeps every
+ * accumulator at zero until the strike.
  */
 
-import { blankShape } from '../hybrid/flow.js';
-import type { Channel } from '../hybrid/substrate.js';
+import { blankFlow } from '../volume/flow.js';
+import type { VolumeChannel } from '../volume/substrate.js';
 import type { CellFrame, CellReport } from './cell.js';
 import type { Vec3 } from '../../types.js';
 
@@ -17,15 +17,13 @@ import type { Vec3 } from '../../types.js';
  * Whether this frame is the charge, and if so, hushes the channel. Every cell
  * but the medium's opens with `if (hushed(frame, channel)) return;`.
  */
-export function hushed(frame: CellFrame, channel: Channel): boolean {
+export function hushed(frame: CellFrame, channel: VolumeChannel): boolean {
 	if (frame.beat !== 'charge') {
 		return false;
 	}
-	channel.shape.emission = 0;
-	channel.shape.punch = 0;
-	channel.arc.rate = 0;
-	channel.arc.punch = 0;
-	channel.perform(frame.tMs, frame.dtMs / 1000);
+	channel.flow.emission = 0;
+	channel.flow.punch = 0;
+	channel.perform(frame.tMs);
 	return true;
 }
 
@@ -41,7 +39,7 @@ const reading = { x: 0, y: 0, z: 0, reach: 0, speed: 0 };
  * stopped spreading, and R-01's silence is a claim about presence.
  */
 export function reportOf(
-	channel: Channel,
+	channel: VolumeChannel,
 	ink: number,
 	from: Vec3,
 	tip: Vec3,
@@ -59,5 +57,5 @@ export function reportOf(
 	};
 }
 
-/** The shape a cell starts from, so a cell only writes what it means. */
-export { blankShape };
+/** The flow a cell starts from, so a cell only writes what it means. */
+export { blankFlow };

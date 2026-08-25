@@ -23,10 +23,10 @@
  * section, which is why an intake never swallows its own burst.
  */
 
-import { burnAt, punchAt, shapeAt, shapeOf, sootAt, type BeatShape } from './arc.js';
+import { burnAt, punchAt, shapeAt, shapeOf, type BeatShape } from './arc.js';
 import { hushed, reportOf } from './perform.js';
-import { SPAWN } from '../hybrid/flow.js';
-import { FLOW, MARK } from '../hybrid/tuning.js';
+import { SPAWN } from '../volume/flow.js';
+import { BOUNDARY_WANDER } from '../volume/tuning.js';
 import { mulberry32 } from '../rng.js';
 import { clamp } from '../../utils/geometry.js';
 import type { Cell, CellContext, CellReport } from './cell.js';
@@ -62,6 +62,13 @@ const DEAD_DRAW = 1e-6;
 /** Past the drive envelope the stream still carries. */
 const COAST = 0.35;
 
+/**
+ * The medium is moved matter, never the spell's own body: its deposits are
+ * lighter, so the drawn-in stream reads as a thin wash merging at the mouth
+ * rather than as a second manifestation.
+ */
+const MEDIUM_DEPOSIT = 0.85;
+
 export function createIntakeCell(track: Track<'intake'>, ctx: CellContext): Cell {
 	const params = track.params;
 	const { channel } = ctx;
@@ -83,29 +90,18 @@ export function createIntakeCell(track: Track<'intake'>, ctx: CellContext): Cell
 	let flash = 0;
 	const tip: Vec3 = { x: 0, y: 0, z: 0 };
 
-	const shape = channel.shape;
-	shape.spawn = SPAWN.sink;
-	shape.axisX = 0;
-	shape.axisY = 0;
-	shape.axisZ = 1;
-	shape.lobePhase = lobePhase;
-	shape.markFloor = 0;
-	shape.narrow = 0.1;
-	shape.converge = 0.05;
-	shape.pool = mouth;
-	shape.ceiling = params.ceiling;
-	shape.wander = FLOW.boundaryWander * 0.9;
-	shape.turbulence = FLOW.turbulence * channel.ink.turbulence * 0.55;
-	shape.driftX = params.lateral.x * params.drift;
-	shape.driftY = params.lateral.y * params.drift;
-	shape.lifeS = 0.9;
-	shape.lifeSpreadS = 1.6;
-	// The medium is a veil rather than a body: many broad, near-transparent
-	// parcels, because a thin population at full opacity is countable dots. Its
-	// whole population lies on the plate, so this dial is also its plate wash, and
-	// a heavier one stacks into a slab of colour instead of a drawn-in stream.
-	shape.veil = 0.12;
-	shape.grain = 1.25;
+	const flow = channel.flow;
+	flow.spawn = SPAWN.sink;
+	flow.lobePhase = lobePhase;
+	flow.pinchMul = 0;
+	flow.turbMul = 0.55;
+	flow.wander = BOUNDARY_WANDER * 0.9;
+	flow.pool = mouth;
+	flow.ceiling = params.ceiling;
+	flow.driftX = params.lateral.x * params.drift;
+	flow.driftY = params.lateral.y * params.drift;
+	flow.footprint = BORN_RADIUS * 0.58;
+	flow.deposit = MEDIUM_DEPOSIT;
 
 	return {
 		update(frame) {
@@ -124,41 +120,25 @@ export function createIntakeCell(track: Track<'intake'>, ctx: CellContext): Cell
 			const lift = Math.min(params.ceiling, params.rise);
 			flash = shapeAt(BLOOM, frame) * (0.35 + 0.65 * clamp(ctx.look.material.emissive));
 
-			shape.footprint = BORN_RADIUS * 0.58;
-			shape.reach = Math.max(0.25, params.ceiling * 1.4 + lift);
-			shape.sink = params.draw * carry;
-			shape.swirl = params.swirl * carry;
-			shape.speed = Math.max(0.15, speed) * carry;
-			shape.buoyancy = FLOW.buoyancy * 0.1 * lift;
-			shape.punch = punch;
-			shape.burn = burnAt(frame);
-			// The world is pigment, never light: the medium sits below the spell's own
-			// fire so it can never out-read what it surrounds. Not at the foot of the
-			// ramp, though — a plate-bound wash is held near the ramp's floor anyway,
-			// so half was the row's darkest stops and the pull read as a stain rather
-			// than as the medium being moved.
-			shape.heat = 0.76;
-			shape.emission = Math.min(
+			flow.reach = Math.max(0.25, params.ceiling * 1.4 + lift);
+			flow.sink = params.draw * carry;
+			flow.swirl = params.swirl * carry;
+			flow.speed = Math.max(0.15, speed) * carry;
+			flow.punch = punch;
+			flow.burn = burnAt(frame);
+			flow.drain = frame.beat === 'afterglow' ? frame.beatT : 0;
+			flow.emission = Math.min(
 				0.45,
 				shapeOf(frame.emission, track.emission.gain) * presence * gutter
 			);
 			tip.x = to;
 			tip.z = lift;
-
-			channel.arc.drive = carry;
-			channel.arc.punch = punch;
-			channel.arc.soot = sootAt(frame);
-			// Long strokes drawn in, not tongues torn off: the medium is being moved,
-			// and nothing here is on fire.
-			channel.arc.tongueShare = 0.55;
-			channel.arc.inkShare = channel.ink.inkShare * 0.4;
-			channel.arc.rate = MARK.rate * 0.4 * shape.emission;
-			channel.perform(frame.tMs, seconds);
+			channel.perform(frame.tMs);
 		},
 		report(): CellReport {
 			return reportOf(
 				channel,
-				clamp(shape.emission),
+				clamp(flow.emission),
 				SEAL_ORIGIN,
 				{ ...tip },
 				{

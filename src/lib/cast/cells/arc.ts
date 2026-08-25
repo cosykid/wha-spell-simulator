@@ -2,15 +2,11 @@
  * @file The energy arc every cell shares, read off R-01's beats rather than
  * hand-timed against a clock.
  *
- * One arc feeds both populations, which is half of why they look like one thing:
- * a channel's parcel emission and its brush rate are two readings of the same
- * envelope, so the marks thicken and starve exactly when the mass does.
- *
  * Everything here is a pure function of one {@link CellFrame}, so it holds no
  * state and cannot drift between a fresh replay and an incremental one.
  */
 
-import { PUNCH } from '../hybrid/tuning.js';
+import { PUNCH } from '../volume/tuning.js';
 import { clamp } from '../../utils/geometry.js';
 import type { Beat } from '../../types.js';
 import type { CellFrame } from './cell.js';

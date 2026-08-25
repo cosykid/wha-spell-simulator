@@ -1,23 +1,24 @@
 /**
  * @file The jet cell: R-05's aimed column, and the two other beams a plan can
- * ask for. The prototype's approved column, performed on the shared substrate.
+ * ask for. The volume rework's reference archetype: matter rises on the site
+ * axis, the element says how.
  *
  * | beat      | the cell                                                        |
  * | --------- | --------------------------------------------------------------- |
  * | charge    | nothing. R-01 lets only the ambient medium manifest here.        |
- * | strike    | the punch class fires: a wide, violent, short-lived front.        |
- * | body      | the column stands on its own length and roars, licks tearing off. |
+ * | strike    | the punch class fires: a wide, violent, short-lived surge.        |
+ * | body      | the column stands on its own length, crown tearing and melting.   |
  * | release   | it commits: drive eases, the mass coasts and stretches taller.    |
- * | afterglow | it burns out from the foot up and the smoke crowns.               |
+ * | afterglow | it burns out from the foot up and the ground wash drains.         |
  *
  * `axis` is the plan's aim vector, which points where the long sign points and
  * never toward where it sits (R-05), so there is no lean term left to invert.
  */
 
-import { burnAt, punchAt, shapeAt, shapeOf, sootAt, type BeatShape } from './arc.js';
+import { burnAt, punchAt, shapeAt, shapeOf, type BeatShape } from './arc.js';
 import { hushed, reportOf } from './perform.js';
-import { SPAWN } from '../hybrid/flow.js';
-import { FLOW, MARK } from '../hybrid/tuning.js';
+import { SPAWN } from '../volume/flow.js';
+import { BOUNDARY_WANDER } from '../volume/tuning.js';
 import { mulberry32 } from '../rng.js';
 import { normalize3 } from '../vec3.js';
 import { clamp } from '../../utils/geometry.js';
@@ -128,30 +129,32 @@ export function createJetCell(track: Track<'jet'>, ctx: CellContext): Cell {
 	let standing = 0;
 	const tip: Vec3 = { x: root.x, y: root.y, z: root.z };
 
-	const shape = channel.shape;
-	shape.spawn = SPAWN.column;
-	shape.originX = root.x;
-	shape.originY = root.y;
-	shape.originZ = root.z;
-	shape.axisX = axis.x;
-	shape.axisY = axis.y;
-	shape.axisZ = axis.z;
-	shape.converge = params.converge;
-	shape.swirl = 0.5;
-	shape.lobePhase = lobePhase;
-	shape.markFloor = 0.34;
-	shape.siteCount = Math.min(4, params.sites.length);
-	for (let i = 0; i < shape.siteCount; i += 1) {
+	const flow = channel.flow;
+	flow.spawn = SPAWN.column;
+	flow.originX = root.x;
+	flow.originY = root.y;
+	flow.originZ = root.z;
+	flow.axisX = axis.x;
+	flow.axisY = axis.y;
+	flow.axisZ = axis.z;
+	// The plan's converge drafts the medium onto the axis: a harder pinch.
+	flow.pinchMul = 1 + 0.6 * params.converge;
+	flow.swirl = 0.35;
+	flow.lobePhase = lobePhase;
+	flow.siteCount = Math.min(4, params.sites.length);
+	for (let i = 0; i < flow.siteCount; i += 1) {
 		const site = params.sites[i];
-		shape.sites[i * 4] = site.at.x;
-		shape.sites[i * 4 + 1] = site.at.y;
-		shape.sites[i * 4 + 2] = site.facing.x;
-		shape.sites[i * 4 + 3] = site.facing.y;
+		flow.sites[i * 4] = site.at.x;
+		flow.sites[i * 4 + 1] = site.at.y;
+		flow.sites[i * 4 + 2] = site.facing.x;
+		flow.sites[i * 4 + 3] = site.facing.y;
 	}
 	// Quality is form roughness and never magnitude: a sloppier seal wanders its
 	// own boundary further rather than burning less brightly.
-	shape.wander = FLOW.boundaryWander * (0.7 + 0.6 * (1 - clamp(ctx.quality)));
-	shape.turbulence = FLOW.turbulence * channel.ink.turbulence;
+	flow.wander = BOUNDARY_WANDER * (0.7 + 0.6 * (1 - clamp(ctx.quality)));
+	// The quiet plume runs a thinner body, not a smaller pool: its deposits are
+	// lighter, so only its established tracers reach the skin.
+	flow.deposit = Math.sqrt(form.alpha);
 
 	return {
 		update(frame) {
@@ -159,30 +162,23 @@ export function createJetCell(track: Track<'jet'>, ctx: CellContext): Cell {
 				return;
 			}
 			const punch = punchAt(frame);
-			const soot = sootAt(frame);
 			standing = heldWithin(reach * shapeAt(EXTENT, frame), held, root, axis);
 			tip.x = root.x + axis.x * standing;
 			tip.y = root.y + axis.y * standing;
 			tip.z = root.z + axis.z * standing;
 
-			shape.reach = Math.max(0.05, standing);
-			shape.footprint = params.footprint * shapeAt(GIRTH, frame);
-			shape.speed = params.speed * frame.drive * (1 + 1.2 * punch);
-			shape.buoyancy = FLOW.buoyancy * (0.6 + 0.5 * form.length) * frame.drive;
-			shape.punch = punch;
-			shape.burn = burnAt(frame);
-			shape.heat = 1;
-			shape.emission = Math.min(
+			flow.reach = Math.max(0.05, standing);
+			flow.footprint = params.footprint * form.girth * shapeAt(GIRTH, frame);
+			flow.speed = params.speed * frame.drive * (1 + 1.2 * punch);
+			flow.punch = punch;
+			flow.burn = burnAt(frame);
+			flow.drain = frame.beat === 'afterglow' ? frame.beatT : 0;
+			flow.emission = Math.min(
 				0.94,
 				shapeOf(frame.emission, track.emission.gain) * shapeAt(PRESENCE, frame) * form.alpha +
 					0.55 * punch
 			);
-
-			channel.arc.drive = frame.drive;
-			channel.arc.punch = punch;
-			channel.arc.soot = soot;
-			channel.arc.rate = (MARK.rate * shape.emission + MARK.punchRate * punch) * form.alpha;
-			channel.perform(frame.tMs, frame.dtMs / 1000);
+			channel.perform(frame.tMs);
 		},
 		bind(constraint) {
 			held = constraint;
@@ -190,12 +186,12 @@ export function createJetCell(track: Track<'jet'>, ctx: CellContext): Cell {
 		report(): CellReport {
 			return reportOf(
 				channel,
-				shape.emission,
+				flow.emission,
 				{ ...root },
 				{ ...tip },
 				{
 					standing,
-					girth: shape.footprint
+					girth: flow.footprint
 				}
 			);
 		},

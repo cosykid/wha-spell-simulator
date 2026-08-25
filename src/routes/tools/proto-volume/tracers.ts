@@ -128,8 +128,8 @@ export class Tracers {
 				vz *= keep;
 			}
 
-			let nx = px + vx * dt;
-			let ny = py + vy * dt;
+			const nx = px + vx * dt;
+			const ny = py + vy * dt;
 			let nz = pz + vz * dt;
 
 			// Water's floor: land, splash a little, then join the pool.

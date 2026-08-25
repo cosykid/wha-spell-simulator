@@ -2,19 +2,15 @@
  * @file What a cast baseline says: each cell's own state at one moment, as text
  * a reviewer can read.
  *
- * The hybrid rework moved the mass into a GPU texture no assertion can reach, so
- * this tier reads what put it there instead: what each cell reported, the flow
- * field it wrote, and the ceiling it publishes. All three are plain CPU numbers,
- * which is the whole reason the layer is arranged this way — the choreography is
- * the testable part, and pixel truth belongs to the Playwright look tier, which
- * has a GPU.
+ * The volume rework keeps the mass on the CPU — a cast is a tracer cloud the
+ * GPU only skins — so this tier reads the choreography directly: what each
+ * cell reported, and its channel's population quantized into a digest. The
+ * digest's band and ring masses are legible in a diff ("the column's mass
+ * moved a height band"), and the grid hash pins the fine distribution a tuning
+ * drift cannot dodge. Pixel truth belongs to the Playwright look tier.
  *
- * A diff therefore says _what changed about the performance_ ("the column stands
- * 0.3 units shorter at 1600ms", "the medium lays forty fewer marks") rather than
- * "these pixels moved".
- *
- * Everything printed is rounded to fixed decimals, so float dust in the last
- * bits cannot rewrite a baseline.
+ * Everything printed is quantized before it is written, so float dust in the
+ * last bits cannot rewrite a baseline.
  *
  * @example
  * const text = frameText(cast, 1600);
@@ -22,28 +18,15 @@
 
 import { beatAt, progressThrough } from '../../src/lib/cast/score/beats.js';
 import { evaluateEnvelope } from '../../src/lib/cast/score/envelopes.js';
-import { flowAccel, type FlowSample } from '../../src/lib/cast/hybrid/flow.js';
 import type { HeadlessCast } from './cellHarness.js';
 import type { Performer } from '../../src/lib/cast/stage/frames.js';
-import type { Channel } from '../../src/lib/cast/hybrid/substrate.js';
+import type { VolumeChannel } from '../../src/lib/cast/volume/substrate.js';
 
 /** Decimals kept on every number in a baseline. */
 const PLACES = 4;
 
 /** One indent level. Two spaces. */
 const INDENT = '  ';
-
-/**
- * Seal-space points every channel's field is measured at: over the seal, out on
- * the rim, low and to the near side, and high and off-axis. Four numbers a cell
- * cannot fake, because they are the field it actually wrote.
- */
-const FIELD_PROBES: readonly (readonly [number, number, number])[] = [
-	[0, 0, 0.3],
-	[0.7, 0, 0.15],
-	[0, -0.5, 0.9],
-	[0.5, 0.5, 1.5]
-];
 
 function fixed(value: number, places = PLACES): string {
 	if (!Number.isFinite(value)) {
@@ -71,15 +54,12 @@ function trackText(cast: HeadlessCast, performer: Performer, atMs: number): stri
 	);
 }
 
-const sample: FlowSample = { x: 0, y: 0, z: 0, outward: 0 };
-
-/** The flow this channel wrote, measured where a cell cannot choose the point. */
-function fieldText(channel: Channel, atMs: number): string[] {
-	return FIELD_PROBES.map(([x, y, z]) => {
-		// Read at mid-life, which is where most of a channel's population sits.
-		flowAccel(sample, channel.shape, x, y, z, atMs / 1000, 0.5);
-		return `${INDENT}${INDENT}at ${triple(x, y, z)} -> ${triple(sample.x, sample.y, sample.z)}`;
-	});
+/** The population this channel reached, quantized. */
+function tracerText(channel: VolumeChannel): string {
+	const digest = channel.tracers.digest();
+	const bands = digest.bands.map((band) => band.toFixed(1)).join(' ');
+	const rings = digest.rings.map((ring) => ring.toFixed(1)).join(' ');
+	return `tracers pooled=${digest.pooled} bands=[${bands}] rings=[${rings}] grid=${digest.grid}`;
 }
 
 /** The ceiling this cell publishes to whatever it holds, if it holds anything. */
@@ -93,7 +73,7 @@ function ceilingText(performer: Performer): string {
 }
 
 /** Everything one cell reached, indented under its track. */
-function cellText(performer: Performer, channel: Channel, atMs: number): string[] {
+function cellText(performer: Performer, channel: VolumeChannel): string[] {
 	const report = performer.cell.report();
 	const detail = Object.keys(report.detail)
 		.sort()
@@ -103,8 +83,7 @@ function cellText(performer: Performer, channel: Channel, atMs: number): string[
 		`${INDENT}ink=${fixed(report.ink)} marks=${report.marks} born=${report.born} parcels=${channel.parcels}`,
 		`${INDENT}at=${triple(report.at.x, report.at.y, report.at.z)} tip=${triple(report.tip.x, report.tip.y, report.tip.z)}`,
 		`${INDENT}detail ${detail}`,
-		`${INDENT}field`,
-		...fieldText(channel, atMs),
+		`${INDENT}${tracerText(channel)}`,
 		`${INDENT}${ceilingText(performer)}`
 	];
 }
@@ -121,7 +100,7 @@ export function frameText(cast: HeadlessCast, atMs: number): string {
 	];
 	cast.performers.forEach((performer, index) => {
 		lines.push(trackText(cast, performer, atMs));
-		lines.push(...cellText(performer, cast.substrate.channels[index], atMs));
+		lines.push(...cellText(performer, cast.substrate.channels[index]));
 	});
 	return lines.join('\n');
 }

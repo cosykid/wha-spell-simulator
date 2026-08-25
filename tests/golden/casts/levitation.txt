@@ -2,128 +2,80 @@ cast levitation
 
 @0850ms beat=charge beatT=0.8673
 track shimmer-ambient kind=shimmer look=skin population=ambient emission=21.7311 drive=1.0000
-  ink=0.0086 marks=4 born=4 parcels=3072
-  at=(0.0013, -0.2424, 0.1465) tip=(0.0000, 0.0000, 0.5000)
-  detail cap=0.1000 inhale=0.7523 presence=0.1232 reach=1.4054 speed=0.3487
-  field
-    at (0.0000, 0.0000, 0.3000) -> (-0.1069, 0.0775, 0.0645)
-    at (0.7000, 0.0000, 0.1500) -> (-0.1742, -0.4648, 0.2724)
-    at (0.0000, -0.5000, 0.9000) -> (0.6609, -0.2253, -1.7278)
-    at (0.5000, 0.5000, 1.5000) -> (0.5228, -0.8353, -6.3650)
+  ink=0.0513 marks=157 born=157 parcels=425
+  at=(0.0362, 0.0150, 0.0968) tip=(0.0000, 0.0000, 0.5000)
+  detail cap=0.1000 inhale=0.7523 presence=0.2054 reach=1.5919 speed=0.2225
+  tracers pooled=27 bands=[105.2 0.0 0.0 0.0] rings=[0.0 28.4 76.8] grid=02cebfa0
   ceiling none
 track burst kind=burst look=core population=own capturedBy=hold-levitation emission=0.0000 drive=0.0000
-  ink=0.0000 marks=0 born=0 parcels=7040
+  ink=0.0000 marks=0 born=0 parcels=1002
   at=(0.0000, 0.0000, 0.0000) tip=(0.0000, 0.0000, 0.0000)
   detail front=0.0000 reach=0.0000 speed=0.0000
-  field
-    at (0.0000, 0.0000, 0.3000) -> (-0.2979, 0.2161, -0.0012)
-    at (0.7000, 0.0000, 0.1500) -> (-0.7710, -1.1984, 0.6328)
-    at (0.0000, -0.5000, 0.9000) -> (2.4558, -0.8246, 2.0872)
-    at (0.5000, 0.5000, 1.5000) -> (1.8901, -2.3868, -1.4250)
+  tracers pooled=0 bands=[0.0 0.0 0.0 0.0] rings=[0.0 0.0 0.0] grid=725c3305
   ceiling none
 track hold-levitation kind=hold look=body population=own emission=0.0000 drive=0.0000
-  ink=0.0000 marks=0 born=0 parcels=6272
+  ink=0.0000 marks=0 born=0 parcels=1173
   at=(0.0000, 0.0000, 0.0000) tip=(0.0000, 0.0000, 0.8609)
   detail closed=0.0000 fill=0.0000 grip=0.0000 radius=0.1540 reach=0.0000 speed=0.0000 spin=0.0000 turned=0.0000
-  field
-    at (0.0000, 0.0000, 0.3000) -> (-0.0326, 0.0236, -0.0001)
-    at (0.7000, 0.0000, 0.1500) -> (-0.7520, -0.1756, 0.1064)
-    at (0.0000, -0.5000, 0.9000) -> (0.1450, 0.9172, 0.1180)
-    at (0.5000, 0.5000, 1.5000) -> (-0.8533, -1.6820, -0.2911)
+  tracers pooled=0 bands=[0.0 0.0 0.0 0.0] rings=[0.0 0.0 0.0] grid=725c3305
   ceiling at=(0.0000, 0.0000, 0.8609) radius=0.0000 closed=0.0000
 
 @1100ms beat=strike beatT=0.3750
 track shimmer-ambient kind=shimmer look=skin population=ambient emission=20.3055 drive=1.0000
-  ink=0.0066 marks=6 born=6 parcels=3072
-  at=(-0.1046, 0.0800, 0.2761) tip=(0.0000, 0.0000, 0.5000)
-  detail cap=0.1000 inhale=0.8313 presence=0.0948 reach=2.9432 speed=0.2635
-  field
-    at (0.0000, 0.0000, 0.3000) -> (-0.0419, -0.5977, 0.2437)
-    at (0.7000, 0.0000, 0.1500) -> (-0.0532, -0.7220, 0.3410)
-    at (0.0000, -0.5000, 0.9000) -> (0.1595, -0.6816, -1.1908)
-    at (0.5000, 0.5000, 1.5000) -> (0.1501, -0.1561, -6.6307)
+  ink=0.0395 marks=217 born=217 parcels=425
+  at=(0.0445, -0.0305, 0.0873) tip=(0.0000, 0.0000, 0.5000)
+  detail cap=0.1000 inhale=0.8313 presence=0.1580 reach=1.6001 speed=0.2529
+  tracers pooled=54 bands=[147.8 0.0 0.0 0.0] rings=[0.0 38.7 109.1] grid=50c2c022
   ceiling none
 track burst kind=burst look=core population=own capturedBy=hold-levitation emission=99.7790 drive=0.8738
-  ink=0.9400 marks=116 born=116 parcels=7040
-  at=(-0.0314, 0.0120, 0.2634) tip=(0.0787, 0.0000, 0.0024)
-  detail front=0.0787 reach=0.7565 speed=1.2833
-  field
-    at (0.0000, 0.0000, 0.3000) -> (-0.2477, -3.5338, 1.2967)
-    at (0.7000, 0.0000, 0.1500) -> (-0.8958, -3.8511, 1.9417)
-    at (0.0000, -0.5000, 0.9000) -> (0.8235, -2.5640, 4.5174)
-    at (0.5000, 0.5000, 1.5000) -> (0.5702, -0.1462, -2.3884)
+  ink=0.9400 marks=236 born=236 parcels=1002
+  at=(-0.0137, 0.0499, 0.0704) tip=(0.0787, 0.0000, 0.0024)
+  detail front=0.0787 reach=0.8424 speed=2.2310
+  tracers pooled=0 bands=[70.9 0.0 0.0 0.0] rings=[49.4 21.4 0.0] grid=920ef963
   ceiling none
 track hold-levitation kind=hold look=body population=own emission=46.2267 drive=1.0000
-  ink=0.7896 marks=58 born=58 parcels=6272
-  at=(-0.0218, 0.0438, 1.0681) tip=(0.0000, 0.0000, 0.8633)
-  detail closed=0.1288 fill=0.1302 grip=0.1288 radius=0.1807 reach=1.6234 speed=1.2283 spin=0.0000 turned=0.0000
-  field
-    at (0.0000, 0.0000, 0.3000) -> (-0.0165, -0.2353, 7.0524)
-    at (0.7000, 0.0000, 0.1500) -> (-11.7023, -0.3975, 10.7439)
-    at (0.0000, -0.5000, 0.9000) -> (0.0693, 6.7521, 0.0992)
-    at (0.5000, 0.5000, 1.5000) -> (-8.5559, -8.6607, -9.5438)
+  ink=0.7896 marks=212 born=212 parcels=1173
+  at=(0.0091, -0.0061, 0.8877) tip=(0.0000, 0.0000, 0.8633)
+  detail closed=0.1288 fill=0.1302 grip=0.1288 radius=0.1807 reach=1.0296 speed=0.2624 spin=0.0000 turned=0.0000
+  tracers pooled=0 bands=[0.0 54.4 0.0 0.0] rings=[54.4 0.0 0.0] grid=c0ead9d5
   ceiling at=(0.0000, 0.0000, 0.8609) radius=0.1807 closed=0.1288
 
 @1600ms beat=body beatT=0.1974
 track shimmer-ambient kind=shimmer look=skin population=ambient emission=17.1013 drive=1.0000
-  ink=0.0025 marks=7 born=8 parcels=3072
-  at=(-0.2420, 0.3461, 0.2844) tip=(0.0000, 0.0000, 0.5000)
-  detail cap=0.1000 inhale=0.5500 presence=0.0361 reach=2.9640 speed=0.2083
-  field
-    at (0.0000, 0.0000, 0.3000) -> (-0.0574, -0.5118, 0.1254)
-    at (0.7000, 0.0000, 0.1500) -> (0.0601, -0.5703, 0.2757)
-    at (0.0000, -0.5000, 0.9000) -> (-0.6230, -1.1474, -0.8021)
-    at (0.5000, 0.5000, 1.5000) -> (-0.2175, -1.0157, -6.1854)
+  ink=0.0150 marks=266 born=266 parcels=425
+  at=(0.0528, -0.0135, 0.0588) tip=(0.0000, 0.0000, 0.5000)
+  detail cap=0.1000 inhale=0.5500 presence=0.0601 reach=1.7410 speed=0.2784
+  tracers pooled=147 bands=[176.7 0.0 0.0 0.0] rings=[0.6 46.0 130.2] grid=4f11dda3
   ceiling none
 track burst kind=burst look=core population=own capturedBy=hold-levitation emission=0.0000 drive=0.4396
-  ink=0.0000 marks=0 born=169 parcels=7040
-  at=(0.0000, 0.0000, 0.0000) tip=(0.3306, 0.0000, 0.0099)
-  detail front=0.3306 reach=0.0000 speed=0.0000
-  field
-    at (0.0000, 0.0000, 0.3000) -> (-0.2939, -2.6198, 0.4555)
-    at (0.7000, 0.0000, 0.1500) -> (-0.0122, -2.3258, 1.1682)
-    at (0.0000, -0.5000, 0.9000) -> (-1.9462, -4.1138, 5.3748)
-    at (0.5000, 0.5000, 1.5000) -> (-0.6712, -3.0283, -0.6953)
+  ink=0.0000 marks=435 born=458 parcels=1002
+  at=(-0.0205, 0.0304, 0.0200) tip=(0.3306, 0.0000, 0.0099)
+  detail front=0.3306 reach=2.0470 speed=0.9756
+  tracers pooled=435 bands=[202.8 0.0 0.0 0.0] rings=[21.2 125.1 56.5] grid=2b6c71ad
   ceiling none
 track hold-levitation kind=hold look=body population=own emission=23.2571 drive=1.0000
-  ink=0.9000 marks=188 born=222 parcels=6272
-  at=(0.0333, 0.0025, 1.1157) tip=(0.0000, 0.0000, 0.8746)
-  detail closed=0.4020 fill=0.4064 grip=0.4020 radius=0.2430 reach=2.0926 speed=0.5785 spin=0.0000 turned=0.0000
-  field
-    at (0.0000, 0.0000, 0.3000) -> (-0.0175, -0.1558, 6.0966)
-    at (0.7000, 0.0000, 0.1500) -> (-10.6303, -0.2296, 10.0578)
-    at (0.0000, -0.5000, 0.9000) -> (-0.1069, 5.4365, 0.2689)
-    at (0.5000, 0.5000, 1.5000) -> (-8.1716, -8.6346, -8.2492)
+  ink=0.9000 marks=788 born=788 parcels=1173
+  at=(0.0033, 0.0005, 0.9255) tip=(0.0000, 0.0000, 0.8746)
+  detail closed=0.4020 fill=0.4064 grip=0.4020 radius=0.2430 reach=1.1273 speed=0.1386 spin=0.0000 turned=0.0000
+  tracers pooled=0 bands=[0.0 531.9 10.2 0.0] rings=[542.1 0.0 0.0] grid=5f97d08f
   ceiling at=(0.0000, 0.0000, 0.8609) radius=0.2430 closed=0.4020
 
 @2600ms beat=body beatT=0.8553
 track shimmer-ambient kind=shimmer look=skin population=ambient emission=7.2621 drive=1.0000
-  ink=0.0011 marks=1 born=9 parcels=3072
-  at=(-1.0672, 0.8914, 0.1500) tip=(0.0000, 0.0000, 0.5000)
-  detail cap=0.1000 inhale=0.5500 presence=0.0153 reach=1.3986 speed=0.2992
-  field
-    at (0.0000, 0.0000, 0.3000) -> (0.0780, -0.0075, 0.1247)
-    at (0.7000, 0.0000, 0.1500) -> (0.2669, 0.1757, 0.1898)
-    at (0.0000, -0.5000, 0.9000) -> (-1.0147, 1.1175, -2.9571)
-    at (0.5000, 0.5000, 1.5000) -> (-0.0190, 1.0129, -4.8856)
+  ink=0.0064 marks=319 born=320 parcels=425
+  at=(0.0573, -0.0199, 0.0332) tip=(0.0000, 0.0000, 0.5000)
+  detail cap=0.1000 inhale=0.5500 presence=0.0255 reach=2.0807 speed=0.3237
+  tracers pooled=277 bands=[175.1 0.0 0.0 0.0] rings=[0.0 24.9 150.2] grid=6e3ade38
   ceiling none
 track burst kind=burst look=core population=own capturedBy=hold-levitation emission=0.0000 drive=0.0143
-  ink=0.0000 marks=0 born=169 parcels=7040
-  at=(0.0000, 0.0000, 0.0000) tip=(0.4691, 0.0000, 0.0141)
-  detail front=0.4691 reach=0.0000 speed=0.0000
-  field
-    at (0.0000, 0.0000, 0.3000) -> (0.3884, -0.0372, 0.4439)
-    at (0.7000, 0.0000, 0.1500) -> (1.0140, 1.2398, 0.7302)
-    at (0.0000, -0.5000, 0.9000) -> (-3.2892, 3.8057, -2.0137)
-    at (0.5000, 0.5000, 1.5000) -> (0.0209, 3.9385, 3.7611)
+  ink=0.0000 marks=186 born=458 parcels=1002
+  at=(-0.0439, -0.0350, 0.0200) tip=(0.4691, 0.0000, 0.0141)
+  detail front=0.4691 reach=2.0937 speed=0.4518
+  tracers pooled=186 bands=[26.4 0.0 0.0 0.0] rings=[0.0 4.7 21.7] grid=f8891b9d
   ceiling none
 track hold-levitation kind=hold look=body population=own emission=0.7563 drive=1.0000
-  ink=0.6987 marks=175 born=499 parcels=6272
-  at=(0.0277, -0.0112, 1.1514) tip=(0.0000, 0.0000, 0.8728)
-  detail closed=0.5129 fill=0.5185 grip=0.5129 radius=0.2623 reach=2.0687 speed=0.9024 spin=0.0000 turned=0.0000
-  field
-    at (0.0000, 0.0000, 0.3000) -> (0.0238, -0.0023, 5.7205)
-    at (0.7000, 0.0000, 0.1500) -> (-9.6217, 0.1528, 9.7384)
-    at (0.0000, -0.5000, 0.9000) -> (-0.1849, 5.6025, -0.1590)
-    at (0.5000, 0.5000, 1.5000) -> (-7.7969, -6.9004, -7.0753)
+  ink=0.6987 marks=1173 born=1173 parcels=1173
+  at=(-0.0114, -0.0070, 0.8774) tip=(0.0000, 0.0000, 0.8728)
+  detail closed=0.5129 fill=0.5185 grip=0.5129 radius=0.2623 reach=1.1456 speed=0.2207 spin=0.0000 turned=0.0000
+  tracers pooled=0 bands=[0.0 544.9 16.4 0.0] rings=[561.3 0.0 0.0] grid=d7d27572
   ceiling at=(0.0000, 0.0000, 0.8609) radius=0.2623 closed=0.5129

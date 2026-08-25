@@ -13,16 +13,16 @@
  * There is no charge gate here and there must not be: the charge is this cell's
  * beat, and R-01 makes it content rather than dead time.
  *
- * It is **pigment, not light**. The medium is drawn as faint wisps and grain low
- * on the heat ramp, capped hard in every beat, because a world that reads as
- * brightly as the manifestation it surrounds has stopped being the background of
- * the shot.
+ * In the volume vocabulary the medium is **washes, never body**: its deposit
+ * weight is zero, so it can never merge into the manifestation it surrounds,
+ * and the stage draws its tracers as a few large, faint granulated washes
+ * (`volume/ambient.ts`). Pigment, not light, and it may never dominate a frame.
  */
 
-import { burnAt, shapeAt, shapeOf, sootAt, type BeatShape } from './arc.js';
+import { burnAt, shapeAt, shapeOf, type BeatShape } from './arc.js';
 import { reportOf } from './perform.js';
-import { SPAWN } from '../hybrid/flow.js';
-import { FLOW, MARK } from '../hybrid/tuning.js';
+import { SPAWN } from '../volume/flow.js';
+import { BOUNDARY_WANDER } from '../volume/tuning.js';
 import { mulberry32 } from '../rng.js';
 import { clamp } from '../../utils/geometry.js';
 import type { Cell, CellContext, CellReport } from './cell.js';
@@ -52,9 +52,8 @@ const PRESENCE: BeatShape = {
 /**
  * The loudest the medium may ever paint, and a law rather than an intention: a
  * world that reads as brightly as the manifestation it surrounds has stopped
- * being the background of the shot. It is the product of how many parcels the
- * medium runs and how thinly each one is laid, which is why the population can
- * be dense while the veil stays faint.
+ * being the background of the shot. The wash alpha in `volume/tuning.ts` is
+ * sized against it.
  */
 const CAP = 0.1;
 
@@ -68,78 +67,50 @@ export function createShimmerCell(track: Track<'shimmer'>, ctx: CellContext): Ce
 	let inhale = 0;
 	const tip: Vec3 = { x: 0, y: 0, z: 0 };
 
-	const shape = channel.shape;
-	shape.spawn = SPAWN.medium;
-	shape.axisX = 0;
-	shape.axisY = 0;
-	shape.axisZ = 1;
-	shape.lobePhase = lobePhase;
-	shape.markFloor = 0;
-	shape.footprint = 1.35;
-	shape.narrow = 0.15;
-	shape.converge = -0.04;
-	shape.pool = 0.95;
-	shape.ceiling = params.ceiling;
-	shape.reach = Math.max(0.3, params.ceiling * 2.2);
-	shape.wander = FLOW.boundaryWander * 1.1;
-	shape.turbulence = FLOW.turbulence * channel.ink.turbulence * 0.35;
-	shape.drag = FLOW.drag * 0.6;
-	// The medium hangs around, but not so long that it walks all the way to the
-	// axis: a veil that piles up in the middle is a stain, not a room.
-	shape.lifeS = 0.8;
-	shape.lifeSpreadS = 1.3;
-	// The world is a veil. Its parcels are broad and almost transparent and there
-	// are a great many of them, which is the difference between grain in the paper
-	// and a scatter of countable specks.
-	shape.veil = 0.07;
-	shape.grain = 2.2;
+	const flow = channel.flow;
+	flow.spawn = SPAWN.medium;
+	flow.lobePhase = lobePhase;
+	flow.pinchMul = 0;
+	flow.turbMul = 0.35;
+	// The medium is thin whatever its element weighs: water's world drifts, it
+	// does not rain.
+	flow.weightMul = 0.12;
+	flow.wander = BOUNDARY_WANDER * 1.1;
+	flow.footprint = 1.35;
+	// The ring the medium gathers onto. An attractor at a radius, never a sink
+	// at a point: a medium that piles into the middle is a stain over the seal.
+	flow.pool = 0.95;
+	flow.ceiling = params.ceiling;
+	flow.reach = Math.max(0.3, params.ceiling * 2.2);
+	// Washes only: the medium never deposits into the body it surrounds.
+	flow.deposit = 0;
 
 	return {
 		update(frame) {
-			const seconds = frame.dtMs / 1000;
 			inhale = shapeAt(INHALE, frame);
 			const presence = shapeAt(PRESENCE, frame);
-			shape.sink = params.drift * inhale;
-			shape.swirl = params.wander * 0.8;
-			shape.speed = params.drift * (0.5 + 0.5 * inhale);
-			shape.buoyancy = FLOW.buoyancy * 0.04;
-			shape.punch = 0;
-			shape.burn = burnAt(frame);
-			// Low on the ramp and never off it: the medium is pigment, and a glowing
-			// dot is the look this rework exists to be rid of.
-			shape.heat = 0.26;
-			shape.emission =
-				0.24 * shapeOf(frame.emission, track.emission.gain) * presence * (0.5 + 0.5 * density);
-
-			channel.arc.drive = frame.drive;
-			channel.arc.punch = 0;
-			channel.arc.soot = sootAt(frame) * 0.5;
-			// The world carries no outline and leaves no smoke, and what it does lay
-			// is a broad faint wash rather than a tongue.
-			channel.arc.inkShare = 0;
-			channel.arc.crownShare = 0;
-			channel.arc.tongueShare = 0.6;
-			channel.arc.alpha = channel.ink.markAlpha * 0.2;
-			channel.arc.size = channel.ink.markSize * 1.15;
-			channel.arc.life = 1.6;
-			// Few, faint and long-lived. The veil is carried by the parcels; the
-			// marks only give it a grain, and a crowd of big washes over the middle
-			// of the seal is a stain rather than a room.
-			channel.arc.rate = MARK.rate * 0.2 * shape.emission * (0.4 + 0.6 * density);
-			channel.perform(frame.tMs, seconds);
+			flow.sink = params.drift * inhale;
+			flow.swirl = params.wander * 0.8;
+			flow.speed = params.drift * (0.5 + 0.5 * inhale);
+			flow.punch = 0;
+			flow.burn = burnAt(frame);
+			flow.drain = frame.beat === 'afterglow' ? frame.beatT : 0;
+			flow.emission =
+				0.4 * shapeOf(frame.emission, track.emission.gain) * presence * (0.5 + 0.5 * density);
+			channel.perform(frame.tMs);
 			tip.z = params.ceiling;
 		},
 		report(): CellReport {
-			// Loudness is what a channel paints, not how many parcels it runs: the
-			// medium runs a great many at a thirteenth of the substrate's opacity.
+			// Loudness is what the medium paints, not how many motes it runs: the
+			// washes are laid at a fraction of the substrate's own opacity.
 			return reportOf(
 				channel,
-				shape.emission * shape.veil,
+				flow.emission * 0.25,
 				SEAL_ORIGIN,
 				{ ...tip },
 				{
 					inhale,
-					presence: shape.emission,
+					presence: flow.emission,
 					cap: CAP
 				}
 			);

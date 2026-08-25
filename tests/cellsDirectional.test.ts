@@ -59,10 +59,10 @@ function fanProbe(cast: HeadlessCast) {
 	};
 }
 
-/** The flow shape a kind's cell wrote, which is its whole output to the pigment. */
+/** The track flow a kind's cell wrote, which is its whole output to the volume. */
 function shapeOf(cast: HeadlessCast, kind: ScoreTrack['kind']) {
 	const index = cast.performers.indexOf(performerOf(cast, kind));
-	return cast.substrate.channels[index].shape;
+	return cast.substrate.channels[index].flow;
 }
 
 test('R-01: neither directional cell manifests during the charge', () => {
