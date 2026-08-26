@@ -1,8 +1,8 @@
 /**
- * @file Wind's look row. Air has no body of its own: every role is faint, wide
- * and heavily trailed, so what the viewer reads is the path rather than the
- * parcel. `skin` still carries a surface, because wind manipulates something
- * visible even when it manifests nothing itself (R-11).
+ * @file Wind's look row. Air has no body of its own, so what the viewer reads is
+ * the path rather than the parcel: the tints are the faintest in the table and
+ * every role but `skin` is additive light. `skin` keeps a surface, because wind
+ * manipulates something visible even when it manifests nothing itself (R-11).
  *
  * The dictionary is explicit that the sigil "moves and manipulates air" and does
  * not create any, so the material has to draw a path taken rather than a thing
@@ -35,48 +35,23 @@ export const WIND_LOOKS: LookRow = {
 		weight: 0.18
 	},
 	core: {
-		sprite: 'spark',
 		tint: { core: [222, 252, 240], edge: AIR },
-		sizePx: [4, 14],
-		trail: { frames: 4, widthScale: 0.58 },
-		blend: 'lighter',
-		stretch: 1.2,
-		fade: 'decay'
+		blend: 'lighter'
 	},
 	body: {
-		sprite: 'streak',
 		tint: { core: AIR, edge: HAZE },
-		sizePx: [4, 12],
-		trail: { frames: 6, widthScale: 0.55 },
-		blend: 'lighter',
-		stretch: 2.2,
-		fade: 'decay'
+		blend: 'lighter'
 	},
 	wisp: {
-		sprite: 'streak',
 		tint: { core: HAZE, edge: DUST },
-		sizePx: [4, 11],
-		trail: { frames: 6, widthScale: 0.5 },
-		blend: 'lighter',
-		stretch: 2.6,
-		fade: 'leak'
+		blend: 'lighter'
 	},
 	ember: {
-		sprite: 'streak',
 		tint: { core: AIR, edge: HAZE },
-		sizePx: [2, 5],
-		trail: { frames: 5, widthScale: 0.4 },
-		blend: 'lighter',
-		stretch: 3,
-		fade: 'decay'
+		blend: 'lighter'
 	},
 	skin: {
-		sprite: 'disc',
 		tint: { core: HAZE, edge: DUST },
-		sizePx: [7, 13],
-		trail: null,
-		blend: 'source-over',
-		stretch: 0.3,
-		fade: 'leak'
+		blend: 'source-over'
 	}
 };

@@ -140,13 +140,14 @@ ownership boolean. If something is unpainted, that is a missing table row.
 element rows, `crystal` above earth, `aeroform` above wind. Both are argued from
 the dictionary's `sourceNotes`, not from taste: crystal "creates and manipulates
 crystalline objects", so it keeps earth's occluding `source-over` on the matter
-roles and parts company everywhere else (cool tints, the widest core-to-edge
-contrast in the table, the `glint` sprite, almost no trails); aeroform "creates
-and manipulates air, but does not itself move that air", so it is wind read as a
-volume rather than as a path (soft discs, the larger sizes, a fraction of wind's
-stretch, and `leak` wherever wind decays). Those two rows are PDF defect I
-closed: they were unrepresentable while looks keyed on element, and adding them
-touched nothing but `table.ts`. That is the whole claim the layer makes.
+roles and parts company everywhere else (cool tints, the widest core-to-edge fall
+in the table, a serrated edge and the shortest afterimage there is); aeroform
+"creates and manipulates air, but does not itself move that air", so it is wind
+read as a volume rather than as a path (the shallowest fall in the table against
+wind's, the widest ribbon against wind's narrowest, and several times its fill).
+Those two rows are PDF defect I closed: they were unrepresentable while looks
+keyed on element, and adding them touched nothing but `table.ts`. That is the
+whole claim the layer makes.
 
 **The stage owns no portal numbers.** The camera in
 [`stage/portalCamera.ts`](stage/portalCamera.ts) is read off the portal's own

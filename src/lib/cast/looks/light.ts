@@ -1,7 +1,7 @@
 /**
- * @file Light's look row. Light is pure emission, so every role is additive,
- * runs the largest sizes in the table, and leans on overlap rather than on
- * trails: a crowd of light parcels is supposed to bloom into one glow.
+ * @file Light's look row. Light is pure emission: every role but `skin` is
+ * additive and every tint sits near white, so a crowd of light parcels is
+ * supposed to bloom into one glow rather than read as separate things.
  *
  * The dictionary makes it "a variant of the fire sigil" that "manifests as light
  * rather than ordinary flame or heat", so its material is fire with everything
@@ -33,48 +33,23 @@ export const LIGHT_LOOKS: LookRow = {
 		weight: 0.05
 	},
 	core: {
-		sprite: 'spark',
 		tint: { core: [255, 255, 255], edge: FLARE },
-		sizePx: [5, 18],
-		trail: { frames: 2, widthScale: 0.7 },
-		blend: 'lighter',
-		stretch: 0.5,
-		fade: 'decay'
+		blend: 'lighter'
 	},
 	body: {
-		sprite: 'disc',
 		tint: { core: FLARE, edge: GLOW },
-		sizePx: [7, 18],
-		trail: { frames: 3, widthScale: 0.65 },
-		blend: 'lighter',
-		stretch: 0.8,
-		fade: 'decay'
+		blend: 'lighter'
 	},
 	wisp: {
-		sprite: 'disc',
 		tint: { core: GLOW, edge: GOLD },
-		sizePx: [7, 16],
-		trail: { frames: 4, widthScale: 0.55 },
-		blend: 'lighter',
-		stretch: 0.6,
-		fade: 'leak'
+		blend: 'lighter'
 	},
 	ember: {
-		sprite: 'streak',
 		tint: { core: [255, 255, 255], edge: GOLD },
-		sizePx: [2, 6],
-		trail: { frames: 4, widthScale: 0.45 },
-		blend: 'lighter',
-		stretch: 2,
-		fade: 'decay'
+		blend: 'lighter'
 	},
 	skin: {
-		sprite: 'disc',
 		tint: { core: FLARE, edge: GOLD },
-		sizePx: [9, 16],
-		trail: null,
-		blend: 'source-over',
-		stretch: 0.2,
-		fade: 'leak'
+		blend: 'source-over'
 	}
 };

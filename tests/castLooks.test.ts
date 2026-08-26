@@ -53,7 +53,7 @@ const ELEMENTS = Object.keys(EVERY_ELEMENT) as ElementId[];
  */
 const UNDERFOOT_LOOKS: LookRow = {
 	...WIND_LOOKS,
-	body: { ...WIND_LOOKS.body, sizePx: [3, 4] }
+	body: { ...WIND_LOOKS.body, tint: { core: [1, 2, 3], edge: [4, 5, 6] } }
 };
 const WITH_SIGIL_ROW: LookTable = { ...LOOKS, 'wind-underfoot': UNDERFOOT_LOOKS };
 
@@ -63,13 +63,19 @@ function roleLooks(row: LookRow): Look[] {
 	return Object.values(roles);
 }
 
-function everyLook(): Look[] {
-	return [...Object.values(LOOKS), INERT_LOOKS].flatMap(roleLooks);
+/** A tint's core-to-edge fall: how hard a role reads as lit rather than colored. */
+function fall(look: Look): number {
+	return look.tint.core.reduce((total, c, i) => total + Math.abs(c - look.tint.edge[i]), 0) / 3;
 }
 
-/** How heavily a whole row smears, summed over its roles. */
-function totalTrailFrames(row: LookRow): number {
-	return roleLooks(row).reduce((total, look) => total + (look.trail?.frames ?? 0), 0);
+/** How steeply a whole row falls, averaged over its roles. */
+function rowFall(row: LookRow): number {
+	const looks = roleLooks(row);
+	return looks.reduce((total, look) => total + fall(look), 0) / looks.length;
+}
+
+function everyLook(): Look[] {
+	return [...Object.values(LOOKS), INERT_LOOKS].flatMap(roleLooks);
 }
 
 /** Every row a cast can resolve to, named the way each row's argument is written. */
@@ -130,34 +136,16 @@ test('crystal keeps earth matter opaque, and everything else about it is a facet
 	// "Creates and manipulates crystalline objects": objects occlude.
 	assert.equal(CRYSTAL_LOOKS.body.blend, 'source-over');
 	assert.equal(CRYSTAL_LOOKS.skin.blend, 'source-over');
-	// Crystalline, so cool where earth is warm, and specular where earth is round.
+	// Crystalline, so cool where earth is warm.
 	const [red, , blue] = CRYSTAL_LOOKS.body.tint.core;
 	assert.ok(blue > red, 'crystal is the cool reading of earth');
 	assert.ok(EARTH_LOOKS.body.tint.core[2] < EARTH_LOOKS.body.tint.core[0]);
-	assert.equal(CRYSTAL_LOOKS.core.sprite, 'glint');
-	// A clod smears and a shard does not, so the whole row carries fewer ghosts
-	// than earth's does.
-	assert.ok(totalTrailFrames(CRYSTAL_LOOKS) < totalTrailFrames(EARTH_LOOKS));
-});
-
-test('aeroform is the volume reading of wind: softer, larger, and it lingers', () => {
-	// "Creates and manipulates air, but does not itself move that air."
-	for (const role of ROLES) {
-		assert.ok(
-			AEROFORM_LOOKS[role].stretch < WIND_LOOKS[role].stretch,
-			`aeroform ${role} streaks like wind`
-		);
-		assert.ok(
-			AEROFORM_LOOKS[role].sizePx[1] > WIND_LOOKS[role].sizePx[1],
-			`aeroform ${role} is no larger than wind`
-		);
+	// And the widest core-to-edge fall in the table, which is what makes a facet
+	// read as lit rather than as colored.
+	for (const [name, row] of Object.entries(EVERY_ROW)) {
+		if (row === CRYSTAL_LOOKS) continue;
+		assert.ok(rowFall(row) < rowFall(CRYSTAL_LOOKS), `${name} falls as steeply as crystal`);
 	}
-	// The air it made stays after the gust would have passed. Only the thrown
-	// fleck still dies on the wing.
-	assert.equal(WIND_LOOKS.body.fade, 'decay');
-	assert.equal(AEROFORM_LOOKS.body.fade, 'leak');
-	assert.equal(AEROFORM_LOOKS.core.fade, 'leak');
-	assert.equal(AEROFORM_LOOKS.ember.fade, 'decay');
 });
 
 test('R-11: a seal with no sigil and no element resolves to the inert row, never to nothing', () => {
@@ -178,17 +166,18 @@ test('every role resolves for every element, and for every sigil the lab offers'
 		for (const role of ROLES) {
 			const look = lookFor({ sigil: option.id, element: option.element }, role);
 			assert.ok(look, `${option.id} has no ${role}`);
-			assert.equal(typeof look.sprite, 'string');
 		}
 	}
 });
 
 test('every look in the table is drawable', () => {
 	for (const look of everyLook()) {
-		const [min, max] = look.sizePx;
-		assert.ok(min > 0 && max >= min, 'a look must have a positive, ordered size range');
-		assert.ok(look.stretch >= 0, 'stretch elongates, it never mirrors');
-		assert.ok(!look.trail || look.trail.frames > 0, 'a trail with no ghosts must be null');
+		for (const channel of [...look.tint.core, ...look.tint.edge]) {
+			assert.ok(
+				Number.isInteger(channel) && channel >= 0 && channel <= 255,
+				'a tint channel must be a byte `ink.ts` can convert'
+			);
+		}
 	}
 });
 
@@ -311,8 +300,7 @@ test('crystal is faceted where earth is a mass', () => {
 	);
 	assert.ok(CRYSTAL_LOOKS.material.flicker > EARTH_LOOKS.material.flicker);
 	assert.ok(CRYSTAL_LOOKS.material.flicker < FIRE_LOOKS.material.flicker, 'a glint is not a flame');
-	// A clod smears and a shard does not, the same argument the roles' null
-	// trails make, restated where the cell stage can read it.
+	// A clod smears and a shard does not, said where the cell stage can read it.
 	assert.ok(
 		rivalMaterials(CRYSTAL_LOOKS).every(
 			(rival) => rival.trailPersistence > CRYSTAL_LOOKS.material.trailPersistence
@@ -321,8 +309,15 @@ test('crystal is faceted where earth is a mass', () => {
 	);
 });
 
-test('aeroform is wind read as a volume, in material as well as in art', () => {
-	// "Creates and manipulates air, but does not itself move that air."
+test('aeroform is wind read as a volume rather than as a path', () => {
+	// "Creates and manipulates air, but does not itself move that air." The tints
+	// part company with wind first: this row never goes as deep, and its
+	// core-to-edge fall is the shallowest in the table, a shallow fall being what
+	// makes a mass read as soft rather than as a lit edge.
+	for (const [name, row] of Object.entries(EVERY_ROW)) {
+		if (row === AEROFORM_LOOKS) continue;
+		assert.ok(rowFall(row) > rowFall(AEROFORM_LOOKS), `${name} falls as gently as aeroform`);
+	}
 	assert.ok(
 		rivalMaterials(AEROFORM_LOOKS).every(
 			(rival) => rival.ribbonWidth < AEROFORM_LOOKS.material.ribbonWidth

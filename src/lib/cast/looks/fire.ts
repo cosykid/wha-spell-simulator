@@ -1,7 +1,6 @@
 /**
  * @file Fire's look row. Fire is a light source, so every role but `skin` is
- * additive, stretches hard, and trails: a flame reads as motion smeared over
- * the frame it was in.
+ * additive: a flame is seen through and never in front of.
  *
  * The tints are carried over from the field renderer's palette so the phase 5
  * cutover changes a spell's motion without changing its color.
@@ -14,7 +13,9 @@
  * and the only motion texture a viewer will name it by, so no other row is
  * allowed near it. It is the row that breaks up the finest and the row with no
  * bands at all: the sigil converges potential to a point rather than channeling
- * a flow, and a striped flame reads as cloth.
+ * a flow, and a striped flame reads as cloth. Its afterimage outlasts every row
+ * that is matter, because a flame reads as motion smeared over the frame it was
+ * in.
  */
 
 import type { LookRow } from './look.js';
@@ -38,48 +39,23 @@ export const FIRE_LOOKS: LookRow = {
 		weight: 0.12
 	},
 	core: {
-		sprite: 'spark',
 		tint: { core: [255, 238, 186], edge: HOT },
-		sizePx: [4, 16],
-		trail: { frames: 3, widthScale: 0.62 },
-		blend: 'lighter',
-		stretch: 0.9,
-		fade: 'decay'
+		blend: 'lighter'
 	},
 	body: {
-		sprite: 'disc',
 		tint: { core: HOT, edge: FLAME },
-		sizePx: [6, 16],
-		trail: { frames: 4, widthScale: 0.58 },
-		blend: 'lighter',
-		stretch: 1.4,
-		fade: 'decay'
+		blend: 'lighter'
 	},
 	wisp: {
-		sprite: 'disc',
 		tint: { core: FLAME, edge: SMOKE },
-		sizePx: [7, 15],
-		trail: { frames: 5, widthScale: 0.5 },
-		blend: 'lighter',
-		stretch: 1,
-		fade: 'leak'
+		blend: 'lighter'
 	},
 	ember: {
-		sprite: 'streak',
 		tint: { core: [255, 232, 150], edge: FLAME },
-		sizePx: [2, 6],
-		trail: { frames: 4, widthScale: 0.45 },
-		blend: 'lighter',
-		stretch: 2.4,
-		fade: 'decay'
+		blend: 'lighter'
 	},
 	skin: {
-		sprite: 'disc',
 		tint: { core: FLAME, edge: SMOKE },
-		sizePx: [8, 14],
-		trail: null,
-		blend: 'source-over',
-		stretch: 0.2,
-		fade: 'leak'
+		blend: 'source-over'
 	}
 };

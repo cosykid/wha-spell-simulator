@@ -4,17 +4,10 @@
  * does not itself move that air. It complements the wind sigil, which moves air
  * without creating it."
  *
- * Wind is a path, so its row is thin, hard and heavily streaked. Aeroform is a
- * volume, so this row is the opposite reading of the same element: soft discs
- * where wind runs streaks, the largest sizes of the two rows in every role, a
- * fraction of wind's stretch, and few wide ghosts that veil rather than many
- * narrow ones that draw a trajectory.
- *
- * One rule carries the difference in time: **wind's parcels die on the wing and
- * aeroform's linger**, because the air it made stays after the gust would have
- * passed. Every role wind decays, this row leaks. Only `ember`, a fleck thrown
- * off rather than air made, still decays. The entry's semantics agree — the
- * widest `spread` of any sigil, the lowest `focus`, a positive `lifetimeBias`.
+ * Wind is a path and aeroform is a volume, and what carries that difference in
+ * the tints is contrast. This row is paler and greyer than wind's, it never goes
+ * as deep, and its core-to-edge fall is the shallowest in the table, because a
+ * shallow fall is what makes a mass read as soft rather than as a lit edge.
  *
  * The material reads the same sentence as a volume. Aeroform carries the widest
  * ribbon in the table against wind's narrowest, several times wind's fill, and
@@ -49,48 +42,23 @@ export const AEROFORM_LOOKS: LookRow = {
 		weight: 0.32
 	},
 	core: {
-		sprite: 'disc',
 		tint: { core: [236, 250, 250], edge: VEIL },
-		sizePx: [5, 16],
-		trail: { frames: 2, widthScale: 0.7 },
-		blend: 'lighter',
-		stretch: 0.4,
-		fade: 'leak'
+		blend: 'lighter'
 	},
 	body: {
-		sprite: 'disc',
 		tint: { core: VEIL, edge: BLOOM },
-		sizePx: [7, 17],
-		trail: { frames: 3, widthScale: 0.8 },
-		blend: 'lighter',
-		stretch: 0.5,
-		fade: 'leak'
+		blend: 'lighter'
 	},
 	wisp: {
-		sprite: 'disc',
 		tint: { core: BLOOM, edge: MIST },
-		sizePx: [7, 16],
-		trail: { frames: 4, widthScale: 0.75 },
-		blend: 'lighter',
-		stretch: 0.6,
-		fade: 'leak'
+		blend: 'lighter'
 	},
 	ember: {
-		sprite: 'streak',
 		tint: { core: VEIL, edge: BLOOM },
-		sizePx: [3, 6],
-		trail: { frames: 3, widthScale: 0.45 },
-		blend: 'lighter',
-		stretch: 1.4,
-		fade: 'decay'
+		blend: 'lighter'
 	},
 	skin: {
-		sprite: 'disc',
 		tint: { core: BLOOM, edge: MIST },
-		sizePx: [9, 16],
-		trail: null,
-		blend: 'source-over',
-		stretch: 0.2,
-		fade: 'leak'
+		blend: 'source-over'
 	}
 };
