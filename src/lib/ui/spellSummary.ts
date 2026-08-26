@@ -43,6 +43,9 @@ function closedWithoutSpellStatus(spellIR: SpellIR | null | undefined): string {
 	return 'Ring closed - no stable magic detected';
 }
 
+/** Status line shown while a recompute is reading the drawing. */
+const READING_STATUS = 'Reading the seal…';
+
 const CLOSED_WITHOUT_SPELL_STATUSES = [
 	{
 		matchingWarnings: [GLYPH_WARNINGS.unsupportedMultipleRings],
@@ -123,7 +126,7 @@ export function meterPips(value: number | null | undefined, total = 10): number 
  * The returned object is deliberately plain data so Svelte components can render
  * it reactively without depending on parser/compiler internals.
  *
- * @param input - Current stores, recognition result, compiled spell IR, display toggles, and history state.
+ * @param input - Current stores, recognition result, compiled spell IR, display toggles, history state, and the in-flight recognition flag.
  * @returns Display-ready spell summary for the simulator controls and canvas chrome.
  */
 export function computeSummary({
@@ -136,7 +139,8 @@ export function computeSummary({
 	placementCount = 0,
 	hintDismissed = false,
 	canUndo,
-	canRedo
+	canRedo,
+	recognizing = false
 }: {
 	store: StrokeStore;
 	pipeline: ClassifiedDrawing | null | undefined;
@@ -148,6 +152,7 @@ export function computeSummary({
 	hintDismissed?: boolean;
 	canUndo?: boolean;
 	canRedo?: boolean;
+	recognizing?: boolean;
 }) {
 	const ringClosed = Boolean(pipeline?.ring?.complete);
 	const hasUnsupportedMultipleRings = Boolean(pipeline?.ring?.unsupportedMultipleRings?.length);
@@ -157,13 +162,21 @@ export function computeSummary({
 	const hasUnsupportedStructure = hasUnsupportedMultipleRings || hasUnsupportedMultipleSigils;
 	const closedWithoutSpell = ringClosed && !spellIR?.active;
 
-	const statusText = hasUnsupportedMultipleRings
-		? 'Multiple rings detected - undo or clear'
-		: hasUnsupportedMultipleSigils
-			? 'Multiple sigils detected - undo or clear'
-			: closedWithoutSpell
-				? closedWithoutSpellStatus(spellIR)
-				: (spellIR?.status ?? 'No ring detected');
+	// While recognition is reading, every other field keeps describing the last
+	// applied result. Only the status line switches, so stale text such as
+	// "No ring detected" cannot pass for a fresh verdict on the new drawing.
+	// An empty canvas has nothing to read, so the override waits for ink.
+	const reading = recognizing && (store.count() > 0 || placementCount > 0);
+
+	const statusText = reading
+		? READING_STATUS
+		: hasUnsupportedMultipleRings
+			? 'Multiple rings detected - undo or clear'
+			: hasUnsupportedMultipleSigils
+				? 'Multiple sigils detected - undo or clear'
+				: closedWithoutSpell
+					? closedWithoutSpellStatus(spellIR)
+					: (spellIR?.status ?? 'No ring detected');
 
 	// The canvas shows its sealed/locked styling only for finished spells, while arrange
 	// mode locks freehand capture without that styling so shapes can still be edited.
@@ -174,7 +187,9 @@ export function computeSummary({
 
 	return {
 		statusText,
-		statusClass: spellStatusClass(spellIR, closedWithoutSpell, hasUnsupportedStructure),
+		statusClass: reading
+			? 'reading'
+			: spellStatusClass(spellIR, closedWithoutSpell, hasUnsupportedStructure),
 		element: spellIR?.element ? spellIR.element : 'None',
 		manifestation: formatManifestations(spellIR),
 		quality: clamp(spellIR?.quality ?? 0),

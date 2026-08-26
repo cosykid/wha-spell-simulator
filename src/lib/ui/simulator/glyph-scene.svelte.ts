@@ -16,6 +16,9 @@ import { visibleCanvasShortAxis } from './layout.js';
 import type { RecognitionPipeline } from './recognition-pipeline.svelte.js';
 import type { SimulatorUiState } from './ui-state.svelte.js';
 
+/** Opacity of candidate debug boxes while a newer recognition is still reading. */
+const STALE_DIAGNOSTICS_ALPHA = 0.35;
+
 interface SimulatorGlyphSceneOptions {
 	config: AppConfig;
 	drawing: SimulatorDrawingState;
@@ -121,6 +124,12 @@ function diagnosticsEntity({
 				return;
 			}
 			const pipeline = recognition.pipeline;
+			ctx.save();
+			// Candidate boxes describe the previous result. Fade them while a newer
+			// recognition is reading so they do not pass for fresh output.
+			if (recognition.recognizing) {
+				ctx.globalAlpha = STALE_DIAGNOSTICS_ALPHA;
+			}
 			drawCandidateDebug(
 				ctx,
 				pipeline?.candidates,
@@ -128,6 +137,7 @@ function diagnosticsEntity({
 				config.renderer.effectSize
 			);
 			drawStrokeIdDebug(ctx, drawing.renderInkStrokes());
+			ctx.restore();
 		}
 	};
 }

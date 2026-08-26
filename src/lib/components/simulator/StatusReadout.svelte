@@ -82,6 +82,22 @@ the status string.
 		background: var(--violet);
 	}
 
+	.status-line.reading {
+		color: var(--ink-sepia-45);
+		font-style: italic;
+	}
+
+	.status-line.reading::before {
+		background: var(--ink-sepia-45);
+		animation: reading-pulse 1.1s ease-in-out infinite;
+	}
+
+	@keyframes reading-pulse {
+		50% {
+			opacity: 0.35;
+		}
+	}
+
 	.status-meta {
 		display: flex;
 		align-items: baseline;
@@ -116,6 +132,10 @@ the status string.
 	@media (prefers-reduced-motion: reduce) {
 		.status-meta {
 			transition: none;
+		}
+
+		.status-line.reading::before {
+			animation: none;
 		}
 	}
 </style>

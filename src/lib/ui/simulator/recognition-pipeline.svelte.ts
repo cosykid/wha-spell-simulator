@@ -69,6 +69,8 @@ export class RecognitionPipeline {
 	dictionary = $state<Dictionary | null>(null);
 	/** User-facing spell state summary. */
 	summary = $state<SpellSummary>({ ...INITIAL_SUMMARY });
+	/** True while a recompute is pending or in flight, until its result applies. */
+	recognizing = $state(false);
 	/** Diagnostics tree displayed in the sidebar. */
 	diagnostics = $state<SimulatorDiagnostics>({
 		ast: null,
@@ -181,11 +183,14 @@ export class RecognitionPipeline {
 	cancelActiveRecognition() {
 		this.cancelScheduledRecompute();
 		this.#recomputeSeq += 1;
+		// Nothing can apply a result anymore, so the reading state must not stick.
+		this.#setRecognizing(false);
 	}
 
 	/** Schedules recognition after a short debounce window. */
 	scheduleRecompute(delay: number) {
 		this.cancelScheduledRecompute();
+		this.#setRecognizing(true);
 		this.#recomputeTimer = setTimeout(() => {
 			this.#recomputeTimer = null;
 			void this.recompute();
@@ -200,9 +205,13 @@ export class RecognitionPipeline {
 	 */
 	async recompute() {
 		if (!this.dictionary || !this.#dictionarySnapshot) {
+			// A scheduled recompute can fire before assets finish loading. No result
+			// will ever apply for it, so drop the reading state.
+			this.#setRecognizing(false);
 			return;
 		}
 
+		this.#setRecognizing(true);
 		this.refreshStrokes();
 		const seq = ++this.#recomputeSeq;
 		let result: ClassifiedDrawing;
@@ -232,6 +241,11 @@ export class RecognitionPipeline {
 			if (isDrawingClassifierSuperseded(error)) {
 				return;
 			}
+			// Only the recompute that still owns the sequence may clear the reading
+			// state. Clearing from a stale one would hide its replacement's indicator.
+			if (seq === this.#recomputeSeq) {
+				this.#setRecognizing(false);
+			}
 			console.error(error);
 			return;
 		}
@@ -249,6 +263,9 @@ export class RecognitionPipeline {
 			return;
 		}
 
+		// Direct write instead of #setRecognizing: the summary rebuild below
+		// already picks up the cleared flag.
+		this.recognizing = false;
 		this.#pipeline = result;
 		this.#previousRing = this.#pipeline.ring;
 		this.#spellIR = carrySpellActivation(
@@ -258,6 +275,15 @@ export class RecognitionPipeline {
 		this.summary = this.#computeSummary();
 		this.#options.setInputLocked(this.summary.inputLocked);
 		this.diagnostics = this.#buildDiagnostics();
+	}
+
+	/** Flips the in-flight flag and refreshes the summary so the status line tracks it. */
+	#setRecognizing(recognizing: boolean) {
+		if (this.recognizing === recognizing) {
+			return;
+		}
+		this.recognizing = recognizing;
+		this.refreshSummary();
 	}
 
 	#computeSummary() {
@@ -271,7 +297,8 @@ export class RecognitionPipeline {
 			placementCount: this.#options.placements.count(),
 			hintDismissed: this.#options.hintDismissed(),
 			canUndo: this.#options.canUndo(),
-			canRedo: this.#options.canRedo()
+			canRedo: this.#options.canRedo(),
+			recognizing: this.recognizing
 		});
 	}
 

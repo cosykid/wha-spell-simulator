@@ -104,6 +104,60 @@ test('erase mode locks freehand input without sealing the canvas', () => {
 	assert.equal(summary.canvasLocked, false);
 });
 
+test('overrides the status line while recognition is reading the drawing', () => {
+	const summary = computeSummary({
+		store: storeWithCount(3),
+		pipeline: { ring: { complete: false } } as ClassifiedDrawing,
+		spellIR: { active: false, valid: true, status: 'No ring detected' } as SpellIR,
+		showGuides: true,
+		recognizing: true
+	});
+
+	assert.equal(summary.statusText, 'Reading the seal…');
+	assert.equal(summary.statusClass, 'reading');
+});
+
+test('keeps locks and meters from the last result while reading', () => {
+	const summary = computeSummary({
+		store: storeWithCount(3),
+		pipeline: { ring: { complete: true } } as ClassifiedDrawing,
+		spellIR: { active: true, valid: true, status: 'Active spell', quality: 0.8 } as SpellIR,
+		showGuides: true,
+		recognizing: true
+	});
+
+	assert.equal(summary.statusText, 'Reading the seal…');
+	assert.equal(summary.inputLocked, true);
+	assert.equal(summary.canvasLocked, true);
+	assert.equal(summary.quality, 0.8);
+});
+
+test('shows the reading state for placement-only drawings', () => {
+	const summary = computeSummary({
+		store: storeWithCount(0),
+		pipeline: null,
+		spellIR: null,
+		showGuides: true,
+		placementCount: 2,
+		recognizing: true
+	});
+
+	assert.equal(summary.statusText, 'Reading the seal…');
+});
+
+test('skips the reading state when the canvas has no ink to read', () => {
+	const summary = computeSummary({
+		store: storeWithCount(0),
+		pipeline: { ring: { complete: false } } as ClassifiedDrawing,
+		spellIR: { active: false, valid: true, status: 'No ring detected' } as SpellIR,
+		showGuides: true,
+		recognizing: true
+	});
+
+	assert.equal(summary.statusText, 'No ring detected');
+	assert.equal(summary.statusClass, '');
+});
+
 test('meterPips fills pips proportionally and rounds to the nearest pip', () => {
 	assert.equal(meterPips(0, 10), 0);
 	assert.equal(meterPips(1, 10), 10);
