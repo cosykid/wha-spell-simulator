@@ -39,6 +39,44 @@ function activatedStrokeIds(pipeline: ClassifiedDrawing | null | undefined): Set
 	]);
 }
 
+/** The seal's ink: the activated stroke ids, and the strokes those ids select. */
+interface SealInk {
+	sealIds: Set<string>;
+	sealStrokes: Stroke[];
+}
+
+/**
+ * Remembers the seal's ink between frames.
+ *
+ * The glow and the ignition both need it, and it moves only when recognition
+ * lands a new reading or the merged ink itself changes, so a cast selects its
+ * strokes once and redraws them for the rest of the performance.
+ */
+function createSealInkCache() {
+	let cached: {
+		pipeline: ClassifiedDrawing | null | undefined;
+		strokes: Stroke[];
+		ink: SealInk;
+	} | null = null;
+
+	return function sealInk(
+		pipeline: ClassifiedDrawing | null | undefined,
+		strokes: Stroke[]
+	): SealInk {
+		if (cached && cached.pipeline === pipeline && cached.strokes === strokes) {
+			return cached.ink;
+		}
+
+		const sealIds = activatedStrokeIds(pipeline);
+		const ink: SealInk = {
+			sealIds,
+			sealStrokes: strokes.filter((stroke) => sealIds.has(stroke.id))
+		};
+		cached = { pipeline, strokes, ink };
+		return ink;
+	};
+}
+
 function guideEntity({ config, recognition, ui }: SimulatorGlyphSceneOptions): Entity {
 	return {
 		id: 'simulator-guides',
@@ -160,6 +198,7 @@ function selectionEntity({ drawing, ui }: SimulatorGlyphSceneOptions): Entity {
 }
 
 function activatedGlyphEntity({ drawing, recognition }: SimulatorGlyphSceneOptions): Entity {
+	const sealInk = createSealInkCache();
 	return {
 		id: 'simulator-activated-glyph',
 		z: 100,
@@ -169,8 +208,8 @@ function activatedGlyphEntity({ drawing, recognition }: SimulatorGlyphSceneOptio
 				return;
 			}
 
-			const sealIds = activatedStrokeIds(recognition.pipeline);
-			const strokes = drawing.mergedStrokes();
+			const strokes = drawing.renderMergedStrokes();
+			const { sealIds, sealStrokes } = sealInk(recognition.pipeline, strokes);
 			// R-01: the ink brightens through the charge beat, so the glow runs from
 			// activation rather than from the end of the portal tilt, and it cools on
 			// the cast's own clock so the paper is done when the spell is.
@@ -184,12 +223,7 @@ function activatedGlyphEntity({ drawing, recognition }: SimulatorGlyphSceneOptio
 			);
 			// The charge's own event, under the glow it swells into: the seal's ink
 			// takes light stroke by stroke, in the order it was drawn.
-			drawSealIgnition(
-				ctx,
-				spellIR.activatedAt,
-				strokes.filter((stroke) => sealIds.has(stroke.id)),
-				timestamp
-			);
+			drawSealIgnition(ctx, spellIR.activatedAt, sealStrokes, timestamp);
 		}
 	};
 }
