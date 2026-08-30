@@ -126,6 +126,7 @@ export class SimulatorRuntime {
 
 		this.#setupSizing();
 		this.#setupKeyboardShortcuts();
+		const stopWatchingCanvasTransforms = this.#watchCanvasTransforms();
 
 		const dictionaryLoad = { cancelled: false };
 		void this.#loadDictionary(dictionaryLoad);
@@ -140,6 +141,7 @@ export class SimulatorRuntime {
 			this.#options.shapeDrag.end();
 			this.#options.pan.end();
 			this.#sizing?.stop();
+			stopWatchingCanvasTransforms();
 			if (this.#keyboardHandler) {
 				window.removeEventListener('keydown', this.#keyboardHandler);
 			}
@@ -358,6 +360,28 @@ export class SimulatorRuntime {
 		this.#sizing.mount();
 	}
 
+	/**
+	 * Rewrites the cursor once an eased canvas transform lands. The eraser ring is
+	 * measured off the canvas as it stands on screen, and both a zoom step and the
+	 * portal tilt animate that box, so a ring written while one is in flight is
+	 * sized for a scale the canvas is only passing through. Both transitions bubble
+	 * their transitionend up to the shell.
+	 */
+	#watchCanvasTransforms(): () => void {
+		const shell = this.#options.ui.canvasShell;
+		if (!shell) {
+			return () => {};
+		}
+
+		const handleTransitionEnd = (event: TransitionEvent) => {
+			if (event.propertyName === 'transform') {
+				this.#updateCanvasCursor();
+			}
+		};
+		shell.addEventListener('transitionend', handleTransitionEnd);
+		return () => shell.removeEventListener('transitionend', handleTransitionEnd);
+	}
+
 	#setupKeyboardShortcuts() {
 		const { actions, drawing, ui } = this.#options;
 
@@ -392,17 +416,24 @@ export class SimulatorRuntime {
 		const { recognition, ui } = this.#options;
 		if (!ui.glyphCanvas) return;
 
+		// Pan moves the view rather than the drawing, so it keeps working while a
+		// sealed ring locks input.
 		if (ui.canvasMode === 'pan') {
-			ui.glyphCanvas.style.cursor = recognition.summary.canvasLocked ? 'not-allowed' : 'grab';
+			ui.glyphCanvas.style.cursor = 'grab';
 			return;
 		}
 
-		if (ui.canvasMode === 'arrange') {
-			ui.glyphCanvas.style.cursor = 'default';
-		} else if (ui.canvasMode === 'erase') {
+		// Erasing is the way back out of a sealed ring, so it keeps its brush ring.
+		if (ui.canvasMode === 'erase') {
 			ui.glyphCanvas.style.cursor = eraserCursorCss(ui.glyphCanvas, CONFIG.eraser.radius);
-		} else {
-			ui.glyphCanvas.style.cursor = 'crosshair';
+			return;
 		}
+
+		if (recognition.summary.canvasLocked) {
+			ui.glyphCanvas.style.cursor = 'not-allowed';
+			return;
+		}
+
+		ui.glyphCanvas.style.cursor = ui.canvasMode === 'arrange' ? 'default' : 'crosshair';
 	}
 }

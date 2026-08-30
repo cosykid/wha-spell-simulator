@@ -16,6 +16,7 @@ export class DrawingCapture {
 	handlePointerDown: (event: PointerEvent) => void;
 	handlePointerMove: (event: PointerEvent) => void;
 	handlePointerUp: (event: PointerEvent) => void;
+	handlePointerCancel: (event: PointerEvent) => void;
 
 	constructor(
 		canvas: HTMLCanvasElement,
@@ -35,6 +36,7 @@ export class DrawingCapture {
 		this.handlePointerDown = this._handlePointerDown.bind(this);
 		this.handlePointerMove = this._handlePointerMove.bind(this);
 		this.handlePointerUp = this._handlePointerUp.bind(this);
+		this.handlePointerCancel = this._handlePointerCancel.bind(this);
 	}
 
 	setLocked(locked: boolean): void {
@@ -51,7 +53,7 @@ export class DrawingCapture {
 		this.canvas.addEventListener('pointerdown', this.handlePointerDown);
 		this.canvas.addEventListener('pointermove', this.handlePointerMove);
 		this.canvas.addEventListener('pointerup', this.handlePointerUp);
-		this.canvas.addEventListener('pointercancel', this.handlePointerUp);
+		this.canvas.addEventListener('pointercancel', this.handlePointerCancel);
 		this.enabled = true;
 	}
 
@@ -59,7 +61,7 @@ export class DrawingCapture {
 		this.canvas.removeEventListener('pointerdown', this.handlePointerDown);
 		this.canvas.removeEventListener('pointermove', this.handlePointerMove);
 		this.canvas.removeEventListener('pointerup', this.handlePointerUp);
-		this.canvas.removeEventListener('pointercancel', this.handlePointerUp);
+		this.canvas.removeEventListener('pointercancel', this.handlePointerCancel);
 		this.enabled = false;
 	}
 
@@ -91,6 +93,12 @@ export class DrawingCapture {
 	private _handlePointerDown(event: PointerEvent): void {
 		if (this.locked) {
 			event.preventDefault();
+			return;
+		}
+		// One pointer owns the canvas until its stroke finishes. A palm landing or a
+		// second finger would otherwise take the capture over, and the stroke in
+		// flight would be lost because its pointerup no longer matches `pointerId`.
+		if (this.pointerId !== null) {
 			return;
 		}
 		if (event.button !== undefined && event.button !== 0) {
@@ -145,6 +153,21 @@ export class DrawingCapture {
 			return;
 		}
 
+		this.callbacks.onPreview?.(null);
+	}
+
+	/**
+	 * Throws away the stroke in flight. A pointer is cancelled when something else
+	 * takes the gesture over, such as an OS edge swipe or palm rejection, so what
+	 * was drawn so far is not ink the user chose to commit.
+	 */
+	private _handlePointerCancel(event: PointerEvent): void {
+		if (this.pointerId !== event.pointerId) {
+			return;
+		}
+		// A cancelled pointer is no longer active, so the browser has already given
+		// back the capture this canvas took.
+		this.clearPreview();
 		this.callbacks.onPreview?.(null);
 	}
 }

@@ -7,6 +7,12 @@ export class PanController {
 	panX = $state(0);
 	/** Vertical canvas translation in CSS pixels. */
 	panY = $state(0);
+	/**
+	 * Whether a pan gesture is dragging the canvas right now. The canvas drops its
+	 * eased transform transition while this is true, so it tracks the pointer
+	 * instead of trailing a fifth of a second behind it.
+	 */
+	panning = $state(false);
 
 	#startClientX = 0;
 	#startClientY = 0;
@@ -33,6 +39,7 @@ export class PanController {
 		this.#startClientY = event.clientY;
 		this.#startPanX = this.panX;
 		this.#startPanY = this.panY;
+		this.panning = true;
 		window.addEventListener('pointermove', this.#move);
 		window.addEventListener('pointerup', this.end);
 		window.addEventListener('pointercancel', this.end);
@@ -46,6 +53,7 @@ export class PanController {
 
 	/** Ends the active pan gesture and removes global pointer listeners. */
 	end = (_event?: PointerEvent) => {
+		this.panning = false;
 		window.removeEventListener('pointermove', this.#move);
 		window.removeEventListener('pointerup', this.end);
 		window.removeEventListener('pointercancel', this.end);

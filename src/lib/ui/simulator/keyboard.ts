@@ -96,7 +96,9 @@ export function createSimulatorKeyboardHandler(options: SimulatorKeyboardOptions
 			}
 		}
 
-		if (!ctrl) return;
+		// While typing in a dialog or field, leave undo and redo to the browser
+		// so Ctrl+Z edits the text instead of eating canvas strokes behind it.
+		if (typing || !ctrl) return;
 
 		if (key === 'z' && !event.shiftKey) {
 			event.preventDefault();
