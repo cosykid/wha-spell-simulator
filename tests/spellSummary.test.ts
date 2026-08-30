@@ -133,7 +133,7 @@ test('an open ring with an unreadable sigil asks for a larger one', () => {
 test('a contradictory open drawing keeps the compiler verdict and the invalid dot', () => {
 	const summary = computeSummary({
 		store: storeWithCount(4),
-		pipeline: { ring: { complete: false } } as ClassifiedDrawing,
+		pipeline: { ring: { found: true, complete: false } } as ClassifiedDrawing,
 		spellIR: {
 			active: false,
 			prepared: false,
@@ -184,7 +184,7 @@ test('a prepared spell keeps its status even when the parser warned about the dr
 	assert.equal(summary.statusClass, 'prepared');
 });
 
-test('an empty canvas still reports no ring detected', () => {
+test('an empty canvas reports no ring detected without the invalid dot', () => {
 	const summary = computeSummary({
 		store: storeWithCount(0),
 		pipeline: null,
@@ -193,7 +193,24 @@ test('an empty canvas still reports no ring detected', () => {
 	});
 
 	assert.equal(summary.statusText, 'No ring detected');
-	assert.equal(summary.statusClass, 'invalid');
+	assert.equal(summary.statusClass, '');
+});
+
+test('strokes with no ring yet stay neutral rather than invalid', () => {
+	const summary = computeSummary({
+		store: storeWithCount(2),
+		pipeline: { ring: null } as ClassifiedDrawing,
+		spellIR: {
+			active: false,
+			prepared: false,
+			valid: false,
+			status: 'No ring detected'
+		} as SpellIR,
+		showGuides: true
+	});
+
+	assert.equal(summary.statusText, 'No ring detected');
+	assert.equal(summary.statusClass, '');
 });
 
 test('an active spell reports when its one-shot cast runs out', () => {

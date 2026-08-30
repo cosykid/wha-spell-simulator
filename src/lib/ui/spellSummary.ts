@@ -17,7 +17,8 @@ function spellStatusClass(
 	spellIR: SpellIR | null | undefined,
 	closedWithoutSpell: boolean,
 	hasUnsupportedStructure: boolean,
-	inProgress: boolean
+	inProgress: boolean,
+	hasRing: boolean
 ): string {
 	if (hasUnsupportedStructure) {
 		return 'invalid';
@@ -34,6 +35,11 @@ function spellStatusClass(
 	// An unfinished open ring is the expected first step, so it takes the neutral
 	// dot rather than the alarming one the compiler's verdict would give it.
 	if (inProgress) {
+		return '';
+	}
+	// Until a ring exists there is no diagram to be wrong about, so the empty
+	// canvas and its first strokes start neutral instead of scolding.
+	if (!hasRing) {
 		return '';
 	}
 	return spellIR?.valid ? '' : 'invalid';
@@ -200,7 +206,8 @@ export function computeSummary({
 			spellIR,
 			closedWithoutSpell,
 			hasUnsupportedStructure,
-			inProgressText !== null
+			inProgressText !== null,
+			Boolean(pipeline?.ring?.found)
 		),
 		castEndsAt: castEndsAtFor(spellIR),
 		element: spellIR?.element ? spellIR.element : 'None',

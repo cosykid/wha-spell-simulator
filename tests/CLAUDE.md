@@ -28,7 +28,7 @@ Load-bearing coverage, largest first:
 - [`ringDetector.test.ts`](ringDetector.test.ts) — `detectRing` closure and multiple-ring rejection.
 - [`spellPreset.test.ts`](spellPreset.test.ts) — serialize/deserialize round trip and `cutRingGap`.
 
-The rest are small and single-subject: stroke erase and preview, spell summary, activation carry, the plan digest, the portal projection, shape placement, grouping proximity, the chamfer matcher, sample picking, password hashing, connection strings, the classic engine's field adapter ([`classicField.test.ts`](classicField.test.ts)) and the effect-style narrowing ([`effectStyle.test.ts`](effectStyle.test.ts)).
+The rest are small and single-subject: stroke erase and preview, spell summary, activation carry, the plan digest, the portal projection, shape placement, grouping proximity, the chamfer matcher, sample picking, password hashing, connection strings, the classic engine's field adapter ([`classicField.test.ts`](classicField.test.ts)), the effect-style narrowing ([`effectStyle.test.ts`](effectStyle.test.ts)), the drawing-capture pointer lifecycle ([`drawingCapture.test.ts`](drawingCapture.test.ts)) and the eraser cursor ([`eraserCursor.test.ts`](eraserCursor.test.ts)).
 
 [`dictionaryFixtures.ts`](dictionaryFixtures.ts) is a helper, not a suite. Helpers carry no `.test.ts` suffix.
 
