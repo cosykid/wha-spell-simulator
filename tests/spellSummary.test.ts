@@ -199,7 +199,7 @@ test('an empty canvas reports no ring detected without the invalid dot', () => {
 test('strokes with no ring yet stay neutral rather than invalid', () => {
 	const summary = computeSummary({
 		store: storeWithCount(2),
-		pipeline: { ring: null } as ClassifiedDrawing,
+		pipeline: { ring: { found: false, complete: false } } as ClassifiedDrawing,
 		spellIR: {
 			active: false,
 			prepared: false,
