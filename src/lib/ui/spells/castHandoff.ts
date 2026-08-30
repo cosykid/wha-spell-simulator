@@ -8,11 +8,31 @@ import { SpellPresetDataSchema, type SpellPresetData } from '$lib/structures/spe
 
 const PENDING_CAST_KEY = 'wha:pending-cast';
 
-export function stashPendingCast(data: SpellPresetData): void {
+/**
+ * Stashes a preset for the simulator to collect. Returns whether it stuck, so
+ * a caller does not navigate away from a handoff that never happened.
+ *
+ * @example
+ * ```ts
+ * if (stashPendingCast(spell.data)) await goto(resolve('/'));
+ * ```
+ */
+export function stashPendingCast(data: SpellPresetData): boolean {
 	try {
 		sessionStorage.setItem(PENDING_CAST_KEY, JSON.stringify(data));
+		return true;
 	} catch {
-		// Storage may be unavailable in private modes. The cast button then does nothing.
+		// Storage is unavailable in some private modes, and a full quota throws too.
+		return false;
+	}
+}
+
+/** Whether a stashed preset is still waiting, without taking it. */
+export function hasPendingCast(): boolean {
+	try {
+		return sessionStorage.getItem(PENDING_CAST_KEY) !== null;
+	} catch {
+		return false;
 	}
 }
 

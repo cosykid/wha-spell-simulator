@@ -7,6 +7,8 @@
  */
 import { createContext } from 'svelte';
 
+import { logout } from '$lib/auth/auth.remote.js';
+
 export interface SessionUser {
 	id: string;
 	username: string;
@@ -23,16 +25,13 @@ export class AuthState {
 	/** Action to resume once the sign-in the user was prompted for succeeds. */
 	#pending: (() => void) | null = null;
 
+	/** The hydration in flight, so a gated action can wait for the account. */
+	#hydration: Promise<void> | null = null;
+
 	/** Hydrates the account from the session cookie. Called once after mount. */
-	async refresh(): Promise<void> {
-		try {
-			const response = await fetch('/api/me');
-			this.user = response.ok ? ((await response.json()).user ?? null) : null;
-		} catch {
-			this.user = null;
-		} finally {
-			this.loading = false;
-		}
+	refresh(): Promise<void> {
+		this.#hydration = this.#loadUser();
+		return this.#hydration;
 	}
 
 	openDialog(mode: AuthDialogMode = 'login'): void {
@@ -49,9 +48,14 @@ export class AuthState {
 	 * Runs the action right away when signed in. Otherwise opens the sign-in
 	 * dialog and defers the action until it succeeds.
 	 *
+	 * Waits for the account to arrive first. Deciding on `user` alone asked a
+	 * signed-in reader to sign in again whenever they acted in the second
+	 * between the page loading and `/api/me` answering.
+	 *
 	 * @returns Whether the user was already signed in.
 	 */
-	requireUser(onReady?: () => void): boolean {
+	async requireUser(onReady?: () => void): Promise<boolean> {
+		await this.#hydration;
 		if (this.user) {
 			onReady?.();
 			return true;
@@ -72,6 +76,28 @@ export class AuthState {
 
 	onSignedOut(): void {
 		this.user = null;
+	}
+
+	/** Ends the session on the server, then forgets the account here. */
+	async signOut(): Promise<void> {
+		try {
+			await logout();
+		} catch {
+			// Keeping the account on screen because the request failed is worse
+			// than a server session that outlives the tab that asked to end it.
+		}
+		this.onSignedOut();
+	}
+
+	async #loadUser(): Promise<void> {
+		try {
+			const response = await fetch('/api/me');
+			this.user = response.ok ? ((await response.json()).user ?? null) : null;
+		} catch {
+			this.user = null;
+		} finally {
+			this.loading = false;
+		}
 	}
 }
 

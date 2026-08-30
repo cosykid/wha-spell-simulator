@@ -6,16 +6,28 @@ prerenders empty and the feed loads client-side after mount, like the rest of
 the app.
 -->
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import { onMount, untrack } from 'svelte';
 	import { resolve } from '$app/paths';
 	import LibraryMasthead from '$lib/components/library/LibraryMasthead.svelte';
 	import LibraryWall from '$lib/components/library/LibraryWall.svelte';
+	import { getAuthState } from '$lib/ui/auth/auth-state.svelte.js';
 	import { LibrarySession } from '$lib/ui/library/library-session.svelte.js';
 
 	const session = new LibrarySession();
+	const auth = getAuthState();
 
 	onMount(() => {
 		void session.refreshShared();
+	});
+
+	// The feed is fetched before the account arrives, so a reader's own likes are
+	// missing from it until they do. Untracked, or the fetch's own reads would
+	// make this rerun on every sort change the session already handles.
+	$effect(() => {
+		const signedIn = Boolean(auth.user);
+		untrack(() => {
+			if (signedIn) void session.refreshForViewer();
+		});
 	});
 </script>
 

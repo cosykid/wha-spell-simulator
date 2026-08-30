@@ -43,7 +43,7 @@ test.describe('spell library', () => {
 		await card.getByTestId('spell-upvote-button').click();
 		await expect(card.getByTestId('spell-upvote-button')).toHaveText(/^1$/);
 
-		// Cast hands the spell to the simulator, restored prepared.
+		// Open hands the spell to the simulator, restored prepared.
 		await card.getByTestId('spell-cast-button').click();
 		await canvas.waitForReady();
 		await expect(canvas.statusValue).toHaveText('Prepared spell', { timeout: 20_000 });

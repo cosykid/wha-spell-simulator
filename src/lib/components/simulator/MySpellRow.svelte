@@ -10,14 +10,17 @@ before it takes, since a seal cannot be recovered after it goes.
 
 	interface Props {
 		spell: SavedSpell;
+		/** The command running against this seal, which locks both actions. */
+		busyAction?: 'share' | 'delete' | null;
 		onLoad: () => void;
 		onToggleShare: () => void;
 		onDelete: () => void;
 	}
 
-	let { spell, onLoad, onToggleShare, onDelete }: Props = $props();
+	let { spell, busyAction = null, onLoad, onToggleShare, onDelete }: Props = $props();
 
 	let confirmingDelete = $state(false);
+	let busy = $derived(busyAction !== null);
 
 	let inscribed = $derived.by(() => {
 		const date = new Date(spell.updatedAt);
@@ -85,18 +88,28 @@ before it takes, since a seal cannot be recovered after it goes.
 				title={spell.publishedAt
 					? 'Take this spell back out of the shared library'
 					: 'Show this spell in the shared library'}
+				disabled={busy}
 				onclick={onToggleShare}
 			>
-				{spell.publishedAt ? 'Unshare' : 'Share'}
+				{#if busyAction === 'share'}
+					{spell.publishedAt ? 'Unsharing…' : 'Sharing…'}
+				{:else}
+					{spell.publishedAt ? 'Unshare' : 'Share'}
+				{/if}
 			</button>
 			<button
 				type="button"
 				class="ink-action delete"
 				class:confirming={confirmingDelete}
 				data-testid="spell-delete-button"
+				disabled={busy}
 				onclick={deleteClicked}
 			>
-				{confirmingDelete ? 'Delete for good?' : 'Delete'}
+				{#if busyAction === 'delete'}
+					Removing…
+				{:else}
+					{confirmingDelete ? 'Delete for good?' : 'Delete'}
+				{/if}
 			</button>
 		</div>
 	</div>

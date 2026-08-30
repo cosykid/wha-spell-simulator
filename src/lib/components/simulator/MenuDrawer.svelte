@@ -8,6 +8,7 @@ longer shows inline.
 	import { resolve } from '$app/paths';
 	import ArrowRight from 'lucide-svelte/icons/arrow-right';
 	import Drawer from './Drawer.svelte';
+	import { getAuthState } from '$lib/ui/auth/auth-state.svelte.js';
 	import type { SimulatorSession } from '$lib/ui/simulator/simulator-session.svelte.js';
 
 	interface Props {
@@ -15,6 +16,7 @@ longer shows inline.
 	}
 
 	let { simulator }: Props = $props();
+	const auth = getAuthState();
 	let ui = $derived(simulator.ui);
 </script>
 
@@ -43,6 +45,21 @@ longer shows inline.
 			GitHub
 			<ArrowRight aria-hidden="true" />
 		</a>
+		<!-- The only way out of an account. Guests are offered the sign-in where
+		     it buys them something, in the My Spells drawer. -->
+		{#if auth.user}
+			<p class="menu-account">
+				Signed in as <strong>{auth.user.username}</strong>
+				<button
+					type="button"
+					class="menu-signout"
+					data-testid="menu-signout"
+					onclick={() => void auth.signOut()}
+				>
+					Sign out
+				</button>
+			</p>
+		{/if}
 	</nav>
 
 	<section class="menu-section" aria-label="View">
@@ -151,6 +168,46 @@ longer shows inline.
 		.menu-link :global(svg) {
 			transition: none;
 		}
+	}
+
+	.menu-account {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 2px 10px;
+		align-items: baseline;
+		margin: 6px 0 0;
+		padding: 0 12px;
+		font-size: 13px;
+		color: var(--ink-sepia-45);
+	}
+
+	.menu-account strong {
+		font-weight: 600;
+		color: var(--ink-sepia-70);
+	}
+
+	.menu-signout {
+		min-height: 0;
+		padding: 0 1px;
+		border: 0;
+		border-bottom: 1px solid var(--ink-sepia-20);
+		border-radius: 0;
+		background: none;
+		box-shadow: none;
+		font-size: 13px;
+		font-style: italic;
+		color: var(--ink-sepia-70);
+	}
+
+	.menu-signout:hover {
+		background: none;
+		border-bottom-color: var(--gold);
+		color: var(--ink-sepia);
+	}
+
+	.menu-signout:focus-visible {
+		outline: 2px solid var(--gold);
+		outline-offset: 2px;
 	}
 
 	.menu-section {

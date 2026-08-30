@@ -17,7 +17,7 @@ to sign in first.
 	const auth = getAuthState();
 
 	function openGrimoire() {
-		auth.requireUser(() => session.setSection('grimoire'));
+		void auth.requireUser(() => session.setSection('grimoire'));
 	}
 </script>
 
