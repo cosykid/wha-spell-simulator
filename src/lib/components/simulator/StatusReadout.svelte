@@ -3,7 +3,7 @@
 Compact spell status, always rendered so recognition state stays visible and the
 E2E hooks (`status-value`, `element-value`, `manifestation-value`) remain in the
 DOM. The status dot is a CSS pseudo-element so `status-value` text stays exactly
-the status string.
+the status string: an unsettled reading pulses that dot, never the text.
 -->
 <script lang="ts">
 	import type { SimulatorSession } from '$lib/ui/simulator/simulator-session.svelte.js';
@@ -15,11 +15,33 @@ the status string.
 	let { simulator }: Props = $props();
 	let summary = $derived(simulator.recognition.summary);
 	let revealed = $derived(summary.element !== 'None' || summary.manifestation !== 'None');
+
+	// A cast is a one-shot, so the paper stays tilted and the status keeps reading
+	// "Active spell" long after the effect canvas has emptied. Waiting out the
+	// score's own duration is what turns that silence into a finished performance.
+	let castSpent = $state(false);
+
+	$effect(() => {
+		const endsAt = summary.castEndsAt;
+		if (endsAt === null) {
+			castSpent = false;
+			return;
+		}
+		const remainingMs = endsAt - performance.now();
+		if (remainingMs <= 0) {
+			castSpent = true;
+			return;
+		}
+		castSpent = false;
+		const timer = setTimeout(() => (castSpent = true), remainingMs);
+		return () => clearTimeout(timer);
+	});
 </script>
 
-<div class="status-readout">
+<div class="status-readout" role="status" aria-live="polite">
 	<span
 		class="status-line {summary.statusClass}"
+		class:reading={simulator.recognition.reading}
 		id="statusValue"
 		data-testid="status-value"
 		data-status-class={summary.statusClass}
@@ -39,6 +61,11 @@ the status string.
 			>
 		</span>
 	</div>
+	{#if castSpent}
+		<span class="status-note" data-testid="status-note"
+			>Spell spent - erase or undo to draw again</span
+		>
+	{/if}
 </div>
 
 <style>
@@ -82,6 +109,22 @@ the status string.
 		background: var(--violet);
 	}
 
+	/* The template verdict is on screen and the ML pass may still overturn it, so
+	   the dot breathes until the reading settles. */
+	.status-line.reading::before {
+		animation: status-reading 1.6s ease-in-out infinite;
+	}
+
+	@keyframes status-reading {
+		0%,
+		100% {
+			opacity: 1;
+		}
+		50% {
+			opacity: 0.3;
+		}
+	}
+
 	.status-meta {
 		display: flex;
 		align-items: baseline;
@@ -113,9 +156,18 @@ the status string.
 		color: var(--ink-sepia-20);
 	}
 
+	.status-note {
+		font-size: 12px;
+		color: var(--ink-sepia-45);
+	}
+
 	@media (prefers-reduced-motion: reduce) {
 		.status-meta {
 			transition: none;
+		}
+
+		.status-line.reading::before {
+			animation: none;
 		}
 	}
 </style>

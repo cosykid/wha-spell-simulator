@@ -32,6 +32,14 @@ and the drawers each live one named click away.
 	let ui = $derived(simulator.ui);
 	let pan = $derived(simulator.pan);
 	let recognition = $derived(simulator.recognition);
+
+	// Arrange mode drops freehand strokes, so telling the user to draw there is
+	// advice the canvas will ignore. The hint names that mode's own first move.
+	let hintText = $derived(
+		ui.activeTool === 'arrange'
+			? 'Arrange mode: pick a shape from the Shapes panel on the right, or press P to draw freehand.'
+			: 'Draw an open spell ring. Place sigils in the center and signs around them. When everything is ready, seal the circle to awaken the spell. New here? Open the Dictionary on the right.'
+	);
 </script>
 
 <!-- The runtime's resize observer watches this element for layout re-evaluation. -->
@@ -53,8 +61,7 @@ and the drawers each live one named click away.
 		data-testid="canvas-hint"
 		class:hidden={recognition.summary.hintHidden}
 	>
-		Draw an open spell ring. Place sigils in the center and signs around them. When everything is
-		ready, seal the circle to awaken the spell.
+		{hintText}
 	</p>
 
 	<div class="chrome chrome-tl">

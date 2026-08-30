@@ -36,6 +36,18 @@ import type { SimulatorDiagnostics } from './types.js';
 const DETACHED_CANVAS_RETRY_MS = 50;
 
 /**
+ * Whether every recognition in a classified drawing has been through the ML pass.
+ *
+ * The classifier answers with a fast template result and then refines it one
+ * candidate at a time, and the client never says which refinement is the last.
+ * A result whose recognitions all carry ML diagnostics is the settled reading,
+ * because the ML pass attaches them even when the runtime is unavailable.
+ */
+function isRefinementComplete(result: ClassifiedDrawing): boolean {
+	return result.recognitions.every((recognition) => Boolean(recognition.diagnostics?.ml));
+}
+
+/**
  * Dependencies supplied by the simulator session to keep recognition independent
  * from the route and canvas-controller implementation.
  */
@@ -83,6 +95,12 @@ export class RecognitionPipeline {
 	});
 	/** Palette-ready shape library built from the dictionary. */
 	shapeLibrary = $state<ShapeLibrary | null>(null);
+	/**
+	 * Whether a recompute is running and its ML refinement has not landed yet.
+	 * The status line is showing a template verdict the refinement may still
+	 * overturn, so the chrome can say the reading is not final.
+	 */
+	reading = $state(false);
 
 	/** Snapshot of ML debug events mirrored from the debug event bus. */
 	mlDebugEvents = $state<MlDebugEvent[]>([]);
@@ -204,6 +222,7 @@ export class RecognitionPipeline {
 	cancelActiveRecognition() {
 		this.cancelScheduledRecompute();
 		this.#recomputeSeq += 1;
+		this.reading = false;
 	}
 
 	/** Schedules recognition after a short debounce window. */
@@ -243,6 +262,7 @@ export class RecognitionPipeline {
 
 		this.refreshStrokes();
 		const seq = ++this.#recomputeSeq;
+		this.reading = true;
 		let result: ClassifiedDrawing;
 		const guideReferenceSize = visibleCanvasShortAxis(glyphCanvas);
 		this.#mlDebugLog('recompute starting', {
@@ -270,6 +290,9 @@ export class RecognitionPipeline {
 				return;
 			}
 			console.error(error);
+			if (seq === this.#recomputeSeq) {
+				this.reading = false;
+			}
 			return;
 		}
 		this.#applyClassifiedDrawing(result, seq);
@@ -278,6 +301,7 @@ export class RecognitionPipeline {
 	/** Stops pending recognition timers and disposes classifier worker clients. */
 	dispose() {
 		this.#disposed = true;
+		this.reading = false;
 		this.cancelScheduledRecompute();
 		disposeDrawingClassifierClient();
 	}
@@ -287,6 +311,7 @@ export class RecognitionPipeline {
 			return;
 		}
 
+		this.reading = !isRefinementComplete(result);
 		this.#pipeline = result;
 		this.#previousRing = this.#pipeline.ring;
 		this.#spellIR = carrySpellActivation(

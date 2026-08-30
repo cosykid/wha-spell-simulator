@@ -13,6 +13,26 @@ import { ML_DEBUG_BUILD_ID, type MlDebugEvent } from '$lib/debug/mlDebug.js';
 import type { ClassifiedDrawing, Recognition, SpellIR, Stroke } from '$lib/types.js';
 import type { SimulatorDiagnostics } from './types.js';
 
+function ringPhrase(pipeline: ClassifiedDrawing | null): string {
+	if (!pipeline?.ring?.found) {
+		return 'No ring detected.';
+	}
+	return pipeline.ring.complete ? 'Ring closed.' : 'Ring open.';
+}
+
+/**
+ * One plain-language sentence about the parse, for readers who do not want to
+ * count entries in the JSON tree below it.
+ */
+function describeParse(pipeline: ClassifiedDrawing | null): string {
+	const markCount = pipeline?.candidates?.length ?? 0;
+	const recognitions = pipeline?.recognitions ?? [];
+	const recognizedCount = recognitions.filter((recognition) => recognition.recognized).length;
+	const unclearCount = recognitions.length - recognizedCount;
+	const markWord = markCount === 1 ? 'mark' : 'marks';
+	return `${markCount} ${markWord} found, ${recognizedCount} recognized, ${unclearCount} unclear. ${ringPhrase(pipeline)}`;
+}
+
 /**
  * Builds the diagnostics panel payload from the latest pipeline state.
  *
@@ -90,6 +110,7 @@ export function buildSimulatorDiagnostics({
 			recognitions: mlRecognitions
 		},
 		parser: {
+			summary: describeParse(pipeline),
 			rawStrokes: state.rawStrokes,
 			ring: state.ring,
 			classifications: state.classifications,

@@ -1,3 +1,4 @@
+import { toast } from '@zerodevx/svelte-toast';
 import { deserializeSpellPreset, type SpellPresetData } from '$lib/structures/spellPreset.js';
 import type { PlacementTransform, ShapeItem, Vector } from '$lib/types.js';
 import type { SimulatorDrawingState } from './drawing-state.svelte.js';
@@ -49,13 +50,24 @@ export class SimulatorDrawingActions {
 		void this.#recognition.recompute();
 	};
 
-	/** Clears all drawing marks and reruns recognition. */
+	/**
+	 * Clears all drawing marks and reruns recognition.
+	 *
+	 * The wipe lands in undo history like any other edit, so the broom is
+	 * reversible. The toast is the only place that says so.
+	 */
 	clear = () => {
+		const hadMarks = this.#drawing.store.count() > 0 || this.#drawing.placements.count() > 0;
 		this.#recognition.cancelActiveRecognition();
 		this.#drawing.clear();
 		this.#recognition.clearPreviousRing();
 		this.pushHistory();
+		// An empty canvas is the step the first-use hint describes, so it comes back.
+		this.#ui.resetCanvasHint();
 		void this.#recognition.recompute();
+		if (hadMarks) {
+			toast.push('Canvas cleared - undo brings it back.');
+		}
 	};
 
 	/** Converts the selected editable placement into permanent strokes. */

@@ -166,6 +166,14 @@ export class SimulatorUiState {
 		return true;
 	}
 
+	/**
+	 * Re-arms the first-use canvas hint. An emptied canvas puts the user back at
+	 * the step the hint describes, so dismissal is per drawing, not per session.
+	 */
+	resetCanvasHint() {
+		this.canvasHintDismissed = false;
+	}
+
 	/** Recomputes viewport-derived layout: canvas-height matching and portal fit. */
 	updateCanvasLayoutMode = () => {
 		const longEdge = Math.max(window.innerWidth, window.innerHeight);

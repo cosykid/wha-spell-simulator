@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
+import { GLYPH_WARNINGS } from '../src/lib/parser/glyphWarnings.js';
+import { totalMsFor } from '../src/lib/cast/score/beats.js';
 import { computeSummary } from '../src/lib/ui/spellSummary.js';
 import type { ClassifiedDrawing, SpellIR, StrokeStore } from '../src/lib/types.js';
 
@@ -90,6 +92,143 @@ test('keeps the canvas hint hidden after drawing has started even if the canvas 
 	});
 
 	assert.equal(summary.hintHidden, true);
+});
+
+test('an open ring with no sigil asks for one instead of reporting an invalid spell', () => {
+	const summary = computeSummary({
+		store: storeWithCount(1),
+		pipeline: { ring: { complete: false } } as ClassifiedDrawing,
+		spellIR: {
+			active: false,
+			prepared: false,
+			valid: false,
+			status: 'Invalid spell',
+			warnings: [GLYPH_WARNINGS.ringIncomplete, GLYPH_WARNINGS.missingPrimarySigil]
+		} as SpellIR,
+		showGuides: true
+	});
+
+	assert.equal(summary.statusText, 'Ring open - draw a sigil in the center');
+	assert.equal(summary.statusClass, '');
+});
+
+test('an open ring with an unreadable sigil asks for a larger one', () => {
+	const summary = computeSummary({
+		store: storeWithCount(2),
+		pipeline: { ring: { complete: false } } as ClassifiedDrawing,
+		spellIR: {
+			active: false,
+			prepared: false,
+			valid: false,
+			status: 'Invalid spell',
+			warnings: [GLYPH_WARNINGS.primarySigilConfidenceLow]
+		} as SpellIR,
+		showGuides: true
+	});
+
+	assert.equal(summary.statusText, 'Sigil unclear - try drawing it larger');
+	assert.equal(summary.statusClass, '');
+});
+
+test('a contradictory open drawing keeps the compiler verdict and the invalid dot', () => {
+	const summary = computeSummary({
+		store: storeWithCount(4),
+		pipeline: { ring: { complete: false } } as ClassifiedDrawing,
+		spellIR: {
+			active: false,
+			prepared: false,
+			valid: false,
+			status: 'Ambiguous sigil',
+			warnings: [GLYPH_WARNINGS.primarySigilAmbiguous]
+		} as SpellIR,
+		showGuides: true
+	});
+
+	assert.equal(summary.statusText, 'Ambiguous sigil');
+	assert.equal(summary.statusClass, 'invalid');
+});
+
+test('a closed ring keeps its sealed verdict rather than an in-progress hint', () => {
+	const summary = computeSummary({
+		store: storeWithCount(4),
+		pipeline: { ring: { complete: true } } as ClassifiedDrawing,
+		spellIR: {
+			active: false,
+			prepared: false,
+			valid: false,
+			status: 'Invalid spell',
+			warnings: [GLYPH_WARNINGS.missingPrimarySigil]
+		} as SpellIR,
+		showGuides: true
+	});
+
+	assert.equal(summary.statusText, 'Ring closed - no stable magic detected');
+	assert.equal(summary.statusClass, 'closed');
+});
+
+test('a prepared spell keeps its status even when the parser warned about the drawing', () => {
+	const summary = computeSummary({
+		store: storeWithCount(3),
+		pipeline: { ring: { complete: false } } as ClassifiedDrawing,
+		spellIR: {
+			active: false,
+			prepared: true,
+			valid: true,
+			status: 'Prepared spell',
+			warnings: [GLYPH_WARNINGS.ringIncomplete, GLYPH_WARNINGS.missingPrimarySigil]
+		} as SpellIR,
+		showGuides: true
+	});
+
+	assert.equal(summary.statusText, 'Prepared spell');
+	assert.equal(summary.statusClass, 'prepared');
+});
+
+test('an empty canvas still reports no ring detected', () => {
+	const summary = computeSummary({
+		store: storeWithCount(0),
+		pipeline: null,
+		spellIR: null,
+		showGuides: true
+	});
+
+	assert.equal(summary.statusText, 'No ring detected');
+	assert.equal(summary.statusClass, 'invalid');
+});
+
+test('an active spell reports when its one-shot cast runs out', () => {
+	const summary = computeSummary({
+		store: storeWithCount(4),
+		pipeline: { ring: { complete: true } } as ClassifiedDrawing,
+		spellIR: {
+			active: true,
+			valid: true,
+			status: 'Active spell',
+			activatedAt: 1000,
+			duration: 4
+		} as SpellIR,
+		showGuides: true
+	});
+
+	assert.equal(summary.castEndsAt, 1000 + totalMsFor(4));
+});
+
+test('a spell that is not casting has no cast end', () => {
+	const summary = computeSummary({
+		store: storeWithCount(3),
+		pipeline: { ring: { complete: false } } as ClassifiedDrawing,
+		spellIR: {
+			active: false,
+			prepared: true,
+			valid: true,
+			status: 'Prepared spell',
+			activatedAt: null,
+			duration: 4
+		} as SpellIR,
+		showGuides: true
+	});
+
+	assert.equal(summary.castEndsAt, null);
 });
 
 test('erase mode locks freehand input without sealing the canvas', () => {
