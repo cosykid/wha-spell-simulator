@@ -12,6 +12,21 @@ interface SimulatorDrawingActionsOptions {
 }
 
 /**
+ * How long a continuous transform edit coalesces before recognition runs. A
+ * slider drag and a held arrow key change the shape many times a second, and a
+ * full recognition per tick is work the next tick throws away. Matches the
+ * debounce a committed stroke gets.
+ */
+const TRANSFORM_RECOGNITION_DEBOUNCE_MS = 120;
+
+/**
+ * How long after the last arrow press a nudge burst counts as finished. One
+ * history entry covers the whole burst, so undo steps back over the nudge instead
+ * of retracing it a pixel at a time.
+ */
+const NUDGE_BURST_MS = 400;
+
+/**
  * User-facing drawing commands that mutate drawing state and keep recognition
  * in sync afterward.
  */
@@ -19,6 +34,7 @@ export class SimulatorDrawingActions {
 	readonly #drawing: SimulatorDrawingState;
 	readonly #recognition: RecognitionPipeline;
 	readonly #ui: SimulatorUiState;
+	#nudgeBurstTimer: ReturnType<typeof setTimeout> | null = null;
 
 	constructor(options: SimulatorDrawingActionsOptions) {
 		this.#drawing = options.drawing;
@@ -79,12 +95,34 @@ export class SimulatorDrawingActions {
 		void this.#recognition.recompute();
 	};
 
-	/** Applies shape-inspector transform changes to the selected placement. */
+	/**
+	 * Applies shape-inspector transform changes to the selected placement.
+	 *
+	 * The inspector fires one of these per slider tick, so recognition is scheduled
+	 * rather than run. A discrete commit (a drag end, the end of a nudge burst) is
+	 * what earns an immediate pass.
+	 */
 	updateSelectedTransform = (patch: Partial<PlacementTransform>) => {
 		if (!this.#drawing.updateSelectedTransform(patch)) {
 			return;
 		}
-		void this.#recognition.recompute();
+		this.#recognition.scheduleRecompute(TRANSFORM_RECOGNITION_DEBOUNCE_MS);
+	};
+
+	/**
+	 * Moves the selected placement by a canvas-pixel offset, for the arrow keys.
+	 *
+	 * A run of presses lands as a single history entry, so one undo takes back the
+	 * whole nudge.
+	 */
+	nudgeSelected = (dx: number, dy: number) => {
+		const transform = this.#drawing.selected?.transform;
+		if (!transform) {
+			return;
+		}
+		this.updateSelectedTransform({ cx: transform.cx + dx, cy: transform.cy + dy });
+		this.#cancelNudgeBurst();
+		this.#nudgeBurstTimer = setTimeout(this.#endNudgeBurst, NUDGE_BURST_MS);
 	};
 
 	/** Removes the selected editable placement. */
@@ -121,6 +159,9 @@ export class SimulatorDrawingActions {
 
 	/** Records the current drawing state in undo history. */
 	pushHistory = () => {
+		// Any nudge still waiting for its own entry is covered by this one, and a
+		// second entry for the same state would make one undo look like a no-op.
+		this.#cancelNudgeBurst();
 		this.#drawing.pushHistory();
 	};
 
@@ -163,6 +204,18 @@ export class SimulatorDrawingActions {
 	dismissCanvasHint() {
 		if (this.#ui.dismissCanvasHint()) {
 			this.#recognition.hideHint();
+		}
+	}
+
+	#endNudgeBurst = () => {
+		this.pushHistory();
+		void this.#recognition.recompute();
+	};
+
+	#cancelNudgeBurst() {
+		if (this.#nudgeBurstTimer) {
+			clearTimeout(this.#nudgeBurstTimer);
+			this.#nudgeBurstTimer = null;
 		}
 	}
 }

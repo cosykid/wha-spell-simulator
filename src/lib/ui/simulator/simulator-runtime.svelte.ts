@@ -15,8 +15,17 @@ import { createSimulatorGlyphScene } from './glyph-scene.svelte.js';
 import { SimulatorInputControllers } from './input-controllers.js';
 import { createSimulatorKeyboardHandler } from './keyboard.js';
 import { locksFreehandInput, type CanvasMode, type CanvasTool } from './mode.js';
-import type { PanController } from './pan-controller.svelte.js';
-import { createSimulatorPlacementBehavior } from './placement-behavior.svelte.js';
+import {
+	panAnchoredAtPointer,
+	wheelDeltaPixels,
+	zoomAfterWheel,
+	type PanController
+} from './pan-controller.svelte.js';
+import {
+	createSimulatorPlacementBehavior,
+	resizeCursorForDirection,
+	type ArrangeHover
+} from './placement-behavior.svelte.js';
 import type { RecognitionPipeline } from './recognition-pipeline.svelte.js';
 import type { ShapeDragController } from './shape-drag-controller.svelte.js';
 import type { SimulatorUiState } from './ui-state.svelte.js';
@@ -48,6 +57,9 @@ export class SimulatorRuntime {
 	#attachedGlyphCanvas: HTMLCanvasElement | null = null;
 	#pendingGlyphDetach: object | null = null;
 	#captureReady = false;
+	// Plain state on purpose: the cursor `$effect` reads it, and a rune here would
+	// re-run that whole effect on every pointer move across a handle.
+	#arrangeHover: ArrangeHover | null = null;
 	readonly #options: SimulatorRuntimeOptions;
 	readonly #canvasBehavior: CanvasBehavior;
 	readonly #placementBehavior: CanvasBehavior & { setActive(active: boolean): void };
@@ -69,6 +81,10 @@ export class SimulatorRuntime {
 			setSelectedId: options.drawing.setSelected,
 			hasArmedShape: () => options.shapeDrag.hasArmedShape(),
 			placeArmedShape: options.shapeDrag.placeArmedShape,
+			onHoverChange: (hover) => {
+				this.#arrangeHover = hover;
+				this.#updateCanvasCursor();
+			},
 			onChange: () => {
 				if (options.drawing.selectedPlacementId) {
 					options.drawing.setSelected(options.drawing.selectedPlacementId);
@@ -127,6 +143,7 @@ export class SimulatorRuntime {
 		this.#setupSizing();
 		this.#setupKeyboardShortcuts();
 		const stopWatchingCanvasTransforms = this.#watchCanvasTransforms();
+		const stopWheelGestures = this.#watchWheelGestures();
 
 		const dictionaryLoad = { cancelled: false };
 		void this.#loadDictionary(dictionaryLoad);
@@ -142,6 +159,7 @@ export class SimulatorRuntime {
 			this.#options.pan.end();
 			this.#sizing?.stop();
 			stopWatchingCanvasTransforms();
+			stopWheelGestures();
 			if (this.#keyboardHandler) {
 				window.removeEventListener('keydown', this.#keyboardHandler);
 			}
@@ -382,13 +400,62 @@ export class SimulatorRuntime {
 		return () => shell.removeEventListener('transitionend', handleTransitionEnd);
 	}
 
+	/**
+	 * Wires the wheel to the same view transform the pan drag moves. The listener is
+	 * non-passive because both branches take the gesture off the page, and a passive
+	 * listener is not allowed to.
+	 */
+	#watchWheelGestures(): () => void {
+		const shell = this.#options.ui.canvasShell;
+		if (!shell) {
+			return () => {};
+		}
+		shell.addEventListener('wheel', this.#handleWheel, { passive: false });
+		return () => shell.removeEventListener('wheel', this.#handleWheel);
+	}
+
+	/**
+	 * Ctrl or meta held is the zoom gesture, which is what a browser sends for a
+	 * trackpad pinch. A plain wheel pans, so two-finger scrolling slides the paper
+	 * the way it slides a page.
+	 */
+	#handleWheel = (event: WheelEvent) => {
+		const { pan, ui } = this.#options;
+		event.preventDefault();
+		const deltaY = wheelDeltaPixels(event.deltaY, event.deltaMode);
+
+		if (!event.ctrlKey && !event.metaKey) {
+			pan.panBy(-wheelDeltaPixels(event.deltaX, event.deltaMode), -deltaY);
+			return;
+		}
+
+		// The container scales about the centre of this box, so that centre is what
+		// the anchoring correction is measured from.
+		const box = ui.canvasShell.getBoundingClientRect();
+		const zoom = ui.zoomLevel;
+		ui.setZoom(zoomAfterWheel(zoom, deltaY));
+		const anchored = panAnchoredAtPointer({
+			panX: pan.panX,
+			panY: pan.panY,
+			zoom,
+			nextZoom: ui.zoomLevel,
+			pointerX: event.clientX,
+			pointerY: event.clientY,
+			centerX: box.left + box.width / 2,
+			centerY: box.top + box.height / 2
+		});
+		pan.panTo(anchored.panX, anchored.panY);
+	};
+
 	#setupKeyboardShortcuts() {
-		const { actions, drawing, ui } = this.#options;
+		const { actions, drawing, shapeDrag, ui } = this.#options;
 
 		this.#keyboardHandler = createSimulatorKeyboardHandler({
 			activeTool: () => ui.activeTool,
 			selectedPlacementId: () => drawing.selectedPlacementId,
 			selectTool: (mode) => this.setCanvasMode(mode),
+			nudgeSelected: actions.nudgeSelected,
+			cancelArmedShape: shapeDrag.end,
 			commitSelected: actions.commitSelected,
 			deleteSelected: actions.removeSelectedShape,
 			copySelected: actions.copySelected,
@@ -434,6 +501,30 @@ export class SimulatorRuntime {
 			return;
 		}
 
-		ui.glyphCanvas.style.cursor = ui.canvasMode === 'arrange' ? 'default' : 'crosshair';
+		if (ui.canvasMode === 'arrange') {
+			ui.glyphCanvas.style.cursor = this.#arrangeCursor();
+			return;
+		}
+
+		ui.glyphCanvas.style.cursor = 'crosshair';
+	}
+
+	/**
+	 * Arrange mode says what a drag will do through the cursor. The six handles
+	 * render as identical dots, so the pointer is the only thing that tells them
+	 * apart before you press.
+	 */
+	#arrangeCursor() {
+		const hover = this.#arrangeHover;
+		if (!hover) {
+			return 'default';
+		}
+		if (hover.over === 'body') {
+			return 'move';
+		}
+		if (hover.over === 'rotate') {
+			return 'grab';
+		}
+		return resizeCursorForDirection(hover.dirX, hover.dirY);
 	}
 }

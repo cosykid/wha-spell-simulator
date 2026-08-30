@@ -1,3 +1,4 @@
+import type { Vector } from '$lib/types.js';
 import type { CanvasMode, CanvasTool } from './mode.js';
 
 /**
@@ -12,6 +13,32 @@ const TOOL_SHORTCUTS: Record<string, CanvasMode> = {
 	h: 'pan'
 };
 
+const ARROW_DIRECTIONS: Record<string, Vector> = {
+	ArrowLeft: { x: -1, y: 0 },
+	ArrowRight: { x: 1, y: 0 },
+	ArrowUp: { x: 0, y: -1 },
+	ArrowDown: { x: 0, y: 1 }
+};
+
+/** Canvas pixels one arrow press moves a placement, and the coarse Shift step. */
+const NUDGE_STEP = 1;
+const NUDGE_STEP_SHIFT = 10;
+
+/**
+ * How far an arrow key moves the selected placement, in canvas pixels. Shift takes
+ * the coarse step, the way editors do.
+ *
+ * @returns The offset, or `null` when the key is not an arrow.
+ */
+export function nudgeForArrowKey(key: string, shiftKey: boolean): Vector | null {
+	const direction = ARROW_DIRECTIONS[key];
+	if (!direction) {
+		return null;
+	}
+	const step = shiftKey ? NUDGE_STEP_SHIFT : NUDGE_STEP;
+	return { x: direction.x * step, y: direction.y * step };
+}
+
 /**
  * Commands and state getters used by simulator keyboard shortcuts.
  */
@@ -22,6 +49,10 @@ interface SimulatorKeyboardOptions {
 	selectedPlacementId: () => string | null;
 	/** Switches the active canvas mode (used by the single-key tool shortcuts). */
 	selectTool: (mode: CanvasMode) => void;
+	/** Moves the selected placement by a canvas-pixel offset. */
+	nudgeSelected: (dx: number, dy: number) => void;
+	/** Drops a palette item armed for click-to-place. */
+	cancelArmedShape: () => void;
 	/** Commits the selected placement into permanent ink. */
 	commitSelected: () => void;
 	/** Deletes the selected placement. */
@@ -54,6 +85,15 @@ export function createSimulatorKeyboardHandler(options: SimulatorKeyboardOptions
 		const ctrl = isMac ? event.metaKey : event.ctrlKey;
 		const key = event.key.toLowerCase();
 		const selectedPlacementId = options.selectedPlacementId();
+		// No chord held, so the key is ours to interpret rather than the browser's.
+		const bareKey = !event.metaKey && !event.ctrlKey && !event.altKey;
+
+		// Escape drops an armed palette item. It is deliberately not prevented: the
+		// same press also closes an open drawer.
+		if (event.key === 'Escape' && !typing) {
+			options.cancelArmedShape();
+			return;
+		}
 
 		// Shape editing shortcuts, active only while arranging placements.
 		if (options.activeTool() === 'arrange' && !typing) {
@@ -72,6 +112,12 @@ export function createSimulatorKeyboardHandler(options: SimulatorKeyboardOptions
 				return;
 			}
 			if (selectedPlacementId) {
+				const nudge = bareKey ? nudgeForArrowKey(event.key, event.shiftKey) : null;
+				if (nudge) {
+					event.preventDefault();
+					options.nudgeSelected(nudge.x, nudge.y);
+					return;
+				}
 				if (event.key === 'Enter') {
 					event.preventDefault();
 					options.commitSelected();
@@ -87,7 +133,7 @@ export function createSimulatorKeyboardHandler(options: SimulatorKeyboardOptions
 
 		// Bare letter keys switch tools, the way drawing apps do. Skip when a
 		// modifier is held (so Cmd+P, Ctrl+E, etc. stay native) or while typing.
-		if (!typing && !event.metaKey && !event.ctrlKey && !event.altKey) {
+		if (!typing && bareKey) {
 			const tool = TOOL_SHORTCUTS[key];
 			if (tool) {
 				event.preventDefault();
