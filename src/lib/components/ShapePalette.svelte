@@ -143,6 +143,8 @@
 		flex: 1 1 auto;
 		overflow-y: auto;
 		overflow-x: hidden;
+		/* Reaching the end of the palette must not start scrolling the drawer behind it. */
+		overscroll-behavior: contain;
 		scrollbar-gutter: stable;
 		min-height: 0;
 	}
@@ -170,6 +172,7 @@
 		border-radius: 6px;
 		background: rgba(255, 251, 233, 0.82);
 		cursor: pointer;
+		transition: background var(--dur-hover) ease;
 	}
 
 	.shape-card:hover {
