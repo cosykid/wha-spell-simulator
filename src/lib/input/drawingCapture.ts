@@ -93,6 +93,11 @@ export class DrawingCapture {
 	private _handlePointerDown(event: PointerEvent): void {
 		if (this.locked) {
 			event.preventDefault();
+			// A primary tap on locked paper still means "draw here", so the host
+			// gets to hear it and may release whatever holds the lock.
+			if (event.button === undefined || event.button === 0) {
+				this.callbacks.onLockedPointerDown?.();
+			}
 			return;
 		}
 		// One pointer owns the canvas until its stroke finishes. A palm landing or a

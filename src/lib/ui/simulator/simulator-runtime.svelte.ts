@@ -108,6 +108,7 @@ export class SimulatorRuntime {
 			void this.#options.ui.zoomLevel;
 			void this.#options.ui.canvasMode;
 			void this.#options.recognition.summary.canvasLocked;
+			void this.#options.recognition.castSpent;
 
 			this.#placementBehavior.setActive(this.#options.ui.canvasMode === 'arrange');
 			this.setCaptureLocked(
@@ -338,6 +339,16 @@ export class SimulatorRuntime {
 				recognition.refreshStrokes();
 				recognition.scheduleRecompute(STROKE_RECOGNITION_DEBOUNCE_MS);
 			},
+			onLockedPointerDown: () => {
+				// In draw mode the lock only ever means a sealed canvas, so a tap on a
+				// spent one tears the page off instead of dying on the seal. The tap's
+				// own gesture never inks: the paper is still tilted at this moment and
+				// capture maps pointer positions through a flat rect.
+				if (ui.canvasMode !== 'draw' || !recognition.castSpent) {
+					return;
+				}
+				actions.freshPage();
+			},
 			onEraseBegin: () => {
 				recognition.cancelActiveRecognition();
 				actions.dismissCanvasHint();
@@ -497,7 +508,10 @@ export class SimulatorRuntime {
 		}
 
 		if (recognition.summary.canvasLocked) {
-			ui.glyphCanvas.style.cursor = 'not-allowed';
+			// A spent page takes the pen again, because the next tap tears it off.
+			// Anything still able to perform keeps the hard lock.
+			ui.glyphCanvas.style.cursor =
+				recognition.castSpent && ui.canvasMode === 'draw' ? 'crosshair' : 'not-allowed';
 			return;
 		}
 

@@ -73,18 +73,42 @@ export class SimulatorDrawingActions {
 	 * reversible. The toast is the only place that says so.
 	 */
 	clear = () => {
-		const hadMarks = this.#drawing.store.count() > 0 || this.#drawing.placements.count() > 0;
-		this.#recognition.cancelActiveRecognition();
-		this.#drawing.clear();
-		this.#recognition.clearPreviousRing();
-		this.pushHistory();
+		const hadMarks = this.#wipe();
 		// An empty canvas is the step the first-use hint describes, so it comes back.
 		this.#ui.resetCanvasHint();
-		void this.#recognition.recompute();
 		if (hadMarks) {
 			toast.push('Canvas cleared - undo brings it back.');
 		}
 	};
+
+	/**
+	 * Tears a spent spell off for a fresh page.
+	 *
+	 * While a spell can still perform, erase and undo are the sealed page's only
+	 * exits, which keeps the seal inviolable. A finished cast leaves dead paper,
+	 * so it earns this third exit: a clear rather than an unlock. Unlike `clear`
+	 * it leaves the first-use hint down, because the drawer who just finished a
+	 * cast needs no tutorial.
+	 */
+	freshPage = () => {
+		if (this.#wipe()) {
+			toast.push('Fresh page - undo brings the spell back.');
+		}
+	};
+
+	/**
+	 * Empties the drawing and drops the spell state in the same tick, so the
+	 * lock, tilt, and status never outlive the ink. Reports whether there was
+	 * anything to wipe.
+	 */
+	#wipe(): boolean {
+		const hadMarks = this.#drawing.store.count() > 0 || this.#drawing.placements.count() > 0;
+		this.#drawing.clear();
+		this.#recognition.resetSpellState();
+		this.pushHistory();
+		void this.#recognition.recompute();
+		return hadMarks;
+	}
 
 	/** Converts the selected editable placement into permanent strokes. */
 	commitSelected = () => {

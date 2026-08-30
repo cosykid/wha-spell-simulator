@@ -101,6 +101,14 @@ export class RecognitionPipeline {
 	 * overturn, so the chrome can say the reading is not final.
 	 */
 	reading = $state(false);
+	/**
+	 * Whether the running one-shot cast has finished. A cast is a one-shot, so
+	 * the spell stays active and the paper stays tilted long after the effect
+	 * canvas has emptied. Waiting out the score's own duration is what turns
+	 * that silence into a finished performance, and a spent page is the one
+	 * sealed state the pen may tear off for a fresh one.
+	 */
+	castSpent = $state(false);
 
 	/** Snapshot of ML debug events mirrored from the debug event bus. */
 	mlDebugEvents = $state<MlDebugEvent[]>([]);
@@ -111,6 +119,7 @@ export class RecognitionPipeline {
 	#previousRing: RingInfo | null = null;
 	#dictionarySnapshot: Dictionary | null = null;
 	#recomputeTimer: ReturnType<typeof setTimeout> | null = null;
+	#castClockTimer: ReturnType<typeof setTimeout> | null = null;
 	#recomputeSeq = 0;
 	#disposed = false;
 	readonly #options: RecognitionPipelineOptions;
@@ -202,6 +211,26 @@ export class RecognitionPipeline {
 	refreshSummary() {
 		if (this.dictionary) {
 			this.summary = this.#computeSummary();
+			this.#armCastClock();
+		}
+	}
+
+	/**
+	 * Drops the compiled spell and classification so a wiped canvas reads blank
+	 * immediately: lock, tilt, status, and the spent clock all fall with the ink.
+	 * Recognition is async, so without this a clear keeps the old verdict (and a
+	 * locked, tilted canvas) on screen until a classify pass lands.
+	 */
+	resetSpellState() {
+		this.cancelActiveRecognition();
+		this.#pipeline = null;
+		this.#spellIR = null;
+		this.#previousRing = null;
+		if (this.dictionary) {
+			this.summary = this.#computeSummary();
+			this.#options.setInputLocked(this.summary.inputLocked);
+			this.#armCastClock();
+			this.diagnostics = this.#buildDiagnostics();
 		}
 	}
 
@@ -303,6 +332,7 @@ export class RecognitionPipeline {
 		this.#disposed = true;
 		this.reading = false;
 		this.cancelScheduledRecompute();
+		this.#cancelCastClock();
 		disposeDrawingClassifierClient();
 	}
 
@@ -327,7 +357,39 @@ export class RecognitionPipeline {
 		);
 		this.summary = this.#computeSummary();
 		this.#options.setInputLocked(this.summary.inputLocked);
+		this.#armCastClock();
 		this.diagnostics = this.#buildDiagnostics();
+	}
+
+	/**
+	 * Points `castSpent` at the summary's cast end. The end is a timestamp on the
+	 * `performance.now()` clock, so a timer is the only way state learns the
+	 * performance is over without a render loop watching for it.
+	 */
+	#armCastClock() {
+		this.#cancelCastClock();
+		const endsAt = this.summary.castEndsAt;
+		if (endsAt === null) {
+			this.castSpent = false;
+			return;
+		}
+		const remainingMs = endsAt - performance.now();
+		if (remainingMs <= 0) {
+			this.castSpent = true;
+			return;
+		}
+		this.castSpent = false;
+		this.#castClockTimer = setTimeout(() => {
+			this.#castClockTimer = null;
+			this.castSpent = true;
+		}, remainingMs);
+	}
+
+	#cancelCastClock() {
+		if (this.#castClockTimer) {
+			clearTimeout(this.#castClockTimer);
+			this.#castClockTimer = null;
+		}
 	}
 
 	#computeSummary() {

@@ -40,21 +40,21 @@ function fakeCanvas() {
 	};
 }
 
-function pointerEvent(pointerId: number, x: number, y: number): PointerEvent {
+function pointerEvent(pointerId: number, x: number, y: number, button = 0): PointerEvent {
 	return {
 		pointerId,
 		clientX: x,
 		clientY: y,
-		button: 0,
+		button,
 		preventDefault() {}
 	} as unknown as PointerEvent;
 }
 
 /** A capture wired to a real stroke store, enabled and ready for events. */
-function mounted() {
+function mounted(callbacks: ConstructorParameters<typeof DrawingCapture>[3] = {}) {
 	const canvas = fakeCanvas();
 	const store = createStrokeStore();
-	const capture = new DrawingCapture(canvas.element, store, CONFIG);
+	const capture = new DrawingCapture(canvas.element, store, CONFIG, callbacks);
 	capture.enable();
 	return { canvas, store, capture };
 }
@@ -146,6 +146,60 @@ test('draws nothing while a sealed canvas locks input', () => {
 
 	assert.equal(store.count(), 0);
 	assert.equal(capture.getCurrentStroke(), null);
+});
+
+test('reports a primary tap on locked paper without inking anything', () => {
+	let lockedTaps = 0;
+	const { canvas, store, capture } = mounted({ onLockedPointerDown: () => (lockedTaps += 1) });
+	capture.setLocked(true);
+
+	canvas.send('pointerdown', pointerEvent(1, 100, 100));
+	canvas.send('pointermove', pointerEvent(1, 140, 100));
+	canvas.send('pointerup', pointerEvent(1, 140, 100));
+
+	assert.equal(lockedTaps, 1);
+	assert.equal(store.count(), 0);
+	assert.equal(capture.getCurrentStroke(), null);
+});
+
+test('keeps non-primary buttons from counting as a locked tap', () => {
+	let lockedTaps = 0;
+	const { canvas, capture } = mounted({ onLockedPointerDown: () => (lockedTaps += 1) });
+	capture.setLocked(true);
+
+	canvas.send('pointerdown', pointerEvent(1, 100, 100, 2));
+
+	assert.equal(lockedTaps, 0);
+});
+
+test('never reports a locked tap while capture is unlocked', () => {
+	let lockedTaps = 0;
+	const { canvas, store } = mounted({ onLockedPointerDown: () => (lockedTaps += 1) });
+
+	canvas.send('pointerdown', pointerEvent(1, 100, 100));
+	canvas.send('pointermove', pointerEvent(1, 140, 100));
+	canvas.send('pointerup', pointerEvent(1, 140, 100));
+
+	assert.equal(lockedTaps, 0);
+	assert.equal(store.count(), 1);
+});
+
+test('draws with the next pointer once the host releases the lock on a tap', () => {
+	// The simulator's host callback tears a spent page off, which unlocks
+	// capture in the same tick. The tearing gesture itself must stay dry.
+	const { canvas, store, capture } = mounted({
+		onLockedPointerDown: () => capture.setLocked(false)
+	});
+	capture.setLocked(true);
+
+	canvas.send('pointerdown', pointerEvent(1, 100, 100));
+	canvas.send('pointerup', pointerEvent(1, 100, 100));
+	assert.equal(store.count(), 0);
+
+	canvas.send('pointerdown', pointerEvent(2, 300, 300));
+	canvas.send('pointermove', pointerEvent(2, 340, 300));
+	canvas.send('pointerup', pointerEvent(2, 340, 300));
+	assert.equal(store.count(), 1);
 });
 
 test('removes every listener it added on disable', () => {

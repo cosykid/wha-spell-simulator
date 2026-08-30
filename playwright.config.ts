@@ -7,6 +7,11 @@ export default defineConfig({
 	// Drawing strokes is timing sensitive; keep a single worker so the dev server
 	// and the recognition worker pool are not contended by parallel canvas casts.
 	fullyParallel: false,
+	// fullyParallel only keeps one FILE's tests together; separate files still run
+	// in parallel workers, and a handful of concurrent WebGL casts starve each
+	// other into 90s timeouts on this suite. The specs sum to ~7 minutes, so the
+	// parallel wall-time win was already almost nothing.
+	workers: 1,
 	// The drag-to-place specs are timing sensitive (palette drag -> async place ->
 	// recognition -> inspector); retry once locally / twice on CI so a transient
 	// miss self-heals. Pairs with the existing `trace: 'on-first-retry'`.

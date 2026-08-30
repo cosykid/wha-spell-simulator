@@ -197,6 +197,30 @@ export class SpellCanvasPage {
 		}
 	}
 
+	/**
+	 * Taps a point that lies on the paper itself. The portal tilt shrinks the
+	 * canvas inside its own bounding box, so the box centre can land in the void
+	 * beside the tilted paper. The search walks the centre line downward, toward
+	 * the tilt's wide near edge.
+	 */
+	async tapCanvas(): Promise<void> {
+		const point = await this.glyphCanvas.evaluate((el) => {
+			const box = el.getBoundingClientRect();
+			const x = box.left + box.width / 2;
+			for (let fraction = 0.5; fraction < 0.98; fraction += 0.05) {
+				const y = box.top + box.height * fraction;
+				if (document.elementFromPoint(x, y) === el) {
+					return { x, y };
+				}
+			}
+			return null;
+		});
+		if (!point) {
+			throw new Error('No tappable point found on the glyph canvas.');
+		}
+		await this.page.mouse.click(point.x, point.y);
+	}
+
 	// --- Ring primitives -----------------------------------------------------
 
 	/**

@@ -15,27 +15,6 @@ the status string: an unsettled reading pulses that dot, never the text.
 	let { simulator }: Props = $props();
 	let summary = $derived(simulator.recognition.summary);
 	let revealed = $derived(summary.element !== 'None' || summary.manifestation !== 'None');
-
-	// A cast is a one-shot, so the paper stays tilted and the status keeps reading
-	// "Active spell" long after the effect canvas has emptied. Waiting out the
-	// score's own duration is what turns that silence into a finished performance.
-	let castSpent = $state(false);
-
-	$effect(() => {
-		const endsAt = summary.castEndsAt;
-		if (endsAt === null) {
-			castSpent = false;
-			return;
-		}
-		const remainingMs = endsAt - performance.now();
-		if (remainingMs <= 0) {
-			castSpent = true;
-			return;
-		}
-		castSpent = false;
-		const timer = setTimeout(() => (castSpent = true), remainingMs);
-		return () => clearTimeout(timer);
-	});
 </script>
 
 <div class="status-readout" role="status" aria-live="polite">
@@ -61,10 +40,17 @@ the status string: an unsettled reading pulses that dot, never the text.
 			>
 		</span>
 	</div>
-	{#if castSpent}
-		<span class="status-note" data-testid="status-note"
-			>Spell spent - erase or undo to draw again</span
-		>
+	{#if simulator.recognition.castSpent}
+		<span class="status-note" data-testid="status-note">
+			Spell spent -
+			<button
+				type="button"
+				class="fresh-page"
+				data-testid="fresh-page-button"
+				title="Undo brings the spell back"
+				onclick={() => simulator.actions.freshPage()}>start a fresh page</button
+			>
+		</span>
 	{/if}
 </div>
 
@@ -159,6 +145,24 @@ the status string: an unsettled reading pulses that dot, never the text.
 	.status-note {
 		font-size: 12px;
 		color: var(--ink-sepia-45);
+	}
+
+	/* The readout lets clicks fall through to the canvas, so only the button
+	   itself takes the pointer back. */
+	.fresh-page {
+		pointer-events: auto;
+		border: none;
+		padding: 0;
+		background: none;
+		font: inherit;
+		color: var(--teal);
+		text-decoration: underline dotted;
+		text-underline-offset: 3px;
+		cursor: pointer;
+	}
+
+	.fresh-page:hover {
+		text-decoration-style: solid;
 	}
 
 	@media (prefers-reduced-motion: reduce) {
