@@ -5,13 +5,19 @@ Unit tests for the pure core: recognition, the compiler, the cast, presets, and 
 ## How to run
 
 ```sh
-npm run test:unit                                # node --import tsx --test tests/*.test.ts
+npm run test:unit                                # svelte-kit sync, then node --import tsx --test tests/*.test.ts
 node --import tsx --test tests/spellPlan.test.ts # a single file while iterating
 npm run test:golden                              # the cast and plan golden tiers, in tests/golden/
 npm run test:golden:update                       # rewrite their baselines
 ```
 
-The whole suite is ~250 tests in ~15s. Run it before you commit.
+The whole suite is ~370 tests in ~15s. Run it before you commit.
+
+The `svelte-kit sync` in front of it is load-bearing. A couple of suites reach
+modules that import `$lib` at runtime, and that alias resolves only through the
+tsconfig sync generates, so without it those files fail to load and their tests
+quietly do not run at all: CI counted 366 tests where a local run counted 373.
+Run the sync yourself before using the single-file form on a fresh clone.
 
 ## Map
 

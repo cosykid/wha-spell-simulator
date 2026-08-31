@@ -12,7 +12,7 @@
 		"db:migrate": "node --import tsx scripts/migrate.ts",
 		"glyphs:reference-sizes": "node --import tsx models/glyph-reference-sizes.ts",
 		"test": "npm run test:unit && npm run test:e2e",
-		"test:unit": "node --import tsx --test tests/*.test.ts",
+		"test:unit": "svelte-kit sync && node --import tsx --test tests/*.test.ts",
 		"test:golden": "node --import tsx --test tests/golden/*.test.ts",
 		"test:golden:update": "node --import tsx tests/golden/update.ts",
 		"test:golden:look": "playwright test golden-look",
