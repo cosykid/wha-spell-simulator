@@ -67,6 +67,14 @@ cannot be created. The classifier worker itself scores candidates in-thread.
 - Memo keys are content hashes (`candidateContentKey`), not object identity,
   because strokes are structured-cloned across worker boundaries. Key new caches
   the same way.
+- Inside one pass the matcher does key on identity: `shape-matcher/scoring.ts`
+  caches a candidate's normalized shape and ink map per rotation against the
+  stroke array it was handed, and `signRotation.ts` caches the rotated copy it
+  hands over. Both are `WeakMap`s that fall away with the strokes. Never mutate
+  a stroke array in place while a pass is scoring it.
+- `predictCandidates` infers only the candidates its cache has not seen, and that
+  cache is scoped on `runtime.poseRotationSign`: a facing de-rotated before
+  calibration settled the sign is not the same answer as one de-rotated after.
 - `ensureWorker` and `ensurePool` compare dictionary, config, and examples by
   reference. A fresh array literal for `recognitionExamples` on every call
   re-clones the dictionary into every worker. Reuse a stable reference.

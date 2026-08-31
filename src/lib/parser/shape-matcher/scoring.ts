@@ -9,12 +9,29 @@ import type {
 	ShapeMatcherResult
 } from './types.js';
 
-interface ExampleCacheEntry {
+/** A stroke set normalized into the unit square, with its ink map rasterized. */
+interface MatchShape {
 	shape: NormalizedShape;
 	ink: InkDistanceMap;
 }
 
-const exampleCache = new WeakMap<RecognitionExample, ExampleCacheEntry>();
+const exampleCache = new WeakMap<RecognitionExample, MatchShape>();
+
+/**
+ * Candidate renders, keyed by the stroke array a scoring pass hands in and then
+ * by rotation.
+ *
+ * Every dictionary example asks the same candidate for the same handful of
+ * rotations, and building one costs far more than comparing it, so without this
+ * a single candidate is normalized and rasterized hundreds of times per pass.
+ * The entries fall away with the strokes they were built from. Strokes must not
+ * be mutated in place while a pass is scoring them.
+ */
+const candidateCache = new WeakMap<Array<Point[] | Stroke>, Map<number, MatchShape>>();
+
+/** How a direct match blends the two shape signals. The skip test below reads them too. */
+const POINT_CLOUD_WEIGHT = 0.55;
+const CHAMFER_WEIGHT = 0.45;
 
 function emptyMatcherResult(): ShapeMatcherResult {
 	return {
@@ -47,7 +64,7 @@ function rotationSet(options: TemplateMatchOptions): number[] {
 	return [0];
 }
 
-function cachedExample(example: RecognitionExample): ExampleCacheEntry {
+function cachedExample(example: RecognitionExample): MatchShape {
 	const cached = exampleCache.get(example);
 	if (cached) {
 		return cached;
@@ -57,6 +74,26 @@ function cachedExample(example: RecognitionExample): ExampleCacheEntry {
 	const ink = renderNormalizedInk(shape.strokes);
 	const entry = { shape, ink };
 	exampleCache.set(example, entry);
+	return entry;
+}
+
+function cachedCandidate(
+	candidateStrokes: Array<Point[] | Stroke>,
+	rotationDeg: number
+): MatchShape {
+	let byRotation = candidateCache.get(candidateStrokes);
+	if (!byRotation) {
+		byRotation = new Map();
+		candidateCache.set(candidateStrokes, byRotation);
+	}
+	const cached = byRotation.get(rotationDeg);
+	if (cached) {
+		return cached;
+	}
+
+	const shape = normalizeStrokesForShape(candidateStrokes, { rotationDeg });
+	const entry = { shape, ink: renderNormalizedInk(shape.strokes) };
+	byRotation.set(rotationDeg, entry);
 	return entry;
 }
 
@@ -87,12 +124,20 @@ export function scoreRecognitionExample(
 	let best = emptyMatcherResult();
 
 	for (const rotationDeg of rotations) {
-		const candidateShape = normalizeStrokesForShape(candidateStrokes, { rotationDeg });
-		const candidateInk = renderNormalizedInk(candidateShape.strokes);
-		const $pDistance = pointCloudDistance(candidateShape.pointCloud, exampleShape.shape.pointCloud);
+		const candidateShape = cachedCandidate(candidateStrokes, rotationDeg);
+		const chamfer = scoreChamferDistance(candidateShape.ink, exampleShape.ink);
+		// The point cloud is the expensive half and a perfect one only adds
+		// POINT_CLOUD_WEIGHT, so a rotation whose ink alone cannot pass the
+		// rotation already in hand cannot win however well its cloud matches.
+		if (POINT_CLOUD_WEIGHT + CHAMFER_WEIGHT * chamfer.chamferScore <= best.confidence) {
+			continue;
+		}
+		const $pDistance = pointCloudDistance(
+			candidateShape.shape.pointCloud,
+			exampleShape.shape.pointCloud
+		);
 		const pScore = clamp(1 - $pDistance);
-		const chamfer = scoreChamferDistance(candidateInk, exampleShape.ink);
-		const directScore = clamp(pScore * 0.55 + chamfer.chamferScore * 0.45);
+		const directScore = clamp(pScore * POINT_CLOUD_WEIGHT + chamfer.chamferScore * CHAMFER_WEIGHT);
 		const directDistance = clamp(1 - directScore);
 
 		if (directScore > best.confidence) {

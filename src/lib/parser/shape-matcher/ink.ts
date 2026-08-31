@@ -41,6 +41,56 @@ function drawSegment(mask: Uint8Array, size: number, start: Vector, end: Vector)
 	}
 }
 
+/** Squared distance standing in for "no ink on this line yet". */
+const UNREACHED = 1e20;
+
+/**
+ * Replaces one row of squared distances with the lower envelope of the parabolas
+ * rooted at its samples, which is the exact 1D distance transform.
+ *
+ * Run down the columns and then across the rows, this composes into the exact
+ * squared distance to the nearest ink pixel (Felzenszwalb and Huttenlocher). It
+ * reads every cell a fixed number of times, where measuring each cell against
+ * every ink pixel grows with the ink and dominated the whole template pass.
+ */
+function lowerEnvelope1d(
+	line: Float64Array,
+	count: number,
+	out: Float64Array,
+	vertices: Int32Array,
+	breaks: Float64Array
+): void {
+	let top = 0;
+	vertices[0] = 0;
+	breaks[0] = -UNREACHED;
+	breaks[1] = UNREACHED;
+
+	for (let index = 1; index < count; index += 1) {
+		let crossing =
+			(line[index] + index * index - (line[vertices[top]] + vertices[top] * vertices[top])) /
+			(2 * index - 2 * vertices[top]);
+		while (crossing <= breaks[top]) {
+			top -= 1;
+			crossing =
+				(line[index] + index * index - (line[vertices[top]] + vertices[top] * vertices[top])) /
+				(2 * index - 2 * vertices[top]);
+		}
+		top += 1;
+		vertices[top] = index;
+		breaks[top] = crossing;
+		breaks[top + 1] = UNREACHED;
+	}
+
+	top = 0;
+	for (let index = 0; index < count; index += 1) {
+		while (breaks[top + 1] < index) {
+			top += 1;
+		}
+		const offset = index - vertices[top];
+		out[index] = offset * offset + line[vertices[top]];
+	}
+}
+
 function distanceMapForMask(mask: Uint8Array, size: number, inkPixels: number[]): Float32Array {
 	const result = new Float32Array(size * size);
 	if (!inkPixels.length) {
@@ -48,23 +98,35 @@ function distanceMapForMask(mask: Uint8Array, size: number, inkPixels: number[])
 		return result;
 	}
 
-	for (let index = 0; index < result.length; index += 1) {
-		if (mask[index]) {
-			result[index] = 0;
-			continue;
-		}
+	const squared = new Float64Array(size * size);
+	for (let index = 0; index < squared.length; index += 1) {
+		squared[index] = mask[index] ? 0 : UNREACHED;
+	}
 
-		const x = index % size;
-		const y = Math.floor(index / size);
-		let bestSq = Infinity;
-		for (const inkIndex of inkPixels) {
-			const inkX = inkIndex % size;
-			const inkY = Math.floor(inkIndex / size);
-			const dx = x - inkX;
-			const dy = y - inkY;
-			bestSq = Math.min(bestSq, dx * dx + dy * dy);
+	const line = new Float64Array(size);
+	const transformed = new Float64Array(size);
+	const vertices = new Int32Array(size);
+	const breaks = new Float64Array(size + 1);
+
+	for (let x = 0; x < size; x += 1) {
+		for (let y = 0; y < size; y += 1) {
+			line[y] = squared[y * size + x];
 		}
-		result[index] = Math.min(1, Math.sqrt(bestSq) / size);
+		lowerEnvelope1d(line, size, transformed, vertices, breaks);
+		for (let y = 0; y < size; y += 1) {
+			squared[y * size + x] = transformed[y];
+		}
+	}
+
+	for (let y = 0; y < size; y += 1) {
+		const row = y * size;
+		for (let x = 0; x < size; x += 1) {
+			line[x] = squared[row + x];
+		}
+		lowerEnvelope1d(line, size, transformed, vertices, breaks);
+		for (let x = 0; x < size; x += 1) {
+			result[row + x] = Math.min(1, Math.sqrt(transformed[x]) / size);
+		}
 	}
 
 	return result;

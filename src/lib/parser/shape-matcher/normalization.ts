@@ -195,20 +195,25 @@ function greedyCloudDistance(a: Vector[], b: Vector[]): number {
 	let total = 0;
 	for (const point of a) {
 		let bestIndex = -1;
-		let bestDistance = Infinity;
+		// Nearest by squared distance is nearest by distance, so the root is worth
+		// taking once on the winner rather than on every pair. This loop runs
+		// tens of thousands of times per template, and it showed.
+		let bestSquared = Infinity;
 		for (let index = 0; index < b.length; index += 1) {
 			if (used[index]) {
 				continue;
 			}
-			const itemDistance = distance(point, b[index]);
-			if (itemDistance < bestDistance) {
-				bestDistance = itemDistance;
+			const dx = point.x - b[index].x;
+			const dy = point.y - b[index].y;
+			const squared = dx * dx + dy * dy;
+			if (squared < bestSquared) {
+				bestSquared = squared;
 				bestIndex = index;
 			}
 		}
 		if (bestIndex >= 0) {
 			used[bestIndex] = 1;
-			total += bestDistance;
+			total += Math.sqrt(bestSquared);
 		}
 	}
 

@@ -343,10 +343,13 @@ export function ensureCanonicalAngles(
 	return runtime.canonicalAnglesPromise;
 }
 
-function predictionCacheFor(dictionary: Dictionary, config: MlConfig) {
+// A prediction's facing is de-rotated with the runtime's equivariance sign, so a
+// prediction aggregated before calibration settled it is not the same answer as
+// one aggregated after. Scoping the cache on the sign keeps the two apart.
+function predictionCacheFor(dictionary: Dictionary, runtime: MlRuntime, config: MlConfig) {
 	return scopedLruCache<MlPrediction>(
 		dictionary,
-		`ml:${config.modelUrl}:${config.classMapUrl}`,
+		`ml:${config.modelUrl}:${config.classMapUrl}:${runtime.poseRotationSign ?? 'uncalibrated'}`,
 		512
 	);
 }
@@ -358,7 +361,7 @@ export async function predictCandidateSingle(
 	runtime: MlRuntime,
 	config: MlConfig
 ): Promise<MlPrediction> {
-	const cache = predictionCacheFor(dictionary, config);
+	const cache = predictionCacheFor(dictionary, runtime, config);
 	const cacheKey = candidateContentKey(candidate);
 	const cached = cache.get(cacheKey);
 	if (cached) {
@@ -376,7 +379,13 @@ export async function predictCandidateSingle(
 	return prediction;
 }
 
-/** Predicts a candidate set with pose TTA, batching all renders into one pass. */
+/**
+ * Predicts a candidate set with pose TTA, batching all renders into one pass.
+ *
+ * Only the candidates the cache has never seen are rendered and inferred. Every
+ * recompute reclassifies the whole drawing, so most of a seal is ink the model
+ * has already read, and inferring it again is the one avoidable cost here.
+ */
 export async function predictCandidates(
 	candidates: SymbolCandidate[],
 	dictionary: Dictionary,
@@ -390,13 +399,22 @@ export async function predictCandidates(
 	if (shouldContinue && !shouldContinue()) {
 		return null;
 	}
+
+	const cache = predictionCacheFor(dictionary, runtime, config);
+	const keys = candidates.map(candidateContentKey);
+	const predictions = keys.map((key) => cache.get(key) ?? null);
+	const missing = predictions.flatMap((prediction, index) => (prediction ? [] : [index]));
+	if (!missing.length) {
+		return predictions as MlPrediction[];
+	}
+
 	if (runtime.warmupPromise) {
 		await runtime.warmupPromise;
 	}
 
 	const inputs: Float32Array[] = [];
-	for (const candidate of candidates) {
-		inputs.push(...renderRotations(candidate, config));
+	for (const index of missing) {
+		inputs.push(...renderRotations(candidates[index], config));
 	}
 	if (shouldContinue && !shouldContinue()) {
 		return null;
@@ -407,11 +425,11 @@ export async function predictCandidates(
 	}
 
 	const stride = POSE_TTA_ROTATIONS_DEG.length;
-	const cache = predictionCacheFor(dictionary, config);
-	return candidates.map((candidate, index) => {
-		const slice = rows.slice(index * stride, index * stride + stride);
+	missing.forEach((candidateIndex, slot) => {
+		const slice = rows.slice(slot * stride, slot * stride + stride);
 		const prediction = aggregatePrediction(slice, runtime, dictionary);
-		cache.set(candidateContentKey(candidate), prediction);
-		return prediction;
+		cache.set(keys[candidateIndex], prediction);
+		predictions[candidateIndex] = prediction;
 	});
+	return predictions as MlPrediction[];
 }
