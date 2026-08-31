@@ -43,7 +43,7 @@ no author or like tally.
 	function upvote() {
 		if (!shared) return;
 		const target = shared;
-		auth.requireUser(() => void session.toggleUpvote(target));
+		void auth.requireUser(() => void session.toggleUpvote(target));
 	}
 </script>
 
@@ -91,13 +91,16 @@ no author or like tally.
 				{playing ? 'Still' : 'Preview'}
 			</button>
 		{/if}
+		<!-- The seal lands on the atelier canvas unsealed, for the reader to close
+		     and cast, so the label promises the trip and not the spell. -->
 		<button
 			type="button"
 			class="ink-action"
 			data-testid="spell-cast-button"
+			title="Draw this spell onto the atelier canvas"
 			onclick={() => session.castSpell(spell)}
 		>
-			Cast
+			Open
 		</button>
 	</footer>
 </article>

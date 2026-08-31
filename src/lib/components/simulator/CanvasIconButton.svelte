@@ -10,7 +10,8 @@ zoom buttons can share behavior without sharing layout assumptions.
 `labelPlacement` floats the hover chip above (bottom-corner controls) or below
 (top-corner controls) the button. `chipAlign` shifts the chip box toward an edge
 for a button in a screen corner so the box stays on-screen (the caret stays centred
-on the icon either way).
+on the icon either way). `shortcut` adds the key cap after the name, and the parent
+formats it for the platform (see `formatShortcut`).
 -->
 <script lang="ts">
 	import type { Snippet } from 'svelte';
@@ -21,6 +22,8 @@ on the icon either way).
 		testId?: string;
 		label: string;
 		tooltip?: string;
+		/** Keyboard chord shown as a cap after the name, already platform-formatted. */
+		shortcut?: string;
 		buttonClass?: string;
 		labelPlacement?: 'above' | 'below';
 		chipAlign?: 'center' | 'left' | 'right';
@@ -36,6 +39,7 @@ on the icon either way).
 		testId,
 		label,
 		tooltip = label,
+		shortcut,
 		buttonClass = '',
 		labelPlacement = 'above',
 		chipAlign = 'center',
@@ -59,9 +63,10 @@ on the icon either way).
 	{onclick}
 >
 	{@render children()}
-	{#if !disabled}
-		<HoverLabel label={tooltip} placement={labelPlacement} chip={chipAlign} />
-	{/if}
+	<!-- Shown for disabled buttons too: a greyed Undo still has to say what it is.
+	     The chip is driven by a CSS variable on :hover, which keeps matching while
+	     the button stays non-interactive. -->
+	<HoverLabel label={tooltip} {shortcut} placement={labelPlacement} chip={chipAlign} />
 </button>
 
 <style>
@@ -87,9 +92,9 @@ on the icon either way).
 		background: var(--chrome-btn-corners), var(--chrome-btn-bg);
 		box-shadow: var(--chrome-btn-bezel);
 		transition:
-			color 160ms ease,
-			background 160ms ease,
-			border-color 160ms ease;
+			color var(--dur-hover) ease,
+			background var(--dur-hover) ease,
+			border-color var(--dur-hover) ease;
 		/* These bordered square buttons want more breathing room than the bare tools. */
 		--label-offset: 9px;
 	}
@@ -124,15 +129,12 @@ on the icon either way).
 		stroke: none;
 	}
 
-	/* Reveal the shared name chip (see HoverLabel) on hover or keyboard focus. */
+	/* Reveal the shared name chip (see HoverLabel) on hover or keyboard focus. These
+	   buttons sit in rows of three or four, so the chip waits out a short intent
+	   delay and a sweep along the row names none of the buttons it passes. */
 	button:hover,
 	button:focus-visible {
 		--label-shown: 1;
-	}
-
-	@media (prefers-reduced-motion: reduce) {
-		button {
-			transition: none;
-		}
+		--label-delay: 350ms;
 	}
 </style>

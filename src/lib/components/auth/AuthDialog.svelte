@@ -110,9 +110,13 @@ maker's username modal. Accounts are username and password only.
 				required
 			/>
 		</label>
-		{#if error}
-			<p class="auth-error" data-testid="auth-error">{error}</p>
-		{/if}
+		<!-- The slot is always laid out so an error does not shove the buttons
+		     down under the reader's cursor. -->
+		<div class="auth-error-slot" aria-live="polite">
+			{#if error}
+				<p class="auth-error" data-testid="auth-error">{error}</p>
+			{/if}
+		</div>
 		<div class="auth-actions">
 			<button type="submit" class="auth-submit" data-testid="auth-submit" disabled={busy}>
 				{busy ? 'One moment…' : submitLabel}
@@ -125,6 +129,10 @@ maker's username modal. Accounts are username and password only.
 </dialog>
 
 <style>
+	/* The dialog rises the way the drawers slide, on the same easing, so a modal
+	   does not pop into a room where everything else moves. `display` and
+	   `overlay` transition discretely, which is what lets the closing frame play
+	   before the browser takes the dialog out of the top layer. */
 	.auth-dialog {
 		width: min(400px, 92vw);
 		padding: 24px;
@@ -133,10 +141,43 @@ maker's username modal. Accounts are username and password only.
 		color: var(--ink);
 		background: var(--panel, #f2ecd6);
 		box-shadow: 0 24px 60px rgba(36, 27, 22, 0.45);
+		opacity: 1;
+		scale: 1;
+		transition:
+			opacity 220ms ease,
+			scale 220ms cubic-bezier(0.22, 1, 0.36, 1),
+			overlay 220ms allow-discrete,
+			display 220ms allow-discrete;
+	}
+
+	.auth-dialog:not([open]) {
+		opacity: 0;
+		scale: 0.97;
+	}
+
+	@starting-style {
+		.auth-dialog[open] {
+			opacity: 0;
+			scale: 0.97;
+		}
 	}
 
 	.auth-dialog::backdrop {
 		background: rgba(36, 27, 22, 0.5);
+		transition:
+			background 220ms ease,
+			overlay 220ms allow-discrete,
+			display 220ms allow-discrete;
+	}
+
+	.auth-dialog:not([open])::backdrop {
+		background: rgba(36, 27, 22, 0);
+	}
+
+	@starting-style {
+		.auth-dialog[open]::backdrop {
+			background: rgba(36, 27, 22, 0);
+		}
 	}
 
 	form {
@@ -161,6 +202,11 @@ maker's username modal. Accounts are username and password only.
 		display: grid;
 		gap: 6px;
 		font-size: 0.9rem;
+	}
+
+	/* One line of room, held whether or not there is anything to say. */
+	.auth-error-slot {
+		min-height: 1.2rem;
 	}
 
 	.auth-error {

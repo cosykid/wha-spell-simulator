@@ -44,6 +44,9 @@
 	background: transparent;
 	box-shadow: none;
 	color: var(--muted-ink);
+	transition:
+		color var(--dur-hover) ease,
+		background var(--dur-hover) ease;
 }
 
 .dictionary-tab-button.active,
@@ -79,10 +82,21 @@
 #dictionaryRootPanel,
 #diagnosticRootPanel,
 #shapesRootPanel,
+#spellsRootPanel,
 .reference-panel,
 .diagnostics-panel {
 	min-height: 0;
 	flex: 1 1 auto;
 	display: flex;
 	flex-direction: column;
+}
+
+/*
+ * The other three panels hand their scroll to an inner list (.reference-list,
+ * .shape-palette, .diagnostic-output). My Spells has no such inner box, so the
+ * panel scrolls itself and the drawer heading stays put like its siblings'.
+ */
+#spellsRootPanel {
+	overflow-y: auto;
+	overscroll-behavior: contain;
 }

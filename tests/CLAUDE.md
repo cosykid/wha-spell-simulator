@@ -5,13 +5,19 @@ Unit tests for the pure core: recognition, the compiler, the cast, presets, and 
 ## How to run
 
 ```sh
-npm run test:unit                                # node --import tsx --test tests/*.test.ts
+npm run test:unit                                # svelte-kit sync, then node --import tsx --test tests/*.test.ts
 node --import tsx --test tests/spellPlan.test.ts # a single file while iterating
 npm run test:golden                              # the cast and plan golden tiers, in tests/golden/
 npm run test:golden:update                       # rewrite their baselines
 ```
 
-The whole suite is ~250 tests in ~15s. Run it before you commit.
+The whole suite is ~370 tests in ~15s. Run it before you commit.
+
+The `svelte-kit sync` in front of it is load-bearing. A couple of suites reach
+modules that import `$lib` at runtime, and that alias resolves only through the
+tsconfig sync generates, so without it those files fail to load and their tests
+quietly do not run at all: CI counted 366 tests where a local run counted 373.
+Run the sync yourself before using the single-file form on a fresh clone.
 
 ## Map
 
@@ -28,7 +34,7 @@ Load-bearing coverage, largest first:
 - [`ringDetector.test.ts`](ringDetector.test.ts) — `detectRing` closure and multiple-ring rejection.
 - [`spellPreset.test.ts`](spellPreset.test.ts) — serialize/deserialize round trip and `cutRingGap`.
 
-The rest are small and single-subject: stroke erase and preview, spell summary, activation carry, the plan digest, the portal projection, shape placement, grouping proximity, the chamfer matcher, sample picking, password hashing, connection strings, the classic engine's field adapter ([`classicField.test.ts`](classicField.test.ts)) and the effect-style narrowing ([`effectStyle.test.ts`](effectStyle.test.ts)).
+The rest are small and single-subject: stroke erase and preview, spell summary, activation carry, the plan digest, the portal projection, shape placement, grouping proximity, the chamfer matcher, sample picking, password hashing, connection strings, the classic engine's field adapter ([`classicField.test.ts`](classicField.test.ts)), the effect-style narrowing ([`effectStyle.test.ts`](effectStyle.test.ts)), the drawing-capture pointer lifecycle ([`drawingCapture.test.ts`](drawingCapture.test.ts)), the eraser cursor ([`eraserCursor.test.ts`](eraserCursor.test.ts)) and the stroke a spent page hands back ([`ringSeal.test.ts`](ringSeal.test.ts)).
 
 [`dictionaryFixtures.ts`](dictionaryFixtures.ts) is a helper, not a suite. Helpers carry no `.test.ts` suffix.
 

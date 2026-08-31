@@ -33,6 +33,10 @@ side keeps it on-screen for the edge- and corner-hugging docks.
 	 * Both pieces read `--label-shown` (0 hidden, 1 shown), inherited from the
 	 * button. Opacity fades with it and the box eases up the last few pixels, so a
 	 * single property on the parent drives the whole reveal.
+	 *
+	 * `--label-delay` is the hover-intent wait, and the button only sets it while
+	 * hovered. So arriving waits it out and a sweep across a dock never strobes,
+	 * while leaving reads 0 and the label goes at once.
 	 */
 	.hover-box,
 	.hover-caret {
@@ -41,8 +45,9 @@ side keeps it on-screen for the edge- and corner-hugging docks.
 		pointer-events: none;
 		opacity: var(--label-shown, 0);
 		transition:
-			opacity 140ms ease,
-			transform 140ms ease;
+			opacity var(--dur-quick) ease,
+			transform var(--dur-quick) ease;
+		transition-delay: var(--label-delay, 0ms);
 	}
 
 	.hover-box {
@@ -126,10 +131,15 @@ side keeps it on-screen for the edge- and corner-hugging docks.
 		right: 12px;
 	}
 
+	/*
+	 * A cross fade is not motion, so the chip keeps its fade where the global guard
+	 * in base.css turns everything else instant. Overriding that guard takes the
+	 * same !important it uses. What does go is the few-pixel rise.
+	 */
 	@media (prefers-reduced-motion: reduce) {
 		.hover-box,
 		.hover-caret {
-			transition: opacity 140ms ease;
+			transition-duration: var(--dur-quick) !important;
 		}
 		.hover-box {
 			transform: translateX(var(--tx));

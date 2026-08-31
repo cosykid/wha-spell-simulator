@@ -15,6 +15,39 @@ import { placementsInRenderOrder } from './placement-order.js';
 import type { SelectedShape } from './types.js';
 
 /**
+ * Identifies a placement's baked geometry. Two placements sharing a key bake to
+ * the same strokes, so a cached bake stays valid until the key moves.
+ */
+export function placementBakeKey(placement: Placement): string {
+	const { transform } = placement;
+	return [
+		placement.sourceId,
+		placement.kind,
+		placement.baseStrokes.length,
+		transform.cx,
+		transform.cy,
+		transform.scaleX,
+		transform.scaleY,
+		transform.rotationDeg
+	].join('|');
+}
+
+/**
+ * Identifies the merged ink the render path draws. It moves when the stroke
+ * store is mutated and when a placement is added, removed, or transformed.
+ *
+ * @example
+ * mergedRenderKey(store.version(), placements.getPlacements());
+ */
+export function mergedRenderKey(storeVersion: number, placements: Placement[]): string {
+	const parts: string[] = [String(storeVersion)];
+	for (const placement of placements) {
+		parts.push(placement.id, placementBakeKey(placement));
+	}
+	return parts.join('~');
+}
+
+/**
  * Owns mutable drawing data for the simulator canvas.
  *
  * This object keeps freehand strokes, editable shape placements, selection
@@ -36,6 +69,7 @@ export class SimulatorDrawingState {
 	#clipboard: Omit<Placement, 'id'> | null = null;
 	#bakedPlacementCache = new SvelteMap<string, { key: string; strokes: Stroke[] }>();
 	#placementEntityCache = new SvelteMap<string, { key: string; entity: PlacementEntity }>();
+	#mergedRenderCache: { key: string; strokes: Stroke[] } | null = null;
 
 	/** Placement id currently selected on the canvas, or `null` when nothing is selected. */
 	get selectedPlacementId() {
@@ -85,9 +119,37 @@ export class SimulatorDrawingState {
 		];
 	}
 
-	/** Returns freehand strokes used for per-frame glyph rendering. */
+	/**
+	 * Returns freehand strokes for per-frame glyph rendering, without copying.
+	 *
+	 * The render path only reads its ink, so it takes the store's live array
+	 * rather than paying a deep clone every frame. Treat the result as read only.
+	 */
 	renderInkStrokes() {
-		return this.store.getStrokes();
+		return this.store.peekStrokes();
+	}
+
+	/**
+	 * Returns the merged ink the activated-glyph layer draws, without copying.
+	 *
+	 * Recognition takes its own copy through `mergedStrokes`. This array is
+	 * rebuilt only when the stroke store or a placement changes, so a cast reuses
+	 * one array across its frames. Treat the result as read only.
+	 */
+	renderMergedStrokes(): Stroke[] {
+		const key = mergedRenderKey(this.store.version(), this.placements.getPlacements());
+		if (this.#mergedRenderCache?.key === key) {
+			return this.#mergedRenderCache.strokes;
+		}
+
+		const strokes = [
+			...this.store.peekStrokes(),
+			...this.placements
+				.getPlacements()
+				.flatMap((placement) => this.#bakedPlacementStrokes(placement))
+		];
+		this.#mergedRenderCache = { key, strokes };
+		return strokes;
 	}
 
 	/**
@@ -298,7 +360,7 @@ export class SimulatorDrawingState {
 	}
 
 	#bakedPlacementStrokes(placement: Placement) {
-		const key = this.#placementBakeKey(placement);
+		const key = placementBakeKey(placement);
 		const cached = this.#bakedPlacementCache.get(placement.id);
 		if (cached?.key === key) {
 			return cached.strokes;
@@ -310,22 +372,8 @@ export class SimulatorDrawingState {
 		return strokes;
 	}
 
-	#placementBakeKey(placement: Placement) {
-		const { transform } = placement;
-		return [
-			placement.sourceId,
-			placement.kind,
-			placement.baseStrokes.length,
-			transform.cx,
-			transform.cy,
-			transform.scaleX,
-			transform.scaleY,
-			transform.rotationDeg
-		].join('|');
-	}
-
 	#placementEntity(placement: Placement): PlacementEntity {
-		const key = this.#placementBakeKey(placement);
+		const key = placementBakeKey(placement);
 		const cached = this.#placementEntityCache.get(placement.id);
 		if (cached?.key === key) {
 			return cached.entity;

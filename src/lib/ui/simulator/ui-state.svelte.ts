@@ -112,14 +112,24 @@ export class SimulatorUiState {
 		this.effectStyle = style;
 	};
 
+	/** Sets canvas zoom, clamped to the configured bounds. */
+	setZoom = (level: number) => {
+		this.zoomLevel = Math.min(this.zoomMax, Math.max(this.zoomMin, level));
+	};
+
 	/** Increases canvas zoom by one configured step. */
 	zoomIn = () => {
-		this.zoomLevel = Math.min(this.zoomMax, this.zoomLevel + this.#zoomStep);
+		this.setZoom(this.zoomLevel + this.#zoomStep);
 	};
 
 	/** Decreases canvas zoom by one configured step. */
 	zoomOut = () => {
-		this.zoomLevel = Math.max(this.zoomMin, this.zoomLevel - this.#zoomStep);
+		this.setZoom(this.zoomLevel - this.#zoomStep);
+	};
+
+	/** Returns the view to its resting magnification, as part of re-centring it. */
+	resetZoom = () => {
+		this.setZoom(1);
 	};
 
 	/** Returns the mode produced by toggling arrange mode. */
@@ -164,6 +174,14 @@ export class SimulatorUiState {
 		}
 		this.canvasHintDismissed = true;
 		return true;
+	}
+
+	/**
+	 * Re-arms the first-use canvas hint. An emptied canvas puts the user back at
+	 * the step the hint describes, so dismissal is per drawing, not per session.
+	 */
+	resetCanvasHint() {
+		this.canvasHintDismissed = false;
 	}
 
 	/** Recomputes viewport-derived layout: canvas-height matching and portal fit. */

@@ -22,6 +22,29 @@ load, share, and delete without leaving the canvas. Guests see a sign-in prompt.
 	let grimoire = $derived(simulator.grimoire);
 	let sharedCount = $derived(grimoire.spells.filter((spell) => spell.publishedAt).length);
 
+	/** The seal a command is running against, so its row can say so and lock. */
+	let busy = $state<{ id: string; action: 'share' | 'delete' } | null>(null);
+
+	/** The line the panel shows when the grimoire could not be read, and the way
+	 * back from it. A failed read is not an empty grimoire. */
+	let failure = $derived.by(() => {
+		if (grimoire.error === 'auth') {
+			return {
+				text: 'Your sign-in has lapsed.',
+				label: 'Sign in',
+				run: () => auth.openDialog('login')
+			};
+		}
+		if (grimoire.error === 'network') {
+			return {
+				text: 'The library could not be reached.',
+				label: 'Try again',
+				run: () => void grimoire.refresh()
+			};
+		}
+		return null;
+	});
+
 	// Refresh whenever the tab becomes visible for a signed-in user, so the list
 	// reflects saves made since it last opened.
 	$effect(() => {
@@ -36,21 +59,39 @@ load, share, and delete without leaving the canvas. Guests see a sign-in prompt.
 		}
 	}
 
+	/** Signs the lapsed session out and resumes the command after a fresh one. */
+	function retryAfterSignIn(retry: () => void) {
+		auth.onSignedOut();
+		void auth.requireUser(retry);
+	}
+
 	async function togglePublished(spell: SavedSpell) {
 		const publishing = !spell.publishedAt;
+		busy = { id: spell.id, action: 'share' };
 		const result = await grimoire.setPublished(spell.id, publishing);
+		busy = null;
 		if (result.ok) {
 			toast.push(
 				publishing ? `“${spell.name}” shared to the library.` : `“${spell.name}” is private again.`
 			);
+		} else if (result.reason === 'auth-required') {
+			retryAfterSignIn(() => void togglePublished(spell));
 		} else {
 			toast.push('That change did not take. Try again.');
 		}
 	}
 
 	async function removeSpell(spell: SavedSpell) {
+		busy = { id: spell.id, action: 'delete' };
 		const result = await grimoire.remove(spell.id);
-		toast.push(result.ok ? `“${spell.name}” deleted.` : 'That change did not take. Try again.');
+		busy = null;
+		if (result.ok) {
+			toast.push(`“${spell.name}” deleted.`);
+		} else if (result.reason === 'auth-required') {
+			retryAfterSignIn(() => void removeSpell(spell));
+		} else {
+			toast.push('That change did not take. Try again.');
+		}
 	}
 </script>
 
@@ -67,34 +108,54 @@ load, share, and delete without leaving the canvas. Guests see a sign-in prompt.
 		>
 			Sign in
 		</button>
-	{:else if grimoire.loading && grimoire.spells.length === 0}
-		<p class="note">Turning the pages…</p>
-	{:else if grimoire.spells.length === 0}
-		<div class="empty">
-			<svg class="empty-plate" viewBox="0 0 100 100" aria-hidden="true">
-				<circle cx="50" cy="50" r="34" />
-			</svg>
-			<p class="note">Nothing inscribed yet.</p>
-			<p class="note faint">
-				Draw a spell, then press <strong>Save spell</strong> beside Undo and Clear to keep it here.
-			</p>
-		</div>
 	{:else}
-		<p class="tally">
-			{grimoire.spells.length}
-			{grimoire.spells.length === 1 ? 'seal' : 'seals'}
-			{#if sharedCount > 0}<span class="tally-shared">· {sharedCount} shared</span>{/if}
+		<p class="account">
+			Signed in as <strong>{auth.user.username}</strong>
+			<button
+				type="button"
+				class="ink-link"
+				data-testid="my-spells-signout"
+				onclick={() => void auth.signOut()}
+			>
+				Sign out
+			</button>
 		</p>
-		<ul class="spell-list">
-			{#each grimoire.spells as spell (spell.id)}
-				<MySpellRow
-					{spell}
-					onLoad={() => loadSpell(spell)}
-					onToggleShare={() => void togglePublished(spell)}
-					onDelete={() => void removeSpell(spell)}
-				/>
-			{/each}
-		</ul>
+		{#if failure}
+			<p class="note" data-testid="my-spells-error">
+				{failure.text}
+				<button type="button" class="ink-link" onclick={failure.run}>{failure.label}</button>
+			</p>
+		{/if}
+		{#if grimoire.spells.length}
+			<p class="tally">
+				{grimoire.spells.length}
+				{grimoire.spells.length === 1 ? 'seal' : 'seals'}
+				{#if sharedCount > 0}<span class="tally-shared">· {sharedCount} shared</span>{/if}
+			</p>
+			<ul class="spell-list">
+				{#each grimoire.spells as spell (spell.id)}
+					<MySpellRow
+						{spell}
+						busyAction={busy?.id === spell.id ? busy.action : null}
+						onLoad={() => loadSpell(spell)}
+						onToggleShare={() => void togglePublished(spell)}
+						onDelete={() => void removeSpell(spell)}
+					/>
+				{/each}
+			</ul>
+		{:else if grimoire.loading}
+			<p class="note">Turning the pages…</p>
+		{:else if !failure}
+			<div class="empty">
+				<svg class="empty-plate" viewBox="0 0 100 100" aria-hidden="true">
+					<circle cx="50" cy="50" r="34" />
+				</svg>
+				<p class="note">Nothing inscribed yet.</p>
+				<p class="note faint">
+					Draw a spell, then press <strong>Save spell</strong> beside Undo and Clear to keep it here.
+				</p>
+			</div>
+		{/if}
 	{/if}
 </div>
 
@@ -120,6 +181,48 @@ load, share, and delete without leaving the canvas. Guests see a sign-in prompt.
 		min-height: 38px;
 		padding: 0 16px;
 		justify-self: start;
+	}
+
+	/* Who the drawer is showing, set small so it reads as a ledger note rather
+	   than another control. */
+	.account {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 2px 10px;
+		align-items: baseline;
+		margin: 0;
+		font-size: 0.82rem;
+		color: var(--ink-sepia-45);
+	}
+
+	.account strong {
+		font-weight: 600;
+		color: var(--ink-sepia-70);
+	}
+
+	/* A quiet inked link, the same voice as the row actions one level down. */
+	.ink-link {
+		min-height: 0;
+		padding: 0 1px;
+		border: 0;
+		border-bottom: 1px solid var(--ink-sepia-20);
+		border-radius: 0;
+		background: none;
+		box-shadow: none;
+		font-size: 0.82rem;
+		font-style: italic;
+		color: var(--ink-sepia-70);
+	}
+
+	.ink-link:hover {
+		background: none;
+		border-bottom-color: var(--gold);
+		color: var(--ink-sepia);
+	}
+
+	.ink-link:focus-visible {
+		outline: 2px solid var(--gold);
+		outline-offset: 2px;
 	}
 
 	/* An empty grimoire shows a bare ring: the seal waiting to be drawn. */

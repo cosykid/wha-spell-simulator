@@ -1,7 +1,9 @@
+import { toast } from '@zerodevx/svelte-toast';
 import { deserializeSpellPreset, type SpellPresetData } from '$lib/structures/spellPreset.js';
 import type { PlacementTransform, ShapeItem, Vector } from '$lib/types.js';
 import type { SimulatorDrawingState } from './drawing-state.svelte.js';
 import type { RecognitionPipeline } from './recognition-pipeline.svelte.js';
+import { sealingStrokeId } from './ring-seal.js';
 import type { SimulatorUiState } from './ui-state.svelte.js';
 
 interface SimulatorDrawingActionsOptions {
@@ -11,6 +13,21 @@ interface SimulatorDrawingActionsOptions {
 }
 
 /**
+ * How long a continuous transform edit coalesces before recognition runs. A
+ * slider drag and a held arrow key change the shape many times a second, and a
+ * full recognition per tick is work the next tick throws away. Matches the
+ * debounce a committed stroke gets.
+ */
+const TRANSFORM_RECOGNITION_DEBOUNCE_MS = 120;
+
+/**
+ * How long after the last arrow press a nudge burst counts as finished. One
+ * history entry covers the whole burst, so undo steps back over the nudge instead
+ * of retracing it a pixel at a time.
+ */
+const NUDGE_BURST_MS = 400;
+
+/**
  * User-facing drawing commands that mutate drawing state and keep recognition
  * in sync afterward.
  */
@@ -18,6 +35,7 @@ export class SimulatorDrawingActions {
 	readonly #drawing: SimulatorDrawingState;
 	readonly #recognition: RecognitionPipeline;
 	readonly #ui: SimulatorUiState;
+	#nudgeBurstTimer: ReturnType<typeof setTimeout> | null = null;
 
 	constructor(options: SimulatorDrawingActionsOptions) {
 		this.#drawing = options.drawing;
@@ -34,6 +52,7 @@ export class SimulatorDrawingActions {
 		this.#recognition.cancelActiveRecognition();
 		this.#drawing.restore(snap);
 		this.#recognition.clearPreviousRing();
+		this.#recognition.dropCarriedActivation();
 		void this.#recognition.recompute();
 	};
 
@@ -46,17 +65,78 @@ export class SimulatorDrawingActions {
 		this.#recognition.cancelActiveRecognition();
 		this.#drawing.restore(snap);
 		this.#recognition.clearPreviousRing();
+		this.#recognition.dropCarriedActivation();
 		void this.#recognition.recompute();
 	};
 
-	/** Clears all drawing marks and reruns recognition. */
+	/**
+	 * Clears all drawing marks and reruns recognition.
+	 *
+	 * The wipe lands in undo history like any other edit, so the broom is
+	 * reversible. The toast is the only place that says so.
+	 */
 	clear = () => {
-		this.#recognition.cancelActiveRecognition();
-		this.#drawing.clear();
-		this.#recognition.clearPreviousRing();
+		const hadMarks = this.#wipe();
+		// An empty canvas is the step the first-use hint describes, so it comes back.
+		this.#ui.resetCanvasHint();
+		if (hadMarks) {
+			toast.push('Canvas cleared. Undo to restore.');
+		}
+	};
+
+	/**
+	 * Tears a spent spell off for a fresh page.
+	 *
+	 * While a spell can still perform, erase and undo are the sealed page's only
+	 * exits, which keeps the seal inviolable. A finished cast leaves dead paper,
+	 * so it earns this third exit: a clear rather than an unlock. Unlike `clear`
+	 * it leaves the first-use hint down, because the drawer who just finished a
+	 * cast needs no tutorial.
+	 */
+	freshPage = () => {
+		if (this.#wipe()) {
+			toast.push('Fresh page. Undo to restore the spell.');
+		}
+	};
+
+	/**
+	 * Takes the sealing stroke back so a spent spell can be drawn on again.
+	 *
+	 * The other exit from a spent page keeps the diagram: the stroke that closed
+	 * the ring comes off and every other mark stays, which leaves the prepared
+	 * draft the spell was a moment before it cast. Closing the gap again casts
+	 * the edited spell. Like the tear this is an edit rather than an unlock, so
+	 * the seal stays inviolable and undo puts it back.
+	 */
+	reopenRing = () => {
+		const snapshot = this.#drawing.snapshot();
+		const sealingId = sealingStrokeId(snapshot.strokes, this.#recognition.ring);
+		if (!sealingId) {
+			return;
+		}
+		this.#drawing.restore({
+			...snapshot,
+			strokes: snapshot.strokes.filter((stroke) => stroke.id !== sealingId)
+		});
+		this.#recognition.resetSpellState();
 		this.pushHistory();
 		void this.#recognition.recompute();
+		toast.push('Ring reopened. Seal it to cast again.');
 	};
+
+	/**
+	 * Empties the drawing and drops the spell state in the same tick, so the
+	 * lock, tilt, and status never outlive the ink. Reports whether there was
+	 * anything to wipe.
+	 */
+	#wipe(): boolean {
+		const hadMarks = this.#drawing.store.count() > 0 || this.#drawing.placements.count() > 0;
+		this.#drawing.clear();
+		this.#recognition.resetSpellState();
+		this.pushHistory();
+		void this.#recognition.recompute();
+		return hadMarks;
+	}
 
 	/** Converts the selected editable placement into permanent strokes. */
 	commitSelected = () => {
@@ -67,12 +147,34 @@ export class SimulatorDrawingActions {
 		void this.#recognition.recompute();
 	};
 
-	/** Applies shape-inspector transform changes to the selected placement. */
+	/**
+	 * Applies shape-inspector transform changes to the selected placement.
+	 *
+	 * The inspector fires one of these per slider tick, so recognition is scheduled
+	 * rather than run. A discrete commit (a drag end, the end of a nudge burst) is
+	 * what earns an immediate pass.
+	 */
 	updateSelectedTransform = (patch: Partial<PlacementTransform>) => {
 		if (!this.#drawing.updateSelectedTransform(patch)) {
 			return;
 		}
-		void this.#recognition.recompute();
+		this.#recognition.scheduleRecompute(TRANSFORM_RECOGNITION_DEBOUNCE_MS);
+	};
+
+	/**
+	 * Moves the selected placement by a canvas-pixel offset, for the arrow keys.
+	 *
+	 * A run of presses lands as a single history entry, so one undo takes back the
+	 * whole nudge.
+	 */
+	nudgeSelected = (dx: number, dy: number) => {
+		const transform = this.#drawing.selected?.transform;
+		if (!transform) {
+			return;
+		}
+		this.updateSelectedTransform({ cx: transform.cx + dx, cy: transform.cy + dy });
+		this.#cancelNudgeBurst();
+		this.#nudgeBurstTimer = setTimeout(this.#endNudgeBurst, NUDGE_BURST_MS);
 	};
 
 	/** Removes the selected editable placement. */
@@ -109,6 +211,9 @@ export class SimulatorDrawingActions {
 
 	/** Records the current drawing state in undo history. */
 	pushHistory = () => {
+		// Any nudge still waiting for its own entry is covered by this one, and a
+		// second entry for the same state would make one undo look like a no-op.
+		this.#cancelNudgeBurst();
 		this.#drawing.pushHistory();
 	};
 
@@ -128,6 +233,7 @@ export class SimulatorDrawingActions {
 		this.#recognition.cancelActiveRecognition();
 		this.#drawing.restore(drawing);
 		this.#recognition.clearPreviousRing();
+		this.#recognition.dropCarriedActivation();
 		this.pushHistory();
 		void this.#recognition.recompute();
 		this.dismissCanvasHint();
@@ -151,6 +257,18 @@ export class SimulatorDrawingActions {
 	dismissCanvasHint() {
 		if (this.#ui.dismissCanvasHint()) {
 			this.#recognition.hideHint();
+		}
+	}
+
+	#endNudgeBurst = () => {
+		this.pushHistory();
+		void this.#recognition.recompute();
+	};
+
+	#cancelNudgeBurst() {
+		if (this.#nudgeBurstTimer) {
+			clearTimeout(this.#nudgeBurstTimer);
+			this.#nudgeBurstTimer = null;
 		}
 	}
 }

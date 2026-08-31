@@ -17,7 +17,7 @@ place it becomes three.js world space.
 
 ## File map
 
-- [`stage.ts`](stage.ts) — `CastStage`: the running cast, the signature it is
+- [`stage.ts`](stage.ts) — `CastStage`: the running cast, the performance it is
   keyed on, the frame, and the paint budget.
 - [`surface.ts`](surface.ts) — the `WebGLRenderer`, the canvas it is allowed to
   use, size bookkeeping and context loss. Knows nothing about a score.
@@ -36,12 +36,12 @@ makes. Then advance every cell to `timestamp - activatedAt` in whole steps and p
 the final state once: the volume skin is stateless per repolygonize, so a call
 that caught up simulates silently and paints only where it landed.
 
-The cast itself is built once per `spellIR.signature`: compile the score, resolve
-one look row for the whole spell, build **one substrate for the whole cast** with
-its pool divided among the tracks, build one cell per track seeded from
+The cast itself is built once per performance: compile the score, resolve one
+look row for the whole spell, build **one substrate for the whole cast** with its
+pool divided among the tracks, build one cell per track seeded from
 `` `${signature}:${index}` `` over its own channel, parent the substrate's meshes
 under the seal root, and resolve the score's declared couplings into performer
-pairs. A changed signature disposes all of it and builds again from the strike.
+pairs. Anything else disposes all of it and builds again from the strike.
 
 ## Invariants and gotchas
 
@@ -73,6 +73,18 @@ The polygonizer's buffers, the blot atlas and the wash programs belong to the
 stage ([`../volume/`](../volume/CLAUDE.md)) and are warmed before a seal is
 closed; a cast's `attach` builds its element's ink material and compiles it
 inside the 980ms charge beat, which is the budget that stall belongs in.
+
+**A cast is keyed on the performance, `(signature, activatedAt)`, not on the
+spell.** The signature alone is what a recompile of a running cast shares, so it
+has to be part of the key; on its own it also makes a second cast of the same
+drawing — undo and redo over a seal, a reopened ring closed again, a preview
+replayed — look like the cast that already finished, and the running cast's clock
+would be handed back with its steps already spent. `advanceCells` only ever steps
+forward, so that cast paints nothing at all for its whole duration.
+`carrySpellActivation` ([`../../compiler/spellBuilder.ts`](../../compiler/spellBuilder.ts))
+is what makes `activatedAt` safe to key on: it holds the stamp steady across the
+template and ML recompiles of one performance, and only a new activation moves
+it.
 
 **The camera is aimed before the cells are advanced**, because the paint at the
 end of the call billboards the ambient washes against it.

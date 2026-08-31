@@ -31,10 +31,13 @@ so there is exactly one "Shapes" button (the E2E entry point).
 <div class="ref-tabs" aria-label="Reference panels">
 	{#each tabs as tab (tab.id)}
 		{@const active = ui.referenceOpen && ui.rootTab === tab.id}
+		<!-- The label is named explicitly because phones hide the span, and a button
+		     whose only content is a decorative icon has no accessible name at all. -->
 		<button
 			type="button"
 			class="ref-tab"
 			class:active
+			aria-label={tab.label}
 			aria-pressed={active}
 			onclick={() => ui.openReference(tab.id)}
 		>
@@ -65,9 +68,9 @@ so there is exactly one "Shapes" button (the E2E entry point).
 		box-shadow: none;
 		font-size: 13px;
 		transition:
-			color 160ms ease,
-			background 160ms ease,
-			border-color 160ms ease;
+			color var(--dur-hover) ease,
+			background var(--dur-hover) ease,
+			border-color var(--dur-hover) ease;
 	}
 
 	.ref-tab:hover {

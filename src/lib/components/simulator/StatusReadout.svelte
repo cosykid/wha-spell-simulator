@@ -3,7 +3,7 @@
 Compact spell status, always rendered so recognition state stays visible and the
 E2E hooks (`status-value`, `element-value`, `manifestation-value`) remain in the
 DOM. The status dot is a CSS pseudo-element so `status-value` text stays exactly
-the status string.
+the status string: an unsettled reading pulses that dot, never the text.
 -->
 <script lang="ts">
 	import type { SimulatorSession } from '$lib/ui/simulator/simulator-session.svelte.js';
@@ -17,9 +17,10 @@ the status string.
 	let revealed = $derived(summary.element !== 'None' || summary.manifestation !== 'None');
 </script>
 
-<div class="status-readout">
+<div class="status-readout" role="status" aria-live="polite">
 	<span
 		class="status-line {summary.statusClass}"
+		class:reading={simulator.recognition.reading}
 		id="statusValue"
 		data-testid="status-value"
 		data-status-class={summary.statusClass}
@@ -39,6 +40,26 @@ the status string.
 			>
 		</span>
 	</div>
+	{#if simulator.recognition.castSpent}
+		<span class="status-note" data-testid="status-note">
+			Spell spent -
+			<button
+				type="button"
+				class="note-action"
+				data-testid="reopen-ring-button"
+				title="Opens the ring so you can edit the spell and cast it again"
+				onclick={() => simulator.actions.reopenRing()}>reopen the ring</button
+			>
+			or
+			<button
+				type="button"
+				class="note-action"
+				data-testid="fresh-page-button"
+				title="Undo brings the spell back"
+				onclick={() => simulator.actions.freshPage()}>start a fresh page</button
+			>
+		</span>
+	{/if}
 </div>
 
 <style>
@@ -82,6 +103,22 @@ the status string.
 		background: var(--violet);
 	}
 
+	/* The template verdict is on screen and the ML pass may still overturn it, so
+	   the dot breathes until the reading settles. */
+	.status-line.reading::before {
+		animation: status-reading 1.6s ease-in-out infinite;
+	}
+
+	@keyframes status-reading {
+		0%,
+		100% {
+			opacity: 1;
+		}
+		50% {
+			opacity: 0.3;
+		}
+	}
+
 	.status-meta {
 		display: flex;
 		align-items: baseline;
@@ -113,9 +150,36 @@ the status string.
 		color: var(--ink-sepia-20);
 	}
 
+	.status-note {
+		font-size: 12px;
+		color: var(--ink-sepia-45);
+	}
+
+	/* The readout lets clicks fall through to the canvas, so only the buttons
+	   themselves take the pointer back. */
+	.note-action {
+		pointer-events: auto;
+		border: none;
+		padding: 0;
+		background: none;
+		font: inherit;
+		color: var(--teal);
+		text-decoration: underline dotted;
+		text-underline-offset: 3px;
+		cursor: pointer;
+	}
+
+	.note-action:hover {
+		text-decoration-style: solid;
+	}
+
 	@media (prefers-reduced-motion: reduce) {
 		.status-meta {
 			transition: none;
+		}
+
+		.status-line.reading::before {
+			animation: none;
 		}
 	}
 </style>

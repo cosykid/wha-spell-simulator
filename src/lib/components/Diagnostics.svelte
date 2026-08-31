@@ -16,6 +16,19 @@
 
 	let { diagnostics }: Props = $props();
 
+	// The parser payload carries a plain-language reading of the parse alongside
+	// its raw fields. It is narrowed here and split back out below so the JSON
+	// tree and the copy button stay pure parser output.
+	let parserPayload = $derived(diagnostics.parser as { summary?: string } | null | undefined);
+	let parserSummary = $derived(parserPayload?.summary ?? '');
+	let parserJson = $derived.by(() => {
+		if (!parserPayload) {
+			return parserPayload;
+		}
+		const { summary: _summary, ...rest } = parserPayload;
+		return rest;
+	});
+
 	let activeTab = $state<DiagnosticKey>('parser');
 	let copyLabels = $state<Record<DiagnosticKey, string>>({
 		parser: 'Copy',
@@ -41,7 +54,7 @@
 	// on the element's dataset for the copy button.
 	$effect(() => {
 		if (parserPre) {
-			writeJson(parserPre, diagnostics.parser);
+			writeJson(parserPre, parserJson);
 		}
 		if (mlPre) {
 			writeJson(mlPre, diagnostics.ml);
@@ -98,6 +111,9 @@
 	</div>
 
 	<div class="diagnostic-panel-shell" hidden={activeTab !== 'parser'}>
+		{#if parserSummary}
+			<p class="panel-description" data-testid="parser-summary">{parserSummary}</p>
+		{/if}
 		<p class="panel-description">
 			Parser shows the raw drawing analysis: cleaned strokes, ring detection, stroke classification,
 			symbol candidates, and recognition scores.

@@ -3,8 +3,12 @@
 Right slide-out reference palette: dictionary, draggable shapes, and diagnostics.
 Non-modal so the canvas stays interactive while you drag shapes out of it. Which
 panel shows is driven by the reference tab triggers on the canvas edge.
+
+On a phone the panel covers nearly the whole screen and the tab rail it was opened
+from is behind it, so there it turns modal and a tap outside closes it.
 -->
 <script lang="ts">
+	import { MediaQuery } from 'svelte/reactivity';
 	import Diagnostics from '$lib/components/Diagnostics.svelte';
 	import DictionaryReference from '$lib/components/DictionaryReference.svelte';
 	import ShapePalette from '$lib/components/ShapePalette.svelte';
@@ -24,6 +28,10 @@ panel shows is driven by the reference tab triggers on the canvas edge.
 	let actions = $derived(simulator.actions);
 	let shapeDrag = $derived(simulator.shapeDrag);
 
+	// Matches the panel's own phone breakpoint in Drawer. Defaults to the desktop
+	// answer during SSR, where there is no viewport to ask.
+	const phone = new MediaQuery('max-width: 640px', false);
+
 	const TITLES: Record<RootTab, string> = {
 		dictionary: 'Dictionary',
 		shapes: 'Shapes',
@@ -32,7 +40,13 @@ panel shows is driven by the reference tab triggers on the canvas edge.
 	};
 </script>
 
-<Drawer side="right" open={ui.referenceOpen} label={TITLES[ui.rootTab]} onClose={ui.closeDrawers}>
+<Drawer
+	side="right"
+	open={ui.referenceOpen}
+	label={TITLES[ui.rootTab]}
+	modal={phone.current}
+	onClose={ui.closeDrawers}
+>
 	<h2 class="ref-title">{TITLES[ui.rootTab]}</h2>
 
 	<section id="dictionaryRootPanel" hidden={ui.rootTab !== 'dictionary'}>

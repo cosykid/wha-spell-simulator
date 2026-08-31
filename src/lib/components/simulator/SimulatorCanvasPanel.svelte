@@ -5,6 +5,10 @@ owns the portal tilt (kept in the shared canvas.css so the spell-effect lab stay
 in sync). History actions, tools, zoom, and the first-use hint now live in the
 floating chrome around it, not here.
 
+Both stacked canvases carry the same pan and zoom transform. The effect canvas is
+a sibling of the pan container rather than a child of it, so it has to be moved
+alongside or a pan mid-cast slides the ink out from under its spell.
+
 The backing store is locked to 1:1 (see canvasSizing.ts), so the shell must stay
 square; the stage centres it on the parchment.
 -->
@@ -34,6 +38,7 @@ square; the stage centres it on the parchment.
 >
 	<div
 		class="canvas-container"
+		class:panning={pan.panning}
 		data-testid="canvas-container"
 		onpointerdown={pan.start}
 		ondblclick={() => ui.panEnabled && pan.recenter()}
@@ -47,7 +52,6 @@ square; the stage centres it on the parchment.
 			testId="glyph-canvas"
 			inputReady={ui.inputReady}
 			bind:canvas={ui.glyphCanvas}
-			canvasClass={recognition.summary.canvasLocked ? 'locked' : undefined}
 			width={1000}
 			height={1000}
 			fill
@@ -66,10 +70,11 @@ square; the stage centres it on the parchment.
 			id="effectCanvas"
 			data-testid="effect-canvas"
 			data-effect-style={ui.effectStyle}
+			class:panning={pan.panning}
 			bind:this={ui.effectCanvas}
 			width="1000"
 			height="1000"
-			style="transform: scale({ui.zoomLevel});"
+			style="transform: translate({pan.panX}px, {pan.panY}px) scale({ui.zoomLevel});"
 		></canvas>
 	{/key}
 </div>
@@ -85,5 +90,13 @@ square; the stage centres it on the parchment.
 		transition: transform 0.22s cubic-bezier(0.25, 1, 0.5, 1);
 		will-change: transform;
 		transform-style: preserve-3d;
+	}
+
+	/* A drag rewrites the transform on every pointermove, so the eased transition
+	   has to stand down or the canvas trails the pointer by its whole duration.
+	   Zoom steps and recenter are single jumps and keep the easing. */
+	.canvas-container.panning,
+	#effectCanvas.panning {
+		transition: none;
 	}
 </style>

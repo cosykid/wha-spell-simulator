@@ -22,6 +22,7 @@ and the drawers each live one named click away.
 	import SimulatorCanvasPanel from './SimulatorCanvasPanel.svelte';
 	import StatusReadout from './StatusReadout.svelte';
 	import ToolDock from './ToolDock.svelte';
+	import { hasPendingCast } from '$lib/ui/spells/castHandoff.js';
 	import type { SimulatorSession } from '$lib/ui/simulator/simulator-session.svelte.js';
 
 	interface Props {
@@ -32,6 +33,27 @@ and the drawers each live one named click away.
 	let ui = $derived(simulator.ui);
 	let pan = $derived(simulator.pan);
 	let recognition = $derived(simulator.recognition);
+
+	// Re-centring is "put the view back", so it drops the zoom along with the pan.
+	// Walking 3x down to 1x otherwise costs eight presses of Zoom out.
+	function resetView() {
+		pan.recenter();
+		ui.resetZoom();
+	}
+
+	// A spell chosen in the library is still crossing over while the canvas boots.
+	// Read once at mount: the stash is taken the moment input turns ready.
+	const arrivedWithPendingCast = hasPendingCast();
+
+	// Arrange mode drops freehand strokes, so telling the user to draw there is
+	// advice the canvas will ignore. The hint names that mode's own first move.
+	let hintText = $derived(
+		arrivedWithPendingCast && !ui.inputReady
+			? 'Fetching your spell from the library…'
+			: ui.activeTool === 'arrange'
+				? 'Arrange mode: pick a shape from the Shapes panel on the right, or press P to draw freehand.'
+				: 'Draw an open spell ring. Place sigils in the center and signs around them. When everything is ready, seal the circle to awaken the spell. New here? Open the Dictionary on the right.'
+	);
 </script>
 
 <!-- The runtime's resize observer watches this element for layout re-evaluation. -->
@@ -53,8 +75,7 @@ and the drawers each live one named click away.
 		data-testid="canvas-hint"
 		class:hidden={recognition.summary.hintHidden}
 	>
-		Draw an open spell ring. Place sigils in the center and signs around them. When everything is
-		ready, seal the circle to awaken the spell.
+		{hintText}
 	</p>
 
 	<div class="chrome chrome-tl">
@@ -77,8 +98,8 @@ and the drawers each live one named click away.
 
 	<div class="chrome chrome-br">
 		<EffectStyleToggle {simulator} />
-		{#if pan.isOffset}
-			<CanvasIconButton buttonClass="zoom-btn" label="Re-center" onclick={pan.recenter}>
+		{#if pan.isOffset || ui.zoomLevel !== 1}
+			<CanvasIconButton buttonClass="zoom-btn" label="Re-center" onclick={resetView}>
 				<ArcaneRecenter aria-hidden="true" />
 			</CanvasIconButton>
 		{/if}

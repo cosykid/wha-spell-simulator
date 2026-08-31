@@ -85,8 +85,8 @@ spills off-screen.
 		box-shadow: none;
 		cursor: pointer;
 		transition:
-			color 160ms ease,
-			background 160ms ease;
+			color var(--dur-hover) ease,
+			background var(--dur-hover) ease;
 	}
 
 	.tool-button.pip-first {
@@ -136,8 +136,8 @@ spills off-screen.
 		border: 1.6px solid var(--ink-sepia-45);
 		background: transparent;
 		transition:
-			background 160ms ease,
-			border-color 160ms ease;
+			background var(--dur-hover) ease,
+			border-color var(--dur-hover) ease;
 	}
 
 	.tool-button.active .tool-pip {
@@ -145,15 +145,12 @@ spills off-screen.
 		background: var(--ink-sepia);
 	}
 
-	/* Reveal the shared name chip (see HoverLabel) on hover or keyboard focus. */
+	/* Reveal the shared name chip (see HoverLabel) on hover or keyboard focus. The
+	   dock stacks four of these, so the chip waits out a short intent delay and a
+	   sweep down the column names none of the buttons it passes. */
 	.tool-button:hover,
 	.tool-button:focus-visible {
 		--label-shown: 1;
-	}
-
-	@media (prefers-reduced-motion: reduce) {
-		.tool-button {
-			transition: none;
-		}
+		--label-delay: 350ms;
 	}
 </style>

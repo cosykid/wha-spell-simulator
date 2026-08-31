@@ -89,24 +89,23 @@
 				<p class="reference-source-preview" class:clamped={!expanded} data-note-key={noteKey}>
 					{entry.sourceNotes}
 				</p>
-				{#if truncatedNotes.has(noteKey)}
-					<button
-						type="button"
-						class="reference-source-toggle"
-						aria-expanded={expanded}
-						onclick={() => toggleNote(noteKey)}
+				<button
+					type="button"
+					class="reference-source-toggle"
+					class:reserved={!truncatedNotes.has(noteKey)}
+					aria-expanded={expanded}
+					onclick={() => toggleNote(noteKey)}
+				>
+					<span>{expanded ? 'Show less' : 'Show more'}</span>
+					<svg
+						class="reference-source-chevron"
+						viewBox="0 0 16 16"
+						aria-hidden="true"
+						focusable="false"
 					>
-						<span>{expanded ? 'Show less' : 'Show more'}</span>
-						<svg
-							class="reference-source-chevron"
-							viewBox="0 0 16 16"
-							aria-hidden="true"
-							focusable="false"
-						>
-							<polyline points="4,6 8,10 12,6"></polyline>
-						</svg>
-					</button>
-				{/if}
+						<polyline points="4,6 8,10 12,6"></polyline>
+					</svg>
+				</button>
 			{/if}
 		</div>
 	</article>
@@ -212,6 +211,8 @@
 		max-height: none;
 		overflow-y: auto;
 		overflow-x: hidden;
+		/* Reaching the end of the list must not start scrolling the drawer behind it. */
+		overscroll-behavior: contain;
 		scrollbar-gutter: stable;
 		min-height: 0;
 		flex: 1 1 auto;
@@ -256,6 +257,16 @@
 		line-height: 1.35;
 	}
 
+	/*
+	 * Clamp overflow can only be measured after the card has been painted, so the
+	 * row is always in the layout and merely hides itself until the note turns out
+	 * to overflow. Otherwise inserting it a frame later shoves the whole list down.
+	 * `visibility` also keeps the hidden row out of hit testing and the a11y tree.
+	 */
+	.reference-source-toggle.reserved {
+		visibility: hidden;
+	}
+
 	.reference-source-toggle:hover,
 	.reference-source-toggle:active {
 		background: none;
@@ -275,7 +286,7 @@
 		stroke-width: 1.8;
 		stroke-linecap: round;
 		stroke-linejoin: round;
-		transition: transform 0.15s ease;
+		transition: transform var(--dur-quick) ease;
 	}
 
 	.reference-source-toggle[aria-expanded='true'] .reference-source-chevron {

@@ -34,6 +34,9 @@ button {
 	background: #f4ebcd;
 	box-shadow: 0 1px 0 rgba(255, 255, 255, 0.4) inset;
 	cursor: pointer;
+	/* Only the wash eases. The press transform stays instant so a click still
+	   feels like it lands under the finger. */
+	transition: background var(--dur-hover) ease;
 }
 
 button:disabled {
@@ -107,7 +110,7 @@ button:active {
 	height: 14px;
 	border-radius: 999px;
 	background: #fffbe9;
-	transition: transform 140ms ease;
+	transition: transform var(--dur-quick) ease;
 }
 
 .toggle input:checked {
@@ -117,4 +120,31 @@ button:active {
 
 .toggle input:checked::before {
 	transform: translateX(18px);
+}
+
+/*
+ * One keyboard focus ring for everything that takes focus. Wrapped in `:where()`
+ * so it carries no specificity and any component that rings itself differently
+ * still wins without needing an override.
+ */
+:where(button, a, input, select, textarea, [tabindex]):focus-visible {
+	outline: var(--focus-ring);
+	outline-offset: var(--focus-ring-offset);
+}
+
+/*
+ * One place turns motion off, so a component only writes a reduced-motion block
+ * when it wants something other than "instant". Durations go to a hair above
+ * zero rather than none, so transitionend still fires for anything listening.
+ */
+@media (prefers-reduced-motion: reduce) {
+	*,
+	*::before,
+	*::after {
+		animation-duration: 0.01ms !important;
+		animation-iteration-count: 1 !important;
+		transition-duration: 0.01ms !important;
+		transition-delay: 0.01ms !important;
+		scroll-behavior: auto !important;
+	}
 }

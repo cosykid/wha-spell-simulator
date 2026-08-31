@@ -18,7 +18,11 @@ still being decided by the route-level drag handlers.
 	let { preview }: Props = $props();
 </script>
 
-<div class="shape-drag-overlay" style="left: {preview.x}px; top: {preview.y}px;" aria-hidden="true">
+<div
+	class="shape-drag-overlay"
+	style="transform: translate3d({preview.x}px, {preview.y}px, 0) translate(-50%, -50%)"
+	aria-hidden="true"
+>
 	<svg viewBox="0 0 100 100" focusable="false">
 		{#each preview.item.baseStrokes as stroke, strokeIndex (strokeIndex)}
 			{@const points = strokeToPreviewPoints(stroke)}
@@ -31,16 +35,19 @@ still being decided by the route-level drag handlers.
 
 <style>
 	/* Floating preview that follows the cursor while dragging a shape onto the
-	   canvas. left/top are the pointer's viewport coordinates, so it is fixed and
-	   centered on the cursor. Without these rules the inline SVG renders unbounded
-	   and its polylines fall back to the default solid-black fill. */
+	   canvas. It is pinned to the viewport origin and moved by a transform carrying
+	   the pointer's viewport coordinates, so each pointermove is a compositor
+	   change rather than a layout one. The trailing -50% centres it on the cursor.
+	   Without these rules the inline SVG renders unbounded and its polylines fall
+	   back to the default solid-black fill. */
 	.shape-drag-overlay {
 		position: fixed;
+		left: 0;
+		top: 0;
 		z-index: 60;
 		width: 72px;
 		height: 72px;
 		pointer-events: none;
-		transform: translate(-50%, -50%);
 		opacity: 0.9;
 	}
 

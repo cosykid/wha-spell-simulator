@@ -26,20 +26,39 @@ export interface SpellDraftInput {
 
 type RemoteSaveInput = Parameters<typeof saveSpell>[0];
 
+/**
+ * Why the grimoire could not be read. The session lapsing and the network
+ * failing need different words and different ways out, and neither of them
+ * means the reader has saved nothing.
+ */
+export type GrimoireError = 'auth' | 'network';
+
 export class GrimoireState {
 	spells = $state<SavedSpell[]>([]);
 	loading = $state(false);
+	/** Why the last refresh failed, or null when it worked. */
+	error = $state<GrimoireError | null>(null);
 	/** Whether the save-current-drawing dialog is open. */
 	saveDialogOpen = $state(false);
 
 	/** Reloads the grimoire from the server. Safe to call while signed out. */
 	refresh = async (): Promise<void> => {
 		this.loading = true;
+		this.error = null;
 		try {
 			const response = await fetch('/api/spells?scope=mine');
-			this.spells = response.ok ? ((await response.json()).spells ?? []) : [];
+			if (response.status === 401) {
+				this.error = 'auth';
+				return;
+			}
+			if (!response.ok) {
+				throw new Error(`the grimoire answered ${response.status}`);
+			}
+			this.spells = (await response.json()).spells ?? [];
 		} catch {
-			this.spells = [];
+			// Keep the seals already listed. An empty grimoire and an unreachable
+			// one read the same on screen otherwise, and only one is true.
+			this.error = 'network';
 		} finally {
 			this.loading = false;
 		}

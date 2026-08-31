@@ -22,8 +22,10 @@ interface ShapeDragControllerOptions {
 /**
  * Tracks palette drag state and drop-to-canvas placement.
  *
- * It also supports "armed" shapes for click-to-place behavior used by the
- * placement controller after a palette drag switches into arrange mode.
+ * A gesture that does not end on drawable canvas leaves the item "armed" instead
+ * of throwing it away, so clicking a palette card and then clicking the canvas
+ * places the shape just as dragging it across does. The placement behavior spends
+ * the armed shape through `placeArmedShape`.
  */
 export class ShapeDragController {
 	/** Palette item id currently armed for placement. */
@@ -80,16 +82,11 @@ export class ShapeDragController {
 		window.addEventListener('pointercancel', this.#drop);
 	};
 
-	/** Clears drag state and removes global pointer listeners. */
+	/** Disarms the palette item and ends any drag gesture carrying it. */
 	end = () => {
-		this.#draggedShape = null;
 		this.#armedShape = null;
 		this.armedShapeId = null;
-		this.#pointerId = null;
-		this.dragPreview = null;
-		window.removeEventListener('pointermove', this.#move);
-		window.removeEventListener('pointerup', this.#drop);
-		window.removeEventListener('pointercancel', this.#drop);
+		this.#endDrag();
 	};
 
 	#move = (event: PointerEvent) => {
@@ -100,25 +97,52 @@ export class ShapeDragController {
 		this.dragPreview = { item: this.#draggedShape, x: event.clientX, y: event.clientY };
 	};
 
+	/**
+	 * A release on drawable canvas places the shape there. Anywhere else, including a
+	 * plain click on the card without a drag, leaves it armed for the next canvas
+	 * click rather than dropping it.
+	 */
 	#drop = (event: PointerEvent) => {
 		if (!this.#draggedShape || this.#pointerId !== event.pointerId) {
 			return;
 		}
 		event.preventDefault();
 		const item = this.#draggedShape;
+		this.#endDrag();
+		if (!this.#canPlaceAt(event.clientX, event.clientY)) {
+			return;
+		}
+		this.#armedShape = null;
+		this.armedShapeId = null;
+		this.#options.placeShape(
+			item,
+			this.#options.canvasPointFromClient(event.clientX, event.clientY)
+		);
+		this.#options.focusCanvasShell();
+	};
+
+	/** Ends the pointer gesture, leaving an armed item armed. */
+	#endDrag() {
+		this.#draggedShape = null;
+		this.#pointerId = null;
+		this.dragPreview = null;
+		window.removeEventListener('pointermove', this.#move);
+		window.removeEventListener('pointerup', this.#drop);
+		window.removeEventListener('pointercancel', this.#drop);
+	}
+
+	/**
+	 * Whether a release point lands on canvas the user can actually see. The glyph
+	 * canvas covers the whole viewport, so an open drawer stands over it and a drop
+	 * there would place the shape underneath the panel, out of sight.
+	 */
+	#canPlaceAt(clientX: number, clientY: number) {
 		const rect = this.#options.canvasRect();
 		const insideCanvas =
-			event.clientX >= rect.left &&
-			event.clientX <= rect.right &&
-			event.clientY >= rect.top &&
-			event.clientY <= rect.bottom;
-		this.end();
-		if (insideCanvas) {
-			this.#options.placeShape(
-				item,
-				this.#options.canvasPointFromClient(event.clientX, event.clientY)
-			);
-			this.#options.focusCanvasShell();
-		}
-	};
+			clientX >= rect.left &&
+			clientX <= rect.right &&
+			clientY >= rect.top &&
+			clientY <= rect.bottom;
+		return insideCanvas && !document.elementFromPoint(clientX, clientY)?.closest('.drawer.open');
+	}
 }

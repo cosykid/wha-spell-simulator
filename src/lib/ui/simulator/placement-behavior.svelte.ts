@@ -20,6 +20,29 @@ import type { Attachment } from 'svelte/attachments';
 
 const TOUCH_HIT_SCALE = 2;
 
+/** Resize cursors by octant, walking clockwise from the placement's own +x axis. */
+const RESIZE_CURSORS = ['ew-resize', 'nwse-resize', 'ns-resize', 'nesw-resize'] as const;
+
+/** What the pointer is over in arrange mode, so the host can pick a cursor for it. */
+export type ArrangeHover =
+	| { over: 'body' }
+	| { over: 'rotate' }
+	| { over: 'resize'; dirX: number; dirY: number };
+
+/**
+ * The resize cursor for a handle lying in a given direction from its placement's
+ * centre. Reading the direction rather than the handle's name means a rotated
+ * shape points its cursors the way it actually sits.
+ *
+ * @example
+ * canvas.style.cursor = resizeCursorForDirection(handle.x - transform.cx, handle.y - transform.cy);
+ */
+export function resizeCursorForDirection(dirX: number, dirY: number): string {
+	// Canvas y points down, so this angle grows clockwise from the +x axis.
+	const octant = Math.round(Math.atan2(dirY, dirX) / (Math.PI / 4));
+	return RESIZE_CURSORS[((octant % 4) + 4) % 4];
+}
+
 type DragOp =
 	| { type: 'move'; id: string; last: Vector }
 	| {
@@ -75,6 +98,8 @@ interface SimulatorPlacementBehaviorOptions {
 	setSelectedId: (id: string | null) => void;
 	hasArmedShape: () => boolean;
 	placeArmedShape: (point: Vector) => string | null;
+	/** Reports what the pointer is resting over, so the host can pick a cursor. */
+	onHoverChange: (hover: ArrangeHover | null) => void;
 	onChange: () => void;
 	onInteractionEnd: () => void;
 }
@@ -329,6 +354,36 @@ export function createSimulatorPlacementBehavior(
 		const resizeObserver = new ResizeObserver(updateDisplayScale);
 		resizeObserver.observe(canvas);
 
+		function handleHitRadius(event: PointerEvent): number {
+			return (
+				HANDLE_HIT_RADIUS * cssToCanvas * (event.pointerType === 'touch' ? TOUCH_HIT_SCALE : 1)
+			);
+		}
+
+		/** What the pointer rests over, hit-tested in the order a press would resolve. */
+		function hoverAt(event: PointerEvent): ArrangeHover | null {
+			const point = canvasPointFromEvent(event, canvas);
+			const selected = selectedPlacement();
+			if (selected) {
+				const handle = hitTestHandles(
+					selected,
+					point,
+					handleHitRadius(event),
+					ROTATE_HANDLE_OFFSET
+				);
+				if (handle) {
+					return handle.type === 'rotate'
+						? { over: 'rotate' }
+						: {
+								over: 'resize',
+								dirX: handle.x - selected.transform.cx,
+								dirY: handle.y - selected.transform.cy
+							};
+				}
+			}
+			return hitPlacement(point) ? { over: 'body' } : null;
+		}
+
 		function handlePointerDown(event: PointerEvent): void {
 			if (!active || (event.button !== undefined && event.button !== 0)) {
 				return;
@@ -338,9 +393,12 @@ export function createSimulatorPlacementBehavior(
 
 			const selected = selectedPlacement();
 			if (selected) {
-				const hitRadius =
-					HANDLE_HIT_RADIUS * cssToCanvas * (event.pointerType === 'touch' ? TOUCH_HIT_SCALE : 1);
-				const handle = hitTestHandles(selected, point, hitRadius, ROTATE_HANDLE_OFFSET);
+				const handle = hitTestHandles(
+					selected,
+					point,
+					handleHitRadius(event),
+					ROTATE_HANDLE_OFFSET
+				);
 				if (handle) {
 					beginHandleDrag(canvas, event, selected, handle, point);
 					return;
@@ -366,7 +424,16 @@ export function createSimulatorPlacementBehavior(
 		}
 
 		function handlePointerMove(event: PointerEvent): void {
-			if (!active || !dragOp || pointerId !== event.pointerId) {
+			if (!active) {
+				return;
+			}
+			// Between drags the move is only worth a hit-test, so the cursor can name
+			// the handle under the pointer before it is pressed.
+			if (!dragOp) {
+				options.onHoverChange(hoverAt(event));
+				return;
+			}
+			if (pointerId !== event.pointerId) {
 				return;
 			}
 			event.preventDefault();
@@ -384,15 +451,21 @@ export function createSimulatorPlacementBehavior(
 			pointerId = null;
 			moved = false;
 			options.onChange();
+			options.onHoverChange(hoverAt(event));
 			if (changed) {
 				options.onInteractionEnd();
 			}
+		}
+
+		function handlePointerLeave(): void {
+			options.onHoverChange(null);
 		}
 
 		canvas.addEventListener('pointerdown', handlePointerDown);
 		canvas.addEventListener('pointermove', handlePointerMove);
 		canvas.addEventListener('pointerup', handlePointerUp);
 		canvas.addEventListener('pointercancel', handlePointerUp);
+		canvas.addEventListener('pointerleave', handlePointerLeave);
 
 		return () => {
 			resizeObserver.disconnect();
@@ -400,6 +473,7 @@ export function createSimulatorPlacementBehavior(
 			canvas.removeEventListener('pointermove', handlePointerMove);
 			canvas.removeEventListener('pointerup', handlePointerUp);
 			canvas.removeEventListener('pointercancel', handlePointerUp);
+			canvas.removeEventListener('pointerleave', handlePointerLeave);
 		};
 	};
 
@@ -411,6 +485,7 @@ export function createSimulatorPlacementBehavior(
 				dragOp = null;
 				pointerId = null;
 				moved = false;
+				options.onHoverChange(null);
 			}
 		}
 	};

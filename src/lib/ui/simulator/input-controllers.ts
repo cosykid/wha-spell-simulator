@@ -20,6 +20,8 @@ interface SimulatorInputControllerOptions {
 	onStrokeStart: () => void;
 	/** Fired when a freehand stroke commits. */
 	onStrokeCommit: () => void;
+	/** Fired when a primary pointer lands while freehand capture is locked. */
+	onLockedPointerDown: () => void;
 	/** Fired when an erase gesture begins. */
 	onEraseBegin: () => void;
 	/** Fired after erase mutates the stroke store. */
@@ -48,7 +50,8 @@ export class SimulatorInputControllers {
 		const glyphCanvas = this.#options.glyphCanvas();
 		this.#capture = new DrawingCapture(glyphCanvas, this.#options.store, CONFIG, {
 			onStart: this.#options.onStrokeStart,
-			onCommit: this.#options.onStrokeCommit
+			onCommit: this.#options.onStrokeCommit,
+			onLockedPointerDown: this.#options.onLockedPointerDown
 		});
 		this.#eraser = new EraserController(glyphCanvas, {
 			onBegin: this.#options.onEraseBegin,

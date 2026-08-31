@@ -115,6 +115,39 @@ export class SpellCanvasPage {
 		return this.page.getByTestId('redo-button');
 	}
 
+	/** The note a spent cast leaves, holding both ways out of a finished page. */
+	get statusNote(): Locator {
+		return this.page.getByTestId('status-note');
+	}
+
+	/** Takes the sealing stroke back, leaving the rest of the diagram to edit. */
+	get reopenRingButton(): Locator {
+		return this.page.getByTestId('reopen-ring-button');
+	}
+
+	/** Clears the spent page, one undo away from the spell. */
+	get freshPageButton(): Locator {
+		return this.page.getByTestId('fresh-page-button');
+	}
+
+	// --- Keyboard ------------------------------------------------------------
+
+	/**
+	 * Undo through the keyboard, which is the only way to jump the drawing faster
+	 * than recognition can answer: the toolbar buttons disable themselves off the
+	 * summary a recognition pass writes, and the shortcut waits for nothing. The
+	 * handler reads meta on a Mac and control everywhere else, which is what
+	 * `ControlOrMeta` resolves to.
+	 */
+	async undoShortcut(): Promise<void> {
+		await this.page.keyboard.press('ControlOrMeta+z');
+	}
+
+	/** Redo through the keyboard. See {@link undoShortcut}. */
+	async redoShortcut(): Promise<void> {
+		await this.page.keyboard.press('ControlOrMeta+Shift+z');
+	}
+
 	// --- Navigation / readiness ---------------------------------------------
 
 	/**
@@ -141,6 +174,33 @@ export class SpellCanvasPage {
 		await expect(this.glyphCanvas).toHaveAttribute('data-input-ready', 'true', {
 			timeout: 30_000
 		});
+	}
+
+	/**
+	 * Waits until the paper has stopped moving under the portal tilt.
+	 *
+	 * The tilt is a 980ms CSS transition on the glyph canvas and pointer positions
+	 * are mapped through the canvas box as it stands, so a stroke drawn while the
+	 * paper is still easing lands where the drawer never aimed, or misses the
+	 * element altogether. Any spec that draws just after a spell ends has to let
+	 * the paper come back down first. Two identical boxes in a row is that.
+	 */
+	async waitForPaperSettled(): Promise<void> {
+		let previous: string | null = null;
+		await expect
+			.poll(
+				async () => {
+					const box = await this.glyphCanvas.boundingBox();
+					const current = box
+						? [box.x, box.y, box.width, box.height].map(Math.round).join(':')
+						: null;
+					const settled = current !== null && current === previous;
+					previous = current;
+					return settled;
+				},
+				{ timeout: 10_000 }
+			)
+			.toBe(true);
 	}
 
 	// --- Drawing primitives --------------------------------------------------
@@ -195,6 +255,30 @@ export class SpellCanvasPage {
 		for (const stroke of strokes) {
 			await this.drawStroke(stroke, options);
 		}
+	}
+
+	/**
+	 * Taps a point that lies on the paper itself. The portal tilt shrinks the
+	 * canvas inside its own bounding box, so the box centre can land in the void
+	 * beside the tilted paper. The search walks the centre line downward, toward
+	 * the tilt's wide near edge.
+	 */
+	async tapCanvas(): Promise<void> {
+		const point = await this.glyphCanvas.evaluate((el) => {
+			const box = el.getBoundingClientRect();
+			const x = box.left + box.width / 2;
+			for (let fraction = 0.5; fraction < 0.98; fraction += 0.05) {
+				const y = box.top + box.height * fraction;
+				if (document.elementFromPoint(x, y) === el) {
+					return { x, y };
+				}
+			}
+			return null;
+		});
+		if (!point) {
+			throw new Error('No tappable point found on the glyph canvas.');
+		}
+		await this.page.mouse.click(point.x, point.y);
 	}
 
 	// --- Ring primitives -----------------------------------------------------

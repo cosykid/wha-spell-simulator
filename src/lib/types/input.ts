@@ -6,6 +6,10 @@ export interface DrawingCaptureCallbacks {
 	onStart?: () => void;
 	onPreview?: (stroke: Stroke | null) => void;
 	onCommit?: () => void;
+	// Fired when a primary pointer lands while capture is locked. The host may
+	// clear the lock's cause in response (tearing a spent page), but the
+	// swallowed gesture never inks either way.
+	onLockedPointerDown?: () => void;
 }
 
 export interface EraserControllerApi {

@@ -2,12 +2,15 @@
 @component
 The proof wall: every seal of the open section laid out as plates on one
 drafting sheet, rising in with a small stagger. The shared feed extends itself
-as the reader nears the foot of the sheet. Empty and loading states are a single
-centered notice on the bare sheet.
+as the reader nears the foot of the sheet. Empty, waiting and failed states are
+a single centered notice on the bare sheet.
 -->
 <script lang="ts">
+	import { flip } from 'svelte/animate';
+	import { cubicOut } from 'svelte/easing';
 	import SpellCard from './SpellCard.svelte';
 	import LoadingNote from './LoadingNote.svelte';
+	import { getAuthState } from '$lib/ui/auth/auth-state.svelte.js';
 	import type { LibrarySession } from '$lib/ui/library/library-session.svelte.js';
 
 	interface Props {
@@ -15,8 +18,52 @@ centered notice on the bare sheet.
 	}
 
 	let { session }: Props = $props();
+	const auth = getAuthState();
 
-	let loading = $derived(session.section === 'shared' ? session.loading : session.grimoire.loading);
+	/** How long a plate takes to slide to the place a new sort gives it. */
+	const REORDER_MS = 260;
+
+	let loadingFirstPage = $derived(
+		session.section === 'shared' ? session.status === 'loading' : session.grimoire.loading
+	);
+	let loadingMore = $derived(session.section === 'shared' && session.status === 'loading-more');
+
+	/** The line the wall shows when a fetch failed, and the way back from it. */
+	let failure = $derived.by(() => {
+		if (session.section === 'grimoire') {
+			if (session.grimoire.error === 'auth') {
+				return {
+					text: 'Your sign-in has lapsed.',
+					label: 'Sign in',
+					run: () => auth.openDialog('login')
+				};
+			}
+			if (session.grimoire.error === 'network') {
+				return {
+					text: 'Your spells did not come back.',
+					label: 'Try again',
+					run: () => void session.grimoire.refresh()
+				};
+			}
+			return null;
+		}
+		if (session.status === 'failed') {
+			return {
+				text: 'These folios did not come back.',
+				label: 'Try again',
+				run: () => void session.refreshShared()
+			};
+		}
+		if (session.status === 'more-failed') {
+			return {
+				text: 'The next folios did not come back.',
+				label: 'Try again',
+				run: () => void session.loadMoreShared()
+			};
+		}
+		return null;
+	});
+
 	let sentinel = $state<HTMLElement>();
 
 	/** Fetches the next feed page while the reader is still a screen away. */
@@ -35,19 +82,37 @@ centered notice on the bare sheet.
 	});
 </script>
 
+{#snippet failureLine()}
+	{#if failure}
+		<p class="failure" data-testid="library-failure">
+			{failure.text}
+			<button type="button" class="ink-action" onclick={failure.run}>{failure.label}</button>
+		</p>
+	{/if}
+{/snippet}
+
+<!-- Keyed on the section alone. Keying on the sort as well remounted every
+     plate with the old page's data, replaying the whole stagger cascade for
+     what is a reorder of seals the reader is already looking at. -->
 <section class="wall" data-testid="library-book" aria-label="Spell library">
-	{#key `${session.section}:${session.sort}`}
+	{#key session.section}
 		{#if session.spells.length}
 			<div class="plates">
 				{#each session.spells as spell, index (spell.id)}
-					<SpellCard {session} {spell} number={index + 1} stagger={Math.min(index, 14)} />
+					<div class="plate-slot" animate:flip={{ duration: REORDER_MS, easing: cubicOut }}>
+						<SpellCard {session} {spell} number={index + 1} stagger={Math.min(index, 14)} />
+					</div>
 				{/each}
 			</div>
 			{#if session.section === 'shared' && session.nextCursor}
 				<div class="more-sentinel" bind:this={sentinel} aria-hidden="true"></div>
 			{/if}
-			{#if loading}
+			{#if loadingMore}
 				<LoadingNote text="Fetching more folios" />
+			{:else if loadingFirstPage}
+				<LoadingNote text="Fetching the folios" />
+			{:else if failure}
+				{@render failureLine()}
 			{:else if session.section === 'grimoire' || !session.nextCursor}
 				<footer class="colophon">
 					<span class="colophon-rule" aria-hidden="true"></span>
@@ -59,14 +124,17 @@ centered notice on the bare sheet.
 			{/if}
 		{:else}
 			<div class="notice">
-				{#if loading}
+				{#if loadingFirstPage}
 					<LoadingNote text="Fetching the folios" />
+				{:else if failure}
+					{@render failureLine()}
 				{:else}
 					<p class="notice-text">
 						{#if session.section === 'grimoire'}
 							You have not saved any spells yet. Save them in the atelier and they gather here.
 						{:else}
-							No seals shared yet. Draw a spell in the atelier and publish it from My Spells.
+							No seals shared yet. Draw a spell in the atelier, save it, then share it from the My
+							Spells drawer.
 						{/if}
 					</p>
 				{/if}
@@ -85,6 +153,13 @@ centered notice on the bare sheet.
 		display: grid;
 		grid-template-columns: repeat(auto-fill, minmax(clamp(150px, 21vw, 215px), 1fr));
 		gap: 40px clamp(18px, 2.4vw, 34px);
+	}
+
+	/* The plate cannot carry the reorder animation itself, since only an element
+	   directly under the keyed each can. The slot is that element, and grid so the
+	   plate still stretches to its row exactly as it did without it. */
+	.plate-slot {
+		display: grid;
 	}
 
 	.more-sentinel {
@@ -128,5 +203,46 @@ centered notice on the bare sheet.
 		font-size: 0.95rem;
 		line-height: 1.6;
 		color: var(--muted-ink);
+	}
+
+	/* A failed fetch reads as the same quiet line as an empty sheet, with the
+	   retry set in ink beside it. */
+	.failure {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 4px 14px;
+		align-items: baseline;
+		justify-content: center;
+		margin: 0;
+		text-align: center;
+		font-style: italic;
+		font-size: 0.95rem;
+		line-height: 1.6;
+		color: var(--muted-ink);
+	}
+
+	.ink-action {
+		min-height: 0;
+		padding: 2px 1px;
+		border: 0;
+		border-bottom: 1px solid var(--ink-sepia-20);
+		border-radius: 0;
+		background: none;
+		box-shadow: none;
+		font-size: 0.8rem;
+		letter-spacing: 0.12em;
+		text-transform: uppercase;
+		color: var(--ink-sepia-70);
+	}
+
+	.ink-action:hover {
+		background: none;
+		border-bottom-color: var(--gold);
+		color: var(--ink-sepia);
+	}
+
+	.ink-action:focus-visible {
+		outline: 2px solid var(--gold);
+		outline-offset: 2px;
 	}
 </style>

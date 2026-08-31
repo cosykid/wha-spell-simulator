@@ -9,6 +9,7 @@ only while its card's preview is toggled on.
 	import { reviveSpellIr } from '$lib/ui/library/reviveSpell.js';
 	import { effectStyleFrom } from '$lib/structures/effectStyle.js';
 	import { loadSimulatorPreferences } from '$lib/ui/simulator/preferences.js';
+	import { presetPreviewPolylines } from '$lib/ui/spells/presetThumbnail.js';
 	import type { SpellPresetData } from '$lib/structures/spellPreset.js';
 	import type { SpellIR } from '$lib/types.js';
 
@@ -28,6 +29,12 @@ only while its card's preview is toggled on.
 	let glyphCanvas = $state<HTMLCanvasElement>();
 	let effectCanvas = $state<HTMLCanvasElement>();
 	let driver: SpellPreviewDriver | null = null;
+	/**
+	 * True until the driver paints. A legacy row is re-read before it can play,
+	 * which takes seconds, and an unlit stage is a black square with no reason
+	 * given, so the plate's own seal holds the frame until the ink takes light.
+	 */
+	let waiting = $state(true);
 
 	// Read at call time, not at construction, so a parent re-render handing down a
 	// fresh arrow cannot restart the replay.
@@ -59,11 +66,13 @@ only while its card's preview is toggled on.
 				onEnded: handleEnded
 			});
 			teardown = driver.start();
+			waiting = false;
 		});
 		return () => {
 			cancelled = true;
 			teardown?.();
 			driver = null;
+			waiting = true;
 		};
 	});
 </script>
@@ -80,6 +89,13 @@ only while its card's preview is toggled on.
 	{#key effectStyle}
 		<canvas class="effect" data-effect-style={effectStyle} bind:this={effectCanvas}></canvas>
 	{/key}
+	{#if waiting}
+		<svg class="unlit" viewBox="0 0 100 100" aria-hidden="true">
+			{#each presetPreviewPolylines(data) as points (points)}
+				<polyline {points} />
+			{/each}
+		</svg>
+	{/if}
 </button>
 
 <style>
@@ -126,5 +142,41 @@ only while its card's preview is toggled on.
 	   portal by the renderer, so this layer stays untransformed above the paper. */
 	.effect {
 		z-index: 2;
+	}
+
+	/* The plate's own seal, held in the void until the replay lights it: the same
+	   drawing the card showed a moment ago, breathing so the wait reads as a wait. */
+	.unlit {
+		position: absolute;
+		inset: 0;
+		z-index: 3;
+		width: 100%;
+		height: 100%;
+		animation: unlit-breath 1.8s ease-in-out infinite;
+	}
+
+	.unlit polyline {
+		fill: none;
+		stroke: rgba(231, 218, 180, 0.55);
+		stroke-width: 1.1;
+		stroke-linecap: round;
+		stroke-linejoin: round;
+	}
+
+	@keyframes unlit-breath {
+		0%,
+		100% {
+			opacity: 0.45;
+		}
+		50% {
+			opacity: 0.85;
+		}
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.unlit {
+			animation: none;
+			opacity: 0.7;
+		}
 	}
 </style>

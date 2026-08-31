@@ -11,6 +11,7 @@ spell preset. Rendered as faint ghost buttons that float on the parchment.
 	import ArcaneRedo from './icons/ArcaneRedo.svelte';
 	import ArcaneUndo from './icons/ArcaneUndo.svelte';
 	import { getAuthState } from '$lib/ui/auth/auth-state.svelte.js';
+	import { formatShortcut, getPlatform } from '$lib/ui/keybindings.js';
 	import type { SimulatorSession } from '$lib/ui/simulator/simulator-session.svelte.js';
 
 	interface Props {
@@ -19,6 +20,10 @@ spell preset. Rendered as faint ghost buttons that float on the parchment.
 
 	let { simulator }: Props = $props();
 	const auth = getAuthState();
+	// The chords keyboard.ts listens for, spelled the way this platform writes them.
+	const platform = getPlatform();
+	let undoKeys = $derived(formatShortcut('Ctrl+Z', platform.isMac));
+	let redoKeys = $derived(formatShortcut('Ctrl+Shift+Z', platform.isMac));
 	let actions = $derived(simulator.actions);
 	let summary = $derived(simulator.recognition.summary);
 
@@ -33,11 +38,15 @@ spell preset. Rendered as faint ghost buttons that float on the parchment.
 </script>
 
 <div class="action-bar" aria-label="Canvas actions">
+	<!-- Undo is the left-most control on screen, so its name chip anchors to that
+	     edge instead of centring, which would push it past the frame. -->
 	<CanvasIconButton
 		id="undoButton"
 		testId="undo-button"
 		label="Undo"
+		shortcut={undoKeys}
 		labelPlacement="below"
+		chipAlign="left"
 		disabled={summary.undoDisabled}
 		onclick={actions.undo}
 	>
@@ -47,6 +56,7 @@ spell preset. Rendered as faint ghost buttons that float on the parchment.
 		id="redoButton"
 		testId="redo-button"
 		label="Redo"
+		shortcut={redoKeys}
 		labelPlacement="below"
 		disabled={summary.redoDisabled}
 		onclick={actions.redo}

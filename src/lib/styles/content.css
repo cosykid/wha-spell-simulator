@@ -30,6 +30,8 @@
 	max-height: none;
 	overflow-y: auto;
 	overflow-x: auto;
+	/* Reaching the end of the output must not start scrolling the drawer behind it. */
+	overscroll-behavior: contain;
 	scrollbar-gutter: stable;
 	margin: 0;
 	border: 1px solid rgba(36, 27, 22, 0.16);
@@ -45,25 +47,29 @@
 
 /*
  * Slim sepia scrollbar for the panel and tool scroll regions, replacing the
- * default chrome so it reads as part of the parchment surface.
+ * default chrome so it reads as part of the parchment surface. The My Spells
+ * panel scrolls itself rather than an inner list, so it joins by id.
  */
 .shape-palette,
 .reference-list,
-.diagnostic-output {
+.diagnostic-output,
+#spellsRootPanel {
 	scrollbar-width: thin;
 	scrollbar-color: var(--ink-sepia-45) transparent;
 }
 
 .shape-palette::-webkit-scrollbar,
 .reference-list::-webkit-scrollbar,
-.diagnostic-output::-webkit-scrollbar {
+.diagnostic-output::-webkit-scrollbar,
+#spellsRootPanel::-webkit-scrollbar {
 	width: 8px;
 	height: 8px;
 }
 
 .shape-palette::-webkit-scrollbar-thumb,
 .reference-list::-webkit-scrollbar-thumb,
-.diagnostic-output::-webkit-scrollbar-thumb {
+.diagnostic-output::-webkit-scrollbar-thumb,
+#spellsRootPanel::-webkit-scrollbar-thumb {
 	background: var(--ink-sepia-45);
 	border: 2px solid transparent;
 	border-radius: 999px;
@@ -72,14 +78,16 @@
 
 .shape-palette::-webkit-scrollbar-thumb:hover,
 .reference-list::-webkit-scrollbar-thumb:hover,
-.diagnostic-output::-webkit-scrollbar-thumb:hover {
+.diagnostic-output::-webkit-scrollbar-thumb:hover,
+#spellsRootPanel::-webkit-scrollbar-thumb:hover {
 	background: var(--ink-sepia-70);
 	background-clip: padding-box;
 }
 
 .shape-palette::-webkit-scrollbar-track,
 .reference-list::-webkit-scrollbar-track,
-.diagnostic-output::-webkit-scrollbar-track {
+.diagnostic-output::-webkit-scrollbar-track,
+#spellsRootPanel::-webkit-scrollbar-track {
 	background: transparent;
 }
 

@@ -35,18 +35,51 @@ instead of forcing a trip to a far corner.
 	// Chevron points the way the panel slides to close: out toward its own edge.
 	let CloseIcon = $derived(side === 'right' ? ChevronRight : ChevronLeft);
 
+	// What counts as a Tab stop inside the panel, for the modal focus trap.
+	const FOCUS_STOPS =
+		'a[href], button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [tabindex]:not([tabindex="-1"])';
+
 	function onKeydown(event: KeyboardEvent) {
-		if (event.key === 'Escape' && open) {
-			event.stopPropagation();
-			onClose();
+		if (event.key !== 'Escape' || !open) return;
+		// A native dialog dismisses itself on Escape and the event still reaches the
+		// window, so without this one keypress would take the dialog and the drawer
+		// standing behind it at the same time.
+		if (document.querySelector('dialog[open]')) return;
+		event.stopPropagation();
+		onClose();
+	}
+
+	/** A stop the browser will really move focus to: laid out, and not hidden. */
+	function isReachable(stop: HTMLElement) {
+		return stop.offsetParent !== null && getComputedStyle(stop).visibility !== 'hidden';
+	}
+
+	// A modal drawer covers the app, so Tab has to cycle inside it rather than walk
+	// out into the canvas chrome under the backdrop. Non-modal drawers leave the
+	// canvas reachable on purpose, so they are not trapped.
+	function onPanelKeydown(event: KeyboardEvent) {
+		if (!modal || !open || event.key !== 'Tab' || !panel) return;
+		const stops = [...panel.querySelectorAll<HTMLElement>(FOCUS_STOPS)].filter(isReachable);
+		if (stops.length === 0) return;
+		const edge = event.shiftKey ? stops[0] : stops[stops.length - 1];
+		const wrapTo = event.shiftKey ? stops[stops.length - 1] : stops[0];
+		if (document.activeElement === edge || (event.shiftKey && document.activeElement === panel)) {
+			event.preventDefault();
+			wrapTo.focus();
 		}
 	}
 
-	// Move focus into the panel as it opens so keyboard users land inside it.
+	// Move focus into the panel as it opens so keyboard users land inside it, then
+	// hand focus back to whatever opened the drawer once it closes.
 	$effect(() => {
-		if (open) {
-			panel?.focus();
-		}
+		if (!open) return;
+		const opener = document.activeElement;
+		panel?.focus();
+		return () => {
+			if (opener instanceof HTMLElement && opener !== document.body && opener.isConnected) {
+				opener.focus();
+			}
+		};
 	});
 </script>
 
@@ -65,6 +98,7 @@ instead of forcing a trip to a far corner.
 	aria-hidden={!open}
 	inert={!open}
 	tabindex="-1"
+	onkeydown={onPanelKeydown}
 >
 	<button type="button" class="drawer-close" aria-label="Close {label}" onclick={onClose}>
 		<CloseIcon aria-hidden="true" />
@@ -82,7 +116,8 @@ instead of forcing a trip to a far corner.
 		background: rgba(36, 27, 22, 0.26);
 		opacity: 0;
 		pointer-events: none;
-		transition: opacity 320ms ease;
+		/* Matched to the panel's own slide so the dim and the travel land together. */
+		transition: opacity var(--dur-panel) var(--ease-out-panel);
 	}
 
 	.drawer-backdrop.open {
@@ -107,9 +142,7 @@ instead of forcing a trip to a far corner.
 		/* Visible so the close tab can extend past the inner edge onto the canvas.
 		   The body, not the panel, is the scroll container (see .drawer-body). */
 		overflow: visible;
-		transition:
-			transform 340ms cubic-bezier(0.22, 1, 0.36, 1),
-			opacity 240ms ease;
+		transition: transform var(--dur-panel) var(--ease-out-panel);
 	}
 
 	.drawer.left {
@@ -164,9 +197,9 @@ instead of forcing a trip to a far corner.
 		cursor: pointer;
 		opacity: 0;
 		transition:
-			opacity 200ms ease,
-			color 160ms ease,
-			background 160ms ease;
+			opacity var(--dur-fade) ease,
+			color var(--dur-hover) ease,
+			background var(--dur-hover) ease;
 	}
 
 	/* Overlap the panel edge by a hair to hide its border seam, round only the
@@ -210,6 +243,8 @@ instead of forcing a trip to a far corner.
 		min-height: 0;
 		flex: 1 1 auto;
 		overflow-y: auto;
+		/* Scrolling past the end of the drawer must not pan the canvas behind it. */
+		overscroll-behavior: contain;
 		scrollbar-width: thin;
 		padding: 20px 18px;
 	}
@@ -219,13 +254,6 @@ instead of forcing a trip to a far corner.
 	@media (max-width: 640px) {
 		.drawer {
 			width: min(440px, 90vw);
-		}
-	}
-
-	@media (prefers-reduced-motion: reduce) {
-		.drawer,
-		.drawer-backdrop {
-			transition: none;
 		}
 	}
 </style>

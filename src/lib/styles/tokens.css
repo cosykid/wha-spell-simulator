@@ -1,4 +1,5 @@
-@import url('https://fonts.googleapis.com/css2?family=IM+Fell+English:ital@0;1&family=Cinzel:wght@400;600&family=JetBrains+Mono:wght@400;500&display=swap');
+/* The Google Fonts stylesheet is linked from app.html, not imported here, so the
+   browser can start fetching it without waiting to discover this file first. */
 @import url('./debug.css');
 
 :root {
@@ -19,6 +20,25 @@
 	--radius: 8px;
 	/* The portal's own variables (--portal-tilt-duration and the tilt geometry) are
 	   written onto the app shell from portal/portal.ts, so they are not tokens. */
+
+	/* ── Motion ───────────────────────────────────────────────────────── */
+	/* Four speeds cover the whole app. Pick by what moves: a state flip on a
+	   control is quick, a hover wash is hover, something appearing or leaving
+	   fades, and a whole panel travelling across the screen is panel. */
+	--dur-quick: 140ms;
+	--dur-hover: 160ms;
+	--dur-fade: 200ms;
+	--dur-panel: 340ms;
+	/* Decelerating curves. Soft is the general one, panel overshoots less so a
+	   large surface settles cleanly, rise is for something lifting into place. */
+	--ease-out-soft: cubic-bezier(0.25, 1, 0.5, 1);
+	--ease-out-panel: cubic-bezier(0.22, 1, 0.36, 1);
+	--ease-rise: cubic-bezier(0.2, 0.7, 0.3, 1);
+
+	/* Keyboard focus ring, gold so it reads as ink on parchment rather than the
+	   browser's blue. Components with their own ring already match this. */
+	--focus-ring: 2px solid var(--gold);
+	--focus-ring-offset: 2px;
 
 	/* ── Minimal full-bleed canvas chrome & slide-out drawers ──────────── */
 	/* Warm sepia ink for chrome that floats directly on the parchment. */
