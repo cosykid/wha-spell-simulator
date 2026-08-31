@@ -29,6 +29,16 @@ const READ_SIZE = 1024;
  * pass. The first inference pays the runtime load; later spells are fast. */
 const ML_WAIT_MS = 6000;
 
+/**
+ * How long a caller may wait instead. A card cannot hold a reader for the ML
+ * pass, so the default settles early and accepts the template's word. A caller
+ * writing the reading down rather than showing it once has the opposite need,
+ * and no reader waiting on it.
+ */
+export interface ReviveOptions {
+	mlWaitMs?: number;
+}
+
 const revived = new Map<string, Promise<SpellIR>>();
 
 /** The one-at-a-time gate in front of the classifier client. */
@@ -42,7 +52,10 @@ function enqueue<T>(job: () => Promise<T>): Promise<T> {
 
 /** The classifier's settled result: the ML refinement, or the template pass
  * if no refinement arrives inside the window. */
-async function classifySettled(data: SpellPresetData): Promise<ClassifiedDrawing> {
+async function classifySettled(
+	data: SpellPresetData,
+	mlWaitMs: number
+): Promise<ClassifiedDrawing> {
 	const drawing = deserializeSpellPreset(data, READ_SIZE);
 	const strokes = [
 		...drawing.strokes,
@@ -66,7 +79,7 @@ async function classifySettled(data: SpellPresetData): Promise<ClassifiedDrawing
 		(mlResult) => settle(mlResult)
 	);
 	const timeout = new Promise<ClassifiedDrawing>((resolve) => {
-		setTimeout(() => resolve(template), ML_WAIT_MS);
+		setTimeout(() => resolve(template), mlWaitMs);
 	});
 	return Promise.race([refined, timeout]);
 }
@@ -76,7 +89,11 @@ async function classifySettled(data: SpellPresetData): Promise<ClassifiedDrawing
  * rows return as they are; a failed re-read returns the stored row too, which
  * replays inert exactly as it did before this existed.
  */
-export function reviveSpellIr(data: SpellPresetData, stored: SpellIR): Promise<SpellIR> {
+export function reviveSpellIr(
+	data: SpellPresetData,
+	stored: SpellIR,
+	options: ReviveOptions = {}
+): Promise<SpellIR> {
 	if (stored.reading && stored.plan) {
 		return Promise.resolve(stored);
 	}
@@ -86,7 +103,7 @@ export function reviveSpellIr(data: SpellPresetData, stored: SpellIR): Promise<S
 		return cached;
 	}
 	const job = enqueue(async () => {
-		const classified = await classifySettled(data);
+		const classified = await classifySettled(data, options.mlWaitMs ?? ML_WAIT_MS);
 		const reading = readSeal(classified.glyphAST);
 		const plan = resolvePlan(reading);
 		return {

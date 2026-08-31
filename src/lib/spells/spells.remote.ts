@@ -6,7 +6,7 @@
 import { command, getRequestEvent } from '$app/server';
 import { z } from 'zod';
 
-import type { SavedSpell } from '$lib/structures/savedSpell.js';
+import { MAX_PREVIEW_IR_BYTES, type SavedSpell } from '$lib/structures/savedSpell.js';
 import { SpellPresetDataSchema } from '$lib/structures/spellPreset.js';
 import type { SpellIR } from '$lib/types.js';
 import {
@@ -16,9 +16,6 @@ import {
 	removeSpellUpvote,
 	setSpellPublished
 } from '$lib/server/storage/spellStore.js';
-
-/** Compiled IR payloads beyond this size are dropped rather than stored. */
-const MAX_PREVIEW_IR_BYTES = 20_000;
 
 export type SpellMutationFailure = 'auth-required' | 'not-found' | 'server-error';
 

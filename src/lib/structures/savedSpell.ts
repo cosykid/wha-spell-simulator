@@ -6,6 +6,12 @@
 import type { SpellIR } from '../types.js';
 import type { SpellPresetData } from './spellPreset.js';
 
+/**
+ * Compiled IR payloads beyond this size are stored as null rather than kept. A
+ * preview is a nicety; a row large enough to slow the library feed is not.
+ */
+export const MAX_PREVIEW_IR_BYTES = 20_000;
+
 /** A spell as its owner sees it in the grimoire. */
 export interface SavedSpell {
 	id: string;
