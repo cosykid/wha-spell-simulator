@@ -45,7 +45,15 @@ the status string: an unsettled reading pulses that dot, never the text.
 			Spell spent -
 			<button
 				type="button"
-				class="fresh-page"
+				class="note-action"
+				data-testid="reopen-ring-button"
+				title="Opens the ring so you can edit the spell and cast it again"
+				onclick={() => simulator.actions.reopenRing()}>reopen the ring</button
+			>
+			or
+			<button
+				type="button"
+				class="note-action"
 				data-testid="fresh-page-button"
 				title="Undo brings the spell back"
 				onclick={() => simulator.actions.freshPage()}>start a fresh page</button
@@ -147,9 +155,9 @@ the status string: an unsettled reading pulses that dot, never the text.
 		color: var(--ink-sepia-45);
 	}
 
-	/* The readout lets clicks fall through to the canvas, so only the button
-	   itself takes the pointer back. */
-	.fresh-page {
+	/* The readout lets clicks fall through to the canvas, so only the buttons
+	   themselves take the pointer back. */
+	.note-action {
 		pointer-events: auto;
 		border: none;
 		padding: 0;
@@ -161,7 +169,7 @@ the status string: an unsettled reading pulses that dot, never the text.
 		cursor: pointer;
 	}
 
-	.fresh-page:hover {
+	.note-action:hover {
 		text-decoration-style: solid;
 	}
 

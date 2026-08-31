@@ -3,6 +3,7 @@ import { deserializeSpellPreset, type SpellPresetData } from '$lib/structures/sp
 import type { PlacementTransform, ShapeItem, Vector } from '$lib/types.js';
 import type { SimulatorDrawingState } from './drawing-state.svelte.js';
 import type { RecognitionPipeline } from './recognition-pipeline.svelte.js';
+import { sealingStrokeId } from './ring-seal.js';
 import type { SimulatorUiState } from './ui-state.svelte.js';
 
 interface SimulatorDrawingActionsOptions {
@@ -77,7 +78,7 @@ export class SimulatorDrawingActions {
 		// An empty canvas is the step the first-use hint describes, so it comes back.
 		this.#ui.resetCanvasHint();
 		if (hadMarks) {
-			toast.push('Canvas cleared - undo brings it back.');
+			toast.push('Canvas cleared. Undo to restore.');
 		}
 	};
 
@@ -92,8 +93,33 @@ export class SimulatorDrawingActions {
 	 */
 	freshPage = () => {
 		if (this.#wipe()) {
-			toast.push('Fresh page - undo brings the spell back.');
+			toast.push('Fresh page. Undo to restore the spell.');
 		}
+	};
+
+	/**
+	 * Takes the sealing stroke back so a spent spell can be drawn on again.
+	 *
+	 * The other exit from a spent page keeps the diagram: the stroke that closed
+	 * the ring comes off and every other mark stays, which leaves the prepared
+	 * draft the spell was a moment before it cast. Closing the gap again casts
+	 * the edited spell. Like the tear this is an edit rather than an unlock, so
+	 * the seal stays inviolable and undo puts it back.
+	 */
+	reopenRing = () => {
+		const snapshot = this.#drawing.snapshot();
+		const sealingId = sealingStrokeId(snapshot.strokes, this.#recognition.ring);
+		if (!sealingId) {
+			return;
+		}
+		this.#drawing.restore({
+			...snapshot,
+			strokes: snapshot.strokes.filter((stroke) => stroke.id !== sealingId)
+		});
+		this.#recognition.resetSpellState();
+		this.pushHistory();
+		void this.#recognition.recompute();
+		toast.push('Ring reopened. Seal it to cast again.');
 	};
 
 	/**

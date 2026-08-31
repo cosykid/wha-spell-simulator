@@ -115,6 +115,21 @@ export class SpellCanvasPage {
 		return this.page.getByTestId('redo-button');
 	}
 
+	/** The note a spent cast leaves, holding both ways out of a finished page. */
+	get statusNote(): Locator {
+		return this.page.getByTestId('status-note');
+	}
+
+	/** Takes the sealing stroke back, leaving the rest of the diagram to edit. */
+	get reopenRingButton(): Locator {
+		return this.page.getByTestId('reopen-ring-button');
+	}
+
+	/** Clears the spent page, one undo away from the spell. */
+	get freshPageButton(): Locator {
+		return this.page.getByTestId('fresh-page-button');
+	}
+
 	// --- Navigation / readiness ---------------------------------------------
 
 	/**
@@ -141,6 +156,33 @@ export class SpellCanvasPage {
 		await expect(this.glyphCanvas).toHaveAttribute('data-input-ready', 'true', {
 			timeout: 30_000
 		});
+	}
+
+	/**
+	 * Waits until the paper has stopped moving under the portal tilt.
+	 *
+	 * The tilt is a 980ms CSS transition on the glyph canvas and pointer positions
+	 * are mapped through the canvas box as it stands, so a stroke drawn while the
+	 * paper is still easing lands where the drawer never aimed, or misses the
+	 * element altogether. Any spec that draws just after a spell ends has to let
+	 * the paper come back down first. Two identical boxes in a row is that.
+	 */
+	async waitForPaperSettled(): Promise<void> {
+		let previous: string | null = null;
+		await expect
+			.poll(
+				async () => {
+					const box = await this.glyphCanvas.boundingBox();
+					const current = box
+						? [box.x, box.y, box.width, box.height].map(Math.round).join(':')
+						: null;
+					const settled = current !== null && current === previous;
+					previous = current;
+					return settled;
+				},
+				{ timeout: 10_000 }
+			)
+			.toBe(true);
 	}
 
 	// --- Drawing primitives --------------------------------------------------
