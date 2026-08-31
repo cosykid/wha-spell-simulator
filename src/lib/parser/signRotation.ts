@@ -54,10 +54,26 @@ function rotatePoint(point: Point, center: Vector, transform: RotationTransform 
 	};
 }
 
+// The rotation a sign is matched at depends only on the candidate, so the whole
+// dictionary of signs asks for the same copy. Building it per entry also handed
+// the shape matcher a fresh stroke array each time, which defeated its own
+// per-candidate render cache.
+const rotatedCandidates = new WeakMap<SymbolCandidate, Map<number, SymbolCandidate>>();
+
 function rotateCandidate(candidate: SymbolCandidate, rotationDeg: number): SymbolCandidate {
 	const transform = rotationTransform(rotationDeg);
 	if (!transform) {
 		return candidate;
+	}
+
+	let byRotation = rotatedCandidates.get(candidate);
+	if (!byRotation) {
+		byRotation = new Map();
+		rotatedCandidates.set(candidate, byRotation);
+	}
+	const cached = byRotation.get(rotationDeg);
+	if (cached) {
+		return cached;
 	}
 
 	// Rotate only the recognition copy. The public candidate keeps its original
@@ -69,7 +85,7 @@ function rotateCandidate(candidate: SymbolCandidate, rotationDeg: number): Symbo
 	}));
 	const bounds = boundsForStrokes(strokes);
 
-	return {
+	const rotated = {
 		...candidate,
 		bounds,
 		center: centerOfBounds(bounds),
@@ -79,6 +95,8 @@ function rotateCandidate(candidate: SymbolCandidate, rotationDeg: number): Symbo
 		),
 		strokes
 	};
+	byRotation.set(rotationDeg, rotated);
+	return rotated;
 }
 
 export function recognitionPlanForSymbol(

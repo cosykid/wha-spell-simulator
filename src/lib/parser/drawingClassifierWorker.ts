@@ -37,7 +37,7 @@ ctx.onmessage = (event: MessageEvent<InboundMessage>) => {
 		dictionary = message.dictionary;
 		config = message.config;
 		recognitionExamples = message.recognitionExamples ?? [];
-		warmMlRecognizer(config);
+		warmMlRecognizer(config, dictionary);
 		return;
 	}
 
