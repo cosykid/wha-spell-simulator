@@ -52,6 +52,7 @@ export class SimulatorDrawingActions {
 		this.#recognition.cancelActiveRecognition();
 		this.#drawing.restore(snap);
 		this.#recognition.clearPreviousRing();
+		this.#recognition.dropCarriedActivation();
 		void this.#recognition.recompute();
 	};
 
@@ -64,6 +65,7 @@ export class SimulatorDrawingActions {
 		this.#recognition.cancelActiveRecognition();
 		this.#drawing.restore(snap);
 		this.#recognition.clearPreviousRing();
+		this.#recognition.dropCarriedActivation();
 		void this.#recognition.recompute();
 	};
 
@@ -231,6 +233,7 @@ export class SimulatorDrawingActions {
 		this.#recognition.cancelActiveRecognition();
 		this.#drawing.restore(drawing);
 		this.#recognition.clearPreviousRing();
+		this.#recognition.dropCarriedActivation();
 		this.pushHistory();
 		void this.#recognition.recompute();
 		this.dismissCanvasHint();

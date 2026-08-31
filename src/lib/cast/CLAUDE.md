@@ -66,7 +66,8 @@ dropped.
 
 **Stage.** `CastStage.render(spellIR, ring, timestamp, options)` kept the
 argument list of the renderer it replaced, which is what made the cutover a swap.
-It compiles the score once per `spellIR.signature`, builds one cell per track
+It compiles the score once per performance (`spellIR.signature` and the
+`activatedAt` that separates two casts of one drawing), builds one cell per track
 against the resolved look row, maps wall clock to cast time from `activatedAt`,
 and advances every cell in whole `STAGE.stepMs` steps. Each cell performs its own
 track's envelopes as macroscopic form under the seal-space root, the holder's

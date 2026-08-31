@@ -130,6 +130,24 @@ export class SpellCanvasPage {
 		return this.page.getByTestId('fresh-page-button');
 	}
 
+	// --- Keyboard ------------------------------------------------------------
+
+	/**
+	 * Undo through the keyboard, which is the only way to jump the drawing faster
+	 * than recognition can answer: the toolbar buttons disable themselves off the
+	 * summary a recognition pass writes, and the shortcut waits for nothing. The
+	 * handler reads meta on a Mac and control everywhere else, which is what
+	 * `ControlOrMeta` resolves to.
+	 */
+	async undoShortcut(): Promise<void> {
+		await this.page.keyboard.press('ControlOrMeta+z');
+	}
+
+	/** Redo through the keyboard. See {@link undoShortcut}. */
+	async redoShortcut(): Promise<void> {
+		await this.page.keyboard.press('ControlOrMeta+Shift+z');
+	}
+
 	// --- Navigation / readiness ---------------------------------------------
 
 	/**

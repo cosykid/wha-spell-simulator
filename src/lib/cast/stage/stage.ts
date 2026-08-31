@@ -65,6 +65,13 @@ export class CastStage implements CastEngine {
 	readonly #pigment: VolumeStage;
 	/** The compiled spell the running cast belongs to. A change restarts everything. */
 	#signature: string | null = null;
+	/**
+	 * Which performance the running cast is. Two casts of one drawing carry the
+	 * same signature and are still two casts, so the activation stamp is what
+	 * tells them apart: `carrySpellActivation` holds it steady across the
+	 * recompiles of one performance and a new cast is stamped afresh.
+	 */
+	#activatedAt: number | null = null;
 	#cast: RunningCast | null = null;
 
 	constructor(canvas: HTMLCanvasElement, options: CastStageOptions = {}) {
@@ -144,6 +151,7 @@ export class CastStage implements CastEngine {
 		}
 		this.#pigment.detach();
 		this.#signature = null;
+		this.#activatedAt = null;
 		this.#cast = null;
 	}
 
@@ -155,11 +163,16 @@ export class CastStage implements CastEngine {
 	}
 
 	/**
-	 * The cast for this spell, built once per signature and stepped across frames
-	 * from there. Identical signature means identical cast.
+	 * The cast for this performance, built once and stepped across frames from
+	 * there. The same spell performed again is a new cast: its clock counts from
+	 * its own activation, and the one it would inherit has already run out.
 	 */
 	#castFor(spellIR: SpellIR): RunningCast {
-		if (this.#cast && this.#signature === spellIR.signature) {
+		if (
+			this.#cast &&
+			this.#signature === spellIR.signature &&
+			this.#activatedAt === spellIR.activatedAt
+		) {
 			return this.#cast;
 		}
 		this.reset();
@@ -191,6 +204,7 @@ export class CastStage implements CastEngine {
 
 		this.#pigment.attach(substrate, this.#scene, this.#camera);
 		this.#signature = spellIR.signature;
+		this.#activatedAt = spellIR.activatedAt;
 		this.#cast = { score, performers, clock: newStageClock() };
 		return this.#cast;
 	}

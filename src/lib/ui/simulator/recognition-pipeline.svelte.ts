@@ -122,6 +122,10 @@ export class RecognitionPipeline {
 	#castClockTimer: ReturnType<typeof setTimeout> | null = null;
 	#recomputeSeq = 0;
 	#disposed = false;
+	// Whether the next compile may inherit the running cast's activation stamp.
+	// Cleared by an edit that replaces the drawing (`dropCarriedActivation`) and
+	// restored as soon as a compile has landed.
+	#carryActivation = true;
 	readonly #options: RecognitionPipelineOptions;
 
 	constructor(options: RecognitionPipelineOptions) {
@@ -205,6 +209,22 @@ export class RecognitionPipeline {
 	/** Clears ring continuity state after undo, clear, or canvas resize. */
 	clearPreviousRing() {
 		this.#previousRing = null;
+	}
+
+	/**
+	 * Stops the next compile from inheriting the running cast's clock.
+	 *
+	 * `carrySpellActivation` holds one performance's stamp steady across the
+	 * template and ML passes, which it can only do by keeping the stamp whenever
+	 * both compiles read as active. Undo, redo and a loaded preset replace the
+	 * drawing while the last spell is still active in state, and recognition is
+	 * async, so the state in between is often never applied at all: the compile
+	 * that follows would then inherit a clock that has already run out, and the
+	 * spell would read active while nothing performed. A resize is not one of
+	 * these. It scales the same drawing, and its cast is still the same cast.
+	 */
+	dropCarriedActivation() {
+		this.#carryActivation = false;
 	}
 
 	/** Recomputes summary-only state without rerunning recognition. */
@@ -345,7 +365,7 @@ export class RecognitionPipeline {
 		this.#pipeline = result;
 		this.#previousRing = this.#pipeline.ring;
 		this.#spellIR = carrySpellActivation(
-			this.#spellIR,
+			this.#carryActivation ? this.#spellIR : null,
 			// The previous compile carries the reading the facing hysteresis needs:
 			// the template pass and the ML pass read the same ink, and a facing
 			// resting on a class boundary must not change meaning between them.
@@ -355,6 +375,7 @@ export class RecognitionPipeline {
 				previous: this.#spellIR
 			})
 		);
+		this.#carryActivation = true;
 		this.summary = this.#computeSummary();
 		this.#options.setInputLocked(this.summary.inputLocked);
 		this.#armCastClock();
