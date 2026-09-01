@@ -1,5 +1,6 @@
 <script lang="ts">
 	import type { PlacementTransform, ShapeItem, ShapeLibrary } from '$lib/types.js';
+	import { elementTag } from '$lib/ui/elementTag.js';
 	import { strokesToPreviewPolylines } from '$lib/ui/strokePreview.js';
 
 	interface SelectedShape {
@@ -46,18 +47,15 @@
 </script>
 
 <section class="reference-panel" aria-label="Shape palette">
-	<p class="panel-description">
-		Drag a ring, sigil, or sign onto the canvas. Select a placed shape to move, scale, elongate, or
-		rotate it.
-	</p>
-
 	<div class="shape-palette">
+		<p class="panel-description">Drag a ring, sigil, or sign onto the canvas.</p>
 		{#each groups as group (group.title)}
 			<div class="shape-group">
 				<h3 class="shape-group-title">{group.title}</h3>
 				<div class="shape-card-grid">
 					{#each group.items as item (item.id)}
 						{@const polylines = strokesToPreviewPolylines(item.baseStrokes)}
+						{@const tag = elementTag(item.label, item.element)}
 						<button type="button" class="shape-card" class:armed={armedShapeId === item.id}>
 							{#if polylines.length}
 								<span
@@ -74,7 +72,7 @@
 							{/if}
 							<span class="shape-card-label">
 								<strong>{item.label}</strong>
-								{#if item.element}<span>{item.element}</span>{/if}
+								{#if tag}<span>{tag}</span>{/if}
 							</span>
 						</button>
 					{/each}
@@ -137,16 +135,24 @@
 </section>
 
 <style>
+	/* The panel's scroll column: the blurb and every group share its width. Its
+	   bleed past the drawer padding and its reserved gutter are the shared panel
+	   rule in tabs.css. */
 	.shape-palette {
 		display: grid;
+		grid-auto-rows: max-content;
 		gap: 12px;
 		flex: 1 1 auto;
 		overflow-y: auto;
 		overflow-x: hidden;
 		/* Reaching the end of the palette must not start scrolling the drawer behind it. */
 		overscroll-behavior: contain;
-		scrollbar-gutter: stable;
 		min-height: 0;
+	}
+
+	/* The palette's own grid gap spaces the blurb from the first group. */
+	.shape-palette .panel-description {
+		margin-bottom: 0;
 	}
 
 	.shape-group-title {
@@ -166,6 +172,11 @@
 	.shape-card {
 		display: grid;
 		justify-items: center;
+		/* Cards in a row stretch to the tallest, and without this the surplus is
+		   split between the thumbnail and the label rows, so a two-line label next
+		   door drags a card's own label off the row's line. Collect it at the foot
+		   instead and every label in the row starts at the same height. */
+		align-content: start;
 		gap: 6px;
 		padding: 8px;
 		border: 1px solid rgba(36, 27, 22, 0.14);
@@ -222,10 +233,14 @@
 		text-transform: capitalize;
 	}
 
+	/* The palette above scrolls in a column inset from the panel edge, so a rule
+	   drawn at the drawer's content width would sit a scrollbar's width wider than
+	   the cards and read as a miss. Run it the full width of the panel instead,
+	   where it reads as the separator it is. */
 	.shape-inspector {
 		flex: 0 0 auto;
-		margin-top: 12px;
-		padding-top: 12px;
+		margin: 12px calc(-1 * var(--drawer-pad-x)) 0;
+		padding: 12px var(--drawer-pad-x) 0;
 		border-top: 1px solid rgba(36, 27, 22, 0.16);
 	}
 
