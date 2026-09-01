@@ -101,7 +101,7 @@ longer shows inline.
 	.menu-head .eyebrow {
 		margin: 0 0 4px;
 		font-family: 'Cinzel', serif;
-		color: var(--gold);
+		color: var(--accent);
 		font-size: 12px;
 		letter-spacing: 0.08em;
 		text-transform: uppercase;
@@ -201,12 +201,12 @@ longer shows inline.
 
 	.menu-signout:hover {
 		background: none;
-		border-bottom-color: var(--gold);
+		border-bottom-color: var(--accent);
 		color: var(--ink-sepia);
 	}
 
 	.menu-signout:focus-visible {
-		outline: 2px solid var(--gold);
+		outline: 2px solid var(--accent);
 		outline-offset: 2px;
 	}
 

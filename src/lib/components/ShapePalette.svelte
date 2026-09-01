@@ -191,8 +191,8 @@
 	}
 
 	.shape-card.armed {
-		border-color: var(--teal);
-		box-shadow: 0 0 0 1px var(--teal);
+		border-color: var(--accent);
+		box-shadow: 0 0 0 1px var(--accent);
 	}
 
 	.shape-card .reference-preview {
@@ -262,7 +262,7 @@
 
 	.shape-commit {
 		margin-top: 4px;
-		background: var(--teal);
+		background: var(--accent);
 		color: #fffbe9;
 	}
 

@@ -122,11 +122,11 @@ to sign in first.
 
 	.section-tab.active {
 		color: var(--ink-sepia);
-		border-bottom-color: var(--gold);
+		border-bottom-color: var(--accent);
 	}
 
 	.section-tab:focus-visible {
-		outline: 2px solid var(--gold);
+		outline: 2px solid var(--accent);
 		outline-offset: 3px;
 	}
 
@@ -171,15 +171,15 @@ to sign in first.
 
 	.arranged-option.active {
 		color: var(--ink-sepia);
-		border-bottom-color: var(--gold);
+		border-bottom-color: var(--accent);
 	}
 
 	.arranged-option:focus-visible {
-		outline: 2px solid var(--gold);
+		outline: 2px solid var(--accent);
 		outline-offset: 2px;
 	}
 
-	/* An engraved double rule closes the masthead, a gold lozenge at its center. */
+	/* An engraved double rule closes the masthead, an inked lozenge at its center. */
 	.masthead-rule {
 		position: relative;
 		height: 5px;
@@ -196,7 +196,7 @@ to sign in first.
 		width: 7px;
 		height: 7px;
 		transform: translate(-50%, -50%) rotate(45deg);
-		background: var(--gold);
+		background: var(--accent);
 		box-shadow: 0 0 0 3px var(--panel);
 	}
 

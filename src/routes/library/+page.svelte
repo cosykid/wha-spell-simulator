@@ -87,11 +87,11 @@ the app.
 
 	.sheet-nav a:hover {
 		color: var(--ink-sepia);
-		border-bottom-color: var(--gold);
+		border-bottom-color: var(--accent);
 	}
 
 	.sheet-nav a:focus-visible {
-		outline: 2px solid var(--gold);
+		outline: 2px solid var(--accent);
 		outline-offset: 3px;
 	}
 

@@ -22,3 +22,12 @@
 
 	{@render children()}
 </div>
+
+<style>
+	/* The tools keep the two-color chrome the rest of the app gave up. Anything
+	   under this shell reads the accent as gold, including the header eyebrow
+	   both surfaces share. */
+	.app-shell {
+		--accent: var(--gold);
+	}
+</style>

@@ -18,10 +18,18 @@ const CONCENTRIC_TOLERANCE_PX = 22;
 const MAX_DRIFT_PX = 6;
 
 /**
- * Centroids of the ink and of the teal guide layer, both read off the glyph
- * canvas. The seal guides are drawn from the recognized ring, so when the ring
- * is in the canvas's own coordinate space the two centroids sit on top of each
- * other. A ring left at a stale canvas size pulls the guide centroid away.
+ * Centroids of the ink and of the ring debug circle, both read off the glyph
+ * canvas. The circle is drawn from the recognized ring, the same place the seal
+ * guides come from, so when that ring is in the canvas's own coordinate space
+ * the two centroids sit on top of each other. A ring left at a stale canvas size
+ * pulls the guide centroid away.
+ *
+ * That circle's teal is the handle, and the only one on offer. It is the one
+ * mark on a warm opaque parchment whose green and blue outrun its red, so a
+ * threshold finds it and nothing else. The seal guides beside it are the drawn
+ * ink laid thin, which no fixed threshold separates from the paper's own
+ * texture, and their pulse turns over too slowly to diff inside the read window
+ * below. Recoloring `drawRingDebug` costs this spec its subject.
  */
 async function centroids(page: import('@playwright/test').Page) {
 	return page.evaluate(() => {
@@ -38,7 +46,7 @@ async function centroids(page: import('@playwright/test').Page) {
 			for (let x = 0; x < canvas.width; x += 1) {
 				const i = (y * canvas.width + x) * 4;
 				const [r, g, b, a] = [data[i], data[i + 1], data[i + 2], data[i + 3]];
-				// Teal guide ink: green and blue clearly above red.
+				// The ring debug circle: green and blue clearly above red.
 				if (a > 4 && g > r + 8 && b > r + 8) {
 					guideX += x;
 					guideY += y;

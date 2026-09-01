@@ -11,9 +11,17 @@
 	--panel: #f2ecd6;
 	--panel-line: #b69a5c;
 	--ember: #b25738;
-	--teal: #1f6f7a;
 	--violet: #5d507f;
+	/* Gold and teal are the tools palette. Only routes under /tools may reach for
+	   them, and tools/+layout.svelte points --accent back at gold for the chrome
+	   the two share. */
+	--teal: #1f6f7a;
 	--gold: #c4981f;
+	/* Iron gall, the accent everywhere else. Emphasis on parchment is carried by
+	   weight rather than hue, so an accented mark is simply inked to full
+	   strength. Deeper than --ink-sepia on purpose, so such a mark still outranks
+	   the ordinary chrome ink beside it. */
+	--accent: #2f2114;
 	--warm-wood: #80664a;
 	--warm-wood-deep: #5c4630;
 	--shadow: rgba(16, 34, 38, 0.28);
@@ -35,9 +43,10 @@
 	--ease-out-panel: cubic-bezier(0.22, 1, 0.36, 1);
 	--ease-rise: cubic-bezier(0.2, 0.7, 0.3, 1);
 
-	/* Keyboard focus ring, gold so it reads as ink on parchment rather than the
-	   browser's blue. Components with their own ring already match this. */
-	--focus-ring: 2px solid var(--gold);
+	/* Keyboard focus ring. It takes the accent, so it rings in ink on parchment
+	   and in gold on the dark tools header, never in the browser's blue.
+	   Components with their own ring already match this. */
+	--focus-ring: 2px solid var(--accent);
 	--focus-ring-offset: 2px;
 
 	/* ── Minimal full-bleed canvas chrome & slide-out drawers ──────────── */

@@ -14,11 +14,11 @@ and the five per-element ones) live under
 seam as the stage and chosen by the user's `EffectStyle`.
 
 What died and stays dead: the ownership boolean, the per-spell fallback branch,
-and the guide drawing — the idle ring glow, the prepared pulse and the invalid
-flicker are this directory's `drawSealGuides`, on the glyph canvas. A spell that
-is active and valid is a cast; R-11 makes "manifests nothing" a look rather than
-an empty canvas, so there is nothing left to fall back to. `renderer/` still
-renders no spells.
+and the guide drawing — the idle ring, the prepared wash and the invalid flicker
+are this directory's `drawSealGuides`, on the glyph canvas. A spell that is
+active and valid is a cast; R-11 makes "manifests nothing" a look rather than an
+empty canvas, so there is nothing left to fall back to. `renderer/` still renders
+no spells.
 
 ## File map
 
@@ -27,7 +27,8 @@ renders no spells.
   circle.
 - [`sealIgnition.ts`](sealIgnition.ts) — R-01's charge beat on the ink
   (`drawSealIgnition`): a warm front runs the seal's strokes in the order they
-  were drawn and is spent by the strike, where the cast takes the frame.
+  were drawn and is spent by the strike, where the cast takes the frame. It also
+  exports `SEAL_EMBER`, the two-tone amber both it and the glow burn in.
 - [`glyphDebugOverlay.ts`](glyphDebugOverlay.ts) — the `showDiagnostics` layer:
   candidate boxes, recognizer verdicts, stroke ids.
 
@@ -40,11 +41,11 @@ and nothing else. That canvas is WebGL now, so nothing on this side may take a
 `2d` context on it — a canvas that ever hands one out can never host a WebGL one.
 
 `drawSealGuides(ctx, spellIR, ring, timestamp)` reports how a seal reads _before_
-it casts, in three states: a faint amber ring glow on any idle ring, a teal pulse
-once the ring is prepared, and a dashed red flicker when the drawing will not
-compile. An active spell draws none of them. The simulator gates the whole thing
-on `ui.showGuides` in `glyph-scene.svelte.ts`'s `sealGuidesEntity` (z 40, above
-the ink, below the ring debug).
+it casts, in three states: a faint ring of ink on any idle ring, a wash pulsing
+inside it once the ring is prepared, and a dashed red flicker when the drawing
+will not compile. An active spell draws none of them. The simulator gates the
+whole thing on `ui.showGuides` in `glyph-scene.svelte.ts`'s `sealGuidesEntity`
+(z 40, above the ink, below the ring debug).
 
 ## Invariants and gotchas
 
@@ -53,6 +54,19 @@ glyph canvas beside the ink they annotate rather than on the effect canvas. They
 draw only on non-active states, and the glyph canvas is flat on all of them, so
 the portal tilt never touches them. Anything that draws while a spell is active
 belongs in [`../cast/`](../cast/CLAUDE.md).
+
+**Two palettes, and neither is a hue for its own sake.** The guides are the drawn
+ink laid thin (`GUIDE_INK`, the same near-black the strokes use), because they
+are chrome: like the rest of the app they carry emphasis by weight rather than
+hue, and idle against prepared is already told apart by how much ink is down and
+whether the ring is filled. Red is the single exception, reserved for a seal that
+will not compile. Light is the other palette and it is warm: `SEAL_EMBER` runs
+the charge beat along the ink and then holds through `drawGlowingStrokes`, so a
+cast burns in one color from strike to spend. Do not reach for gold or teal here.
+They are the `/tools` accent now, not the app's. The one place they survive is
+`drawRingDebug`, whose teal is the only handle
+[`canvas-resize.e2e.ts`](../../../tests-e2e/canvas-resize.e2e.ts) has on the
+guide layer. Read the note there before recoloring it.
 
 **This directory owns no portal numbers.** On activation the CSS in
 [`../styles/canvas.css`](../styles/canvas.css) shrinks and tilts `#glyphCanvas`

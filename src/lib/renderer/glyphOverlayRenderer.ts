@@ -8,13 +8,15 @@
  *
  * The charge beat's own event, the ink taking light stroke by stroke, is one
  * concern over in [`sealIgnition.ts`](sealIgnition.ts). The glow below is what
- * that hands off to.
+ * that hands off to, and it burns in the same ember palette so the handoff is a
+ * beat rather than a change of color.
  *
  * Recognition labels are one concern down in
  * [`glyphDebugOverlay.ts`](glyphDebugOverlay.ts).
  */
 
 import { BEAT_MS } from '../cast/score/beats.js';
+import { SEAL_EMBER } from './sealIgnition.js';
 import type { RingInfo, SpellIR, Stroke } from '../types.js';
 
 // ---------------------------------------------------------------------------
@@ -34,19 +36,22 @@ interface GlowLayer {
 	lineWidth: (params: GlowParams) => number;
 }
 
+// Two layers of one light: a broad amber spill on the paper, and a hot near-white
+// core on the ink itself. Both take the charge beat's ember, so the warmth the
+// ignition front leaves behind is the warmth that holds for the rest of the cast.
 const GLOW_LAYERS: GlowLayer[] = [
 	{
-		shadowColor: 'rgb(110, 185, 212)',
+		shadowColor: SEAL_EMBER.lit.glow,
 		shadowBlur: ({ pulse, flicker, glowAlpha }) => (24 + pulse * 18 + flicker * 10) * glowAlpha,
 		strokeStyle: ({ pulse, glowAlpha }) =>
-			`rgba(120, 220, 255, ${(0.18 + pulse * 0.12) * glowAlpha})`,
+			`rgba(${SEAL_EMBER.lit.rgb}, ${(0.18 + pulse * 0.12) * glowAlpha})`,
 		lineWidth: ({ pulse, glowAlpha }) => 4 + (8 + pulse * 2) * glowAlpha
 	},
 	{
-		shadowColor: 'rgb(117, 150, 161)',
+		shadowColor: SEAL_EMBER.head.glow,
 		shadowBlur: ({ pulse, glowAlpha }) => (10 + pulse * 6) * glowAlpha,
 		strokeStyle: ({ pulse, glowAlpha }) =>
-			`rgba(187, 225, 237, ${(0.88 + pulse * 0.12) * glowAlpha})`,
+			`rgba(${SEAL_EMBER.head.rgb}, ${(0.88 + pulse * 0.12) * glowAlpha})`,
 		lineWidth: ({ pulse, glowAlpha }) => 1.8 + (2 + pulse * 0.6) * glowAlpha
 	}
 ];
@@ -168,13 +173,22 @@ export function drawGlowingStrokes(
 // ---------------------------------------------------------------------------
 
 const FULL_CIRCLE_RAD = Math.PI * 2;
-const RING_GLOW_IDLE_ALPHA = 0.06;
-const RING_GLOW_PREPARED_ALPHA = 0.12;
-const RING_GLOW_LINE_WIDTH = 6;
+
+// The guides are the drawn ink laid thin, never a second color: a seal reports
+// its own state in the pen it was written with. Idle and prepared are told apart
+// by how much ink is down and whether the ring is filled, the same way the rest
+// of the app carries emphasis by weight rather than hue.
+const GUIDE_INK = '36, 27, 22';
+
+const RING_GUIDE_IDLE_ALPHA = 0.06;
+const RING_GUIDE_PREPARED_ALPHA = 0.12;
+const RING_GUIDE_LINE_WIDTH = 6;
 const PREPARED_PULSE_PERIOD_MS = 520;
-const PREPARED_GLOW_BASE_ALPHA = 0.08;
-const PREPARED_GLOW_PULSE_ALPHA = 0.05;
-const PREPARED_GLOW_RADIUS_SCALE = 0.7;
+// A field of ink reads heavier than a line of it, so the wash sits below the
+// ring that encloses it and still comes up clearly against the parchment.
+const PREPARED_WASH_BASE_ALPHA = 0.04;
+const PREPARED_WASH_PULSE_ALPHA = 0.04;
+const PREPARED_WASH_RADIUS_SCALE = 0.7;
 const FAILED_FLICKER_PERIOD_MS = 70;
 const FAILED_FLICKER_BASE_ALPHA = 0.14;
 const FAILED_FLICKER_PULSE_ALPHA = 0.16;
@@ -183,26 +197,26 @@ const FAILED_FLICKER_DASH = [10, 14];
 const FAILED_FLICKER_RADIUS_SCALE = 0.92;
 const FAILED_FLICKER_RADIUS_PULSE_SCALE = 0.02;
 
-function drawRingGlow(ctx: CanvasRenderingContext2D, ring: RingInfo, isPrepared: boolean): void {
-	const alpha = isPrepared ? RING_GLOW_PREPARED_ALPHA : RING_GLOW_IDLE_ALPHA;
+function drawRingGuide(ctx: CanvasRenderingContext2D, ring: RingInfo, isPrepared: boolean): void {
+	const alpha = isPrepared ? RING_GUIDE_PREPARED_ALPHA : RING_GUIDE_IDLE_ALPHA;
 	ctx.save();
-	ctx.strokeStyle = `rgba(255, 217, 114, ${alpha})`;
-	ctx.lineWidth = RING_GLOW_LINE_WIDTH;
+	ctx.strokeStyle = `rgba(${GUIDE_INK}, ${alpha})`;
+	ctx.lineWidth = RING_GUIDE_LINE_WIDTH;
 	ctx.beginPath();
 	ctx.arc(ring.center.x, ring.center.y, ring.radius, 0, FULL_CIRCLE_RAD);
 	ctx.stroke();
 	ctx.restore();
 }
 
-function drawPreparedGlow(ctx: CanvasRenderingContext2D, ring: RingInfo, timestamp: number): void {
+function drawPreparedWash(ctx: CanvasRenderingContext2D, ring: RingInfo, timestamp: number): void {
 	const pulse = 0.5 + Math.sin(timestamp / PREPARED_PULSE_PERIOD_MS) * 0.5;
 	ctx.save();
-	ctx.fillStyle = `rgba(88, 171, 174, ${PREPARED_GLOW_BASE_ALPHA + pulse * PREPARED_GLOW_PULSE_ALPHA})`;
+	ctx.fillStyle = `rgba(${GUIDE_INK}, ${PREPARED_WASH_BASE_ALPHA + pulse * PREPARED_WASH_PULSE_ALPHA})`;
 	ctx.beginPath();
 	ctx.arc(
 		ring.center.x,
 		ring.center.y,
-		ring.radius * PREPARED_GLOW_RADIUS_SCALE,
+		ring.radius * PREPARED_WASH_RADIUS_SCALE,
 		0,
 		FULL_CIRCLE_RAD
 	);
@@ -229,10 +243,11 @@ function drawFailedFlicker(ctx: CanvasRenderingContext2D, ring: RingInfo, timest
 }
 
 /**
- * How a seal reads before it casts: a faint glow on any idle ring, a teal pulse
- * once it is prepared, and a dashed red flicker when the drawing will not
- * compile. An active spell draws none of them; it is the cast's frame from
- * there.
+ * How a seal reads before it casts: a faint ring of ink on any idle ring, a wash
+ * pulsing inside it once it is prepared, and a dashed red flicker when the
+ * drawing will not compile. Red is the one hue left, kept for the one state that
+ * is a warning rather than a reading. An active spell draws none of them; it is
+ * the cast's frame from there.
  *
  * @example
  * drawSealGuides(ctx, recognition.spellIR, recognition.ring, timestamp);
@@ -247,13 +262,13 @@ export function drawSealGuides(
 		return;
 	}
 
-	drawRingGlow(ctx, ring, spellIR.prepared);
+	drawRingGuide(ctx, ring, spellIR.prepared);
 	if (!spellIR.valid) {
 		drawFailedFlicker(ctx, ring, timestamp);
 		return;
 	}
 	if (spellIR.prepared) {
-		drawPreparedGlow(ctx, ring, timestamp);
+		drawPreparedWash(ctx, ring, timestamp);
 	}
 }
 

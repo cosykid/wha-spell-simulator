@@ -140,7 +140,7 @@ before it takes, since a seal cannot be recovered after it goes.
 	}
 
 	.seal:focus-visible {
-		outline: 2px solid var(--gold);
+		outline: 2px solid var(--accent);
 		outline-offset: 3px;
 	}
 
@@ -164,7 +164,7 @@ before it takes, since a seal cannot be recovered after it goes.
 	}
 
 	.row:has(.seal:hover, .name:hover) .plate {
-		border-color: var(--gold);
+		border-color: var(--accent);
 		background: var(--chrome-glass-strong);
 	}
 
@@ -196,11 +196,11 @@ before it takes, since a seal cannot be recovered after it goes.
 
 	.name:hover {
 		background: none;
-		color: var(--gold);
+		color: var(--accent);
 	}
 
 	.name:focus-visible {
-		outline: 2px solid var(--gold);
+		outline: 2px solid var(--accent);
 		outline-offset: 2px;
 	}
 
@@ -232,7 +232,7 @@ before it takes, since a seal cannot be recovered after it goes.
 		gap: 4px;
 		align-items: center;
 		font-size: 0.76rem;
-		color: var(--gold);
+		color: var(--accent);
 	}
 
 	.thumb {
@@ -264,12 +264,12 @@ before it takes, since a seal cannot be recovered after it goes.
 
 	.ink-action:hover {
 		background: none;
-		border-bottom-color: var(--gold);
+		border-bottom-color: var(--accent);
 		color: var(--ink-sepia);
 	}
 
 	.ink-action:focus-visible {
-		outline: 2px solid var(--gold);
+		outline: 2px solid var(--accent);
 		outline-offset: 2px;
 	}
 
