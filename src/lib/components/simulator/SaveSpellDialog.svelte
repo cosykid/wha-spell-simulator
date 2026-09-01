@@ -9,6 +9,7 @@ save button gates on that before opening this dialog.
 	import { toast } from '@zerodevx/svelte-toast';
 	import { serializeSpellPreset } from '$lib/structures/spellPreset.js';
 	import { getAuthState } from '$lib/ui/auth/auth-state.svelte.js';
+	import { lightDismiss } from '$lib/ui/lightDismiss.js';
 	import type { SimulatorSession } from '$lib/ui/simulator/simulator-session.svelte.js';
 
 	interface Props {
@@ -94,6 +95,7 @@ save button gates on that before opening this dialog.
 	bind:this={dialog}
 	class="save-dialog"
 	data-testid="save-spell-dialog"
+	{@attach lightDismiss()}
 	onclose={() => (grimoire.saveDialogOpen = false)}
 >
 	<form onsubmit={submit}>
