@@ -17,6 +17,8 @@ interface TogglePreferences {
 	arrangeShapes: boolean;
 	/** Which engine performs a cast. Per-device display choice, like its neighbours. */
 	effectStyle: EffectStyle;
+	/** Whether the first-spell guide has been offered and answered on this device. */
+	firstSpellGuideSeen: boolean;
 }
 
 /**
@@ -42,12 +44,14 @@ export function saveSimulatorPreferences({
 	showGuides,
 	showDiagnostics,
 	activeTool,
-	effectStyle
+	effectStyle,
+	firstSpellGuideSeen
 }: {
 	showGuides: boolean;
 	showDiagnostics: boolean;
 	activeTool: CanvasTool;
 	effectStyle: EffectStyle;
+	firstSpellGuideSeen: boolean;
 }) {
 	try {
 		localStorage.setItem(
@@ -56,7 +60,8 @@ export function saveSimulatorPreferences({
 				showGuides,
 				showDiagnostics,
 				arrangeShapes: activeTool === 'arrange',
-				effectStyle
+				effectStyle,
+				firstSpellGuideSeen
 			})
 		);
 	} catch {

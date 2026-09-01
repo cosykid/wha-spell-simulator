@@ -18,6 +18,7 @@
 
 import { BEAT_MS } from '../cast/score/beats.js';
 import { clamp } from '../utils/geometry.js';
+import { polylineLength, tracePathBetween } from './inkPath.js';
 import type { Stroke } from '../types.js';
 
 /**
@@ -57,49 +58,6 @@ interface Ember {
 	to: number;
 }
 
-function strokeLength(stroke: Stroke): number {
-	let length = 0;
-	for (let index = 1; index < stroke.points.length; index += 1) {
-		const previous = stroke.points[index - 1];
-		const point = stroke.points[index];
-		length += Math.hypot(point.x - previous.x, point.y - previous.y);
-	}
-	return length;
-}
-
-/**
- * Adds the part of one stroke lying between two of its own arc lengths to the
- * current path. Contiguous, so a span crossing several segments is one line
- * rather than a row of overlapping caps.
- */
-function tracePathBetween(
-	ctx: CanvasRenderingContext2D,
-	stroke: Stroke,
-	fromLen: number,
-	toLen: number
-): void {
-	let walked = 0;
-	let started = false;
-	for (let index = 1; index < stroke.points.length; index += 1) {
-		const previous = stroke.points[index - 1];
-		const point = stroke.points[index];
-		const segment = Math.hypot(point.x - previous.x, point.y - previous.y);
-		const enter = Math.max(fromLen - walked, 0);
-		const leave = Math.min(toLen - walked, segment);
-		walked += segment;
-		if (segment <= 0 || leave <= enter) {
-			continue;
-		}
-		const dx = (point.x - previous.x) / segment;
-		const dy = (point.y - previous.y) / segment;
-		if (!started) {
-			ctx.moveTo(previous.x + dx * enter, previous.y + dy * enter);
-			started = true;
-		}
-		ctx.lineTo(previous.x + dx * leave, previous.y + dy * leave);
-	}
-}
-
 /** Paints one span of the seal, measured as arc length through the strokes in order. */
 function paintEmber(ctx: CanvasRenderingContext2D, strokes: readonly Stroke[], ember: Ember): void {
 	if (ember.to <= ember.from || ember.alpha <= 0) {
@@ -116,8 +74,8 @@ function paintEmber(ctx: CanvasRenderingContext2D, strokes: readonly Stroke[], e
 	ctx.beginPath();
 	let walked = 0;
 	for (const stroke of strokes) {
-		tracePathBetween(ctx, stroke, ember.from - walked, ember.to - walked);
-		walked += strokeLength(stroke);
+		tracePathBetween(ctx, stroke.points, ember.from - walked, ember.to - walked);
+		walked += polylineLength(stroke.points);
 	}
 	ctx.stroke();
 	ctx.restore();
@@ -157,7 +115,7 @@ export function drawSealIgnition(
 
 	let total = 0;
 	for (const stroke of strokes) {
-		total += strokeLength(stroke);
+		total += polylineLength(stroke.points);
 	}
 	if (total <= 0) {
 		return;

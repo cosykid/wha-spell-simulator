@@ -49,6 +49,8 @@ export class SimulatorUiState {
 	activeTool = $derived(toolForMode(this.canvasMode));
 	/** Whether the first-use canvas hint has been dismissed. */
 	canvasHintDismissed = $state(false);
+	/** Whether the first-spell guide has been offered and answered on this device. */
+	firstSpellGuideSeen = $state(false);
 	/** Whether pan gestures are currently enabled. */
 	panEnabled = $derived(panEnabledForMode(this.canvasMode));
 	/** Whether desktop layout should match canvas height to workspace height. */
@@ -89,7 +91,7 @@ export class SimulatorUiState {
 		});
 	}
 
-	/** Loads persisted guide, diagnostics, effect-style, and arrange-mode preferences. */
+	/** Loads persisted guide, diagnostics, effect-style, arrange-mode, and first-spell preferences. */
 	loadPreferences() {
 		const preferences = loadSimulatorPreferences();
 		if (typeof preferences.showGuides === 'boolean') {
@@ -100,6 +102,9 @@ export class SimulatorUiState {
 		}
 		if (preferences.arrangeShapes === true) {
 			this.canvasMode = 'arrange';
+		}
+		if (preferences.firstSpellGuideSeen === true) {
+			this.firstSpellGuideSeen = true;
 		}
 		// A union has no `typeof` guard, so the narrowing helper is the validation
 		// and it already returns the default for a missing or unknown value.
@@ -202,7 +207,8 @@ export class SimulatorUiState {
 			showGuides: this.showGuides,
 			showDiagnostics: this.showDiagnostics,
 			activeTool: this.activeTool,
-			effectStyle: this.effectStyle
+			effectStyle: this.effectStyle,
+			firstSpellGuideSeen: this.firstSpellGuideSeen
 		});
 	}
 }

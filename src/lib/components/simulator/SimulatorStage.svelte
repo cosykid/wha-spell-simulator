@@ -16,6 +16,7 @@ and the drawers each live one named click away.
 	import ChromeButton from './ChromeButton.svelte';
 	import ChromeRule from './ChromeRule.svelte';
 	import EffectStyleToggle from './EffectStyleToggle.svelte';
+	import FirstSpellGuide from './FirstSpellGuide.svelte';
 	import MenuDrawer from './MenuDrawer.svelte';
 	import ReferenceDrawer from './ReferenceDrawer.svelte';
 	import ReferenceTabs from './ReferenceTabs.svelte';
@@ -70,11 +71,12 @@ and the drawers each live one named click away.
 	<!-- First-use hint. Lives at the stage (viewport) layer, not inside the canvas
 	     shell, whose `perspective` traps positioned children and whose top edge sits
 	     off-screen once the canvas covers the viewport. -->
+	<!-- The guide takes the hint's slot and its voice while it is open. -->
 	<p
 		class="canvas-hint"
 		id="canvasHint"
 		data-testid="canvas-hint"
-		class:hidden={recognition.summary.hintHidden}
+		class:hidden={recognition.summary.hintHidden || simulator.firstSpell.phase !== 'idle'}
 	>
 		{hintText}
 	</p>
@@ -138,6 +140,7 @@ and the drawers each live one named click away.
 		/>
 	</div>
 
+	<FirstSpellGuide {simulator} />
 	<MenuDrawer {simulator} />
 	<ReferenceDrawer {simulator} />
 	<SaveSpellDialog {simulator} />
@@ -225,11 +228,19 @@ and the drawers each live one named click away.
 		line-height: 1.4;
 		text-align: center;
 		pointer-events: none;
-		transition: opacity 200ms ease;
+		transition:
+			opacity 200ms ease,
+			visibility 0s;
 	}
 
+	/* Visibility leaves after the fade, so the hidden hint is also out of the
+	   accessibility tree instead of whispering under the first-spell guide. */
 	.canvas-hint.hidden {
 		opacity: 0;
+		visibility: hidden;
+		transition:
+			opacity 200ms ease,
+			visibility 0s 200ms;
 	}
 
 	/*

@@ -1,6 +1,7 @@
 import { GrimoireState } from '$lib/ui/spells/grimoire-state.svelte.js';
 import { SimulatorDrawingActions } from './drawing-actions.js';
 import { SimulatorDrawingState } from './drawing-state.svelte.js';
+import { FirstSpellGuide } from './first-spell-guide.svelte.js';
 import { PanController } from './pan-controller.svelte.js';
 import { RecognitionPipeline } from './recognition-pipeline.svelte.js';
 import { ShapeDragController } from './shape-drag-controller.svelte.js';
@@ -42,6 +43,14 @@ export class SimulatorSession {
 	readonly pan = new PanController(() => this.ui.panEnabled);
 	/** The user's saved spells, backing the My Spells tab and save dialog. */
 	readonly grimoire = new GrimoireState();
+	/** The first-spell guide: welcome card, ghost-traced walk, celebration. */
+	readonly firstSpell = new FirstSpellGuide({
+		ui: this.ui,
+		recognition: this.recognition,
+		actions: this.actions,
+		hasMarks: () => this.drawing.store.count() > 0 || this.drawing.placements.count() > 0,
+		selectDraw: () => this.handleSelectDraw()
+	});
 	/** Palette drag and armed-shape state. */
 	readonly shapeDrag = new ShapeDragController({
 		activeTool: () => this.ui.activeTool,
@@ -61,7 +70,8 @@ export class SimulatorSession {
 			recognition: this.recognition,
 			actions: this.actions,
 			pan: this.pan,
-			shapeDrag: this.shapeDrag
+			shapeDrag: this.shapeDrag,
+			firstSpell: this.firstSpell
 		});
 	}
 

@@ -23,6 +23,7 @@ state. Rule 5 covers the canvas contracts.
 Files whose names do not give them away:
 
 - [`drawing-state.svelte.ts`](drawing-state.svelte.ts): strokes, placements, selection, snapshot history, and the baked-stroke and placement-entity caches.
+- [`first-spell-guide.svelte.ts`](first-spell-guide.svelte.ts): the first-spell guide's phase, walk step, and commands. The step is derived from recognition, never a stored cursor. Pure step logic in [`first-spell-script.ts`](first-spell-script.ts), ghost geometry in [`first-spell-geometry.ts`](first-spell-geometry.ts); the ghost draws through `firstSpellGhostEntity` in `glyph-scene.svelte.ts` (z -60, under the ink) via [`../../renderer/ghostInk.ts`](../../renderer/ghostInk.ts). The welcome and celebration cards are `src/lib/components/simulator/FirstSpellGuide.svelte`. The auto-offer fires once per device (`firstSpellGuideSeen` in [`preferences.ts`](preferences.ts)); e2e contexts look like first visits, so `SpellCanvasPage.goto` pre-seeds that flag.
 - [`drawing-actions.ts`](drawing-actions.ts): the user-facing commands (undo, clear, paste, commit, `loadPreset`, the spent page's `freshPage` and `reopenRing`).
 - [`recognition-pipeline.svelte.ts`](recognition-pipeline.svelte.ts): async classification, spell compilation, summary, diagnostics.
 - [`glyph-scene.svelte.ts`](glyph-scene.svelte.ts): the nine entity layers of the glyph canvas.

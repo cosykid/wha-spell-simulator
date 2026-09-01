@@ -11,6 +11,7 @@ import { CanvasSizingController } from './canvas-sizing-controller.js';
 import type { SimulatorDrawingActions } from './drawing-actions.js';
 import type { SimulatorDrawingState } from './drawing-state.svelte.js';
 import { eraserCursorCss } from './eraserCursor.js';
+import type { FirstSpellGuide } from './first-spell-guide.svelte.js';
 import { createSimulatorGlyphScene } from './glyph-scene.svelte.js';
 import { SimulatorInputControllers } from './input-controllers.js';
 import { createSimulatorKeyboardHandler } from './keyboard.js';
@@ -39,6 +40,7 @@ interface SimulatorRuntimeOptions {
 	actions: SimulatorDrawingActions;
 	pan: PanController;
 	shapeDrag: ShapeDragController;
+	firstSpell: FirstSpellGuide;
 }
 
 /**
@@ -72,6 +74,7 @@ export class SimulatorRuntime {
 			drawing: options.drawing,
 			recognition: options.recognition,
 			ui: options.ui,
+			firstSpell: options.firstSpell,
 			currentStroke: () => this.#input?.currentStroke() ?? null
 		});
 		this.#placementBehavior = createSimulatorPlacementBehavior({

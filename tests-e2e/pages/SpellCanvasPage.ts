@@ -157,8 +157,25 @@ export class SpellCanvasPage {
 	 * that production does not: the effect canvas is WebGL and drops its frame at
 	 * composite, so without it every pixel a spec reads back is blank. It is the
 	 * whole difference between the page under test and the shipped one.
+	 *
+	 * A fresh browser context looks like a first visit, so the first-spell guide
+	 * would open its modal welcome card and swallow every pointer gesture. The
+	 * page object pre-seeds the guide's seen flag by default; the guide's own
+	 * spec passes `firstSpellSeen: false` to get the real first-visit flow.
 	 */
-	async goto(): Promise<void> {
+	async goto(options: { firstSpellSeen?: boolean } = {}): Promise<void> {
+		if (options.firstSpellSeen ?? true) {
+			await this.page.addInitScript(() => {
+				const KEY = 'wha-spell-simulator:toggle-preferences';
+				try {
+					const stored = JSON.parse(localStorage.getItem(KEY) ?? '{}') as Record<string, unknown>;
+					localStorage.setItem(KEY, JSON.stringify({ ...stored, firstSpellGuideSeen: true }));
+				} catch {
+					// Unreadable storage also blocks the flag the app would read, so the
+					// guide stays closed either way.
+				}
+			});
+		}
 		await this.page.goto(`/?${CAST_READBACK_PARAM}=1`);
 		await this.waitForReady();
 	}

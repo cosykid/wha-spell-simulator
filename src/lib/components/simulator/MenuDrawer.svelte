@@ -18,6 +18,12 @@ longer shows inline.
 	let { simulator }: Props = $props();
 	const auth = getAuthState();
 	let ui = $derived(simulator.ui);
+
+	// The drawer covers the paper the guide talks about, so it closes first.
+	function openFirstSpellGuide() {
+		ui.closeDrawers();
+		simulator.firstSpell.open();
+	}
 </script>
 
 <Drawer side="left" open={ui.menuOpen} label="Menu" modal onClose={ui.closeDrawers}>
@@ -61,6 +67,19 @@ longer shows inline.
 			</p>
 		{/if}
 	</nav>
+
+	<section class="menu-section" aria-label="Learn">
+		<h3 class="menu-section-title">Learn</h3>
+		<button
+			type="button"
+			class="menu-guide"
+			data-testid="menu-first-spell-guide"
+			onclick={openFirstSpellGuide}
+		>
+			First spell guide
+			<ArrowRight aria-hidden="true" />
+		</button>
+	</section>
 
 	<section class="menu-section" aria-label="View">
 		<h3 class="menu-section-title">View</h3>
@@ -233,6 +252,45 @@ longer shows inline.
 		justify-content: space-between;
 		background: var(--chrome-glass);
 		border-color: var(--ink-sepia-20);
+	}
+
+	/* Styled as a menu link: it opens the guide, it does not toggle a setting. */
+	.menu-guide {
+		display: flex;
+		align-items: center;
+		width: 100%;
+		min-height: 40px;
+		padding: 0 12px;
+		border: 0;
+		border-radius: 8px;
+		background: none;
+		box-shadow: none;
+		color: var(--ink-sepia-70);
+		font-size: 15px;
+		text-align: left;
+	}
+
+	.menu-guide:hover {
+		color: var(--ink-sepia);
+		background: var(--chrome-glass);
+	}
+
+	.menu-guide :global(svg) {
+		width: 16px;
+		height: 16px;
+		margin-left: auto;
+		flex-shrink: 0;
+		color: var(--ink-sepia-45);
+		fill: none;
+		stroke: currentColor;
+		stroke-width: 2;
+		stroke-linecap: round;
+		stroke-linejoin: round;
+	}
+
+	.menu-guide:focus-visible {
+		outline: var(--focus-ring);
+		outline-offset: var(--focus-ring-offset);
 	}
 
 	.menu-disclaimer {
