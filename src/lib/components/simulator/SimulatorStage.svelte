@@ -15,7 +15,6 @@ and the drawers each live one named click away.
 	import CanvasActionBar from './CanvasActionBar.svelte';
 	import ChromeButton from './ChromeButton.svelte';
 	import ChromeRule from './ChromeRule.svelte';
-	import DrawerPeek from './DrawerPeek.svelte';
 	import EffectStyleToggle from './EffectStyleToggle.svelte';
 	import MenuDrawer from './MenuDrawer.svelte';
 	import ReferenceDrawer from './ReferenceDrawer.svelte';
@@ -42,11 +41,6 @@ and the drawers each live one named click away.
 		pan.recenter();
 		ui.resetZoom();
 	}
-
-	// Drives the left-edge drawer sliver, which shows only while the menu trigger
-	// has the pointer or focus. Tracked here rather than in CSS because the peek
-	// is a sibling layer, not a descendant of the trigger.
-	let menuHinted = $state(false);
 
 	// A spell chosen in the library is still crossing over while the canvas boots.
 	// Read once at mount: the stash is taken the moment input turns ready.
@@ -85,33 +79,20 @@ and the drawers each live one named click away.
 		{hintText}
 	</p>
 
-	<div class="chrome chrome-tl menu-zone">
-		<!-- The wrapper takes the pointer back so the peek can follow the hover;
-		     the .chrome layer itself stays transparent to input. -->
-		<!-- svelte-ignore a11y_no_static_element_interactions -->
-		<span
-			class="menu-hover"
-			onpointerenter={() => (menuHinted = true)}
-			onpointerleave={() => (menuHinted = false)}
-			onfocusin={() => (menuHinted = true)}
-			onfocusout={() => (menuHinted = false)}
-		>
-			<ChromeButton
-				role="opener"
-				anchor="left"
-				caret={false}
-				showLabel
-				label="Menu"
-				icon={MenuIcon}
-				labelPlacement="below"
-				chipAlign="left"
-				active={ui.menuOpen}
-				onclick={ui.toggleMenu}
-			/>
-		</span>
+	<div class="chrome chrome-tl">
+		<ChromeButton
+			role="opener"
+			anchor="left"
+			caret={false}
+			showLabel
+			label="Menu"
+			icon={MenuIcon}
+			labelPlacement="below"
+			chipAlign="left"
+			active={ui.menuOpen}
+			onclick={ui.toggleMenu}
+		/>
 	</div>
-
-	<DrawerPeek hinted={menuHinted} />
 
 	<!--
 		One left column, read down: pick a tool, fix what you drew, keep it. The
@@ -285,11 +266,6 @@ and the drawers each live one named click away.
 		top: var(--chrome-inset-y);
 		left: var(--chrome-inset-x);
 		align-items: center;
-	}
-
-	.menu-hover {
-		display: inline-flex;
-		pointer-events: auto;
 	}
 
 	.tool-column {
