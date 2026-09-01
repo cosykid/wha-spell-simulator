@@ -174,11 +174,15 @@ export function drawGlowingStrokes(
 
 const FULL_CIRCLE_RAD = Math.PI * 2;
 
-// The guides are the drawn ink laid thin, never a second color: a seal reports
-// its own state in the pen it was written with. Idle and prepared are told apart
-// by how much ink is down and whether the ring is filled, the same way the rest
-// of the app carries emphasis by weight rather than hue.
-const GUIDE_INK = '36, 27, 22';
+/**
+ * The guides are the drawn ink laid thin, never a second color: a seal reports
+ * its own state in the pen it was written with. Idle and prepared are told
+ * apart by how much ink is down and whether the ring is filled, the same way
+ * the rest of the app carries emphasis by weight rather than hue. The
+ * first-spell guide's ghost ink ([`ghostInk.ts`](ghostInk.ts)) writes with the
+ * same pen.
+ */
+export const GUIDE_INK = '36, 27, 22';
 
 const RING_GUIDE_IDLE_ALPHA = 0.06;
 const RING_GUIDE_PREPARED_ALPHA = 0.12;

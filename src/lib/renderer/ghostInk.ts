@@ -1,25 +1,37 @@
 /**
- * @file The first-spell guide's ghost ink: the faint golden strokes a beginner
- * traces over, with a wisp of light that walks the path in drawing order to
- * show where each mark starts and ends.
+ * @file The first-spell guide's ghost ink: the faint strokes a beginner traces
+ * over, with a wisp of light that walks the path in drawing order to show
+ * where each mark starts and ends.
+ *
+ * Two palettes, the way the whole overlay splits them: the traceable path is
+ * the guides' own thin ink, because it is chrome and chrome carries emphasis
+ * by weight, while the wisp burns in `SEAL_EMBER`, because it is a preview of
+ * the light the seal will run at the cast.
  *
  * Ghost ink draws under the drawer's own ink and only on non-active states, the
  * same rule the seal guides follow, so the portal tilt and the cast never see
  * it. Everything is a function of the timestamp it is handed.
  */
 
+import { GUIDE_INK } from './glyphOverlayRenderer.js';
 import { pointAtLength, polylineLength, tracePathBetween } from './inkPath.js';
+import { SEAL_EMBER } from './sealIgnition.js';
 import type { Point } from '../types.js';
 
 const GHOST = {
-	/** A soft warm bed under the dashes, so the path reads as light on paper. */
-	underlay: { color: 'rgba(255, 196, 90, 0.22)', width: 9 },
-	/** The traceable line itself: dashed, in the guide's gold. */
-	dash: { color: 'rgba(146, 104, 22, 0.55)', width: 3, pattern: [7, 9] as number[] },
-	/** The wisp's bright trailing ink, in the ignition's warm palette. */
-	head: { rgb: '255, 233, 198', glow: 'rgb(255, 186, 108)', width: 3.4, blur: 14, span: 90 },
+	/** A soft bed under the dashes, so the path reads as one mark, not stitches. */
+	underlay: { color: `rgba(${GUIDE_INK}, 0.07)`, width: 9 },
+	/** The traceable line itself: dashed, the drawn ink laid thin. */
+	dash: { color: `rgba(${GUIDE_INK}, 0.34)`, width: 3, pattern: [7, 9] as number[] },
+	/** The wisp's bright trailing ink, the ember the sealed cast will burn in. */
+	head: { ...SEAL_EMBER.head, width: 3.4, blur: 14, span: 90 },
 	/** The glowing tip riding the front of the wisp. */
-	tip: { radius: 5, color: 'rgba(255, 233, 198, 0.9)', glow: 'rgb(255, 186, 108)', blur: 16 },
+	tip: {
+		radius: 5,
+		color: `rgba(${SEAL_EMBER.head.rgb}, 0.9)`,
+		glow: SEAL_EMBER.head.glow,
+		blur: 16
+	},
 	/** Canvas pixels the wisp travels per millisecond. */
 	speedPxPerMs: 0.55,
 	/** Pause at the end of a lap before the wisp sets out again. */

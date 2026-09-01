@@ -87,7 +87,7 @@ sealed spell finishes playing. All state and step logic live on
 		<h2 id="firstSpellTitle">Draw your first spell</h2>
 		<p class="guide-lead">
 			Spells here are drawn by hand: a ring to hold the magic, a sigil to name it, a seal to wake
-			it. A golden guide will trace each mark on the paper. Draw over it, and the cast at the end is
+			it. A faint guide will trace each mark on the paper. Draw over it, and the cast at the end is
 			yours.
 		</p>
 		{#if beginTearsPage}
@@ -197,7 +197,7 @@ sealed spell finishes playing. All state and step logic live on
 	.guide-eyebrow {
 		margin: 0 0 6px;
 		font-family: 'Cinzel', serif;
-		color: var(--gold);
+		color: var(--accent);
 		font-size: 12px;
 		letter-spacing: 0.08em;
 		text-transform: uppercase;
@@ -335,7 +335,7 @@ sealed spell finishes playing. All state and step logic live on
 
 	.guide-link:hover {
 		background: none;
-		border-bottom-color: var(--gold);
+		border-bottom-color: var(--accent);
 		color: var(--ink-sepia);
 	}
 

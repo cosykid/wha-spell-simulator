@@ -96,7 +96,7 @@ export const FIRST_SPELL_CAPTIONS: Record<FirstSpellStep, FirstSpellCaption> = {
 	ring: {
 		ordinal: 'Step 1 of 3',
 		title: 'Draw the ring',
-		body: 'Trace the golden circle, but stop short of closing it. An open ring holds the spell quiet while you work.'
+		body: 'Trace the faint circle, but stop short of closing it. An open ring holds the spell quiet while you work.'
 	},
 	sigil: {
 		ordinal: 'Step 2 of 3',
