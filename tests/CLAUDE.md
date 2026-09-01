@@ -11,7 +11,7 @@ npm run test:golden                              # the cast and plan golden tier
 npm run test:golden:update                       # rewrite their baselines
 ```
 
-The whole suite is ~370 tests in ~15s. Run it before you commit.
+The whole suite is ~390 tests in ~15s. Run it before you commit.
 
 The `svelte-kit sync` in front of it is load-bearing. A couple of suites reach
 modules that import `$lib` at runtime, and that alias resolves only through the
@@ -34,7 +34,7 @@ Load-bearing coverage, largest first:
 - [`ringDetector.test.ts`](ringDetector.test.ts) — `detectRing` closure and multiple-ring rejection.
 - [`spellPreset.test.ts`](spellPreset.test.ts) — serialize/deserialize round trip and `cutRingGap`.
 
-The rest are small and single-subject: stroke erase and preview, spell summary, activation carry, the plan digest, the portal projection, shape placement, grouping proximity, the chamfer matcher, sample picking, password hashing, connection strings, the classic engine's field adapter ([`classicField.test.ts`](classicField.test.ts)), the effect-style narrowing ([`effectStyle.test.ts`](effectStyle.test.ts)), the drawing-capture pointer lifecycle ([`drawingCapture.test.ts`](drawingCapture.test.ts)), the eraser cursor ([`eraserCursor.test.ts`](eraserCursor.test.ts)) and the stroke a spent page hands back ([`ringSeal.test.ts`](ringSeal.test.ts)).
+The rest are small and single-subject: stroke erase and preview, spell summary, activation carry, the plan digest, the portal projection, shape placement, grouping proximity, the chamfer matcher, sample picking, password hashing, connection strings, the classic engine's field adapter ([`classicField.test.ts`](classicField.test.ts)), the effect-style narrowing ([`effectStyle.test.ts`](effectStyle.test.ts)), the drawing-capture pointer lifecycle ([`drawingCapture.test.ts`](drawingCapture.test.ts)), the eraser cursor ([`eraserCursor.test.ts`](eraserCursor.test.ts)), the stroke a spent page hands back ([`ringSeal.test.ts`](ringSeal.test.ts)) and the first-spell guide's script, ghost geometry and arc-length walkers ([`firstSpellGuide.test.ts`](firstSpellGuide.test.ts)).
 
 [`dictionaryFixtures.ts`](dictionaryFixtures.ts) is a helper, not a suite. Helpers carry no `.test.ts` suffix.
 

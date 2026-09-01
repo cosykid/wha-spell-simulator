@@ -29,6 +29,14 @@ no spells.
   (`drawSealIgnition`): a warm front runs the seal's strokes in the order they
   were drawn and is spent by the strike, where the cast takes the frame. It also
   exports `SEAL_EMBER`, the two-tone amber both it and the glow burn in.
+- [`ghostInk.ts`](ghostInk.ts) — the first-spell guide's traceable ghost strokes
+  (`drawGhostInk`): a dashed path in the guides' thin ink, plus a wisp of
+  `SEAL_EMBER` light that walks it in drawing order. Draws under the ink and
+  only on non-active states, like the guides.
+- [`inkPath.ts`](inkPath.ts) — arc-length walkers over a polyline
+  (`polylineLength`, `tracePathBetween`, `pointAtLength`), shared by the
+  ignition front and the ghost wisp so partial-stroke tracing has one source of
+  truth.
 - [`glyphDebugOverlay.ts`](glyphDebugOverlay.ts) — the `showDiagnostics` layer:
   candidate boxes, recognizer verdicts, stroke ids.
 

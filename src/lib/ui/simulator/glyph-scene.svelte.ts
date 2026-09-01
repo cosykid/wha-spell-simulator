@@ -1,10 +1,11 @@
-import type { AppConfig, ClassifiedDrawing, SpellIR, Stroke } from '$lib/types.js';
+import type { AppConfig, ClassifiedDrawing, Point, SpellIR, Stroke } from '$lib/types.js';
 import { drawGuides } from '$lib/ui/canvas/guideRenderer.js';
 import { texturedPaperEntity } from '$lib/ui/canvas/entities/paperEntity.js';
 import { renderStrokeInk } from '$lib/ui/canvas/entities/strokeEntity.js';
 import { drawSelection } from '$lib/ui/canvas/selectionRenderer.js';
 import type { Entity } from '$lib/ui/canvas/entity.js';
 import { createScene, type Scene } from '$lib/ui/canvas/scene.svelte.js';
+import { drawGhostInk } from '$lib/renderer/ghostInk.js';
 import { drawCandidateDebug, drawStrokeIdDebug } from '$lib/renderer/glyphDebugOverlay.js';
 import {
 	drawGlowingStrokes,
@@ -14,6 +15,8 @@ import {
 import { drawSealIgnition } from '$lib/renderer/sealIgnition.js';
 import { totalMsFor } from '$lib/cast/score/beats.js';
 import type { SimulatorDrawingState } from './drawing-state.svelte.js';
+import { ghostStrokesFor, type GhostEnvironment } from './first-spell-geometry.js';
+import type { FirstSpellGuide } from './first-spell-guide.svelte.js';
 import { visibleCanvasShortAxis } from './layout.js';
 import type { RecognitionPipeline } from './recognition-pipeline.svelte.js';
 import type { SimulatorUiState } from './ui-state.svelte.js';
@@ -23,6 +26,7 @@ interface SimulatorGlyphSceneOptions {
 	drawing: SimulatorDrawingState;
 	recognition: RecognitionPipeline;
 	ui: SimulatorUiState;
+	firstSpell: FirstSpellGuide;
 	currentStroke: () => Stroke | null;
 }
 
@@ -93,6 +97,53 @@ function guideEntity({ config, recognition, ui }: SimulatorGlyphSceneOptions): E
 				config,
 				visibleCanvasShortAxis(ctx.canvas)
 			);
+		}
+	};
+}
+
+/**
+ * The first-spell guide's ghost ink: the golden path a beginner traces over.
+ * Sits above the construction guides and under the drawer's own ink, so tracing
+ * covers the ghost with the real thing. Geometry is memoized per step and ring,
+ * because the strokes only move when recognition or the viewport does.
+ */
+function firstSpellGhostEntity({ recognition, firstSpell }: SimulatorGlyphSceneOptions): Entity {
+	let memo: { key: string; strokes: Point[][] } | null = null;
+	return {
+		id: 'simulator-first-spell-ghost',
+		z: -60,
+		render(ctx, timestamp) {
+			const step = firstSpell.step;
+			if (!firstSpell.ghostVisible || step === 'cast') {
+				return;
+			}
+			const ring = recognition.ring;
+			const env: GhostEnvironment = {
+				canvasWidth: ctx.canvas.width,
+				canvasHeight: ctx.canvas.height,
+				referenceSize: visibleCanvasShortAxis(ctx.canvas),
+				ring,
+				sigilStrokes: firstSpell.sigilTemplate
+			};
+			const key = [
+				step,
+				env.canvasWidth,
+				Math.round(env.referenceSize),
+				ring?.found
+					? [
+							Math.round(ring.center.x),
+							Math.round(ring.center.y),
+							Math.round(ring.radius),
+							Math.round(ring.gap?.startAngle ?? -1),
+							Math.round(ring.gap?.sizeDegrees ?? -1)
+						].join(',')
+					: 'none',
+				env.sigilStrokes ? 'sigil' : 'bare'
+			].join('|');
+			if (memo?.key !== key) {
+				memo = { key, strokes: ghostStrokesFor(step, env) };
+			}
+			drawGhostInk(ctx, memo.strokes, timestamp);
 		}
 	};
 }
@@ -232,6 +283,7 @@ export function createSimulatorGlyphScene(options: SimulatorGlyphSceneOptions): 
 	return createScene([
 		texturedPaperEntity('/images/background.jpg'),
 		guideEntity(options),
+		firstSpellGhostEntity(options),
 		strokeLayerEntity(options),
 		placementLayerEntity(options),
 		currentStrokeEntity(options),
