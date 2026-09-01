@@ -15,7 +15,7 @@
 
 	/** Navigation links to the app's main sections */
 	const nav: { route: RouteId; title: string }[] = [
-		{ route: '/', title: 'Simulator' },
+		{ route: '/', title: 'Canvas' },
 		{ route: '/library', title: 'Spell Library' },
 		{ route: '/tools', title: 'Tools' }
 	];

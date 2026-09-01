@@ -62,6 +62,11 @@
 	   these, which is what centres a divider's ink on the run it parts. */
 	--chrome-control-width: 40px;
 	--chrome-control-height: 34px;
+	--chrome-control-pad-y: 6px;
+	/* The air inside a run of controls, and the wider air a ChromeRule keeps
+	   either side of its ink. One run gaps like every other run. */
+	--chrome-run-gap: 4px;
+	--chrome-rule-gap: 7px;
 	/* Ornate left/right edge frame (frame.jpg) width, scales with the viewport. */
 	--frame-width: clamp(12px, 1vw, 20px);
 	/* The visible gap floating chrome keeps from the border. The frame only runs
@@ -70,4 +75,23 @@
 	--chrome-gap: clamp(12px, 1.5vw, 26px);
 	--chrome-inset-x: calc(var(--frame-width) + var(--chrome-gap));
 	--chrome-inset-y: var(--chrome-gap);
+	/* The top and bottom rows own a band of their own at each edge. Everything
+	   that centres itself on the stage centres inside what those bands leave,
+	   so a short viewport squeezes the middle instead of stacking runs on top
+	   of the corner chrome. */
+	--chrome-band-y: calc(var(--chrome-inset-y) + var(--chrome-control-height) + 8px);
+}
+
+/*
+ * A landscape phone is too short for the left run at full size, so the controls
+ * tighten: same chassis, less air. Everything below reads off the same tokens,
+ * so the runs, the rules and the bands all shrink together.
+ */
+@media (max-height: 560px) {
+	:root {
+		--chrome-control-height: 28px;
+		--chrome-control-pad-y: 3px;
+		--chrome-run-gap: 2px;
+		--chrome-rule-gap: 4px;
+	}
 }

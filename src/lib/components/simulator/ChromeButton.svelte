@@ -5,8 +5,8 @@ The one control every piece of canvas chrome is made of.
 What a button *does* is `role`, and only that: `command` fires once, `mode` stays
 on until you turn it off, `opener` reveals a drawer. All three wear the same
 chassis, so a row of them reads as one material rather than as three kinds of
-widget, and the role is carried by a single quiet mark: an opener has a caret
-pointing at the drawer it reveals, and a mode that is on is underscored in ink.
+widget. The one that is currently on is underscored in ink: a mode left running,
+a drawer left standing open.
 
 The chassis itself is nothing at all. These sit directly on the parchment and
 only take a faint glass wash on hover, so the chrome reads as marks on the page
@@ -14,34 +14,24 @@ rather than as boxes over it.
 
 `showLabel` puts the name on the button, and then there is no hover chip: a
 control that already says what it is does not need to say it twice. Without it
-the name lives in the chip. `anchor` decides which way an opener's caret points,
-and which edge its chip aligns to.
+the name lives in the chip, aligned to its run's edge by `chipAlign`.
 
   <ChromeButton role="mode" name="Pen" icon={PenTool} active={mode === 'draw'} onclick={selectDraw} />
 -->
 <script lang="ts">
-	import ChevronLeft from 'lucide-svelte/icons/chevron-left';
-	import ChevronRight from 'lucide-svelte/icons/chevron-right';
+	import type { ComponentType } from 'svelte';
 	import HoverLabel from './HoverLabel.svelte';
 
 	interface Props {
 		label: string;
 		/** A lucide line icon. Filled glyphs do not read on a stroke-drawn chassis. */
-		icon: typeof ChevronLeft;
+		icon: ComponentType;
 		role: 'command' | 'mode' | 'opener';
 		/** Keyboard chord shown in the hover chip, already platform-formatted. */
 		shortcut?: string;
 		/** Modes and openers are on or off; a command never is. */
 		active?: boolean;
 		disabled?: boolean;
-		/** The edge an opener hugs, so its caret points off-screen at the drawer. */
-		anchor?: 'left' | 'right';
-		/**
-		 * Openers carry a caret by default. A left-anchored one sits flush against
-		 * the screen edge with nothing to trail, where it reads as a stray mark
-		 * rather than a hint, so that one turns it off and leans on its name.
-		 */
-		caret?: boolean;
 		showLabel?: boolean;
 		labelPlacement?: 'above' | 'below';
 		chipAlign?: 'center' | 'left' | 'right';
@@ -57,8 +47,6 @@ and which edge its chip aligns to.
 		shortcut,
 		active = false,
 		disabled = false,
-		anchor = 'left',
-		caret = true,
 		showLabel = false,
 		labelPlacement = 'above',
 		chipAlign = 'center',
@@ -66,11 +54,6 @@ and which edge its chip aligns to.
 		testId,
 		onclick
 	}: Props = $props();
-
-	// Shut: point off-screen, at the drawer waiting there. Open: point back in.
-	let Caret = $derived(
-		anchor === 'left' ? (active ? ChevronRight : ChevronLeft) : active ? ChevronLeft : ChevronRight
-	);
 </script>
 
 <button
@@ -85,19 +68,12 @@ and which edge its chip aligns to.
 	{disabled}
 	{onclick}
 >
-	{#if role === 'opener' && caret && anchor === 'left'}
-		<Caret class="btn-caret" aria-hidden="true" />
-	{/if}
 	<Icon class="btn-icon" aria-hidden="true" />
 	{#if showLabel}<span class="btn-label">{label}</span>{/if}
-	{#if role === 'opener' && caret && anchor === 'right'}
-		<Caret class="btn-caret" aria-hidden="true" />
-	{/if}
 	<!-- Shown for disabled buttons too: a greyed Undo still has to say what it is.
 	     The chip is driven by a CSS variable on :hover, which keeps matching while
-	     the button stays non-interactive. An icon-only button centres the chip's
-	     caret on its own box; a named one points at the icon, which sits at the
-	     anchored edge. -->
+	     the button stays non-interactive. Its caret centres on the button's own
+	     box, which is where the icon of an icon-only control sits. -->
 	{#if !showLabel}
 		<HoverLabel {label} {shortcut} placement={labelPlacement} caret="center" chip={chipAlign} />
 	{/if}
@@ -113,7 +89,7 @@ and which edge its chip aligns to.
 		/* Outer size is --chrome-control-{width,height}; a ChromeRule spans the
 		   same, which is what puts a divider's ink on the run's centre line. */
 		min-height: var(--chrome-control-height);
-		padding: 6px 9px;
+		padding: var(--chrome-control-pad-y) 9px;
 		border: 1px solid transparent;
 		border-radius: 9px;
 		color: var(--ink-chrome);
@@ -176,19 +152,6 @@ and which edge its chip aligns to.
 		fill: none;
 		stroke: currentColor;
 		stroke-width: 1.75;
-		stroke-linecap: round;
-		stroke-linejoin: round;
-	}
-
-	/* The caret is the disclosure hint, not a second icon, so it stays quieter. */
-	.chrome-btn :global(.btn-caret) {
-		flex: 0 0 auto;
-		width: 13px;
-		height: 13px;
-		opacity: 0.55;
-		fill: none;
-		stroke: currentColor;
-		stroke-width: 2;
 		stroke-linecap: round;
 		stroke-linejoin: round;
 	}
