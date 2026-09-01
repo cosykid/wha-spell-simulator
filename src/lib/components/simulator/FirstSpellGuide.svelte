@@ -21,11 +21,16 @@ sealed spell finishes playing. All state and step logic live on
 	let beginTearsPage = $derived(simulator.recognition.summary.canvasLocked);
 
 	let dialog = $state<HTMLDialogElement>();
+	let primaryAction = $state<HTMLButtonElement>();
 
+	// `showModal` lands focus on the first focusable child, which is the quiet
+	// action to the left of the primary. Handing focus on is what keeps the focus
+	// ring on the button the card is actually steering toward.
 	$effect(() => {
 		if (!dialog) return;
 		if (dialogOpen && !dialog.open) {
 			dialog.showModal();
+			primaryAction?.focus();
 		} else if (!dialogOpen && dialog.open) {
 			dialog.close();
 		}
@@ -74,6 +79,7 @@ sealed spell finishes playing. All state and step logic live on
 				Open the Dictionary
 			</button>
 			<button
+				bind:this={primaryAction}
 				type="button"
 				class="guide-primary"
 				data-testid="guide-finish-button"
@@ -103,6 +109,7 @@ sealed spell finishes playing. All state and step logic live on
 				Explore on my own
 			</button>
 			<button
+				bind:this={primaryAction}
 				type="button"
 				class="guide-primary"
 				data-testid="guide-begin-button"
@@ -230,13 +237,19 @@ sealed spell finishes playing. All state and step logic live on
 		margin-top: 14px;
 	}
 
+	/* One measure for the pair, cut to the save dialog's own action buttons. The
+	   primary and the quiet differ in weight, never in size, so the focus ring
+	   never makes one of them look like the larger control. */
+	.guide-primary,
+	.guide-quiet {
+		min-height: 38px;
+		padding: 0 18px;
+	}
+
 	.guide-primary {
-		padding: 8px 22px;
-		border: 1px solid var(--ink-sepia);
-		border-radius: var(--radius);
+		border-color: var(--ink-sepia);
 		background: var(--ink-sepia);
 		color: var(--panel);
-		font-size: 15px;
 	}
 
 	.guide-primary:hover {
@@ -245,13 +258,10 @@ sealed spell finishes playing. All state and step logic live on
 	}
 
 	.guide-quiet {
-		padding: 8px 14px;
-		border: 1px solid transparent;
-		border-radius: var(--radius);
+		border-color: transparent;
 		background: none;
 		box-shadow: none;
 		color: var(--ink-sepia-70);
-		font-size: 14px;
 	}
 
 	.guide-quiet:hover {
