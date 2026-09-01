@@ -8,13 +8,15 @@ This is the simulator view's table of contents: the canvas, the chrome clusters,
 and the drawers each live one named click away.
 -->
 <script lang="ts">
+	import Crosshair from 'lucide-svelte/icons/crosshair';
+	import MenuIcon from 'lucide-svelte/icons/menu';
+	import ZoomIn from 'lucide-svelte/icons/zoom-in';
+	import ZoomOut from 'lucide-svelte/icons/zoom-out';
 	import CanvasActionBar from './CanvasActionBar.svelte';
-	import CanvasIconButton from './CanvasIconButton.svelte';
+	import ChromeButton from './ChromeButton.svelte';
+	import ChromeRule from './ChromeRule.svelte';
+	import DrawerPeek from './DrawerPeek.svelte';
 	import EffectStyleToggle from './EffectStyleToggle.svelte';
-	import ArcaneMenu from './icons/ArcaneMenu.svelte';
-	import ArcaneRecenter from './icons/ArcaneRecenter.svelte';
-	import ArcaneZoomIn from './icons/ArcaneZoomIn.svelte';
-	import ArcaneZoomOut from './icons/ArcaneZoomOut.svelte';
 	import MenuDrawer from './MenuDrawer.svelte';
 	import ReferenceDrawer from './ReferenceDrawer.svelte';
 	import ReferenceTabs from './ReferenceTabs.svelte';
@@ -40,6 +42,11 @@ and the drawers each live one named click away.
 		pan.recenter();
 		ui.resetZoom();
 	}
+
+	// Drives the left-edge drawer sliver, which widens while the menu trigger is
+	// hovered. Tracked here rather than in CSS because the peek is a sibling
+	// layer, not a descendant of the trigger.
+	let menuHinted = $state(false);
 
 	// A spell chosen in the library is still crossing over while the canvas boots.
 	// Read once at mount: the stash is taken the moment input turns ready.
@@ -78,48 +85,76 @@ and the drawers each live one named click away.
 		{hintText}
 	</p>
 
-	<div class="chrome chrome-tl">
-		<CanvasIconButton
-			buttonClass="menu-trigger"
-			label="Menu"
-			labelPlacement="below"
-			chipAlign="left"
-			pressed={ui.menuOpen}
-			onclick={ui.toggleMenu}
+	<div class="chrome chrome-tl menu-zone">
+		<!-- The wrapper takes the pointer back so the peek can follow the hover;
+		     the .chrome layer itself stays transparent to input. -->
+		<!-- svelte-ignore a11y_no_static_element_interactions -->
+		<span
+			class="menu-hover"
+			onpointerenter={() => (menuHinted = true)}
+			onpointerleave={() => (menuHinted = false)}
 		>
-			<ArcaneMenu aria-hidden="true" />
-		</CanvasIconButton>
-		<CanvasActionBar {simulator} />
+			<ChromeButton
+				role="opener"
+				anchor="left"
+				caret={false}
+				showLabel
+				label="Menu"
+				icon={MenuIcon}
+				labelPlacement="below"
+				chipAlign="left"
+				active={ui.menuOpen}
+				onclick={ui.toggleMenu}
+			/>
+		</span>
 	</div>
 
-	<div class="chrome chrome-left"><ToolDock {simulator} /></div>
+	<DrawerPeek hinted={menuHinted} />
+
+	<!--
+		One left column, read down: pick a tool, fix what you drew, keep it. The
+		rule marks where the modes end and the one-shot commands begin.
+	-->
+	<div class="chrome chrome-left">
+		<div class="tool-column">
+			<ToolDock {simulator} />
+			<ChromeRule />
+			<CanvasActionBar {simulator} />
+		</div>
+	</div>
+
 	<div class="chrome chrome-right"><ReferenceTabs {simulator} /></div>
 	<div class="chrome chrome-bc"><StatusReadout {simulator} /></div>
 
 	<div class="chrome chrome-br">
 		<EffectStyleToggle {simulator} />
-		{#if pan.isOffset || ui.zoomLevel !== 1}
-			<CanvasIconButton buttonClass="zoom-btn" label="Re-center" onclick={resetView}>
-				<ArcaneRecenter aria-hidden="true" />
-			</CanvasIconButton>
-		{/if}
-		<CanvasIconButton
-			buttonClass="zoom-btn"
+		<!-- Which engine performs a cast is a kept preference, not view transport
+		     like the three that follow, so a standing taper parts them. -->
+		<ChromeRule direction="down" />
+		<!-- Always rendered, disabled at home: appearing only once you pan would
+		     slide the zoom buttons sideways underneath the pointer. -->
+		<ChromeButton
+			role="command"
+			label="Re-center"
+			icon={Crosshair}
+			disabled={!pan.isOffset && ui.zoomLevel === 1}
+			onclick={resetView}
+		/>
+		<ChromeButton
+			role="command"
 			label="Zoom out"
+			icon={ZoomOut}
 			disabled={ui.zoomLevel <= ui.zoomMin}
 			onclick={ui.zoomOut}
-		>
-			<ArcaneZoomOut aria-hidden="true" />
-		</CanvasIconButton>
-		<CanvasIconButton
-			buttonClass="zoom-btn"
+		/>
+		<ChromeButton
+			role="command"
 			label="Zoom in"
+			icon={ZoomIn}
 			chipAlign="right"
 			disabled={ui.zoomLevel >= ui.zoomMax}
 			onclick={ui.zoomIn}
-		>
-			<ArcaneZoomIn aria-hidden="true" />
-		</CanvasIconButton>
+		/>
 	</div>
 
 	<MenuDrawer {simulator} />
@@ -248,7 +283,17 @@ and the drawers each live one named click away.
 		top: var(--chrome-inset-y);
 		left: var(--chrome-inset-x);
 		align-items: center;
-		gap: 8px;
+	}
+
+	.menu-hover {
+		display: inline-flex;
+		pointer-events: auto;
+	}
+
+	.tool-column {
+		display: flex;
+		flex-direction: column;
+		align-items: flex-start;
 	}
 
 	/* Vertically centred on the left edge, clear of the centred canvas. */
@@ -274,11 +319,12 @@ and the drawers each live one named click away.
 	.chrome-br {
 		bottom: var(--chrome-inset-y);
 		right: var(--chrome-inset-x);
-		gap: 6px;
+		align-items: center;
+		gap: 2px;
 	}
 
-	/* The menu and zoom buttons are CanvasIconButton plates; their look lives there.
-	   The chrome wrappers above own only placement. */
+	/* Every control is a ChromeButton and its look lives there. The chrome
+	   wrappers above own only placement. */
 
 	/* On phones the responsive --chrome-inset already tightens spacing; only the
 	   hint text needs to shrink. */
