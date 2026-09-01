@@ -43,9 +43,9 @@ and the drawers each live one named click away.
 		ui.resetZoom();
 	}
 
-	// Drives the left-edge drawer sliver, which widens while the menu trigger is
-	// hovered. Tracked here rather than in CSS because the peek is a sibling
-	// layer, not a descendant of the trigger.
+	// Drives the left-edge drawer sliver, which shows only while the menu trigger
+	// has the pointer or focus. Tracked here rather than in CSS because the peek
+	// is a sibling layer, not a descendant of the trigger.
 	let menuHinted = $state(false);
 
 	// A spell chosen in the library is still crossing over while the canvas boots.
@@ -93,6 +93,8 @@ and the drawers each live one named click away.
 			class="menu-hover"
 			onpointerenter={() => (menuHinted = true)}
 			onpointerleave={() => (menuHinted = false)}
+			onfocusin={() => (menuHinted = true)}
+			onfocusout={() => (menuHinted = false)}
 		>
 			<ChromeButton
 				role="opener"
