@@ -27,7 +27,7 @@ longer shows inline.
 	</header>
 
 	<nav class="menu-nav" aria-label="Primary">
-		<a class="menu-link current" href={resolve('/')} aria-current="page">Simulator</a>
+		<a class="menu-link current" href={resolve('/')} aria-current="page">Canvas</a>
 		<a class="menu-link" href={resolve('/library')}>
 			Spell Library
 			<ArrowRight aria-hidden="true" />

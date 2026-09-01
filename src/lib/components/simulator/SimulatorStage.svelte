@@ -82,8 +82,6 @@ and the drawers each live one named click away.
 	<div class="chrome chrome-tl">
 		<ChromeButton
 			role="opener"
-			anchor="left"
-			caret={false}
 			showLabel
 			label="Menu"
 			icon={MenuIcon}
@@ -215,7 +213,12 @@ and the drawers each live one named click away.
 		left: 50%;
 		transform: translateX(-50%);
 		z-index: 4;
-		width: min(420px, calc(100vw - 120px));
+		/* Never wider than the gap between the two side runs, so the phone layout
+		   (where the hint drops into that band) keeps its text clear of them. */
+		width: min(
+			420px,
+			calc(100vw - 2 * (var(--chrome-inset-x) + var(--chrome-control-width) + 12px))
+		);
 		margin: 0;
 		color: var(--ink-sepia-45);
 		font-size: 14px;
@@ -274,21 +277,30 @@ and the drawers each live one named click away.
 		align-items: flex-start;
 	}
 
-	/* Vertically centred on the left edge, clear of the centred canvas. */
+	/*
+	 * The side runs are centred on the band the top and bottom rows leave free,
+	 * not on the viewport, so a short screen squeezes the band and the runs stay
+	 * clear of the corner chrome instead of sliding under it.
+	 */
+	.chrome-left,
+	.chrome-right {
+		top: var(--chrome-band-y);
+		bottom: var(--chrome-band-y);
+		align-items: center;
+	}
+
 	.chrome-left {
-		top: 50%;
 		left: var(--chrome-inset-x);
-		transform: translateY(-50%);
 	}
 
 	.chrome-right {
-		top: 50%;
 		right: var(--chrome-inset-x);
-		transform: translateY(-50%);
 	}
 
+	/* The bottom edge is the control row's, so the readout takes the band above
+	   it: a long reading can then never run under the zoom cluster. */
 	.chrome-bc {
-		bottom: var(--chrome-inset-y);
+		bottom: var(--chrome-band-y);
 		left: 50%;
 		transform: translateX(-50%);
 		max-width: min(70vw, 460px);
@@ -304,10 +316,12 @@ and the drawers each live one named click away.
 	/* Every control is a ChromeButton and its look lives there. The chrome
 	   wrappers above own only placement. */
 
-	/* On phones the responsive --chrome-inset already tightens spacing; only the
-	   hint text needs to shrink. */
+	/* On phones the responsive --chrome-inset already tightens spacing. The hint
+	   is the one thing that cannot hold the top band: it is wider than the gap
+	   left beside the Menu button, so it drops below that row and shrinks. */
 	@media (max-width: 640px) {
 		.canvas-hint {
+			top: var(--chrome-band-y);
 			font-size: 12px;
 		}
 	}

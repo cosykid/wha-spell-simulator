@@ -4,8 +4,8 @@ Right-edge trigger rail for the reference drawer. Each tab opens the drawer to
 its panel (or toggles it shut). These buttons are the only place the panel names
 live, so there is exactly one "Shapes" button (the E2E entry point).
 
-They are openers, so each carries a caret pointing off-screen at the drawer it
-reveals, which turns back inward once that panel is open.
+The rail is the left dock mirrored: each icon hugs the right frame and its name
+reads inward, so the run keeps one flush edge against the border.
 -->
 <script lang="ts">
 	import BarChart3 from 'lucide-svelte/icons/bar-chart-3';
@@ -36,7 +36,6 @@ reveals, which turns back inward once that panel is open.
 	{#each tabs as tab (tab.id)}
 		<ChromeButton
 			role="opener"
-			anchor="right"
 			showLabel
 			chipAlign="right"
 			label={tab.label}
@@ -51,11 +50,18 @@ reveals, which turns back inward once that panel is open.
 	.ref-tabs {
 		display: flex;
 		flex-direction: column;
-		align-items: flex-end;
-		gap: 4px;
+		/* Every button is as wide as the widest name, so the icons line up in one
+		   column instead of stepping inward with each label. */
+		align-items: stretch;
+		gap: var(--chrome-run-gap);
 	}
 
-	/* On phones the labels would crowd the canvas; show icons and caret only. */
+	/* Mirrored: the icon sits at the rail's outer edge, the name reads inward. */
+	.ref-tabs :global(.chrome-btn) {
+		flex-direction: row-reverse;
+	}
+
+	/* On phones the labels would crowd the canvas; show the icons alone. */
 	@media (max-width: 640px) {
 		.ref-tabs :global(.btn-label) {
 			display: none;

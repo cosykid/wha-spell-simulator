@@ -93,6 +93,6 @@ difference in the button itself.
 		display: flex;
 		flex-direction: column;
 		align-items: flex-start;
-		gap: 4px;
+		gap: var(--chrome-run-gap);
 	}
 </style>

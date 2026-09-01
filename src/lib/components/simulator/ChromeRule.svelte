@@ -40,13 +40,13 @@ down to part a row, so the ink always sits centred on the run it cuts.
 		--rule-angle: 90deg;
 		width: var(--chrome-control-width);
 		height: 1px;
-		margin: 7px 0;
+		margin: var(--chrome-rule-gap) 0;
 	}
 
 	.down {
 		--rule-angle: 180deg;
 		width: 1px;
 		height: var(--chrome-control-height);
-		margin: 0 7px;
+		margin: 0 var(--chrome-rule-gap);
 	}
 </style>
