@@ -8,13 +8,14 @@ This is the simulator view's table of contents: the canvas, the chrome clusters,
 and the drawers each live one named click away.
 -->
 <script lang="ts">
+	import Crosshair from 'lucide-svelte/icons/crosshair';
+	import MenuIcon from 'lucide-svelte/icons/menu';
+	import ZoomIn from 'lucide-svelte/icons/zoom-in';
+	import ZoomOut from 'lucide-svelte/icons/zoom-out';
 	import CanvasActionBar from './CanvasActionBar.svelte';
-	import CanvasIconButton from './CanvasIconButton.svelte';
+	import ChromeButton from './ChromeButton.svelte';
+	import ChromeRule from './ChromeRule.svelte';
 	import EffectStyleToggle from './EffectStyleToggle.svelte';
-	import ArcaneMenu from './icons/ArcaneMenu.svelte';
-	import ArcaneRecenter from './icons/ArcaneRecenter.svelte';
-	import ArcaneZoomIn from './icons/ArcaneZoomIn.svelte';
-	import ArcaneZoomOut from './icons/ArcaneZoomOut.svelte';
 	import MenuDrawer from './MenuDrawer.svelte';
 	import ReferenceDrawer from './ReferenceDrawer.svelte';
 	import ReferenceTabs from './ReferenceTabs.svelte';
@@ -79,47 +80,64 @@ and the drawers each live one named click away.
 	</p>
 
 	<div class="chrome chrome-tl">
-		<CanvasIconButton
-			buttonClass="menu-trigger"
+		<ChromeButton
+			role="opener"
+			anchor="left"
+			caret={false}
+			showLabel
 			label="Menu"
+			icon={MenuIcon}
 			labelPlacement="below"
 			chipAlign="left"
-			pressed={ui.menuOpen}
+			active={ui.menuOpen}
 			onclick={ui.toggleMenu}
-		>
-			<ArcaneMenu aria-hidden="true" />
-		</CanvasIconButton>
-		<CanvasActionBar {simulator} />
+		/>
 	</div>
 
-	<div class="chrome chrome-left"><ToolDock {simulator} /></div>
+	<!--
+		One left column, read down: pick a tool, fix what you drew, keep it. The
+		rule marks where the modes end and the one-shot commands begin.
+	-->
+	<div class="chrome chrome-left">
+		<div class="tool-column">
+			<ToolDock {simulator} />
+			<ChromeRule />
+			<CanvasActionBar {simulator} />
+		</div>
+	</div>
+
 	<div class="chrome chrome-right"><ReferenceTabs {simulator} /></div>
 	<div class="chrome chrome-bc"><StatusReadout {simulator} /></div>
 
 	<div class="chrome chrome-br">
 		<EffectStyleToggle {simulator} />
-		{#if pan.isOffset || ui.zoomLevel !== 1}
-			<CanvasIconButton buttonClass="zoom-btn" label="Re-center" onclick={resetView}>
-				<ArcaneRecenter aria-hidden="true" />
-			</CanvasIconButton>
-		{/if}
-		<CanvasIconButton
-			buttonClass="zoom-btn"
+		<!-- Which engine performs a cast is a kept preference, not view transport
+		     like the three that follow, so a standing taper parts them. -->
+		<ChromeRule direction="down" />
+		<!-- Always rendered, disabled at home: appearing only once you pan would
+		     slide the zoom buttons sideways underneath the pointer. -->
+		<ChromeButton
+			role="command"
+			label="Re-center"
+			icon={Crosshair}
+			disabled={!pan.isOffset && ui.zoomLevel === 1}
+			onclick={resetView}
+		/>
+		<ChromeButton
+			role="command"
 			label="Zoom out"
+			icon={ZoomOut}
 			disabled={ui.zoomLevel <= ui.zoomMin}
 			onclick={ui.zoomOut}
-		>
-			<ArcaneZoomOut aria-hidden="true" />
-		</CanvasIconButton>
-		<CanvasIconButton
-			buttonClass="zoom-btn"
+		/>
+		<ChromeButton
+			role="command"
 			label="Zoom in"
+			icon={ZoomIn}
 			chipAlign="right"
 			disabled={ui.zoomLevel >= ui.zoomMax}
 			onclick={ui.zoomIn}
-		>
-			<ArcaneZoomIn aria-hidden="true" />
-		</CanvasIconButton>
+		/>
 	</div>
 
 	<MenuDrawer {simulator} />
@@ -248,7 +266,12 @@ and the drawers each live one named click away.
 		top: var(--chrome-inset-y);
 		left: var(--chrome-inset-x);
 		align-items: center;
-		gap: 8px;
+	}
+
+	.tool-column {
+		display: flex;
+		flex-direction: column;
+		align-items: flex-start;
 	}
 
 	/* Vertically centred on the left edge, clear of the centred canvas. */
@@ -274,11 +297,12 @@ and the drawers each live one named click away.
 	.chrome-br {
 		bottom: var(--chrome-inset-y);
 		right: var(--chrome-inset-x);
-		gap: 6px;
+		align-items: center;
+		gap: 2px;
 	}
 
-	/* The menu and zoom buttons are CanvasIconButton plates; their look lives there.
-	   The chrome wrappers above own only placement. */
+	/* Every control is a ChromeButton and its look lives there. The chrome
+	   wrappers above own only placement. */
 
 	/* On phones the responsive --chrome-inset already tightens spacing; only the
 	   hint text needs to shrink. */

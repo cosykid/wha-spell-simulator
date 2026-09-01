@@ -46,6 +46,10 @@
 	--ink-sepia-70: rgba(56, 41, 26, 0.7);
 	--ink-sepia-45: rgba(56, 41, 26, 0.45);
 	--ink-sepia-20: rgba(56, 41, 26, 0.2);
+	--ink-sepia-30: rgba(56, 41, 26, 0.3);
+	/* Resting ink for a floating canvas control. Dark enough to read as a mark on
+	   the parchment, short of the full ink an active or hovered one takes. */
+	--ink-chrome: rgba(56, 41, 26, 0.85);
 	/* Translucent surfaces: chrome buttons read as a faint shadow on paper, */
 	/* drawers as frosted parchment that slides over the canvas. */
 	--chrome-glass: rgba(244, 236, 214, 0.42);
@@ -53,58 +57,11 @@
 	--drawer-glass: rgba(237, 228, 202, 0.72);
 	--drawer-blur: 22px;
 	--drawer-shadow: 0 18px 70px rgba(36, 27, 22, 0.32);
-	/* Inversed chrome buttons: a dark ink fill with a pale icon, the look the */
-	/* action bar, menu, and zoom controls share. Squared off with a lit brass */
-	/* bezel so they read as little enchanted rune plates on the parchment. */
-	--chrome-btn-bg: rgba(56, 41, 26, 0.9);
-	--chrome-btn-bg-hover: rgba(40, 29, 18, 1);
-	--chrome-btn-fg: var(--panel);
-	/* Aged brass, not bright gilt: a muted antique tone so the frame reads as old
-	   metal on parchment rather than flashy gold. */
-	--chrome-btn-gold: rgba(168, 138, 74, 0.68);
-	--chrome-btn-border: rgba(168, 138, 74, 0.48);
-	--chrome-btn-radius: 0;
-	/* A thin dark inner gap and a soft drop shadow seat the square plate on the
-	   paper. The ornament is carried by the corner braces, not a loud rule. */
-	--chrome-btn-bezel: inset 0 0 0 1px rgba(18, 11, 4, 0.5), 0 1px 3px rgba(28, 18, 8, 0.3);
-	/* Gap between the outer border and the inner frame box (see CanvasIconButton);
-	   the corner braces span exactly this gap, so the two share one value. Kept
-	   small so the inner rule sits right up against the border, not near the icon. */
-	--chrome-btn-inset: 1.5px;
-	/* Corner braces: a brass diagonal in each corner running from the outer border
-	   corner to the inner box corner, so the two frames read as one bracketed
-	   plate. Each layer is one gradient band on the main diagonal of an inset-sized
-	   corner box (top-left and bottom-right share one diagonal, the other two the
-	   opposite one). */
-	--chrome-btn-corners:
-		linear-gradient(
-				to top right,
-				transparent calc(50% - 0.6px),
-				var(--chrome-btn-gold) calc(50% - 0.6px) calc(50% + 0.6px),
-				transparent calc(50% + 0.6px)
-			)
-			top left / var(--chrome-btn-inset) var(--chrome-btn-inset) no-repeat,
-		linear-gradient(
-				to top left,
-				transparent calc(50% - 0.6px),
-				var(--chrome-btn-gold) calc(50% - 0.6px) calc(50% + 0.6px),
-				transparent calc(50% + 0.6px)
-			)
-			top right / var(--chrome-btn-inset) var(--chrome-btn-inset) no-repeat,
-		linear-gradient(
-				to top left,
-				transparent calc(50% - 0.6px),
-				var(--chrome-btn-gold) calc(50% - 0.6px) calc(50% + 0.6px),
-				transparent calc(50% + 0.6px)
-			)
-			bottom left / var(--chrome-btn-inset) var(--chrome-btn-inset) no-repeat,
-		linear-gradient(
-				to top right,
-				transparent calc(50% - 0.6px),
-				var(--chrome-btn-gold) calc(50% - 0.6px) calc(50% + 0.6px),
-				transparent calc(50% + 0.6px)
-			)
-			bottom right / var(--chrome-btn-inset) var(--chrome-btn-inset) no-repeat;
+	/* Outer size of an icon-only canvas control (ChromeButton: 1px border, 9px
+	   padding, a 20px icon, then back out again). A ChromeRule spans one of
+	   these, which is what centres a divider's ink on the run it parts. */
+	--chrome-control-width: 40px;
+	--chrome-control-height: 34px;
 	/* Ornate left/right edge frame (frame.jpg) width, scales with the viewport. */
 	--frame-width: clamp(12px, 1vw, 20px);
 	/* The visible gap floating chrome keeps from the border. The frame only runs

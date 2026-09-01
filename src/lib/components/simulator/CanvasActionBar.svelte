@@ -1,15 +1,20 @@
 <!--
 @component
-Top-left canvas history actions: undo, redo, clear, and saving the drawing as a
-spell preset. Rendered as faint ghost buttons that float on the parchment.
+The lower half of the left column: the history commands, then, past a rule of
+its own, saving the drawing as a spell.
+
+Undo, redo and clear act on the drawing. Save keeps it, which is a different
+kind of act, so the rule above it is what sets it apart rather than any
+difference in the button itself.
 -->
 <script lang="ts">
-	import BookmarkPlus from 'lucide-svelte/icons/bookmark-plus';
+	import Bookmark from 'lucide-svelte/icons/bookmark';
+	import BrushCleaning from 'lucide-svelte/icons/brush-cleaning';
+	import RotateCcw from 'lucide-svelte/icons/rotate-ccw';
+	import RotateCw from 'lucide-svelte/icons/rotate-cw';
 	import { toast } from '@zerodevx/svelte-toast';
-	import CanvasIconButton from './CanvasIconButton.svelte';
-	import ArcaneBroom from './icons/ArcaneBroom.svelte';
-	import ArcaneRedo from './icons/ArcaneRedo.svelte';
-	import ArcaneUndo from './icons/ArcaneUndo.svelte';
+	import ChromeButton from './ChromeButton.svelte';
+	import ChromeRule from './ChromeRule.svelte';
 	import { getAuthState } from '$lib/ui/auth/auth-state.svelte.js';
 	import { formatShortcut, getPlatform } from '$lib/ui/keybindings.js';
 	import type { SimulatorSession } from '$lib/ui/simulator/simulator-session.svelte.js';
@@ -38,56 +43,56 @@ spell preset. Rendered as faint ghost buttons that float on the parchment.
 </script>
 
 <div class="action-bar" aria-label="Canvas actions">
-	<!-- Undo is the left-most control on screen, so its name chip anchors to that
-	     edge instead of centring, which would push it past the frame. -->
-	<CanvasIconButton
+	<ChromeButton
+		role="command"
 		id="undoButton"
 		testId="undo-button"
 		label="Undo"
+		icon={RotateCcw}
 		shortcut={undoKeys}
-		labelPlacement="below"
 		chipAlign="left"
 		disabled={summary.undoDisabled}
 		onclick={actions.undo}
-	>
-		<ArcaneUndo aria-hidden="true" />
-	</CanvasIconButton>
-	<CanvasIconButton
+	/>
+	<ChromeButton
+		role="command"
 		id="redoButton"
 		testId="redo-button"
 		label="Redo"
+		icon={RotateCw}
 		shortcut={redoKeys}
-		labelPlacement="below"
+		chipAlign="left"
 		disabled={summary.redoDisabled}
 		onclick={actions.redo}
-	>
-		<ArcaneRedo aria-hidden="true" />
-	</CanvasIconButton>
-	<CanvasIconButton
+	/>
+	<ChromeButton
+		role="command"
 		id="clearButton"
 		testId="clear-button"
 		label="Clear"
-		labelPlacement="below"
+		icon={BrushCleaning}
+		chipAlign="left"
 		onclick={actions.clear}
-	>
-		<ArcaneBroom aria-hidden="true" />
-	</CanvasIconButton>
-	<CanvasIconButton
+	/>
+
+	<ChromeRule />
+
+	<ChromeButton
+		role="command"
 		id="saveSpellButton"
 		testId="save-spell-button"
 		label="Save spell"
-		labelPlacement="below"
+		icon={Bookmark}
+		chipAlign="left"
 		onclick={saveSpell}
-	>
-		<BookmarkPlus aria-hidden="true" />
-	</CanvasIconButton>
+	/>
 </div>
 
 <style>
-	/* Layout only; the plate look lives in CanvasIconButton. */
 	.action-bar {
 		display: flex;
-		align-items: center;
-		gap: 6px;
+		flex-direction: column;
+		align-items: flex-start;
+		gap: 4px;
 	}
 </style>

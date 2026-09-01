@@ -1,9 +1,9 @@
 <!--
 @component
-Left-edge tool dock: the four mutually exclusive canvas tools, stacked as one
-group. Pen and eraser draw and rub out strokes; arrange selects and moves placed
-shapes; pan slides the canvas. Only one is ever active at a time (they share the
-single `canvasMode`), shown by each button's filled diamond pip.
+The four mutually exclusive canvas tools, stacked as one group at the head of
+the left column. Pen and eraser draw and rub out strokes; arrange selects and
+moves placed shapes; pan slides the canvas. Only one is ever active at a time
+(they share the single `canvasMode`), shown by each button's ink underline.
 
 Each tool has a single-key shortcut (P, E, V, H) wired in keyboard.ts and shown
 in its hover label.
@@ -13,7 +13,7 @@ in its hover label.
 	import Frame from 'lucide-svelte/icons/frame';
 	import Hand from 'lucide-svelte/icons/hand';
 	import PenTool from 'lucide-svelte/icons/pen-tool';
-	import ToolButton from './ToolButton.svelte';
+	import ChromeButton from './ChromeButton.svelte';
 	import type { SimulatorSession } from '$lib/ui/simulator/simulator-session.svelte.js';
 
 	interface Props {
@@ -25,50 +25,54 @@ in its hover label.
 </script>
 
 <div class="tool-dock" aria-label="Canvas tools">
-	<ToolButton
+	<ChromeButton
+		role="mode"
 		label="Pen"
+		icon={PenTool}
 		shortcut="P"
+		chipAlign="left"
 		active={ui.canvasMode === 'draw'}
 		onclick={simulator.handleSelectDraw}
-	>
-		<PenTool aria-hidden="true" />
-	</ToolButton>
-	<ToolButton
+	/>
+	<ChromeButton
+		role="mode"
 		id="eraserToggle"
 		testId="eraser-toggle"
 		label="Eraser"
+		icon={Eraser}
 		shortcut="E"
+		chipAlign="left"
 		active={ui.activeTool === 'erase'}
 		onclick={simulator.handleToggleEraser}
-	>
-		<Eraser aria-hidden="true" />
-	</ToolButton>
-	<ToolButton
+	/>
+	<ChromeButton
+		role="mode"
 		id="arrangeToggle"
 		testId="arrange-toggle"
 		label="Arrange shapes"
+		icon={Frame}
 		shortcut="V"
+		chipAlign="left"
 		active={ui.activeTool === 'arrange'}
 		onclick={simulator.handleToggleArrange}
-	>
-		<Frame aria-hidden="true" />
-	</ToolButton>
-	<ToolButton
+	/>
+	<ChromeButton
+		role="mode"
 		id="panToggle"
 		label="Pan"
+		icon={Hand}
 		shortcut="H"
+		chipAlign="left"
 		active={ui.panEnabled}
 		onclick={simulator.handleTogglePan}
-	>
-		<Hand aria-hidden="true" />
-	</ToolButton>
+	/>
 </div>
 
 <style>
 	.tool-dock {
 		display: flex;
 		flex-direction: column;
-		gap: 4px;
 		align-items: flex-start;
+		gap: 4px;
 	}
 </style>

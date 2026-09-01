@@ -2,7 +2,7 @@
 @component
 A hover/focus name chip for an icon-only canvas control: a sharp sepia box with a
 small detached triangle that points at the icon. Drop it inside a button that sets
-`--label-shown: 1` on `:hover` / `:focus-visible` (see ToolButton, CanvasIconButton);
+`--label-shown: 1` on `:hover` / `:focus-visible` (see ChromeButton);
 that one property fades and eases both the box and the caret in together.
 
 The caret and the box are anchored independently so each lands where it should:

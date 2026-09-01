@@ -1,14 +1,18 @@
 <!--
 @component
-Right-edge trigger rail for the reference drawer. Each tab opens the drawer to its
-panel (or toggles it shut). These buttons are the only place the panel names live,
-so there is exactly one "Shapes" button (the E2E entry point).
+Right-edge trigger rail for the reference drawer. Each tab opens the drawer to
+its panel (or toggles it shut). These buttons are the only place the panel names
+live, so there is exactly one "Shapes" button (the E2E entry point).
+
+They are openers, so each carries a caret pointing off-screen at the drawer it
+reveals, which turns back inward once that panel is open.
 -->
 <script lang="ts">
 	import BarChart3 from 'lucide-svelte/icons/bar-chart-3';
 	import BookMarked from 'lucide-svelte/icons/book-marked';
 	import BookOpen from 'lucide-svelte/icons/book-open';
 	import Shapes from 'lucide-svelte/icons/shapes';
+	import ChromeButton from './ChromeButton.svelte';
 	import type { RootTab } from '$lib/ui/simulator/types.js';
 	import type { SimulatorSession } from '$lib/ui/simulator/simulator-session.svelte.js';
 
@@ -30,20 +34,16 @@ so there is exactly one "Shapes" button (the E2E entry point).
 
 <div class="ref-tabs" aria-label="Reference panels">
 	{#each tabs as tab (tab.id)}
-		{@const active = ui.referenceOpen && ui.rootTab === tab.id}
-		<!-- The label is named explicitly because phones hide the span, and a button
-		     whose only content is a decorative icon has no accessible name at all. -->
-		<button
-			type="button"
-			class="ref-tab"
-			class:active
-			aria-label={tab.label}
-			aria-pressed={active}
+		<ChromeButton
+			role="opener"
+			anchor="right"
+			showLabel
+			chipAlign="right"
+			label={tab.label}
+			icon={tab.icon}
+			active={ui.referenceOpen && ui.rootTab === tab.id}
 			onclick={() => ui.openReference(tab.id)}
-		>
-			<tab.icon aria-hidden="true" />
-			<span>{tab.label}</span>
-		</button>
+		/>
 	{/each}
 </div>
 
@@ -51,61 +51,14 @@ so there is exactly one "Shapes" button (the E2E entry point).
 	.ref-tabs {
 		display: flex;
 		flex-direction: column;
-		gap: 6px;
 		align-items: flex-end;
+		gap: 4px;
 	}
 
-	.ref-tab {
-		display: inline-flex;
-		align-items: center;
-		gap: 8px;
-		min-height: 36px;
-		padding: 0 12px;
-		border: 1px solid transparent;
-		border-radius: var(--chrome-btn-radius);
-		color: var(--ink-sepia-45);
-		background: transparent;
-		box-shadow: none;
-		font-size: 13px;
-		transition:
-			color var(--dur-hover) ease,
-			background var(--dur-hover) ease,
-			border-color var(--dur-hover) ease;
-	}
-
-	.ref-tab:hover {
-		color: var(--ink-sepia);
-		background: var(--chrome-glass);
-		border-color: var(--ink-sepia-20);
-	}
-
-	.ref-tab.active {
-		color: var(--ink-sepia);
-		background: var(--chrome-glass-strong);
-		border-color: var(--ink-sepia-20);
-	}
-
-	.ref-tab :global(svg) {
-		width: 17px;
-		height: 17px;
-		fill: none;
-		stroke: currentColor;
-		stroke-width: 1.9;
-		stroke-linecap: round;
-		stroke-linejoin: round;
-	}
-
-	/* On phones the labels would crowd the canvas; show icons only. */
+	/* On phones the labels would crowd the canvas; show icons and caret only. */
 	@media (max-width: 640px) {
-		.ref-tab span {
+		.ref-tabs :global(.btn-label) {
 			display: none;
-		}
-
-		.ref-tab {
-			width: 40px;
-			height: 40px;
-			padding: 0;
-			justify-content: center;
 		}
 	}
 </style>
