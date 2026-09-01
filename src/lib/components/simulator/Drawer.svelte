@@ -131,6 +131,10 @@ instead of forcing a trip to a far corner.
 		bottom: 0;
 		z-index: 40;
 		width: min(380px, 86vw);
+		/* The body's side padding, published so a panel can cancel it: a panel whose
+		   own scroll column reaches the drawer's edge puts its scrollbar there and
+		   spends this as the gap between the bar and the content. */
+		--drawer-pad-x: 18px;
 		display: flex;
 		flex-direction: column;
 		color: var(--ink-sepia);
@@ -246,7 +250,7 @@ instead of forcing a trip to a far corner.
 		/* Scrolling past the end of the drawer must not pan the canvas behind it. */
 		overscroll-behavior: contain;
 		scrollbar-width: thin;
-		padding: 20px 18px;
+		padding: 20px var(--drawer-pad-x);
 	}
 
 	/* Leave a sliver of canvas beside the panel so the close tab always has room to

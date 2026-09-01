@@ -21,17 +21,24 @@
 	padding-top: 0;
 }
 
+/* One equal column per tab, however many a strip carries, so a fourth tab shares
+   the row instead of wrapping under the first. */
 .reference-tabs,
 .diagnostics-tabs {
 	display: grid;
-	grid-template-columns: repeat(3, 1fr);
+	grid-auto-flow: column;
+	grid-auto-columns: 1fr;
 	align-self: stretch;
 	gap: 4px;
-	margin-bottom: 12px;
 	border: 1px solid rgba(36, 27, 22, 0.12);
 	border-radius: 6px;
 	padding: 3px;
 	background: rgba(36, 27, 22, 0.04);
+}
+
+/* The dictionary's strip sits in a sticky bar that owns the gap below it. */
+.diagnostics-tabs {
+	margin-bottom: 12px;
 }
 
 .dictionary-tab-button,
@@ -92,11 +99,27 @@
 }
 
 /*
- * The other three panels hand their scroll to an inner list (.reference-list,
+ * The other three panels hand their scroll to an inner list (.reference-scroll,
  * .shape-palette, .diagnostic-output). My Spells has no such inner box, so the
  * panel scrolls itself and the drawer heading stays put like its siblings'.
  */
 #spellsRootPanel {
 	overflow-y: auto;
 	overscroll-behavior: contain;
+}
+
+/*
+ * Every panel scroll column reaches past the drawer's right padding to the panel
+ * edge, then lays that padding back inside itself. The scrollbar rides the edge
+ * with the whole gap between it and the content, rather than pressed against it,
+ * and the gutter stays reserved so a list too short to scroll keeps the column
+ * the same width. .diagnostic-output is left out: it is a bordered box, so its
+ * scrollbar belongs inside its own frame.
+ */
+.reference-scroll,
+.shape-palette,
+#spellsRootPanel {
+	margin-right: calc(-1 * var(--drawer-pad-x));
+	padding-right: var(--drawer-pad-x);
+	scrollbar-gutter: stable;
 }

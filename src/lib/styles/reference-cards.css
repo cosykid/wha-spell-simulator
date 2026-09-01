@@ -7,15 +7,23 @@
 .reference-card {
 	border: 1px solid rgba(36, 27, 22, 0.14);
 	border-radius: 6px;
-	padding: 9px;
+	padding: 10px;
 	background: rgba(255, 251, 233, 0.82);
 }
 
+/* Thumbnail and text start on the same line. Centring them would leave the
+   thumbnail floating mid-card once a card grows, as one does when its note is
+   expanded. */
 .reference-card.has-template {
 	display: grid;
 	grid-template-columns: 82px minmax(0, 1fr);
-	gap: 9px;
-	align-items: center;
+	gap: 10px;
+	align-items: start;
+}
+
+/* A long unbroken word must wrap rather than stretch the text column. */
+.reference-card-body {
+	min-width: 0;
 }
 
 .reference-preview {

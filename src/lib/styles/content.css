@@ -51,7 +51,7 @@
  * panel scrolls itself rather than an inner list, so it joins by id.
  */
 .shape-palette,
-.reference-list,
+.reference-scroll,
 .diagnostic-output,
 #spellsRootPanel {
 	scrollbar-width: thin;
@@ -59,7 +59,7 @@
 }
 
 .shape-palette::-webkit-scrollbar,
-.reference-list::-webkit-scrollbar,
+.reference-scroll::-webkit-scrollbar,
 .diagnostic-output::-webkit-scrollbar,
 #spellsRootPanel::-webkit-scrollbar {
 	width: 8px;
@@ -67,7 +67,7 @@
 }
 
 .shape-palette::-webkit-scrollbar-thumb,
-.reference-list::-webkit-scrollbar-thumb,
+.reference-scroll::-webkit-scrollbar-thumb,
 .diagnostic-output::-webkit-scrollbar-thumb,
 #spellsRootPanel::-webkit-scrollbar-thumb {
 	background: var(--ink-sepia-45);
@@ -77,7 +77,7 @@
 }
 
 .shape-palette::-webkit-scrollbar-thumb:hover,
-.reference-list::-webkit-scrollbar-thumb:hover,
+.reference-scroll::-webkit-scrollbar-thumb:hover,
 .diagnostic-output::-webkit-scrollbar-thumb:hover,
 #spellsRootPanel::-webkit-scrollbar-thumb:hover {
 	background: var(--ink-sepia-70);
@@ -85,7 +85,7 @@
 }
 
 .shape-palette::-webkit-scrollbar-track,
-.reference-list::-webkit-scrollbar-track,
+.reference-scroll::-webkit-scrollbar-track,
 .diagnostic-output::-webkit-scrollbar-track,
 #spellsRootPanel::-webkit-scrollbar-track {
 	background: transparent;

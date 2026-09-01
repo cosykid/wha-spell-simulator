@@ -1,9 +1,22 @@
+<!--
+@component
+The dictionary panel inside the right reference drawer: sample spells, sigils,
+and signs, each a list of cards carrying a stroke thumbnail and a source note.
+
+The tab strip, the blurb, and the cards share one scroll column, so they share a
+right edge and the scrollbar rides a single channel beside them. The strip
+sticks to the top of that column, so a tab stays one click away however far the
+list is scrolled.
+-->
 <script lang="ts">
 	import { SvelteSet } from 'svelte/reactivity';
-	import type { Dictionary, DictionaryEntry, Point, SampleSpell } from '$lib/types.js';
-	import { strokesToPreviewPolylines } from '$lib/ui/strokePreview.js';
+	import ReferenceCard from './ReferenceCard.svelte';
+	import StrokePreview from './StrokePreview.svelte';
+	import { elementTag } from '$lib/ui/elementTag.js';
+	import type { Dictionary, DictionaryEntry, SampleSpell } from '$lib/types.js';
 
 	type ReferenceEntry = DictionaryEntry & { element?: string; sourceNotes?: string };
+	type TabId = 'sample' | 'sigils' | 'signs';
 
 	interface Props {
 		dictionary?: Dictionary | null;
@@ -11,117 +24,65 @@
 
 	let { dictionary = null }: Props = $props();
 
-	let activeTab = $state('sample');
-	const expandedNotes = new SvelteSet<string>();
-	const truncatedNotes = new SvelteSet<string>();
+	const TABS: { id: TabId; label: string; description: string }[] = [
+		{
+			id: 'sample',
+			label: 'Sample Spells',
+			description: 'Sample spells show complete seal layouts you can use as drawing references.'
+		},
+		{
+			id: 'sigils',
+			label: 'Sigils',
+			description:
+				'Sigils, typically placed in the center of a seal, control what type of spell a seal will generate.'
+		},
+		{
+			id: 'signs',
+			label: 'Signs',
+			description:
+				'Signs control what form spells will take. They serve as modifiers, allowing the effect of a spell to be altered.'
+		}
+	];
+
+	let activeTab = $state<TabId>('sample');
+	let scroller = $state<HTMLElement | null>(null);
+	let scrolled = $state(false);
+
+	// Only the active tab's cards are mounted, so an open note is remembered here
+	// rather than on the card, and reopens the same way when you come back to it.
+	const openNotes = new SvelteSet<string>();
 
 	function toggleNote(key: string) {
-		if (expandedNotes.has(key)) {
-			expandedNotes.delete(key);
+		if (openNotes.has(key)) {
+			openNotes.delete(key);
 		} else {
-			expandedNotes.add(key);
+			openNotes.add(key);
 		}
 	}
 
-	// A clamped preview that overflows gets a "Show more" toggle. Cards mount
-	// inside a hidden tab (0 height), so we (re)measure once the active tab's
-	// previews are laid out, and on window resize since wrapping is width-driven.
-	function measureClamps() {
-		const previews = document.querySelectorAll<HTMLElement>(
-			'.reference-source-preview.clamped[data-note-key]'
-		);
-		for (const preview of previews) {
-			const key = preview.dataset.noteKey;
-			if (
-				key &&
-				!truncatedNotes.has(key) &&
-				preview.clientHeight > 0 &&
-				preview.scrollHeight > preview.clientHeight + 1
-			) {
-				truncatedNotes.add(key);
-			}
-		}
-	}
-
+	// Switching tabs swaps the whole list, so the column returns to the top and the
+	// strip drops the cover it only wears over scrolled content.
 	$effect(() => {
-		// Reference activeTab so the effect re-runs when the visible tab changes
-		// and newly shown previews get measured.
 		void activeTab;
-		const frame = requestAnimationFrame(measureClamps);
-		window.addEventListener('resize', measureClamps);
-		return () => {
-			cancelAnimationFrame(frame);
-			window.removeEventListener('resize', measureClamps);
-		};
+		if (scroller) scroller.scrollTop = 0;
+		scrolled = false;
 	});
 
+	const activeDescription = $derived(TABS.find((tab) => tab.id === activeTab)?.description ?? '');
 	const sampleSpells = $derived(dictionary?.sampleSpells ?? []);
 	const sigils = $derived(dictionary?.sigils ?? []);
 	const signs = $derived(dictionary?.signs ?? []);
 </script>
 
-{#snippet strokePreview(strokes: Point[][] | undefined)}
-	{@const polylines = strokesToPreviewPolylines(strokes)}
-	{#if polylines.length}
-		<div class="reference-preview" aria-hidden="true">
-			<svg viewBox="0 0 100 100" role="img" focusable="false">
-				{#each polylines as points (points)}
-					<polyline {points}></polyline>
-				{/each}
-			</svg>
-		</div>
-	{/if}
-{/snippet}
-
-{#snippet referenceCard(entry: ReferenceEntry, kind: 'sigil' | 'sign')}
-	{@const template = entry.strokeTemplate ?? null}
-	{@const hasTemplate = Boolean(template?.strokes?.length)}
-	<article class="reference-card {hasTemplate ? 'has-template' : ''}">
-		{@render strokePreview(template?.strokes)}
-		<div>
-			<div class="reference-card-header">
-				<strong>{entry.displayName ?? entry.id}</strong>
-				{#if kind === 'sigil' && entry.element}<span>{entry.element}</span>{/if}
-			</div>
-			{#if entry.sourceNotes}
-				{@const noteKey = `${kind}:${entry.id}`}
-				{@const expanded = expandedNotes.has(noteKey)}
-				<p class="reference-source-preview" class:clamped={!expanded} data-note-key={noteKey}>
-					{entry.sourceNotes}
-				</p>
-				<button
-					type="button"
-					class="reference-source-toggle"
-					class:reserved={!truncatedNotes.has(noteKey)}
-					aria-expanded={expanded}
-					onclick={() => toggleNote(noteKey)}
-				>
-					<span>{expanded ? 'Show less' : 'Show more'}</span>
-					<svg
-						class="reference-source-chevron"
-						viewBox="0 0 16 16"
-						aria-hidden="true"
-						focusable="false"
-					>
-						<polyline points="4,6 8,10 12,6"></polyline>
-					</svg>
-				</button>
-			{/if}
-		</div>
-	</article>
-{/snippet}
-
 {#snippet sampleCard(sample: SampleSpell)}
-	{@const hasTemplate = Boolean(sample.strokes?.length)}
 	{@const manifestations = sample.manifestations?.length
 		? sample.manifestations.join(', ')
 		: 'none'}
-	<article class="reference-card {hasTemplate ? 'has-template' : ''}">
-		{@render strokePreview(sample.strokes)}
-		<div>
+	<article class="reference-card {sample.strokes?.length ? 'has-template' : ''}">
+		<StrokePreview strokes={sample.strokes} />
+		<div class="reference-card-body">
 			<div class="reference-card-header">
 				<strong>{sample.displayName ?? sample.id}</strong>
-				{#if sample.element}<span>{sample.element}</span>{/if}
 			</div>
 			<p class="reference-card-description">{sample.description}</p>
 			<dl>
@@ -138,158 +99,105 @@
 	</article>
 {/snippet}
 
+{#snippet entryCard(entry: ReferenceEntry, kind: 'sigil' | 'sign')}
+	{@const name = entry.displayName ?? entry.id}
+	{@const key = `${kind}:${entry.id}`}
+	<ReferenceCard
+		{name}
+		strokes={entry.strokeTemplate?.strokes}
+		tag={kind === 'sigil' ? elementTag(name, entry.element) : null}
+		note={entry.sourceNotes}
+		expanded={openNotes.has(key)}
+		onToggle={() => toggleNote(key)}
+	/>
+{/snippet}
+
 <section class="reference-panel" aria-label="Dictionary reference">
-	<div class="reference-tabs">
-		<button
-			type="button"
-			class="dictionary-tab-button"
-			class:active={activeTab === 'sample'}
-			onclick={() => (activeTab = 'sample')}
-		>
-			Sample Spells
-		</button>
-		<button
-			type="button"
-			class="dictionary-tab-button"
-			class:active={activeTab === 'sigils'}
-			onclick={() => (activeTab = 'sigils')}
-		>
-			Sigils
-		</button>
-		<button
-			type="button"
-			class="dictionary-tab-button"
-			class:active={activeTab === 'signs'}
-			onclick={() => (activeTab = 'signs')}
-		>
-			Signs
-		</button>
-	</div>
-
-	<div class="reference-list" hidden={activeTab !== 'sample'}>
-		<p class="panel-description">
-			Sample spells show complete seal layouts you can use as drawing references.
-		</p>
-		<div>
-			{#each sampleSpells as sample (sample.id)}
-				{@render sampleCard(sample)}
-			{/each}
+	<div
+		class="reference-scroll"
+		bind:this={scroller}
+		onscroll={() => (scrolled = (scroller?.scrollTop ?? 0) > 0)}
+	>
+		<div class="reference-tab-bar" class:covering={scrolled}>
+			<div class="reference-tabs">
+				{#each TABS as tab (tab.id)}
+					<button
+						type="button"
+						class="dictionary-tab-button"
+						class:active={activeTab === tab.id}
+						onclick={() => (activeTab = tab.id)}
+					>
+						{tab.label}
+					</button>
+				{/each}
+			</div>
 		</div>
-	</div>
 
-	<div class="reference-list" hidden={activeTab !== 'sigils'}>
-		<p class="panel-description">
-			Sigils, typically placed in the center of a seal, control what type of spell a seal will
-			generate.
-		</p>
-		<div>
-			{#each sigils as entry (entry.id)}
-				{@render referenceCard(entry, 'sigil')}
-			{/each}
-		</div>
-	</div>
+		<p class="panel-description">{activeDescription}</p>
 
-	<div class="reference-list" hidden={activeTab !== 'signs'}>
-		<p class="panel-description">
-			Signs control what form spells will take. They serve as modifiers, allowing the effect of a
-			spell to be altered.
-		</p>
-		<div>
-			{#each signs as entry (entry.id)}
-				{@render referenceCard(entry, 'sign')}
-			{/each}
+		<div class="reference-cards">
+			{#if activeTab === 'sample'}
+				{#each sampleSpells as sample (sample.id)}
+					{@render sampleCard(sample)}
+				{/each}
+			{:else if activeTab === 'sigils'}
+				{#each sigils as entry (entry.id)}
+					{@render entryCard(entry, 'sigil')}
+				{/each}
+			{:else}
+				{#each signs as entry (entry.id)}
+					{@render entryCard(entry, 'sign')}
+				{/each}
+			{/if}
 		</div>
 	</div>
 </section>
 
 <style>
-	.reference-list {
-		display: grid;
-		grid-auto-rows: max-content;
-		align-content: start;
-		gap: 8px;
-		max-height: none;
+	/* The panel's one scroll column, so the tab strip, the blurb and the cards all
+	   share its width and line up on both edges. Its bleed past the drawer padding
+	   and its reserved gutter are the shared panel rule in tabs.css. */
+	.reference-scroll {
+		min-height: 0;
+		flex: 1 1 auto;
 		overflow-y: auto;
 		overflow-x: hidden;
 		/* Reaching the end of the list must not start scrolling the drawer behind it. */
 		overscroll-behavior: contain;
-		scrollbar-gutter: stable;
-		min-height: 0;
-		flex: 1 1 auto;
 	}
 
-	.reference-list[hidden] {
-		display: none;
+	/* The gap below the tabs is padding rather than margin so the bar's cover runs
+	   unbroken down to the first card. */
+	.reference-tab-bar {
+		position: sticky;
+		top: 0;
+		z-index: 1;
+		padding-bottom: 12px;
+		transition: box-shadow var(--dur-fade) ease;
 	}
 
-	.reference-source-preview {
-		margin: 0;
-		color: var(--muted-ink);
-		font-size: 12px;
-		line-height: 1.35;
+	/* Only once cards are passing beneath does the bar take on the drawer's frosted
+	   parchment. Painting it at rest too would lay a second wash over the panel and
+	   band it just below the tabs. */
+	.reference-tab-bar.covering {
+		background: var(--drawer-glass);
+		-webkit-backdrop-filter: blur(var(--drawer-blur)) saturate(1.1);
+		backdrop-filter: blur(var(--drawer-blur)) saturate(1.1);
+		box-shadow: 0 10px 16px -12px rgba(36, 27, 22, 0.45);
 	}
 
-	/* Collapsed previews fill at most two lines (with an ellipsis) so a card is
-	   never taller than its stroke thumbnail until the note is expanded. */
-	.reference-source-preview.clamped {
-		display: -webkit-box;
-		-webkit-box-orient: vertical;
-		-webkit-line-clamp: 2;
-		line-clamp: 2;
-		overflow: hidden;
+	.panel-description {
+		margin-bottom: 12px;
 	}
 
-	.reference-source-toggle {
-		display: inline-flex;
-		align-items: center;
-		gap: 4px;
-		margin-top: 4px;
-		min-height: 0;
-		padding: 0;
-		border: none;
-		background: none;
-		box-shadow: none;
-		cursor: pointer;
-		color: var(--ink);
-		font: inherit;
-		font-size: 12px;
-		font-weight: 600;
-		line-height: 1.35;
+	.reference-cards {
+		display: grid;
+		gap: 10px;
 	}
 
-	/*
-	 * Clamp overflow can only be measured after the card has been painted, so the
-	 * row is always in the layout and merely hides itself until the note turns out
-	 * to overflow. Otherwise inserting it a frame later shoves the whole list down.
-	 * `visibility` also keeps the hidden row out of hit testing and the a11y tree.
-	 */
-	.reference-source-toggle.reserved {
-		visibility: hidden;
-	}
-
-	.reference-source-toggle:hover,
-	.reference-source-toggle:active {
-		background: none;
-	}
-
-	/* Underline only on hover/focus — the label itself stays plain. */
-	.reference-source-toggle:hover span,
-	.reference-source-toggle:focus-visible span {
-		text-decoration: underline;
-	}
-
-	.reference-source-chevron {
-		width: 14px;
-		height: 14px;
-		fill: none;
-		stroke: currentColor;
-		stroke-width: 1.8;
-		stroke-linecap: round;
-		stroke-linejoin: round;
-		transition: transform var(--dur-quick) ease;
-	}
-
-	.reference-source-toggle[aria-expanded='true'] .reference-source-chevron {
-		transform: rotate(180deg);
+	/* Element and manifestation names arrive lowercase, so they are cased here to
+	   read like the element tag beside a sigil's name. */
+	.reference-card dd {
+		text-transform: capitalize;
 	}
 </style>
