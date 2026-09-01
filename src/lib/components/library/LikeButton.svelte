@@ -1,7 +1,7 @@
 <!--
 @component
 The shared library's like control: a plain thumbs-up with its tally. Inked and
-quiet while unpressed, filled gold once the reader has liked the spell.
+quiet while unpressed, inked solid once the reader has liked the spell.
 -->
 <script lang="ts">
 	import type { LibrarySpell } from '$lib/structures/savedSpell.js';
@@ -56,7 +56,7 @@ quiet while unpressed, filled gold once the reader has liked the spell.
 	}
 
 	.like:focus-visible {
-		outline: 2px solid var(--gold);
+		outline: 2px solid var(--accent);
 		outline-offset: 2px;
 	}
 
@@ -76,7 +76,7 @@ quiet while unpressed, filled gold once the reader has liked the spell.
 	}
 
 	.like.liked {
-		color: var(--gold);
+		color: var(--accent);
 	}
 
 	.like.liked .thumb {

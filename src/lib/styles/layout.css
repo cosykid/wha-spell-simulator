@@ -34,7 +34,7 @@ body:not(.sigil-maker-page) .app-shell {
 .eyebrow {
 	margin: 0 0 6px;
 	font-family: 'Cinzel', serif;
-	color: var(--gold);
+	color: var(--accent);
 	font-size: 13px;
 	letter-spacing: 0;
 	text-transform: uppercase;

@@ -92,7 +92,7 @@ the status string: an unsettled reading pulses that dot, never the text.
 
 	.status-line.active::before,
 	.status-line.prepared::before {
-		background: var(--teal);
+		background: var(--accent);
 	}
 
 	.status-line.invalid::before {
@@ -141,7 +141,7 @@ the status string: an unsettled reading pulses that dot, never the text.
 
 	.meta-pair strong {
 		margin-left: 5px;
-		color: var(--teal);
+		color: var(--accent);
 		font-weight: 600;
 		text-transform: capitalize;
 	}
@@ -163,7 +163,7 @@ the status string: an unsettled reading pulses that dot, never the text.
 		padding: 0;
 		background: none;
 		font: inherit;
-		color: var(--teal);
+		color: var(--accent);
 		text-decoration: underline dotted;
 		text-underline-offset: 3px;
 		cursor: pointer;

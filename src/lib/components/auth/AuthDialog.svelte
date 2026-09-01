@@ -287,7 +287,7 @@ action asked for it.
 		border: none;
 		background: none;
 		font-size: 0.85rem;
-		color: var(--teal);
+		color: var(--accent);
 		text-decoration: underline;
 		cursor: pointer;
 	}

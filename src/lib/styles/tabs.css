@@ -60,7 +60,6 @@
 .diagnostic-tab-button.active {
 	color: var(--ink);
 	background: rgba(255, 251, 233, 0.56);
-	border-bottom-color: var(--teal);
 }
 
 .dictionary-tab-button:hover,

@@ -216,12 +216,12 @@ load, share, and delete without leaving the canvas. Guests see a sign-in prompt.
 
 	.ink-link:hover {
 		background: none;
-		border-bottom-color: var(--gold);
+		border-bottom-color: var(--accent);
 		color: var(--ink-sepia);
 	}
 
 	.ink-link:focus-visible {
-		outline: 2px solid var(--gold);
+		outline: 2px solid var(--accent);
 		outline-offset: 2px;
 	}
 
@@ -259,7 +259,7 @@ load, share, and delete without leaving the canvas. Guests see a sign-in prompt.
 	}
 
 	.tally-shared {
-		color: var(--gold);
+		color: var(--accent);
 	}
 
 	.spell-list {
