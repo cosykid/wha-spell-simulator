@@ -3,10 +3,16 @@
 The shared sign-in and registration modal, opened through {@link AuthState}. A
 native dialog mirrored from `auth.dialogOpen`, in the same pattern as the sample
 maker's username modal. Accounts are username and password only.
+
+Signing in is always an invitation, never a toll: the prompt is dismissible by
+the close button, the backdrop, and Escape, and dropping it abandons whatever
+action asked for it.
 -->
 <script lang="ts">
+	import X from 'lucide-svelte/icons/x';
 	import { login, register, type AuthResult } from '$lib/auth/auth.remote.js';
 	import { getAuthState } from '$lib/ui/auth/auth-state.svelte.js';
+	import { lightDismiss } from '$lib/ui/lightDismiss.js';
 
 	const auth = getAuthState();
 
@@ -78,6 +84,7 @@ maker's username modal. Accounts are username and password only.
 	bind:this={dialog}
 	class="auth-dialog"
 	data-testid="auth-dialog"
+	{@attach lightDismiss()}
 	onclose={() => auth.closeDialog()}
 >
 	<form onsubmit={submit}>
@@ -126,6 +133,15 @@ maker's username modal. Accounts are username and password only.
 			</button>
 		</div>
 	</form>
+	<button
+		type="button"
+		class="auth-close"
+		data-testid="auth-close"
+		aria-label="Close"
+		onclick={() => dialog?.close()}
+	>
+		<X aria-hidden="true" />
+	</button>
 </dialog>
 
 <style>
@@ -225,6 +241,45 @@ maker's username modal. Accounts are username and password only.
 	.auth-submit {
 		min-height: 40px;
 		padding: 0 20px;
+	}
+
+	/* Rides in the card's own padding so the form keeps its full width, and comes
+	   last in the DOM so the browser still opens the modal on the username field
+	   rather than on the way out. */
+	.auth-close {
+		position: absolute;
+		top: 10px;
+		right: 10px;
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		width: 30px;
+		height: 30px;
+		min-height: 0;
+		padding: 0;
+		border: 0;
+		border-radius: 8px;
+		color: var(--ink-sepia-45);
+		background: none;
+		cursor: pointer;
+		transition:
+			color var(--dur-hover) ease,
+			background var(--dur-hover) ease;
+	}
+
+	.auth-close:hover {
+		color: var(--ink-sepia);
+		background: var(--ink-sepia-20);
+	}
+
+	.auth-close :global(svg) {
+		width: 16px;
+		height: 16px;
+		fill: none;
+		stroke: currentColor;
+		stroke-width: 2;
+		stroke-linecap: round;
+		stroke-linejoin: round;
 	}
 
 	.auth-switch {
