@@ -20,6 +20,18 @@ import { BEAT_MS } from '../cast/score/beats.js';
 import { clamp } from '../utils/geometry.js';
 import type { Stroke } from '../types.js';
 
+/**
+ * Paper taking light, not a spell: amber behind, near-white at the front. The
+ * charge runs this palette along the ink and
+ * [`glyphOverlayRenderer.ts`](glyphOverlayRenderer.ts)'s glow holds it for the
+ * rest of the cast, so a seal burns in one light rather than changing color at
+ * the strike.
+ */
+export const SEAL_EMBER = {
+	lit: { rgb: '255, 176, 94', glow: 'rgb(214, 128, 52)' },
+	head: { rgb: '255, 233, 198', glow: 'rgb(255, 186, 108)' }
+} as const;
+
 const IGNITION = {
 	/** Fraction of the charge the front takes to run the whole seal. */
 	travel: 0.8,
@@ -31,10 +43,7 @@ const IGNITION = {
 	alpha: { lit: 0.3, head: 0.58 },
 	/** Canvas pixels, against ink drawn at about 4.4. */
 	width: { lit: 5.4, head: 2.8 },
-	blur: { lit: 9, head: 15 },
-	/** Paper taking light, not a spell: amber behind, near-white at the front. */
-	lit: { rgb: '255, 176, 94', glow: 'rgb(214, 128, 52)' },
-	head: { rgb: '255, 233, 198', glow: 'rgb(255, 186, 108)' }
+	blur: { lit: 9, head: 15 }
 } as const;
 
 /** One layer of warmth, over one span of the seal's ink. */
@@ -161,7 +170,7 @@ export function drawSealIgnition(
 	const warmth = warmthAt(chargeT);
 
 	paintEmber(ctx, strokes, {
-		...IGNITION.lit,
+		...SEAL_EMBER.lit,
 		alpha: IGNITION.alpha.lit * warmth,
 		width: IGNITION.width.lit,
 		blur: IGNITION.blur.lit,
@@ -169,7 +178,7 @@ export function drawSealIgnition(
 		to: front
 	});
 	paintEmber(ctx, strokes, {
-		...IGNITION.head,
+		...SEAL_EMBER.head,
 		// The front itself, brightest where the warmth has just arrived. It fades
 		// out with everything else once it reaches the end of the ink.
 		alpha: IGNITION.alpha.head * warmth * (1 - run),

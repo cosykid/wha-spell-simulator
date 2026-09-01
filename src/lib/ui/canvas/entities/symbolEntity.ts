@@ -4,7 +4,10 @@ import type { Placement, Point, Vector } from '../../../types.js';
 
 import type { TransformableEntity } from '../entity.js';
 
-// Teal accent color for the label overlay; matches the active-label highlight in the UI.
+// A placed symbol draws in magenta rather than ink so it stays distinct from the
+// strokes around it. Multiply blending turns it near-black where the two cross,
+// which is what makes a misplacement easy to see. The Sample Reviewer's overlay
+// takes the same hue for the same reason.
 const LABEL_COLOR = '#d068f0';
 const LABEL_ALPHA = 0.82;
 const DEFAULT_LINE_WIDTH = 7;
