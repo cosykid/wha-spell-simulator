@@ -124,6 +124,10 @@ test.describe('first-spell guide', () => {
 	});
 
 	test('places the practice spell for a drawer who asks', async ({ page }) => {
+		// Placed ink is read like drawn ink, so this waits out a whole ML pass, and
+		// two ML-sized budgets in one test can outrun the default allowance.
+		test.slow();
+
 		const canvas = new SpellCanvasPage(page);
 		await canvas.goto({ firstSpellSeen: false });
 
@@ -132,11 +136,15 @@ test.describe('first-spell guide', () => {
 		await expect(guide.caption).toHaveAttribute('data-guide-step', 'ring');
 
 		// The offer lands the ring and the fire sigil as real ink, so the walk skips
-		// to the one stroke it cannot draw for you.
+		// to the one stroke it cannot draw for you. The status line speaks on the
+		// template verdict, but the caption holds until the refinement agrees, so it
+		// gets the same ML-sized budget the drawn walk gives the identical advance.
 		await guide.practice.click();
 		await expect(canvas.statusValue).toHaveText('Prepared spell', { timeout: STEP_TIMEOUT_MS });
 		await expect(canvas.elementValue).toHaveText('fire');
-		await expect(guide.caption).toHaveAttribute('data-guide-step', 'seal');
+		await expect(guide.caption).toHaveAttribute('data-guide-step', 'seal', {
+			timeout: STEP_TIMEOUT_MS
+		});
 	});
 
 	test('coaches a ring that was sealed too soon', async ({ page }) => {
