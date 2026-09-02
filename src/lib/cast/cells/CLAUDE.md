@@ -63,15 +63,15 @@ before adding one.
 
 ## The catalog
 
-| Cell                       | Track     | The choreography                                                                                             |
-| -------------------------- | --------- | ------------------------------------------------------------------------------------------------------------ |
-| [`jet.ts`](jet.ts)         | `jet`     | Rise along `aim` from the drawn columns' own foot lobes, pinched by the element, crown tearing and melting.  |
-| [`burst.ts`](burst.ts)     | `burst`   | R-01's strike as a short-fused impulse shell across the whole seal, merging into whatever stands in it.      |
-| [`fan.ts`](fan.ts)         | `fan`     | Sectors along the drawn signs' bearings running outward under a ceiling, thinning as they run.               |
-| [`vortex.ts`](vortex.ts)   | `vortex`  | Born turning in the drawn fold's arms on a flaring wall, herded onto them as they precess on the spin phase. |
-| [`hold.ts`](hold.ts)       | `hold`    | Containment with weight and sway suspended: fills, breathes, spins — a gripless hold is R-16's flat rotor.   |
-| [`intake.ts`](intake.ts)   | `intake`  | The signed sink: the medium condensing from all sides into the mouth, spun whole by the twist — one kernel.  |
-| [`shimmer.ts`](shimmer.ts) | `shimmer` | R-10's medium as a few large faint washes drifting in during the charge. Deposit zero: washes, never body.   |
+| Cell                       | Track     | The choreography                                                                                                                                                         |
+| -------------------------- | --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| [`jet.ts`](jet.ts)         | `jet`     | Rise along `aim` from the drawn columns' own foot lobes, pinched by the element, crown tearing and melting.                                                              |
+| [`burst.ts`](burst.ts)     | `burst`   | R-01's strike as a short-fused impulse shell across the whole seal, merging into whatever stands in it.                                                                  |
+| [`fan.ts`](fan.ts)         | `fan`     | Sectors along the drawn signs' bearings running outward under a ceiling, thinning as they run.                                                                           |
+| [`vortex.ts`](vortex.ts)   | `vortex`  | Born turning in the drawn fold's arms on a flaring wall, herded onto them as they precess on the spin phase.                                                             |
+| [`hold.ts`](hold.ts)       | `hold`    | Containment with weight and sway suspended: fills by the channel's grip, churns, breathes, spins — a gripless hold is R-16's flat rotor, a wind hold is section 6's fan. |
+| [`intake.ts`](intake.ts)   | `intake`  | The signed sink: the medium condensing from all sides into the mouth, spun whole by the twist — one kernel.                                                              |
+| [`shimmer.ts`](shimmer.ts) | `shimmer` | R-10's medium as a few large faint washes drifting in during the charge. Deposit zero: washes, never body.                                                               |
 
 [`registry.ts`](registry.ts) is the one place kind is switched on, and it is
 exhaustive, so a new `PrimitiveKind` fails to compile until it has a cell. R-13's

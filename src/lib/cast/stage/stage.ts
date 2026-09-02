@@ -185,7 +185,7 @@ export class CastStage implements CastEngine {
 		// one budget, and every track's matter merges into one body per element.
 		const substrate = new VolumeSubstrate(
 			tracks,
-			{ sigil: score.sigil, element: score.element },
+			{ sigil: score.sigil, element: score.element, focus: score.focus },
 			score.signature
 		);
 		const performers = tracks.map((track, index) => ({

@@ -248,6 +248,14 @@ export const CAST_PROBES: CastProbe[] = [
 			claim: 'and gathers onto the hover axis, so the grip reads as a blob and not a spray'
 		},
 		{
+			atMs: BODY_MS,
+			of: 'hold',
+			expect: { metric: 'detail', name: 'purchase', above: 0.99 },
+			rulingId: 'ground-truth-6',
+			claim:
+				'the pair gets its whole purchase on water, so this hold fills; the same seal over wind is a fan, which cellsHold.test.ts pins'
+		},
+		{
 			atMs: RELEASE_MS,
 			of: 'hold',
 			expect: { metric: 'detail', name: 'grip', above: 0.3 },

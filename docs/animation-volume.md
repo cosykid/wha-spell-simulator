@@ -424,3 +424,136 @@ also exposed that `levitation-inverted` compiles to the identical quiet-plume
 score as `none`, `swirl-pushes` and `column-cancelled` — its distance to them
 had been splash-residue seed noise — so it joined the floor test's inert set
 where it always belonged.
+
+## 2026-09-02 addendum: the canon physics pass
+
+[`ground-truth.md`](ground-truth.md)'s mechanics had reached the score and
+the cells (the levitation pair's balance and its fill, the lens shrinking a
+blob, the region valve) but not the substrate, which still suspended every
+element the same way under a grip, let a spring squeeze a held ball to
+whatever size its stiffness dictated, and moved light, earth and crystal as
+three more plumes with different numbers. This pass carries four of the
+ground truth's mechanics into the substrate and re-argues four element rows
+from the panels, under the taste axes the volume ruling stands on. Nothing
+above `SpellIR` moved; the score gained one field.
+
+**The grip is the element's (section 6).** The pair's force balance holds
+what it can get purchase on, and section 6's own table says wind gives it
+none: "a ground-mounted wind-levitation ring is a fan". So `MOTION` carries
+a `grip` per row (fire, water, light, earth, crystal 1; wind 0; aeroform
+0.4, a body of created air the pair half holds), and three things read it,
+none of them a cell naming an element. The hover mouth births a streaming
+element on the disc under the locus and throws it up through it, instead of
+through the shell at rest. The gather contains a streaming element only
+across the axis, a tube rather than a sphere, and leaves its whole weight
+on it, so it washes through the pair and out over the top. And the hold
+cell's fill grows by the channel's `grip`, so a wind hold pumps for the
+whole cast, never closes, and never caps the column it is coupled to: the
+wind `column-levitation` stands taller at the end of the body than the
+water one the grip closes on. `cellsHold.test.ts` pins that, and
+`castVolume.test.ts` pins that wind in a hover flow streams (mean vertical
+speed over 0.8, clearing the shell) where water hangs.
+
+**Manifested magic occupies room, and focus makes it rigid (section 8).**
+Two population-wide mechanics now act on the turbulence stride at its
+compensating gain, reading the neighbourhood through one hashed grid rebuilt
+from the arrays each stride step ([`neighbourhood.ts`](../src/lib/cast/volume/neighbourhood.ts)),
+so both stay pure functions of the state. The excluded volume: airborne
+tracers of one channel push apart inside `EXCLUDED.radius` (0.085 seal
+units) at up to `strength` (1.8) for a full overlap, the push capped at twice
+that however dense the crowd. It is what section 8 asked for against "the
+waterball's slow squish": a held ball is now as big as its content, and the
+law test squeezes 120 and 1200 tracers onto a 0.05 shell with a hard gather
+and reads the 1200 standing a third wider. Focus packs against it by
+shrinking the radius (cube root of the lens) rather than removing it, which
+is section 8's "toward the incompressible limit". Rigidity: each airborne
+tracer's velocity relaxes toward its neighbours' mean at
+`RIGIDITY_PER_FOCUS` (4) per unit of lens above one, so a focused blob moves
+as one body; at focus 2.5 the local velocity scatter in a held ball halves.
+The plan's `focus` travels to the substrate as `SpellScore.focus` and
+`VolumeKey.focus`, because no single track owns it. Every lab preset has a
+lens of one, so the goldens carry none of the rigidity and the law test
+constructs it directly. A neighbour pushes with its fade rather than its
+presence, so a crown melting past the tear line or a short-fused strike
+parcel takes no room, and a thin wall is left to its pinch. The strength is
+deliberately low: at 3 the push spread the gripless rotor's dense disc, and
+1.8 keeps the ball law with margin. (The pinwheel's crown chips in the
+after captures are the vortex's own standing crown weakness under a new
+seed: its population digest reads the same to three decimals with the push
+on and off, and the same as at `HEAD`.)
+
+**Matter that stops sets, and matter that lands heaps.** The pool block
+grew two dials. `settleSpeed`: airborne matter slower than it, once clear of
+the mouth, sets where it stands, a third settled state (`FROZEN`) that
+neither spreads nor heaps nor feels the sink, and never melts. Only crystal
+sets it, and `castVolume.test.ts` pins that it stays the only row. `heap`:
+a landed tracer stands its row's thickness above the floor where the landed
+crowd is dense (`HEAP.crowd` neighbours inside `HEAP.radius`), so earth's
+mound has height (0.4) and water's puddle next to none (0.05). The mound
+gauge reads the landed earth standing a third of a unit up where the water
+lies flat.
+
+**A pull holds its cushion (section 7).** The kind's positive sink now acts
+on the settled mass too, at half strength: what an intake grasps stays a
+cushion gathered at the mouth (the pooled radius under a 1.5 sink is a
+quarter smaller than under none), and a whirl's foot gathers on its wall,
+instead of the puddle running out from under either. The grasp capacitor's
+transient itself is still the envelope's `leak`; this is the standing half
+of it.
+
+**Four rows re-argued from the panels.**
+
+- _Light_ was a plume of near-weightless washes and lingered through the
+  afterglow like smoke. Light radiates: it now leaves the mouth fast and
+  straight (rise 1.5–2.1, pinch 5, no gust, no swirl, a sixth of the old
+  stir), lives 0.45–0.8s so the shaft stands only while the seal feeds it,
+  and the skin's long smear turns the fast beads into the shaft. The beam
+  runs half fire's width and is gone within a second of the feed stopping,
+  which canon's light beam is. Brightness is still the pigment's, never a
+  bloom.
+- _Earth_ was a rubble fountain, five lobs of clods in dead air. Canon
+  manipulates ground (sand bridges, bent walls) and never throws it: the
+  launch is now a slow thick heave (rise 0.55–1.15 under gravity 5, four
+  wide lobes), the floor block piles harder and spreads less, and the heap
+  makes the persistent mound the afterglow dries out.
+- _Crystal_ was a rounded blue heap, the one row where facets were correct
+  wearing none. It is now grown: six fixed azimuths leaning out from the
+  mouth at a wide spread of speeds under a hard drag, each ray setting as it
+  stops, so the cast paints standing pillars fused at the base, jagged at
+  the top, that hold until the afterglow drains them. No pinch bends the
+  rays back onto a column and no weight bends them down.
+- _Wind_ and _aeroform_ melted their crowns too high and the gusts flung
+  the tips off as countable chunks. Both tear earlier and faster (wind from
+  0.8 of reach at rate 2.6, aeroform from 0.85 at 2.4) and stand a little
+  lower, so the crown thins to nothing inside the body.
+
+**The held ball.** Canon's pyreball is a ball the size of a hand over its
+page, not a bead: the hold's shell is 0.3 seal units (from 0.22), divided by
+the lens as section 8 composes the two (pyreball to floatglow lamp). Inside
+the grip the element's own turbulence now runs at full strength and at 2.5
+times finer a scale than its row's (`turbScaleMul`, a new flow field): at
+the row's scale a ball the size of one curl only sways, at a finer one its
+surface boils, and a held fire is still a fire. R-16's rotor keeps its old
+absolute size (`ROTOR.stance` 1.9 against the wider shell) and its old
+angular rate: the score's `spin` scales with the shell, because the bisect
+of the rotor's spreading found neither the push nor the gather but the
+slower pattern, which lets the arm herding over-drive the orbit until the
+disc reaches the ring and breaks into countable blobs. Its gripless gather
+is firmer for the same reason (`GRIPLESS` 0.3).
+
+**What moved.** Every cast text, because `focus` joined the score and the
+score signature seeds every cell, and every stage look baseline; the
+classic set is untouched. The step costs 0.25–0.8ms per cast in Node
+across all channels with the neighbourhood on the stride, inside the frame
+budget's margin. `castVolume.test.ts` gained seven laws (the grip, the
+excluded volume, rigidity, crystal's setting, earth's heap, the light beam,
+the pooled sink) and `cellsHold.test.ts` one (the fan); the `levitation`
+probe rows gained the hold's `purchase`.
+
+**Deliberately left.** Section 1's quality-multiplies-power stays an open
+canon question against the volume ruling's "quality buys form roughness and
+never magnitude"; nothing here touched it. The grasp capacitor's charge
+transient is still approximated by the envelope. Aeroform's 0.4 is a
+design choice, not a reading of a panel. And the excluded volume is global
+by law but sized against the thin walls, so a row that wants a denser body
+raises its own spawn, not the push.

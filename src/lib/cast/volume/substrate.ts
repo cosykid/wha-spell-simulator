@@ -20,16 +20,22 @@
 import { volumeElementFor, MOTION, SKIN, type VolumeElement } from './elements.js';
 import { blankFlow, type TrackFlow } from './flow.js';
 import { allocateSeats } from './pool.js';
-import { TracerPop, type TracerDigest, type TracerReading } from './tracers.js';
+import { TracerPop, type CastPhysics, type TracerDigest, type TracerReading } from './tracers.js';
 import { hashSeed } from '../rng.js';
 import type { ElementId, ScoreTrack } from '../../types.js';
 
-export type { TracerDigest, TracerReading };
+export type { CastPhysics, TracerDigest, TracerReading };
 
-/** What a cast paints from: the sigil that was drawn, and the element behind it. */
+/**
+ * What a cast paints from: the sigil that was drawn, the element behind it,
+ * and the one seal-wide scalar the substrate packs by. `focus` is R-13's lens
+ * as the plan resolved it (1 with no convergence ink); ground truth section 8
+ * makes it the rigidity of everything the seal emits.
+ */
 export interface VolumeKey {
 	sigil: string | null;
 	element: ElementId | null;
+	focus?: number;
 }
 
 /**
@@ -42,9 +48,24 @@ export class VolumeChannel {
 	/** Which track this seat belongs to, for the skin's own bookkeeping. */
 	readonly kind: ScoreTrack['kind'];
 
-	constructor(kind: ScoreTrack['kind'], element: VolumeElement, capacity: number, seed: number) {
+	constructor(
+		kind: ScoreTrack['kind'],
+		element: VolumeElement,
+		capacity: number,
+		seed: number,
+		physics: CastPhysics
+	) {
 		this.kind = kind;
-		this.tracers = new TracerPop(element, capacity, seed);
+		this.tracers = new TracerPop(element, capacity, seed, physics);
+	}
+
+	/**
+	 * What purchase a levitation pair gets on what this channel emits, 1 held
+	 * to 0 streaming through (ground truth section 6). The one per-element
+	 * fact a hold cell reads, and it reads it here rather than naming a row.
+	 */
+	get grip(): number {
+		return this.tracers.grip;
 	}
 
 	/** Tracer seats this channel owns. Fixed for the life of the cast. */
@@ -85,6 +106,7 @@ export class VolumeSubstrate {
 	constructor(tracks: readonly ScoreTrack[], key: VolumeKey, signature: string) {
 		this.element = volumeElementFor(key.sigil, key.element);
 		const seats = allocateSeats(tracks);
+		const physics: CastPhysics = { focus: Math.max(1, key.focus ?? 1) };
 		this.channels = tracks.map(
 			(track, index) =>
 				new VolumeChannel(
@@ -94,7 +116,8 @@ export class VolumeSubstrate {
 					// One stream per channel, seeded beside its cell's, so a population
 					// and the choreography driving it can never disagree about which
 					// cast this is.
-					hashSeed(`${signature}:tracers:${index}`)
+					hashSeed(`${signature}:tracers:${index}`),
+					physics
 				)
 		);
 	}

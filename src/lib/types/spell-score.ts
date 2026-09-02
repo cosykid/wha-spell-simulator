@@ -290,6 +290,12 @@ export interface SpellScore {
 	/** R-12. Always length 1 in v1. */
 	layers: ScoreLayer[];
 	notes: ScoreNote[];
+	/**
+	 * R-13's lens as the plan resolved it, 1 with no convergence ink. Carried
+	 * for the substrate: ground truth section 8 makes focus the rigidity and
+	 * packing of everything the seal emits, which no single track owns.
+	 */
+	focus: number;
 	/** Identical signature means identical cast. */
 	signature: string;
 }

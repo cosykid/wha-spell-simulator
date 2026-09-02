@@ -46,7 +46,10 @@ Node for the golden tier:
 - [`flow.ts`](flow.ts) — `TrackFlow`, the seven spawn mouths, and the pinch
   boundary with its standing lobes.
 - [`tracers.ts`](tracers.ts) — `TracerPop`: spawn, advection, ageing, the
-  crown melt, measurement and the quantized digest.
+  crown melt, the settled states, measurement and the quantized digest.
+- [`neighbourhood.ts`](neighbourhood.ts) — who crowds whom, rebuilt from the
+  arrays each stride step: the excluded volume's push, the local mean
+  velocity rigidity relaxes toward, and the landed crowd the heap reads.
 - [`pigment.ts`](pigment.ts) — the eight pigment ramps (JS and emitted GLSL),
   rim inks, the ink-skin rows and the ground-wash rows.
 - [`noise.ts`](noise.ts) — the hash, the value noise and the curl.
@@ -112,6 +115,35 @@ suspends its weight, and R-16's rotor is a flat disc, not a held pea.
 `castVolume.test.ts` pins that an armless swirl stays uniform, an armed one
 concentrates, and the pattern turns with the phase.
 
+**The grip is the element's.** Ground truth section 6 gives the levitation
+pair purchase on some elements and none on wind, so `MOTION` carries a
+`grip` per row and three things read it, none of them a cell naming an
+element: the hover mouth (a streaming element is born on the disc and thrown
+up through the locus), the gather (a streaming element is contained only
+across the axis, a tube, and keeps its weight), and the hold cell's fill,
+which reads `channel.grip`. A wind hold is a fan: it pumps, never closes and
+never caps its column. Only a hold's gather makes the substrate read it; the
+medium and the columns feel no grip.
+
+**Manifested magic occupies room, and focus makes it rigid.** Section 8's
+two population-wide mechanics run on the turbulence stride at its
+compensating gain, through `neighbourhood.ts`: airborne tracers of a channel
+push apart inside `EXCLUDED.radius` (so a held ball is as big as its content
+and cannot be squeezed to a point; focus shrinks the radius, never removes
+it), and each relaxes toward its neighbours' mean velocity at
+`RIGIDITY_PER_FOCUS` per unit of lens above one. The plan's `focus` reaches
+here as `VolumeKey.focus` because no track owns it. `EXCLUDED.strength` is
+sized against the thin walls: too strong and it sprays a vortex crown and
+breaks a gripless rotor into countable blobs, both chip-law failures. A row
+that wants a denser body raises its own spawn, not the push.
+
+**Three settled states.** Airborne, landed (`LANDED`: spreads, drags, heaps
+to its row's `heap` where the landed crowd is dense, feels the kind's sink at
+half strength so a pull keeps its cushion) and set (`FROZEN`: matter slower
+than its row's `settleSpeed` once clear of the mouth, which neither spreads
+nor heaps nor melts). Only crystal sets; `castVolume.test.ts` pins that it
+stays the only row, the way it pins the loner floor.
+
 **The heat axis is measured, not declared.** `heatBand` reads the vertical
 band the visible mass occupies, so a held ball is hot at its own base wherever
 it hovers and a column keeps its paper-to-crown axis. Do not replace it with
@@ -141,6 +173,9 @@ nothing to keep in sync by hand.
 - **A new spawn mouth:** a member on `SPAWN`, a case in `spawnAt`, and a cell
   that asks for it. If it needs a force the advection lacks, add the term to
   `TrackFlow` and `tracers.ts` — never a second integrator.
+- **A new per-element fact a cell needs:** a column in `MOTION`, read by the
+  substrate and published on `VolumeChannel` the way `grip` is. A cell may
+  read that scalar; it may never switch on the element behind it.
 - **A new gauge for the GPU half:** a method on `VolumeSubstrate` beside
   `groundMass`, reading tracer state only.
 - **Never from here:** the score, another channel, or the look table (data,

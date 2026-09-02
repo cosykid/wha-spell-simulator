@@ -107,6 +107,42 @@ export const AMBIENT = {
 	stretch: 1.4
 } as const;
 
+/**
+ * Excluded volume, ground truth section 8's global mechanic: manifested magic
+ * occupies room. Airborne tracers of one channel push apart inside `radius`
+ * seal units, at up to `strength` seal units per second squared for a full
+ * overlap and never past `cap` times that however dense the crowd, on the
+ * turbulence stride at its compensating gain. A held ball keeps the size its
+ * content dictates instead of being squeezed to a point by its own spring, and
+ * focus packs against this floor by shrinking the radius rather than removing
+ * it. `cell` is the neighbourhood hash's bucket size and has to cover both
+ * this radius and the heap's.
+ */
+export const EXCLUDED = {
+	radius: 0.085,
+	strength: 1.8,
+	cap: 2,
+	cell: 0.17
+} as const;
+
+/**
+ * How settled mass heaps: a landed tracer stands its row's `heap` thickness
+ * above the floor once it has `crowd` settled neighbours within `radius`. A
+ * mound has height; a puddle has next to none.
+ */
+export const HEAP = {
+	radius: 0.17,
+	crowd: 20
+} as const;
+
+/**
+ * Rigidity per unit of lens above one (ground truth section 8): focused magic
+ * "packs tightly together and becomes somewhat rigid", so a tracer's velocity
+ * relaxes toward its neighbourhood's mean at this rate per second and the
+ * blob moves as one body instead of a swarm. Zero with no convergence ink.
+ */
+export const RIGIDITY_PER_FOCUS = 4;
+
 /** The ground wash: how tracer mass near the paper converts to paper contact. */
 export const WASH_GAUGE = {
 	/** Seal units above the paper that still count as touching it. */
