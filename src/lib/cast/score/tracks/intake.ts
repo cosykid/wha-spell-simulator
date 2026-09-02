@@ -22,7 +22,7 @@
 import { aboveFloor, NEGLIGIBLE_INK, saturate } from './gain.js';
 import type { SpellPlan, Track, Vector } from '../../../types.js';
 
-const INTAKE_TUNING = {
+export const INTAKE_TUNING = {
 	/** Draw and swirl magnitudes at which each channel reads half as strong as it can get. */
 	halfDraw: 5,
 	halfSwirl: 6,

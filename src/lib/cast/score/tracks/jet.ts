@@ -15,7 +15,7 @@ import { isPresent, magnitude3, normalize3, SEAL_UP } from '../../vec3.js';
 import { clamp } from '../../../utils/geometry.js';
 import type { Population, Site, SpellPlan, Track, Vec3 } from '../../../types.js';
 
-const JET_TUNING = {
+export const JET_TUNING = {
 	/** Aim magnitude at which a jet reads half as strong as it can get. */
 	halfAim: 4,
 	/** Parcels per second at full strength. */

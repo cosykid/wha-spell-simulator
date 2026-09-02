@@ -19,7 +19,7 @@ import { aboveFloor, saturate } from './gain.js';
 import { clamp } from '../../../utils/geometry.js';
 import type { Population, SpellPlan, Track, Vector } from '../../../types.js';
 
-const HOLD_TUNING = {
+export const HOLD_TUNING = {
 	/** Grip magnitude at which the spring reads half as strong as it can get. */
 	halfGrip: 8,
 	/** Rest height in ink units at which the locus sits half way up its range. */

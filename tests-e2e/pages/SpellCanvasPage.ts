@@ -83,6 +83,11 @@ export class SpellCanvasPage {
 		return this.page.getByTestId('effect-style-toggle');
 	}
 
+	/** The control that mutes the cast. Pressed means silent. */
+	get soundToggle(): Locator {
+		return this.page.getByTestId('sound-toggle');
+	}
+
 	get canvasShell(): Locator {
 		return this.page.getByTestId('canvas-shell');
 	}

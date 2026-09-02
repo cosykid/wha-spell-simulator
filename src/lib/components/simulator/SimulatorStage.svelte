@@ -22,6 +22,7 @@ and the drawers each live one named click away.
 	import ReferenceTabs from './ReferenceTabs.svelte';
 	import SaveSpellDialog from './SaveSpellDialog.svelte';
 	import SimulatorCanvasPanel from './SimulatorCanvasPanel.svelte';
+	import SoundToggle from './SoundToggle.svelte';
 	import StatusReadout from './StatusReadout.svelte';
 	import ToolDock from './ToolDock.svelte';
 	import { hasPendingCast } from '$lib/ui/spells/castHandoff.js';
@@ -110,9 +111,11 @@ and the drawers each live one named click away.
 	<div class="chrome chrome-bc"><StatusReadout {simulator} /></div>
 
 	<div class="chrome chrome-br">
+		<SoundToggle {simulator} />
 		<EffectStyleToggle {simulator} />
-		<!-- Which engine performs a cast is a kept preference, not view transport
-		     like the three that follow, so a standing taper parts them. -->
+		<!-- Whether a cast is heard and which engine performs it are kept
+		     preferences, not view transport like the three that follow, so a
+		     standing taper parts them. -->
 		<ChromeRule direction="down" />
 		<!-- Always rendered, disabled at home: appearing only once you pan would
 		     slide the zoom buttons sideways underneath the pointer. -->

@@ -19,6 +19,8 @@ interface TogglePreferences {
 	effectStyle: EffectStyle;
 	/** Whether the first-spell guide has been offered and answered on this device. */
 	firstSpellGuideSeen: boolean;
+	/** Whether a cast is heard. Per-device, like the style it plays beside. */
+	soundEnabled: boolean;
 }
 
 /**
@@ -45,13 +47,15 @@ export function saveSimulatorPreferences({
 	showDiagnostics,
 	activeTool,
 	effectStyle,
-	firstSpellGuideSeen
+	firstSpellGuideSeen,
+	soundEnabled
 }: {
 	showGuides: boolean;
 	showDiagnostics: boolean;
 	activeTool: CanvasTool;
 	effectStyle: EffectStyle;
 	firstSpellGuideSeen: boolean;
+	soundEnabled: boolean;
 }) {
 	try {
 		localStorage.setItem(
@@ -61,7 +65,8 @@ export function saveSimulatorPreferences({
 				showDiagnostics,
 				arrangeShapes: activeTool === 'arrange',
 				effectStyle,
-				firstSpellGuideSeen
+				firstSpellGuideSeen,
+				soundEnabled
 			})
 		);
 	} catch {

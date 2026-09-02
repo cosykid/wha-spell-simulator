@@ -1,5 +1,6 @@
 import type { CastEngine } from '$lib/cast/engine.js';
 import { createCastEngine } from '$lib/cast/selectEngine.js';
+import { CastSound } from '$lib/cast/sound/castSound.js';
 import { castReadbackRequested } from '$lib/cast/stage/readback.js';
 import { CONFIG } from '$lib/config.js';
 import type { EffectStyle } from '$lib/structures/effectStyle.js';
@@ -66,9 +67,12 @@ export class SimulatorRuntime {
 	readonly #canvasBehavior: CanvasBehavior;
 	readonly #placementBehavior: CanvasBehavior & { setActive(active: boolean): void };
 	readonly #glyphScene: Scene;
+	/** The cast heard. Style-independent, so it outlives every engine swap below. */
+	readonly #sound: CastSound;
 
 	constructor(options: SimulatorRuntimeOptions) {
 		this.#options = options;
+		this.#sound = new CastSound({ enabled: () => options.ui.soundEnabled });
 		this.#glyphScene = createSimulatorGlyphScene({
 			config: CONFIG,
 			drawing: options.drawing,
@@ -148,6 +152,7 @@ export class SimulatorRuntime {
 		this.#setupKeyboardShortcuts();
 		const stopWatchingCanvasTransforms = this.#watchCanvasTransforms();
 		const stopWheelGestures = this.#watchWheelGestures();
+		const stopSound = this.#sound.mount();
 
 		const dictionaryLoad = { cancelled: false };
 		void this.#loadDictionary(dictionaryLoad);
@@ -164,6 +169,7 @@ export class SimulatorRuntime {
 			this.#sizing?.stop();
 			stopWatchingCanvasTransforms();
 			stopWheelGestures();
+			stopSound();
 			if (this.#keyboardHandler) {
 				window.removeEventListener('keydown', this.#keyboardHandler);
 			}
@@ -237,6 +243,9 @@ export class SimulatorRuntime {
 		this.#castEngine.render(recognition.spellIR, recognition.ring, timestamp, {
 			portalFit: ui.portalFit
 		});
+		// Heard beside whichever engine drew it: the sound follows the same clock
+		// and the same `isCasting` gate, and neither engine knows it exists.
+		this.#sound.render(recognition.spellIR, recognition.ring, timestamp);
 	};
 
 	#emitMountedDebugEvent() {
@@ -475,7 +484,8 @@ export class SimulatorRuntime {
 			copySelected: actions.copySelected,
 			paste: actions.paste,
 			undo: actions.undo,
-			redo: actions.redo
+			redo: actions.redo,
+			toggleSound: ui.toggleSound
 		});
 		window.addEventListener('keydown', this.#keyboardHandler);
 	}

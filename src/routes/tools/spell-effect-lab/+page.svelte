@@ -45,6 +45,9 @@
 	const requestedStyle = effectStyleFromSearch(page.url.search);
 
 	let effectStyle = $state(requestedStyle ?? DEFAULT_EFFECT_STYLE);
+	// Heard on the live loop only, and read by the preview every frame. Follows
+	// the simulator's own mute so a caster who silenced the paper stays silent here.
+	let soundEnabled = $state(true);
 	// The sigil and preset honour the same precedence on the live clock, so a
 	// deep link (or a capture rig) lands on the cast it names without the
 	// scripted golden-frame clock.
@@ -124,9 +127,11 @@
 	}
 
 	onMount(() => {
+		const preferences = loadSimulatorPreferences();
 		if (!requestedStyle) {
-			effectStyle = effectStyleFrom(loadSimulatorPreferences().effectStyle);
+			effectStyle = effectStyleFrom(preferences.effectStyle);
 		}
+		soundEnabled = preferences.soundEnabled ?? true;
 	});
 
 	// Not `onMount`: switching style destroys the effect canvas and mounts another,
@@ -158,7 +163,7 @@
 					reading,
 					presetSigns: preset.signs
 				}),
-				{ preserveFrames, effectStyle: style }
+				{ preserveFrames, effectStyle: style, soundEnabled: () => soundEnabled }
 			);
 			if (goldenFrame) {
 				preview.renderGoldenFrame(goldenFrame.frameMs);
@@ -211,6 +216,10 @@
 			>
 				Reset Particles
 			</button>
+			<label class="toggle" title="Hear the cast on the live preview">
+				<input type="checkbox" bind:checked={soundEnabled} data-testid="lab-sound-toggle" />
+				<span>Sound</span>
+			</label>
 		</div>
 		<div class="canvas-shell effect-lab-canvas-shell portal-active" bind:this={canvasShell}>
 			<canvas
