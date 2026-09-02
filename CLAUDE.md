@@ -59,6 +59,7 @@ pipeline, in order:
   - [`src/lib/cast/volume/`](src/lib/cast/volume/CLAUDE.md) — the substrate the cells perform on: per-element tracer physics, the marching-cubes ink skin, the ground wash, the charge ambient
   - [`src/lib/cast/stage/`](src/lib/cast/stage/CLAUDE.md) — the three.js stage: the portal-true camera, the fixed step, the WebGL surface
   - [`src/lib/cast/classic/`](src/lib/cast/classic/CLAUDE.md) — the frozen Canvas2D engine restored from `b439a01`, behind the same seam
+  - [`src/lib/cast/sound/`](src/lib/cast/sound/CLAUDE.md) — the cast heard: the score performed as synthesized audio beside either engine
 
 Around it:
 

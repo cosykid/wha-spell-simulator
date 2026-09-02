@@ -31,6 +31,8 @@ export class SimulatorUiState {
 	showDiagnostics = $state(false);
 	/** Which engine performs a cast. Read at the canvas, never per spell. */
 	effectStyle = $state<EffectStyle>(DEFAULT_EFFECT_STYLE);
+	/** Whether a cast is heard. On by default, and muting never stops a cast from being scheduled. */
+	soundEnabled = $state(true);
 	/** Whether pointer input has been enabled after dictionary loading. */
 	inputReady = $state(false);
 	/** Active reference-drawer tab. */
@@ -91,7 +93,7 @@ export class SimulatorUiState {
 		});
 	}
 
-	/** Loads persisted guide, diagnostics, effect-style, arrange-mode, and first-spell preferences. */
+	/** Loads persisted guide, diagnostics, effect-style, sound, arrange-mode, and first-spell preferences. */
 	loadPreferences() {
 		const preferences = loadSimulatorPreferences();
 		if (typeof preferences.showGuides === 'boolean') {
@@ -106,6 +108,9 @@ export class SimulatorUiState {
 		if (preferences.firstSpellGuideSeen === true) {
 			this.firstSpellGuideSeen = true;
 		}
+		if (typeof preferences.soundEnabled === 'boolean') {
+			this.soundEnabled = preferences.soundEnabled;
+		}
 		// A union has no `typeof` guard, so the narrowing helper is the validation
 		// and it already returns the default for a missing or unknown value.
 		this.effectStyle = effectStyleFrom(preferences.effectStyle);
@@ -115,6 +120,11 @@ export class SimulatorUiState {
 	/** Swaps the engine the canvas performs a cast with. */
 	setEffectStyle = (style: EffectStyle) => {
 		this.effectStyle = style;
+	};
+
+	/** Mutes or unmutes the cast. Lands mid-performance, because the sound reads it every frame. */
+	toggleSound = () => {
+		this.soundEnabled = !this.soundEnabled;
 	};
 
 	/** Sets canvas zoom, clamped to the configured bounds. */
@@ -208,7 +218,8 @@ export class SimulatorUiState {
 			showDiagnostics: this.showDiagnostics,
 			activeTool: this.activeTool,
 			effectStyle: this.effectStyle,
-			firstSpellGuideSeen: this.firstSpellGuideSeen
+			firstSpellGuideSeen: this.firstSpellGuideSeen,
+			soundEnabled: this.soundEnabled
 		});
 	}
 }

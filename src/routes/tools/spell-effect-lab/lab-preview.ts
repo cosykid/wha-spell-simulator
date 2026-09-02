@@ -8,6 +8,7 @@ import { renderPaper } from '$canvas/entities/paperEntity.js';
 import { drawGuides } from '$canvas/guideRenderer.js';
 import type { CastEngine } from '$lib/cast/engine.js';
 import { createCastEngine } from '$lib/cast/selectEngine.js';
+import { CastSound } from '$lib/cast/sound/castSound.js';
 import { DEFAULT_EFFECT_STYLE, type EffectStyle } from '$lib/structures/effectStyle.js';
 import { GOLDEN_FRAME_ATTRIBUTE, GOLDEN_FRAME_STEP_MS } from './lab-goldens.js';
 
@@ -32,6 +33,8 @@ export interface LabPreviewOptions {
 	preserveFrames?: boolean;
 	/** Which engine performs the cast. Defaults to the app's default style. */
 	effectStyle?: EffectStyle;
+	/** Whether the live preview is heard. Read every frame, so a toggle lands mid-cast. Defaults to silent. */
+	soundEnabled?: () => boolean;
 }
 
 /**
@@ -47,6 +50,8 @@ export class LabPreview {
 	readonly #getState: () => LabState;
 	readonly #glyphCtx: CanvasRenderingContext2D;
 	readonly #engine: CastEngine;
+	/** Heard on the live loop only. A scripted golden frame is a picture, and pictures are silent. */
+	readonly #sound: CastSound;
 	#rafId: number | null = null;
 
 	constructor(
@@ -64,15 +69,18 @@ export class LabPreview {
 		this.#engine = createCastEngine(effectCanvas, options.effectStyle ?? DEFAULT_EFFECT_STYLE, {
 			preserveDrawingBuffer: options.preserveFrames
 		});
+		this.#sound = new CastSound({ enabled: options.soundEnabled ?? (() => false) });
 	}
 
 	/** Begin the animation loop; returns a teardown that cancels the pending frame and disposes the engine. */
 	start(): () => void {
+		const stopSound = this.#sound.mount();
 		this.#rafId = requestAnimationFrame((timestamp) => this.#frame(timestamp));
 		return () => {
 			if (this.#rafId) cancelAnimationFrame(this.#rafId);
 			this.#rafId = null;
 			this.#engine.dispose();
+			stopSound();
 		};
 	}
 
@@ -102,6 +110,7 @@ export class LabPreview {
 	/** Drop the cast in flight so the next frame restarts the effect cleanly. */
 	resetCast(): void {
 		this.#engine.reset();
+		this.#sound.reset();
 	}
 
 	#buildRing(values: Record<string, number>): RingInfo {
@@ -248,10 +257,12 @@ export class LabPreview {
 	}
 
 	#frame(timestamp: number) {
-		this.#renderAt(timestamp);
+		const { spellIR, ring } = this.#renderAt(timestamp);
+		this.#sound.render(spellIR, ring, timestamp);
 		this.#rafId = requestAnimationFrame((next) => this.#frame(next));
 	}
 
+	/** Draws one frame and hands back what it drew, so the live loop can play it too. */
 	#renderAt(timestamp: number) {
 		this.#resizeCanvases();
 		const state = this.#getState();
@@ -266,5 +277,6 @@ export class LabPreview {
 		});
 		this.#drawSyntheticGlyph(ring, timestamp, state);
 		this.#engine.render(spellIR, ring, timestamp);
+		return { spellIR, ring };
 	}
 }

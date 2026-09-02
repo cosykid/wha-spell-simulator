@@ -47,6 +47,9 @@ the ring radius, x right, y screen-down, z out of the paper (spec R-03).
 - `looks/` — [`look.ts`](looks/look.ts) the contract,
   [`table.ts`](looks/table.ts) `LOOKS` and resolution, one file per row
   (`fire`, `water`, `wind`, `earth`, `light`, `crystal`, `aeroform`, `inert`).
+- [`sound/`](sound/CLAUDE.md) — the cast heard: the same score performed as
+  synthesized audio, one voice row per substance, beside the engines and
+  independent of both.
 - [`vec3.ts`](vec3.ts) — the seal-space vector math the score and cells run on.
   `utils/geometry.ts` owns the in-plane `Vector` helpers.
 

@@ -11,7 +11,7 @@
 import { aboveFloor, NEGLIGIBLE_INK, saturate } from './gain.js';
 import type { Population, Site, SpellPlan, Track } from '../../../types.js';
 
-const FAN_TUNING = {
+export const FAN_TUNING = {
 	/** Dispersion magnitude at which a fan reads half as strong as it can get. */
 	halfDispersion: 4,
 	/** The vessel's stir gets its own half-way point. */

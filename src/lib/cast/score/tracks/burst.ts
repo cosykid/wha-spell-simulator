@@ -11,7 +11,7 @@
 import { aboveFloor, saturate } from './gain.js';
 import type { Population, SpellPlan, Track } from '../../../types.js';
 
-const BURST_TUNING = {
+export const BURST_TUNING = {
 	/** Budget at which the ring reads half as bright as it can get. */
 	halfBudget: 6,
 	/** Parcels per second at the peak of the strike. */

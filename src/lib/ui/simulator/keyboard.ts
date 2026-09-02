@@ -13,6 +13,9 @@ const TOOL_SHORTCUTS: Record<string, CanvasMode> = {
 	h: 'pan'
 };
 
+/** M mutes and unmutes the cast, the way players and video apps spell it. */
+const MUTE_SHORTCUT = 'm';
+
 const ARROW_DIRECTIONS: Record<string, Vector> = {
 	ArrowLeft: { x: -1, y: 0 },
 	ArrowRight: { x: 1, y: 0 },
@@ -65,6 +68,8 @@ interface SimulatorKeyboardOptions {
 	undo: () => void;
 	/** Runs redo. */
 	redo: () => void;
+	/** Mutes or unmutes the cast. */
+	toggleSound: () => void;
 }
 
 /**
@@ -138,6 +143,11 @@ export function createSimulatorKeyboardHandler(options: SimulatorKeyboardOptions
 			if (tool) {
 				event.preventDefault();
 				options.selectTool(tool);
+				return;
+			}
+			if (key === MUTE_SHORTCUT) {
+				event.preventDefault();
+				options.toggleSound();
 				return;
 			}
 		}

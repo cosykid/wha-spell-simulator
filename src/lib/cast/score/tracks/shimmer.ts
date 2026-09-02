@@ -18,7 +18,7 @@
 import { clamp } from '../../../utils/geometry.js';
 import type { SpellPlan, Track } from '../../../types.js';
 
-const SHIMMER_TUNING = {
+export const SHIMMER_TUNING = {
 	/**
 	 * Parcels per second at the top of the charge. Low on purpose: the medium is
 	 * thin, and the spell's own manifestation has to out-read it the moment it

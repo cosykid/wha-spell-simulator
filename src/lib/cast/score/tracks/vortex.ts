@@ -16,7 +16,7 @@
 import { aboveFloor, saturate } from './gain.js';
 import type { Population, SpellPlan, Track } from '../../../types.js';
 
-const VORTEX_TUNING = {
+export const VORTEX_TUNING = {
 	/**
 	 * Circulation below this is drawing noise, not a pinwheel. Sized against the
 	 * lab corpus, whose smallest deliberate arrangement folds several ink units.
