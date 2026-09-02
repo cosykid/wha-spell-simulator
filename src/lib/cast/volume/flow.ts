@@ -82,6 +82,12 @@ export interface TrackFlow {
 	/** Multipliers on the element's pinch and turbulence, so a kind can soften them. */
 	pinchMul: number;
 	turbMul: number;
+	/**
+	 * Multiplier on the turbulence's spatial scale. A ball churns at its own
+	 * scale, finer than a column's: at the row's scale the whole ball feels one
+	 * curl and only sways, at a finer one its surface boils.
+	 */
+	turbScaleMul: number;
 	/** Multiplier on the element's gust sway. A hold quiets it like it quiets weight. */
 	gustMul: number;
 	/**
@@ -138,6 +144,7 @@ export function blankFlow(): TrackFlow {
 		driftY: 0,
 		pinchMul: 1,
 		turbMul: 1,
+		turbScaleMul: 1,
 		gustMul: 1,
 		weightMul: 1,
 		narrow: 0.62,
@@ -351,6 +358,11 @@ export function spawnAt(
 			// below alike, nearly at rest. The gather does the keeping. Arms sort
 			// birth azimuth so a turning ball shows its turn, and the squash
 			// flattens the shell into R-16's rotor disc.
+			//
+			// Whether the pair can hold the element at all is the element's own
+			// property (ground truth section 6): a streaming element is born on
+			// the disc under the locus instead and thrown up through it, so the
+			// pair pumps it as a wash rather than keeping it as a ball.
 			let a: number;
 			if (flow.arms > 0) {
 				const width = (Math.PI * 2) / flow.arms;
@@ -358,6 +370,17 @@ export function spawnAt(
 				a = flow.armPhase + arm * width + (rng() - 0.5) * width * 0.7;
 			} else {
 				a = rng() * Math.PI * 2;
+			}
+			if (rng() >= spec.grip) {
+				const r = Math.max(0.05, flow.holdRadius) * 1.1 * Math.sqrt(rng());
+				out.x = flow.originX + Math.cos(a) * r;
+				out.y = flow.originY + Math.sin(a) * r;
+				out.z = 0.02 + 0.05 * rng();
+				const rise = flow.speed * (spec.riseLo + rng() * (spec.riseHi - spec.riseLo));
+				out.vx = (rng() - 0.5) * 0.15;
+				out.vy = (rng() - 0.5) * 0.15;
+				out.vz = rise;
+				return;
 			}
 			const cosb = (2 * rng() - 1) * (1 - flow.squash);
 			const sinb = Math.sqrt(Math.max(0, 1 - cosb * cosb));

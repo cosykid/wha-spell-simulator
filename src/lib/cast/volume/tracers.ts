@@ -7,16 +7,38 @@
  * Seal space: x/y in the paper plane, z up off it, one unit = the ring radius.
  * The step is the stage's own 120Hz product clock, so fresh-to-t and
  * incremental stepping reach bit-identical arrays.
+ *
+ * Two of ground truth section 8's population-wide mechanics act here beside
+ * the per-tracer forces, both on the turbulence stride: the excluded volume
+ * (manifested magic occupies room, so a crowd pushes back and a held ball
+ * keeps the size its content dictates) and rigidity (focused magic relaxes
+ * toward its neighbourhood's mean velocity and moves as one body). Who crowds
+ * whom is `neighbourhood.ts`'s job, rebuilt from these arrays each stride step.
  */
 
 import { MOTION, type MotionSpec, type VolumeElement } from './elements.js';
 import { boundaryAt, spawnAt, type SpawnSite, type TrackFlow } from './flow.js';
+import { FROZEN, LANDED, Neighbourhood } from './neighbourhood.js';
 import { curl, smooth01 } from './noise.js';
-import { STEP_S, TURBULENCE_STRIDE, WASH_GAUGE } from './tuning.js';
+import { HEAP, RIGIDITY_PER_FOCUS, STEP_S, TURBULENCE_STRIDE, WASH_GAUGE } from './tuning.js';
 import { mulberry32 } from '../rng.js';
 
 const scratch = { x: 0, y: 0, z: 0 };
 const site: SpawnSite = { x: 0, y: 0, z: 0, vx: 0, vy: 0, vz: 0, life: 1 };
+
+/** Matter this young may not set: it has to leave the mouth first. */
+const SETTLE_AFTER_S = 0.2;
+
+/** How fast a landed tracer rises onto its heap, per second. */
+const HEAP_RATE = 5;
+
+/** What the cast's seal does to every tracer of it, whatever the kind or element. */
+export interface CastPhysics {
+	/** The plan's lens factor, 1 with no convergence ink (R-13, ground truth section 8). */
+	focus: number;
+}
+
+export const UNFOCUSED: CastPhysics = { focus: 1 };
 
 /** What a channel's mass measures out to. The golden tier reads this and no more. */
 export interface TracerReading {
@@ -53,16 +75,24 @@ export class TracerPop {
 	readonly #life: Float32Array;
 	readonly #spec: MotionSpec;
 	readonly #seed: number;
+	readonly #focus: number;
+	readonly #hood: Neighbourhood;
 	#rng: () => number;
 	#carry = 0;
 	#live = 0;
 	#born = 0;
 	#pooledCount = 0;
 
-	constructor(element: VolumeElement, capacity: number, seed: number) {
+	constructor(
+		element: VolumeElement,
+		capacity: number,
+		seed: number,
+		physics: CastPhysics = UNFOCUSED
+	) {
 		this.#spec = MOTION[element];
 		this.capacity = capacity;
 		this.#seed = seed;
+		this.#focus = Math.max(1, physics.focus);
 		this.#rng = mulberry32(seed);
 		this.pos = new Float32Array(capacity * 3);
 		this.vel = new Float32Array(capacity * 3);
@@ -71,6 +101,7 @@ export class TracerPop {
 		this.pooled = new Uint8Array(capacity);
 		this.#age = new Float32Array(capacity);
 		this.#life = new Float32Array(capacity);
+		this.#hood = new Neighbourhood(capacity);
 	}
 
 	get live(): number {
@@ -81,7 +112,7 @@ export class TracerPop {
 		return this.#born;
 	}
 
-	/** Fraction of the live population sitting settled on the paper. */
+	/** Fraction of the live population settled, on the paper or set in the air. */
 	get pooledFraction(): number {
 		return this.#live === 0 ? 0 : this.#pooledCount / this.#live;
 	}
@@ -100,10 +131,16 @@ export class TracerPop {
 		return mass;
 	}
 
+	/** What purchase a levitation pair gets on this element (ground truth section 6). */
+	get grip(): number {
+		return this.#spec.grip;
+	}
+
 	reset(): void {
 		this.alive.fill(0);
 		this.pooled.fill(0);
 		this.fade.fill(0);
+		this.#hood.clear();
 		this.#carry = 0;
 		this.#live = 0;
 		this.#born = 0;
@@ -118,12 +155,24 @@ export class TracerPop {
 		const t = tMs / 1000;
 		// The turbulence impulse lands on one step in three at three times the
 		// gain, so the time average is unchanged and curl is a third of the cost.
+		// The neighbourhood rides the same stride at the same gain.
 		const stepIndex = Math.round(tMs / (STEP_S * 1000));
-		const turbGain = stepIndex % TURBULENCE_STRIDE === 0 ? TURBULENCE_STRIDE : 0;
+		const strided = stepIndex % TURBULENCE_STRIDE === 0;
+		const turbGain = strided ? TURBULENCE_STRIDE : 0;
 		this.#spawn(flow, tMs);
+		if (strided) {
+			this.#hood.refresh(this.pos, this.vel, this.fade, this.alive, this.pooled, this.#focus);
+		}
 
 		const reach = Math.max(0.05, flow.reach);
 		const pool = spec.pool;
+		// The levitation pair only acts where a gather is (ground truth section
+		// 6), and what it can take is the element's own grip: a streaming element
+		// keeps its whole weight there and is contained only across the axis, so
+		// it washes through the grip instead of hanging in it.
+		const grip = flow.gather > 0 ? spec.grip : 1;
+		const weightMul = flow.weightMul + (1 - flow.weightMul) * (1 - grip);
+		const rigidity = RIGIDITY_PER_FOCUS * (this.#focus - 1);
 		let live = 0;
 		let pooledCount = 0;
 		for (let i = 0; i < this.capacity; i += 1) {
@@ -150,24 +199,38 @@ export class TracerPop {
 			const outx = radius > 1e-4 ? rx / radius : 0;
 			const outy = radius > 1e-4 ? ry / radius : 0;
 
-			if (this.pooled[i]) {
+			if (this.pooled[i] === FROZEN) {
+				// Lattice. Nothing moves it until the afterglow drains it.
+				vx = 0;
+				vy = 0;
+				vz = 0;
+			} else if (this.pooled[i]) {
 				// The settled mass: water's puddle spreads, earth's mound holds.
 				// The spread runs out at the pool's edge, or a long fed cast
 				// grows its puddle to the grid walls and the skin clips it flat.
 				const room = smooth01((pool!.edge - radius) / 0.35);
 				vx += outx * pool!.spread * room * dt;
 				vy += outy * pool!.spread * room * dt;
+				// The kind's inward sink holds the settled mass too, at half
+				// strength: what a pull grasps stays a cushion at its mouth and
+				// a whirl's foot gathers on its wall (section 7), instead of the
+				// puddle running out from under either.
+				if (flow.sink > 0) {
+					const toRing = flow.pool - radius;
+					vx += outx * flow.sink * 0.5 * toRing * dt;
+					vy += outy * flow.sink * 0.5 * toRing * dt;
+				}
 				const keep = Math.exp(-pool!.dragXY * dt);
 				vx *= keep;
 				vy *= keep;
 				vz = 0;
 			} else {
 				// The element's own physics.
-				const lift = spec.buoyancy * flow.weightMul * Math.pow(heat, 1.15) * dt;
+				const lift = spec.buoyancy * weightMul * Math.pow(heat, 1.15) * dt;
 				vx += flow.axisX * lift;
 				vy += flow.axisY * lift;
 				vz += flow.axisZ * lift;
-				vz -= spec.gravity * flow.weightMul * dt;
+				vz -= spec.gravity * weightMul * dt;
 				const pinch = spec.pinch * flow.pinchMul;
 				if (pinch > 0) {
 					const boundary = boundaryAt(flow, px, py, hn, t);
@@ -178,7 +241,8 @@ export class TracerPop {
 					}
 				}
 				if (turbGain > 0) {
-					curl(px * spec.turbScale, py * spec.turbScale, pz * spec.turbScale - t * 0.7, scratch);
+					const scale = spec.turbScale * flow.turbScaleMul;
+					curl(px * scale, py * scale, pz * scale - t * 0.7, scratch);
 					const gain =
 						spec.turbulence *
 						flow.turbMul *
@@ -219,13 +283,27 @@ export class TracerPop {
 					vy += outy * -flow.sink * dt;
 				}
 				if (flow.gather > 0) {
-					const dist = Math.hypot(ox, oy, oz);
-					const past = dist - flow.holdRadius;
-					if (past > 0 && dist > 1e-4) {
-						const pull = (flow.gather * past * dt) / dist;
-						vx -= ox * pull;
-						vy -= oy * pull;
-						vz -= oz * pull;
+					// Section 6's grip is the element's. A gripped element is drawn
+					// back onto the locus from every side; a streaming one only
+					// onto the axis, so it passes through the pair as a wash.
+					if (grip > 0) {
+						const dist = Math.hypot(ox, oy, oz);
+						const past = dist - flow.holdRadius;
+						if (past > 0 && dist > 1e-4) {
+							const pull = (grip * flow.gather * past * dt) / dist;
+							vx -= ox * pull;
+							vy -= oy * pull;
+							vz -= oz * pull;
+						}
+					}
+					if (grip < 1) {
+						const across = Math.hypot(ox, oy);
+						const wide = across - flow.holdRadius;
+						if (wide > 0 && across > 1e-4) {
+							const pull = ((1 - grip) * flow.gather * wide * dt) / across;
+							vx -= ox * pull;
+							vy -= oy * pull;
+						}
 					}
 				}
 				if (flow.ceiling > 0 && pz > flow.ceiling) {
@@ -233,6 +311,20 @@ export class TracerPop {
 				}
 				vx += flow.driftX * dt;
 				vy += flow.driftY * dt;
+				if (strided) {
+					// Section 8: the crowd's push back, and the rigidity of focused
+					// magic, which pulls each tracer toward its neighbours' motion.
+					const hood = this.#hood;
+					vx += hood.push[i * 3] * turbGain * dt;
+					vy += hood.push[i * 3 + 1] * turbGain * dt;
+					vz += hood.push[i * 3 + 2] * turbGain * dt;
+					if (rigidity > 0 && hood.crowd[i] > 0) {
+						const k = Math.min(1, rigidity * turbGain * dt);
+						vx += (hood.mean[i * 3] - vx) * k;
+						vy += (hood.mean[i * 3 + 1] - vy) * k;
+						vz += (hood.mean[i * 3 + 2] - vz) * k;
+					}
+				}
 				const keep = Math.exp(-spec.drag * dt);
 				vx *= keep;
 				vy *= keep;
@@ -249,9 +341,30 @@ export class TracerPop {
 				nz = pool.floorZ;
 				vz = -vz * pool.bounce;
 				if (vz < 0.16) {
-					this.pooled[i] = 1;
+					this.pooled[i] = LANDED;
 					vz = 0;
 				}
+			}
+			// Where growth stops it sets: matter slower than its row's settle
+			// speed, once clear of the mouth, is lattice from here on.
+			if (
+				pool &&
+				!this.pooled[i] &&
+				pool.settleSpeed > 0 &&
+				this.#age[i] > SETTLE_AFTER_S &&
+				vx * vx + vy * vy + vz * vz < pool.settleSpeed * pool.settleSpeed
+			) {
+				this.pooled[i] = FROZEN;
+				vx = 0;
+				vy = 0;
+				vz = 0;
+			}
+			// The heap: a landed tracer stands its row's thickness above the
+			// floor where the settled crowd is dense, so a mound has height and
+			// a puddle has next to none.
+			if (this.pooled[i] === LANDED && pool!.heap > 0) {
+				const target = pool!.floorZ + pool!.heap * Math.min(1, this.#hood.crowd[i] / HEAP.crowd);
+				nz += (target - nz) * Math.min(1, HEAP_RATE * dt);
 			}
 
 			let ageRate = 1;
@@ -322,6 +435,7 @@ export class TracerPop {
 			this.vel[i * 3 + 1] = site.vy;
 			this.vel[i * 3 + 2] = site.vz;
 			this.fade[i] = 0;
+			this.#hood.forget(i);
 			this.#born += 1;
 		}
 	}

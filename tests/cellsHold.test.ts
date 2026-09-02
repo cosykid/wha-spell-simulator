@@ -206,3 +206,26 @@ test('the same score builds the same forms twice, and dispose empties them', () 
 		assert.equal(report.marks, 0);
 	}
 });
+
+test('ground-truth-6: a wind hold is a fan: it pumps, and its grip never closes', () => {
+	// The grip is the element's, not the kind's: the same seal that fills with
+	// water (R-20 above) fills with nothing when the seal makes wind, and the
+	// cell learns that from its channel rather than from an element name.
+	const cast = castFor(score('levitation', 'wind-directs-air'));
+	advanceTo(cast, 2600);
+	const hold = reportOf(cast, 'hold');
+	assert.ok(hold.ink > 0.2, 'the fan stopped pumping');
+	assert.equal(hold.detail.purchase, 0);
+	assert.equal(hold.detail.fill, 0, 'wind filled the grip');
+	const ceiling = performerOf(cast, 'hold').cell.constraint?.();
+	assert.ok(ceiling, 'a gripping seal still publishes its ceiling');
+	assert.equal(ceiling.closed, 0, 'the grip closed on wind');
+	const water = reportOf(steppedTo(score('levitation', 'water'), [2600]), 'hold');
+	assert.equal(water.detail.purchase, 1);
+	assert.ok(water.detail.fill > 0.3);
+	// So a wind column under a levitation ring is never capped: it stands
+	// taller at the end of the body than the water column the grip closes on.
+	const jetTip = (sigil: string) =>
+		reportOf(steppedTo(score('column-levitation', sigil), [3000]), 'jet').tip.z;
+	assert.ok(jetTip('wind-directs-air') > jetTip('water') + 0.2, 'the fan capped its own column');
+});

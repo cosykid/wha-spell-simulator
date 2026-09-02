@@ -151,6 +151,7 @@ export function compileScore(plan: SpellPlan, spellIR: CastSource): SpellScore {
 		seed: hashSeed(spellIR.signature),
 		sigil: plan.sigil,
 		element: plan.element,
+		focus: plan.focus,
 		totalMs,
 		beats: buildBeats(totalMs),
 		layers: [layer],

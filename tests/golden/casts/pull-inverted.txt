@@ -3,9 +3,9 @@ cast pull-inverted
 @0850ms beat=charge beatT=0.8673
 track shimmer-ambient kind=shimmer look=skin population=ambient emission=21.7311 drive=1.0000
   ink=0.0513 marks=157 born=157 parcels=362
-  at=(-0.0611, -0.0524, 0.1136) tip=(0.0000, 0.0000, 0.5000)
-  detail cap=0.1000 inhale=0.7523 presence=0.2054 reach=1.5974 speed=0.2223
-  tracers pooled=22 bands=[104.6 0.0 0.0 0.0] rings=[0.0 20.2 84.5] grid=8ec4928e
+  at=(-0.1081, -0.0314, 0.1107) tip=(0.0000, 0.0000, 0.5000)
+  detail cap=0.1000 inhale=0.7523 presence=0.2054 reach=1.6026 speed=0.2177
+  tracers pooled=23 bands=[105.5 0.0 0.0 0.0] rings=[0.0 22.3 83.2] grid=ccdbb432
   ceiling none
 track burst kind=burst look=core population=own emission=0.0000 drive=0.0000
   ink=0.0000 marks=0 born=0 parcels=853
@@ -23,49 +23,49 @@ track intake-pull kind=intake look=wisp population=ambient emission=0.0000 drive
 @1100ms beat=strike beatT=0.3750
 track shimmer-ambient kind=shimmer look=skin population=ambient emission=20.3055 drive=1.0000
   ink=0.0395 marks=217 born=217 parcels=362
-  at=(-0.0802, -0.0088, 0.0996) tip=(0.0000, 0.0000, 0.5000)
-  detail cap=0.1000 inhale=0.8313 presence=0.1580 reach=1.5937 speed=0.2565
-  tracers pooled=48 bands=[147.8 0.0 0.0 0.0] rings=[0.0 28.1 119.8] grid=48ad4a98
+  at=(-0.1002, -0.0575, 0.0971) tip=(0.0000, 0.0000, 0.5000)
+  detail cap=0.1000 inhale=0.8313 presence=0.1580 reach=1.5797 speed=0.2507
+  tracers pooled=48 bands=[149.3 0.0 0.0 0.0] rings=[0.0 39.6 109.7] grid=6cacb95a
   ceiling none
 track burst kind=burst look=core population=own emission=99.7790 drive=0.8738
   ink=0.9400 marks=236 born=236 parcels=853
-  at=(-0.0067, 0.0070, 0.0676) tip=(0.0787, 0.0000, 0.0024)
-  detail front=0.0787 reach=0.7559 speed=2.1183
-  tracers pooled=1 bands=[71.1 0.0 0.0 0.0] rings=[54.3 16.8 0.0] grid=145e4ce5
+  at=(0.0139, 0.0075, 0.0679) tip=(0.0787, 0.0000, 0.0024)
+  detail front=0.0787 reach=0.8043 speed=2.1990
+  tracers pooled=0 bands=[71.4 0.0 0.0 0.0] rings=[51.7 19.7 0.0] grid=22e3de61
   ceiling none
 track intake-pull kind=intake look=wisp population=ambient emission=150.3972 drive=0.6357
   ink=0.4500 marks=137 born=137 parcels=1385
-  at=(-0.0498, -0.0213, 0.0531) tip=(2.0000, 0.0000, 0.0000)
-  detail flash=0.4864 from=0.4000 lift=0.0000 outward=1.0000 phase=0.0378 reach=0.5763 speed=0.3932 to=2.0000 turn=0.0000
-  tracers pooled=13 bands=[35.1 0.0 0.0 0.0] rings=[31.2 3.9 0.0] grid=5e14f286
+  at=(-0.0214, 0.0106, 0.0469) tip=(2.0000, 0.0000, 0.0000)
+  detail flash=0.4864 from=0.4000 lift=0.0000 outward=1.0000 phase=0.0378 reach=0.5682 speed=0.3883 to=2.0000 turn=0.0000
+  tracers pooled=19 bands=[34.4 0.0 0.0 0.0] rings=[31.1 3.3 0.0] grid=19f4cb03
   ceiling none
 
 @1600ms beat=body beatT=0.1974
 track shimmer-ambient kind=shimmer look=skin population=ambient emission=17.1013 drive=1.0000
   ink=0.0150 marks=266 born=266 parcels=362
-  at=(-0.0610, 0.0223, 0.0627) tip=(0.0000, 0.0000, 0.5000)
-  detail cap=0.1000 inhale=0.5500 presence=0.0601 reach=1.5493 speed=0.2810
-  tracers pooled=133 bands=[174.7 0.0 0.0 0.0] rings=[0.8 31.7 142.3] grid=d045a864
+  at=(-0.0254, -0.0383, 0.0608) tip=(0.0000, 0.0000, 0.5000)
+  detail cap=0.1000 inhale=0.5500 presence=0.0601 reach=1.5849 speed=0.2639
+  tracers pooled=143 bands=[176.1 0.0 0.0 0.0] rings=[0.7 43.2 132.2] grid=90a826fa
   ceiling none
 track burst kind=burst look=core population=own emission=0.0000 drive=0.4396
-  ink=0.0000 marks=152 born=458 parcels=853
-  at=(-0.0216, -0.0104, 0.0200) tip=(0.3306, 0.0000, 0.0099)
-  detail front=0.3306 reach=2.0546 speed=0.7853
-  tracers pooled=152 bands=[21.7 0.0 0.0 0.0] rings=[6.8 13.7 1.2] grid=e970a893
+  ink=0.0000 marks=155 born=458 parcels=853
+  at=(0.0446, -0.0394, 0.0363) tip=(0.3306, 0.0000, 0.0099)
+  detail front=0.3306 reach=2.0095 speed=0.7931
+  tracers pooled=155 bands=[21.9 0.0 0.0 0.0] rings=[5.3 15.1 1.5] grid=ce9b2787
   ceiling none
 track intake-pull kind=intake look=wisp population=ambient emission=150.3972 drive=0.5680
   ink=0.4500 marks=428 born=428 parcels=1385
-  at=(-0.0157, -0.0284, 0.0226) tip=(2.0000, 0.0000, 0.0000)
-  detail flash=0.2086 from=0.4000 lift=0.0000 outward=1.0000 phase=0.1792 reach=0.7809 speed=0.3811 to=2.0000 turn=0.0000
-  tracers pooled=350 bands=[289.9 0.0 0.0 0.0] rings=[140.3 149.6 0.0] grid=1b5506d9
+  at=(-0.0223, 0.0194, 0.0489) tip=(2.0000, 0.0000, 0.0000)
+  detail flash=0.2086 from=0.4000 lift=0.0000 outward=1.0000 phase=0.1792 reach=0.7726 speed=0.3760 to=2.0000 turn=0.0000
+  tracers pooled=347 bands=[287.2 0.0 0.0 0.0] rings=[144.6 142.6 0.0] grid=604e8e07
   ceiling none
 
 @2600ms beat=body beatT=0.8553
 track shimmer-ambient kind=shimmer look=skin population=ambient emission=7.2621 drive=1.0000
   ink=0.0064 marks=320 born=320 parcels=362
-  at=(-0.0890, 0.0272, 0.0322) tip=(0.0000, 0.0000, 0.5000)
-  detail cap=0.1000 inhale=0.5500 presence=0.0255 reach=1.5867 speed=0.2421
-  tracers pooled=280 bands=[172.4 0.0 0.0 0.0] rings=[0.0 19.6 152.8] grid=74df4f33
+  at=(-0.0296, -0.0229, 0.0370) tip=(0.0000, 0.0000, 0.5000)
+  detail cap=0.1000 inhale=0.5500 presence=0.0255 reach=1.5729 speed=0.2361
+  tracers pooled=286 bands=[176.2 0.0 0.0 0.0] rings=[0.0 28.2 148.0] grid=8f619f9c
   ceiling none
 track burst kind=burst look=core population=own emission=0.0000 drive=0.0143
   ink=0.0000 marks=0 born=458 parcels=853
@@ -75,7 +75,7 @@ track burst kind=burst look=core population=own emission=0.0000 drive=0.0143
   ceiling none
 track intake-pull kind=intake look=wisp population=ambient emission=150.3972 drive=0.3996
   ink=0.4500 marks=968 born=968 parcels=1385
-  at=(-0.0034, 0.0071, 0.0210) tip=(2.0000, 0.0000, 0.0000)
-  detail flash=0.0376 from=0.4000 lift=0.0000 outward=1.0000 phase=0.4086 reach=1.1854 speed=0.3660 to=2.0000 turn=0.0000
-  tracers pooled=889 bands=[720.9 0.0 0.0 0.0] rings=[147.4 514.8 58.7] grid=0305f397
+  at=(-0.0183, 0.0110, 0.0600) tip=(2.0000, 0.0000, 0.0000)
+  detail flash=0.0376 from=0.4000 lift=0.0000 outward=1.0000 phase=0.4086 reach=1.1753 speed=0.3669 to=2.0000 turn=0.0000
+  tracers pooled=885 bands=[723.6 0.0 0.0 0.0] rings=[158.6 513.7 51.2] grid=1684afdc
   ceiling none

@@ -19,6 +19,10 @@
  * not dissipated, so the blob a long cast gathers actually stands (section 6
  * gives the grip no dissipation inside the blob).
  *
+ * Section 6's per-element grip shows here too, without the cell naming an
+ * element: the channel says what purchase the pair gets on what it emits, and
+ * the fill grows by that share. A wind hold is a fan, and a fan never fills.
+ *
  * (R-17's inverted case never reaches here: the plan resolves no hold at all, so
  * the score builds no track and the stage builds no cell.)
  */
@@ -53,21 +57,28 @@ const SHELL = { empty: 0.7, full: 1.55 } as const;
 const FULL_CAPACITY = 45;
 const GRIP_FLOOR = 0.01;
 
-/** What a shell with no grip in it keeps, so R-16's rotor still has a middle. */
-const GRIPLESS = 0.16;
+/**
+ * What a shell with no grip in it keeps, so R-16's rotor still has a middle.
+ * Firm enough that the crowd's own push (the disc is dense) does not spread
+ * the turn out to the ring and break it into countable blobs.
+ */
+const GRIPLESS = 0.3;
 
 /**
  * R-16's rotor stance. A gripless hold is a flat swirl at the hover height, not
  * a held pea: it stands wider than the ball the same ink would grip, and its
  * shell is squashed toward the equator so it reads as a turning disc.
  */
-const ROTOR = { stance: 2.6, squash: 0.75 } as const;
+const ROTOR = { stance: 1.9, squash: 0.75 } as const;
 
 /** Past the drive envelope the rotor still turns, slower. */
 const COAST = 0.3;
 
 /** Held magic keeps: its matter lives long, so the ball is a mass, not a stream. */
 const HELD_LIFE = 1.7;
+
+/** How much finer than its row's scale a held ball's turbulence runs. */
+const CHURN_SCALE = 2.5;
 
 export function createHoldCell(track: Track<'hold'>, ctx: CellContext): Cell {
 	const params = track.params;
@@ -87,6 +98,11 @@ export function createHoldCell(track: Track<'hold'>, ctx: CellContext): Cell {
 	// would stand lobed for no reason ink gave it.
 	const turning = Math.abs(spinRate) > 0.3;
 	const arms = turning ? Math.round(clamp(ctx.look.material.bands, 3, 6)) : 0;
+	// What purchase the pair gets on this element (ground truth section 6): a
+	// held one fills the grip, a streaming one washes through it and fills
+	// nothing, so the seal pumps on. The substrate reads the row; the cell
+	// only reads the substrate.
+	const purchase = channel.grip;
 	let heldMass = 0;
 	let spinPhase = 0;
 	let bobPhase = 0;
@@ -105,11 +121,14 @@ export function createHoldCell(track: Track<'hold'>, ctx: CellContext): Cell {
 	flow.originY = params.at.y;
 	flow.originZ = params.at.z;
 	flow.lobePhase = lobePhase;
-	// A ball, not a shaft: no column boundary to pinch toward, and only the
-	// gentlest stir of the element's own turbulence inside the grip. The rotor
-	// runs stiller yet, so its arms stay legible.
+	// A ball, not a shaft: no column boundary to pinch toward, and the whole
+	// of the element's own turbulence churning inside the grip at a scale
+	// finer than the ball, because a held fire is still a fire (canon's
+	// pyreball boils in the hand; the grip contains it, it does not calm it).
+	// The rotor runs stiller, so its arms stay legible.
 	flow.pinchMul = 0;
-	flow.turbMul = grips ? 0.4 : 0.28;
+	flow.turbMul = grips ? 1 : 0.28;
+	flow.turbScaleMul = grips ? CHURN_SCALE : 1;
 	// The grip quiets the element's own sway the way it suspends its weight, or
 	// a wind hold shivers apart and its turn never reads.
 	flow.gustMul = 0.25;
@@ -132,9 +151,11 @@ export function createHoldCell(track: Track<'hold'>, ctx: CellContext): Cell {
 			const punch = punchAt(frame);
 			const presence = shapeAt(PRESENCE, frame);
 			// R-20. The feed accumulates in the ball and the valve closes as it
-			// fills, so the mass approaches capacity and never reaches it.
+			// fills, so the mass approaches capacity and never reaches it. Only
+			// the share the pair has purchase on counts toward the fill.
 			if (grips) {
-				heldMass += frame.emission * seconds * Math.max(0, 1 - heldMass / params.capacity);
+				heldMass +=
+					frame.emission * seconds * Math.max(0, 1 - heldMass / params.capacity) * purchase;
 			}
 			const fill = grips ? clamp(heldMass / params.capacity) : 0;
 			// R-16. The rotor turns on its own spin whether or not it grips, and
@@ -148,7 +169,7 @@ export function createHoldCell(track: Track<'hold'>, ctx: CellContext): Cell {
 			flow.originZ = tip.z;
 			// Hard enough to beat the turbulence that would otherwise carry the ball
 			// away. A grip that loses to its own noise is a plume with a name.
-			flow.gather = (params.gather + 2) * (1.6 + 3.4 * (grips ? gripStrength : GRIPLESS));
+			flow.gather = (params.gather + 2) * (1.5 + 3.2 * (grips ? gripStrength : GRIPLESS));
 			flow.holdRadius = radius;
 			flow.footprint = radius * 1.35;
 			// Measured from the locus, not from the paper: what is held is held there.
@@ -193,6 +214,7 @@ export function createHoldCell(track: Track<'hold'>, ctx: CellContext): Cell {
 					fill: grips ? clamp(heldMass / params.capacity) : 0,
 					grip: gripStrength * (grips ? clamp(heldMass / params.capacity) : 0),
 					closed: ceiling.closed,
+					purchase,
 					radius,
 					spin: spinPhase,
 					// Unsigned, because how far a rotor has turned is a claim about the

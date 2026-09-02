@@ -4,7 +4,8 @@
  * how its marching-cubes field fuses; how a row is painted lives beside it in
  * `pigment.ts`. Fire, water and wind are the bake-off's approved rows carried
  * over; the other five are designed here in the same table style, argued from
- * their look rows' own `@file` blocks.
+ * their look rows' own `@file` blocks and, since the canon physics pass in
+ * `docs/animation-volume.md`, from the manga panels each row's comment names.
  *
  * The KIND says where matter goes (a jet rises on its axis, a vortex orbits
  * its eye); the ELEMENT says how the medium moves on the way and how its body
@@ -59,6 +60,18 @@ export interface PoolSpec {
 	ageRate: number;
 	/** Extra ageing at full drain, so the afterglow dries the ground out. */
 	drainAgeRate: number;
+	/**
+	 * Seal units of thickness the landed mass heaps to where it crowds
+	 * (`HEAP` in tuning.ts says how many neighbours that takes). Earth mounds;
+	 * a puddle lies all but flat.
+	 */
+	heap: number;
+	/**
+	 * Speed below which airborne matter sets where it stands, seal units per
+	 * second. Zero settles on the floor alone. Crystal's growth that has
+	 * stopped is lattice, and lattice does not drift or melt.
+	 */
+	settleSpeed: number;
 }
 
 /**
@@ -99,10 +112,18 @@ export interface MotionSpec {
 	tearRate: number;
 	/** Kill height, x reach. */
 	heightCap: number;
-	/** Floor behavior. Only water pools and only earth mounds. */
+	/** Floor behavior. Water pools, earth mounds, crystal sets where it stops. */
 	pool: PoolSpec | null;
 	/** Tracer births per second at full emission, before the pool division. */
 	spawnPerSec: number;
+	/**
+	 * How much of the levitation pair the element's own manifestation takes:
+	 * ground truth section 6's per-element grip. One is held as a ball; zero
+	 * streams through the grip as an updraft, is never held, and so never fills
+	 * it, which is why a wind seal keeps pumping. Only a hold's hover mouth and
+	 * gather read it.
+	 */
+	grip: number;
 }
 
 export const MOTION: Record<VolumeElement, MotionSpec> = {
@@ -131,7 +152,8 @@ export const MOTION: Record<VolumeElement, MotionSpec> = {
 		tearRate: 3.0,
 		heightCap: 1.38,
 		pool: null,
-		spawnPerSec: 1500
+		spawnPerSec: 1500,
+		grip: 1
 	},
 	// Heavy and cohesive: launched in braided sub-jets, bent over by gravity,
 	// pooling on the paper and spreading. The pool block is the puddle.
@@ -163,13 +185,19 @@ export const MOTION: Record<VolumeElement, MotionSpec> = {
 			edge: 1.6,
 			dragXY: 2.1,
 			ageRate: 0.28,
-			drainAgeRate: 3.2
+			drainAgeRate: 3.2,
+			heap: 0.05,
+			settleSpeed: 0
 		},
-		spawnPerSec: 1200
+		spawnPerSec: 1200,
+		grip: 1
 	},
 	// Nearly bodiless: very fast, curl at grass-blade scale, coherent gusts
 	// that bend the whole streak at once. The motion is the identity; the
-	// pigment barely shows, and the skin fuses its beads into ribbons.
+	// pigment barely shows, and the skin fuses its beads into ribbons. The
+	// crown melts low, or the gusts fling its tip off as countable chunks.
+	// Grip zero: wind is ambient fluid streaming through a levitation pair
+	// (section 6), the sylph shoes' strut, never a held ball.
 	wind: {
 		mouth: 0.5,
 		riseLo: 2.0,
@@ -185,107 +213,137 @@ export const MOTION: Record<VolumeElement, MotionSpec> = {
 		turbScale: 0.55,
 		gust: 4.2,
 		swirl: 0.7,
-		pinch: 0.8,
+		pinch: 1.3,
 		lifeLo: 0.5,
 		lifeHi: 0.95,
-		tearFrom: 1.1,
-		tearRate: 1.9,
-		heightCap: 1.7,
+		tearFrom: 0.8,
+		tearRate: 2.6,
+		heightCap: 1.45,
 		pool: null,
-		spawnPerSec: 1500
+		spawnPerSec: 1500,
+		grip: 0
 	},
-	// Clumpy and ballistic: five distinct lobs precessing slowly, dead air in
-	// flight, and a floor block that piles instead of spreading, so the cast
-	// builds a persistent rubble mound the afterglow then dries out.
+	// A heave, not a fountain: the sigil manipulates stone and sand rather than
+	// creating it (canon shows sand bridges and bent walls, never thrown
+	// clods), so the launch is slow and thick under a hard gravity, four wide
+	// lobes precessing slowly, and the floor block piles instead of spreading
+	// and heaps into a persistent mound the afterglow then dries out.
 	earth: {
-		mouth: 0.5,
-		riseLo: 1.0,
-		riseHi: 1.9,
-		radialLo: 0.15,
-		radialHi: 0.45,
-		jets: 5,
-		jetSpinRadS: 0.25,
+		mouth: 0.55,
+		riseLo: 0.55,
+		riseHi: 1.15,
+		radialLo: 0.05,
+		radialHi: 0.3,
+		jets: 4,
+		jetSpinRadS: 0.2,
 		buoyancy: 0,
-		gravity: 4.2,
-		drag: 0.35,
-		turbulence: 0.18,
+		gravity: 5.0,
+		drag: 0.5,
+		turbulence: 0.12,
 		turbScale: 0.8,
 		gust: 0,
 		swirl: 0,
 		pinch: 0,
-		lifeLo: 2.2,
-		lifeHi: 3.6,
+		lifeLo: 2.4,
+		lifeHi: 3.8,
 		tearFrom: 2.0,
 		tearRate: 1,
 		heightCap: 1.0,
 		pool: {
 			floorZ: 0.03,
-			bounce: 0.22,
-			spread: 0.12,
-			edge: 1.15,
-			dragXY: 6,
-			ageRate: 0.06,
-			drainAgeRate: 2.6
+			bounce: 0.08,
+			spread: 0.08,
+			edge: 1.1,
+			dragXY: 8,
+			ageRate: 0.05,
+			drainAgeRate: 2.6,
+			heap: 0.4,
+			settleSpeed: 0
 		},
-		spawnPerSec: 900
+		spawnPerSec: 1000,
+		grip: 1
 	},
-	// Near-weightless shafts: a gentle rise, soft large-scale stir, and a long
-	// velocity smear in the skin so the body reads as rising washes of light
-	// rather than as a plume. Brightness is the pigment's job, never a bloom.
+	// A beam, not a plume: light radiates rather than convects, so it leaves
+	// the mouth fast and straight with next to no buoyancy, stir, sway or
+	// swirl, is pinched hard onto its axis, and lives briefly, so the shaft
+	// stands only while the seal feeds it and is gone the moment it stops
+	// (canon's light beam ends where the spell ends; it never lingers as
+	// smoke). The skin's long smear turns the fast beads into the shaft.
+	// Brightness is the pigment's job, never a bloom.
 	light: {
-		mouth: 0.8,
-		riseLo: 0.9,
-		riseHi: 1.4,
+		mouth: 0.5,
+		riseLo: 1.5,
+		riseHi: 2.1,
 		radialLo: 0.0,
-		radialHi: 0.05,
+		radialHi: 0.03,
 		jets: 0,
 		jetSpinRadS: 0,
-		buoyancy: 1.1,
+		buoyancy: 0.2,
 		gravity: 0,
-		drag: 0.7,
-		turbulence: 0.5,
+		drag: 0.8,
+		turbulence: 0.16,
 		turbScale: 0.7,
-		gust: 0.4,
-		swirl: 0.25,
-		pinch: 2.2,
-		lifeLo: 1.0,
-		lifeHi: 1.9,
-		tearFrom: 0.85,
+		gust: 0,
+		swirl: 0,
+		pinch: 5,
+		lifeLo: 0.45,
+		lifeHi: 0.8,
+		tearFrom: 0.95,
 		tearRate: 2.2,
-		heightCap: 1.55,
+		heightCap: 1.9,
 		pool: null,
-		spawnPerSec: 1300
+		spawnPerSec: 1400,
+		grip: 1
 	},
-	// Grown, not thrown: slow rise into a near-stall, no turbulence to speak
-	// of, and lives long enough to stand. The angular read is the skin's row —
-	// this is the one element where facets are correct, so its motion holds
-	// still enough for them to be legible as growth rather than as shatter.
+	// Grown, not thrown: pillars. Matter leaves on six fixed azimuths leaning
+	// out from the mouth at a wide spread of speeds, decelerates hard, and the
+	// moment it stops it sets where it stands (the pool block's `settleSpeed`),
+	// so each ray paints a standing pillar from its foot to wherever its
+	// fastest growth reached, fused with its neighbours at the base, the way
+	// canon's petrification and crystal shard grow jagged and then hold.
+	// Nothing pinches the rays back onto a column, no weight bends them, and
+	// set lattice never melts: it stands until the afterglow drains it. The
+	// angular read is the skin's row.
 	crystal: {
-		mouth: 0.45,
-		riseLo: 0.35,
-		riseHi: 0.7,
-		radialLo: 0.3,
-		radialHi: 0.55,
+		mouth: 0.4,
+		riseLo: 0.5,
+		riseHi: 1.3,
+		radialLo: 0.15,
+		radialHi: 0.45,
 		jets: 6,
 		jetSpinRadS: 0,
-		buoyancy: 0.3,
-		gravity: 0.25,
-		drag: 2.2,
-		turbulence: 0.12,
+		buoyancy: 0,
+		gravity: 0,
+		drag: 2.4,
+		turbulence: 0.1,
 		turbScale: 0.4,
 		gust: 0,
-		swirl: 0.1,
-		pinch: 3.0,
-		lifeLo: 2.6,
-		lifeHi: 4.0,
+		swirl: 0,
+		pinch: 0,
+		lifeLo: 3.0,
+		lifeHi: 4.2,
 		tearFrom: 2.0,
 		tearRate: 1,
-		heightCap: 1.1,
-		pool: null,
-		spawnPerSec: 700
+		heightCap: 1.3,
+		pool: {
+			floorZ: 0.02,
+			bounce: 0,
+			spread: 0,
+			edge: 1.3,
+			dragXY: 30,
+			ageRate: 0.02,
+			drainAgeRate: 3.5,
+			heap: 0.12,
+			settleSpeed: 0.22
+		},
+		spawnPerSec: 700,
+		grip: 1
 	},
 	// Wind read as a volume rather than as a path: slower, softer, longer
 	// lived, its gusts halved and its body fatter. Barely inked by design.
+	// Its crown melts low like wind's, or the tip breaks into chunks. The
+	// sigil creates air but does not move it, so a levitation pair gets a
+	// partial grip on the body it makes: mostly a wash, part of it held.
 	aeroform: {
 		mouth: 0.7,
 		riseLo: 1.4,
@@ -301,14 +359,15 @@ export const MOTION: Record<VolumeElement, MotionSpec> = {
 		turbScale: 0.5,
 		gust: 2.2,
 		swirl: 0.5,
-		pinch: 0.5,
+		pinch: 0.9,
 		lifeLo: 0.8,
 		lifeHi: 1.5,
-		tearFrom: 1.2,
-		tearRate: 1.5,
-		heightCap: 1.6,
+		tearFrom: 0.85,
+		tearRate: 2.4,
+		heightCap: 1.4,
 		pool: null,
-		spawnPerSec: 1400
+		spawnPerSec: 1400,
+		grip: 0.4
 	},
 	// R-11's designed default: a small, low-energy, desaturated mass. Present
 	// on purpose — "manifests nothing" is a look — and quiet on purpose.
@@ -334,7 +393,8 @@ export const MOTION: Record<VolumeElement, MotionSpec> = {
 		tearRate: 2.0,
 		heightCap: 1.0,
 		pool: null,
-		spawnPerSec: 850
+		spawnPerSec: 850,
+		grip: 1
 	}
 };
 

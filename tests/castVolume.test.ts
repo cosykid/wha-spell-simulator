@@ -391,3 +391,219 @@ test('the ground gauge grows as matter lands and drains with the pool', () => {
 	stepped(water, flow, 2.5);
 	assert.ok(water.groundMass() < landed * 0.4, 'the puddle never dries');
 });
+
+/** The hover flow a hold writes, the configuration the gather test above uses. */
+function hoverFlow(holdRadius = 0.4) {
+	const flow = blankFlow();
+	flow.spawn = SPAWN.hover;
+	flow.emission = 0.6;
+	flow.speed = 0.6;
+	flow.originZ = 0.8;
+	flow.gather = 14;
+	flow.holdRadius = holdRadius;
+	flow.reach = 1;
+	flow.weightMul = 0.12;
+	return flow;
+}
+
+/** Mean vertical velocity and the top of a population. */
+function heightOf(pop: TracerPop) {
+	let n = 0;
+	let vz = 0;
+	let top = 0;
+	for (let i = 0; i < pop.capacity; i += 1) {
+		if (!pop.alive[i]) continue;
+		n += 1;
+		vz += pop.vel[i * 3 + 2];
+		top = Math.max(top, pop.pos[i * 3 + 2]);
+	}
+	return { vz: n > 0 ? vz / n : 0, top };
+}
+
+test('ground-truth-6: the pair grips what its element lets it, so wind streams through a hold', () => {
+	// The grip is the element's. Water is held: it hangs in the shell with
+	// its weight suspended. Wind gives the pair nothing to take: it is born
+	// on the disc under the locus, thrown up through it, and leaves over the
+	// top, so a wind levitation seal is a fan, never a ball.
+	assert.equal(MOTION.water.grip, 1);
+	assert.equal(MOTION.wind.grip, 0);
+	assert.ok(MOTION.aeroform.grip > 0 && MOTION.aeroform.grip < 1, 'aeroform is part held');
+	for (const element of ELEMENTS) {
+		assert.ok(MOTION[element].grip >= 0 && MOTION[element].grip <= 1, `${element} grip`);
+	}
+	const water = heightOf(stepped(new TracerPop('water', 400, 41), hoverFlow(), 2));
+	const wind = heightOf(stepped(new TracerPop('wind', 400, 41), hoverFlow(), 2));
+	const clear = 0.8 + 0.4 * 1.25;
+	assert.ok(Math.abs(water.vz) < 0.4, 'held water is on the move');
+	assert.ok(water.top < clear, 'held water climbed out of its shell');
+	assert.ok(wind.vz > 0.8, 'wind hangs in the grip instead of streaming through it');
+	assert.ok(wind.top > clear, 'the stream never clears the shell');
+});
+
+test('ground-truth-8: manifested magic occupies volume, so a ball cannot be squeezed to a point', () => {
+	// A hold with next to no shell and a hard gather. Without the excluded
+	// volume every population collapses onto the locus alike; with it the
+	// ball is as big as its content and grows with the count.
+	const squeezed = (capacity: number) => {
+		const pop = stepped(new TracerPop('water', capacity, 41), hoverFlow(0.05), 2.5);
+		let n = 0;
+		let sum = 0;
+		for (let i = 0; i < pop.capacity; i += 1) {
+			if (!pop.alive[i]) continue;
+			n += 1;
+			const d = Math.hypot(pop.pos[i * 3], pop.pos[i * 3 + 1], pop.pos[i * 3 + 2] - 0.8);
+			sum += d * d;
+		}
+		return Math.sqrt(sum / n);
+	};
+	const small = squeezed(120);
+	const large = squeezed(1200);
+	assert.ok(small < 0.3, 'a small ball should still be gathered close');
+	assert.ok(large > small * 1.2, 'the crowd packed to a point');
+});
+
+test('ground-truth-8: focus makes the manifestation rigid, so it moves as one body', () => {
+	// How far each tracer's velocity strays from its neighbours' mean. The
+	// lens leaves the count and the shell alone and takes the swarm out of it.
+	const strays = (pop: TracerPop) => {
+		const live: number[] = [];
+		for (let i = 0; i < pop.capacity; i += 1) if (pop.alive[i]) live.push(i);
+		let total = 0;
+		let count = 0;
+		for (const i of live) {
+			let mx = 0;
+			let my = 0;
+			let mz = 0;
+			let n = 0;
+			for (const j of live) {
+				if (j === i) continue;
+				const d = Math.hypot(
+					pop.pos[i * 3] - pop.pos[j * 3],
+					pop.pos[i * 3 + 1] - pop.pos[j * 3 + 1],
+					pop.pos[i * 3 + 2] - pop.pos[j * 3 + 2]
+				);
+				if (d < 0.15) {
+					mx += pop.vel[j * 3];
+					my += pop.vel[j * 3 + 1];
+					mz += pop.vel[j * 3 + 2];
+					n += 1;
+				}
+			}
+			if (n < 3) continue;
+			total += Math.hypot(
+				pop.vel[i * 3] - mx / n,
+				pop.vel[i * 3 + 1] - my / n,
+				pop.vel[i * 3 + 2] - mz / n
+			);
+			count += 1;
+		}
+		return total / count;
+	};
+	const loose = strays(stepped(new TracerPop('water', 500, 41, { focus: 1 }), hoverFlow(), 2.5));
+	const focused = strays(
+		stepped(new TracerPop('water', 500, 41, { focus: 2.5 }), hoverFlow(), 2.5)
+	);
+	assert.ok(focused < loose * 0.65, `focus left the swarm loose (${focused} vs ${loose})`);
+	// No convergence ink means no rigidity: the default physics is the unfocused one.
+	assert.deepEqual(
+		stepped(new TracerPop('water', 300, 41), hoverFlow(), 1).digest(),
+		stepped(new TracerPop('water', 300, 41, { focus: 1 }), hoverFlow(), 1).digest()
+	);
+});
+
+test('crystal grows spires: matter sets where its growth stops and stands in the air', () => {
+	for (const element of ELEMENTS) {
+		const pool = MOTION[element].pool;
+		if (element === 'crystal') {
+			assert.ok(pool && pool.settleSpeed > 0, 'crystal has to set in the air');
+		} else {
+			assert.ok(!pool || pool.settleSpeed === 0, `${element} sets in the air like crystal`);
+		}
+	}
+	const crystal = stepped(new TracerPop('crystal', 500, 11), columnFlow(), 2.5);
+	assert.ok(crystal.pooledFraction > 0.5, 'the spires never set');
+	let n = 0;
+	let z = 0;
+	let top = 0;
+	let moving = 0;
+	for (let i = 0; i < crystal.capacity; i += 1) {
+		if (!crystal.alive[i] || !crystal.pooled[i]) continue;
+		n += 1;
+		z += crystal.pos[i * 3 + 2];
+		top = Math.max(top, crystal.pos[i * 3 + 2]);
+		if (Math.hypot(crystal.vel[i * 3], crystal.vel[i * 3 + 1], crystal.vel[i * 3 + 2]) > 0) {
+			moving += 1;
+		}
+	}
+	assert.ok(z / n > 0.3, 'set crystal lies on the floor instead of standing');
+	assert.ok(top > 0.8, 'no spire reached up');
+	assert.equal(moving, 0, 'set lattice drifts');
+});
+
+test('earth heaps into a mound with height; water lies flat', () => {
+	const heightOfPool = (pop: TracerPop) => {
+		let n = 0;
+		let z = 0;
+		for (let i = 0; i < pop.capacity; i += 1) {
+			if (!pop.alive[i] || !pop.pooled[i]) continue;
+			n += 1;
+			z += pop.pos[i * 3 + 2];
+		}
+		return n > 0 ? z / n : 0;
+	};
+	const earth = heightOfPool(stepped(new TracerPop('earth', 500, 11), columnFlow(), 3));
+	const water = heightOfPool(stepped(new TracerPop('water', 500, 11), columnFlow(), 3));
+	assert.ok(earth > 0.2, `the mound is flat (${earth})`);
+	assert.ok(water < 0.1, `the puddle has height (${water})`);
+	assert.ok(earth > water * 3);
+});
+
+test('light is a beam: straight, fast, and gone the moment the feed stops', () => {
+	const onAxis = (pop: TracerPop) => {
+		let n = 0;
+		let near = 0;
+		let speed = 0;
+		for (let i = 0; i < pop.capacity; i += 1) {
+			if (!pop.alive[i]) continue;
+			n += 1;
+			if (Math.hypot(pop.pos[i * 3], pop.pos[i * 3 + 1]) < 0.35) near += 1;
+			speed += Math.hypot(pop.vel[i * 3], pop.vel[i * 3 + 1], pop.vel[i * 3 + 2]);
+		}
+		return { near: near / n, speed: speed / n };
+	};
+	const light = onAxis(stepped(new TracerPop('light', 500, 21), columnFlow(), 2));
+	const fire = onAxis(stepped(new TracerPop('fire', 500, 21), columnFlow(), 2));
+	assert.ok(light.near > 0.9, 'the beam spreads like a plume');
+	assert.ok(fire.near < 0.8, 'the plume is as straight as a beam');
+	assert.ok(light.speed > fire.speed * 1.3, 'light convects instead of radiating');
+	// Canon's beam ends where the spell ends.
+	const after = (element: VolumeElement, seconds: number) => {
+		const pop = stepped(new TracerPop(element, 500, 21), columnFlow(), 2);
+		const cut = columnFlow();
+		cut.emission = 0;
+		const steps = Math.round(seconds / STEP_S);
+		const from = Math.round(2 / STEP_S);
+		for (let s = 1; s <= steps; s += 1) pop.step(cut, (from + s) * STEP_S * 1000);
+		return pop.live;
+	};
+	assert.ok(after('light', 0.5) < after('fire', 0.5), 'light lingers like fire');
+	assert.equal(after('light', 1), 0, 'the beam outlived its feed');
+});
+
+test('ground-truth-7: the sink holds the settled mass too, so a pull keeps its cushion', () => {
+	const radiusOfPool = (sink: number) => {
+		const flow = columnFlow();
+		flow.sink = sink;
+		flow.pool = 0.4;
+		const pop = stepped(new TracerPop('water', 500, 11), flow, 3);
+		let n = 0;
+		let r = 0;
+		for (let i = 0; i < pop.capacity; i += 1) {
+			if (!pop.alive[i] || !pop.pooled[i]) continue;
+			n += 1;
+			r += Math.hypot(pop.pos[i * 3], pop.pos[i * 3 + 1]);
+		}
+		return r / n;
+	};
+	assert.ok(radiusOfPool(1.5) < radiusOfPool(0) * 0.85, 'the puddle ran out from under the pull');
+});

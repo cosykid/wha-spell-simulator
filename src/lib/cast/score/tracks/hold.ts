@@ -40,16 +40,25 @@ const HOLD_TUNING = {
 	liftFloor: 0.35,
 	/** Per second: how hard displaced parcels are drawn back onto the hover axis. */
 	gather: 1.6,
-	/** Seal units of blob the held mass churns in. */
-	radius: 0.22,
+	/**
+	 * Seal units of blob the held mass churns in. Canon's pyreball is a ball
+	 * the size of a hand over its page, not a bead: the shell is sized so a
+	 * filled ball spans about half the ring.
+	 */
+	radius: 0.3,
 	/** Radians per second of the settled mass's bob. Slow: it reads as breathing. */
 	bobRate: 1.5,
 	/** Seal units per second below which a parcel counts as arrived (open question 5). */
 	captureSpeed: 0.55,
 	/** Spin magnitude at which the rotor reads half as fast as it can get. */
 	halfSpin: 6,
-	/** Tangential seal units per second at full spin. */
-	spin: 1.1,
+	/**
+	 * Tangential seal units per second at full spin, scaled with `radius` so
+	 * the turn keeps the angular rate R-16's rotor was tuned at. A pattern that
+	 * turns slower than that lets the arm herding over-drive the orbit, and the
+	 * disc spreads to the ring and breaks into countable blobs.
+	 */
+	spin: 1.5,
 	/**
 	 * R-20: parcels the ball holds per unit of grip, section 6's `W_max` in the
 	 * only extensive unit this sim has. Linear in the grip, as section 6 states
@@ -92,7 +101,9 @@ export function holdTrack(plan: SpellPlan, population: Population): Track<'hold'
 			},
 			lift: HOLD_TUNING.lift * aboveFloor(HOLD_TUNING.liftFloor, strength),
 			gather: HOLD_TUNING.gather * clamp(plan.quality),
-			radius: HOLD_TUNING.radius,
+			// Section 8's composition with levitation: the lens shrinks the blob
+			// and leaves its capacity alone, the pyreball-to-floatglow-lamp delta.
+			radius: HOLD_TUNING.radius / Math.max(plan.focus, 1),
 			spin: Math.sign(hold.spin) * HOLD_TUNING.spin * saturate(hold.spin, HOLD_TUNING.halfSpin),
 			bobRate: HOLD_TUNING.bobRate,
 			captureSpeed: HOLD_TUNING.captureSpeed,
