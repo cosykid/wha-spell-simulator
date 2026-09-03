@@ -12,9 +12,9 @@ import type { StrokeClassification } from './types.js';
 /**
  * Builds symbol candidates from cleaned strokes and ring-relative classifications.
  *
- * Candidate grouping can run in simple proximity mode or in recognition-guided
- * decomposition mode, where a merge tree is scored against dictionary examples
- * before the final groups are returned.
+ * Candidate grouping can run on stroke affinity alone or in recognition-guided
+ * mode, where a partition search over scored group hypotheses chooses the
+ * final groups.
  */
 export function buildSymbolCandidates(
 	strokes: CleanedStroke[],

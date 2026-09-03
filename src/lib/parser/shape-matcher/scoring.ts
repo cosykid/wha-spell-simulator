@@ -123,9 +123,25 @@ export function scoreRecognitionExample(
 	});
 	let best = emptyMatcherResult();
 
-	for (const rotationDeg of rotations) {
+	const inkPasses = rotations.map((rotationDeg) => {
 		const candidateShape = cachedCandidate(candidateStrokes, rotationDeg);
-		const chamfer = scoreChamferDistance(candidateShape.ink, exampleShape.ink);
+		return {
+			rotationDeg,
+			candidateShape,
+			chamfer: scoreChamferDistance(candidateShape.ink, exampleShape.ink)
+		};
+	});
+	// Grouping scores hundreds of groups per drawing and only ranks them, so it
+	// lets the ink pass choose the rotation and pays for one point cloud.
+	const searched = options.chamferLeadsRotation
+		? [
+				inkPasses.reduce((leader, pass) =>
+					pass.chamfer.chamferScore > leader.chamfer.chamferScore ? pass : leader
+				)
+			]
+		: inkPasses;
+
+	for (const { rotationDeg, candidateShape, chamfer } of searched) {
 		// The point cloud is the expensive half and a perfect one only adds
 		// POINT_CLOUD_WEIGHT, so a rotation whose ink alone cannot pass the
 		// rotation already in hand cannot win however well its cloud matches.

@@ -82,9 +82,20 @@ export interface RecognitionThresholds {
 	minTemplateCoverage: number;
 }
 
-/** Cheap score used by the stroke-group decomposition tree. */
+/** How much one stroke group reads as a complete glyph, and which. */
+export interface DecompositionMatch {
+	/** Shape match discounted for uncovered template ink and an off-size footprint. */
+	wholeness: number;
+	coveredRatio: number;
+	/** Candidate footprint over the entry's regular footprint. */
+	sizeRatio: number;
+	kind: RecognitionKind;
+	id: string | null;
+}
+
+/** Cached wholeness scorer used by the stroke-group partition search. */
 export interface DecompositionScorer {
-	(candidate: SymbolCandidate): number;
+	(candidate: SymbolCandidate): DecompositionMatch;
 }
 
 export type EntryStrokeTemplate = StrokeTemplate | null;

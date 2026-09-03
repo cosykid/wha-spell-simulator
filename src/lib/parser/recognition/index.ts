@@ -1,5 +1,6 @@
 export type {
 	CandidateFeatures,
+	DecompositionMatch,
 	DecompositionScorer,
 	RecognitionThresholds,
 	ScoredEntry,
@@ -7,5 +8,5 @@ export type {
 	StructuralMatch,
 	TemplateFeatures
 } from './types.js';
-export { createDecompositionScorer } from './scoring.js';
+export { createDecompositionScorer } from './decompositionScorer.js';
 export { recognizeCandidates } from './recognizeCandidates.js';

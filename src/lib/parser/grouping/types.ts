@@ -7,23 +7,26 @@ export interface StrokeClassification {
 	canJoinSymbol: boolean;
 }
 
-/** Node in the merge forest used for recognition-guided decomposition. */
-export interface DecompositionNode {
-	id: string;
-	strokes: CleanedStroke[];
-	children: DecompositionNode[];
-	proximityScore: number;
+/** Symmetric stroke-to-stroke affinity for one stroke list, indexed by position. */
+export type AffinityMatrix = number[][];
+
+/** One candidate group inside a component: a bitmask plus the member indexes it names. */
+export interface GroupHypothesis {
+	mask: number;
+	members: number[];
 }
 
-/** Best tree cut below one decomposition node. */
-export interface TreeSelection {
+/** A hypothesis after the objective has valued it. */
+export interface ValuedGroup extends GroupHypothesis {
+	/** How much the group reads as one complete glyph, from the recognizer. */
+	wholeness: number;
 	value: number;
-	groups: CleanedStroke[][];
 }
 
-/** Pairwise merge candidate for union-find forest construction. */
-export interface MergeEdge {
-	a: number;
-	b: number;
-	score: number;
+/** The strokes and affinities one component's groups are valued against. */
+export interface ComponentContext {
+	strokes: CleanedStroke[];
+	affinity: AffinityMatrix;
+	/** Each stroke's share of the component's ink. Sums to 1. */
+	inkShare: number[];
 }

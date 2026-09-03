@@ -56,7 +56,7 @@ When `unsupportedMultipleRings` is non-empty, the app treats the drawing as inva
 
 ## Candidate Fields
 
-`candidates` are grouped symbol-like marks selected by decomposition. Grouping works on whole strokes. No-ring guide preview and prepared open rings use fast layer-aware proximity grouping, while complete rings can apply recognition-guided tree cuts so symbols drawn close together are separated. For ringed drawings, candidates are inside the spell ring and exclude ring strokes. For no-ring diagnostic preview, the parser may expose guide-relative preview candidates when canvas guide geometry is available; otherwise it may expose one synthetic standalone sigil candidate with id `preview-symbol`.
+`candidates` are grouped symbol-like marks selected by decomposition. Grouping works on whole strokes. No-ring guide preview and prepared open rings group by stroke affinity, while complete rings run a recognition-guided partition search so symbols drawn close together are separated and a glyph's detached marks stay with it. For ringed drawings, candidates are inside the spell ring and exclude ring strokes. For no-ring diagnostic preview, the parser may expose guide-relative preview candidates when canvas guide geometry is available; otherwise it may expose one synthetic standalone sigil candidate with id `preview-symbol`.
 
 Candidates are useful for diagnostics and recognition debugging. Their boxes in the overlay are bounding boxes around the selected stroke group. They are not the recognition algorithm itself; the matcher scores normalized point clouds and ink distance maps derived from the candidate strokes.
 

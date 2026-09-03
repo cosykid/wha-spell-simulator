@@ -11,6 +11,7 @@
 		"check": "svelte-check --tsconfig ./tsconfig.json",
 		"db:migrate": "node --import tsx scripts/migrate.ts",
 		"glyphs:reference-sizes": "node --import tsx models/glyph-reference-sizes.ts",
+		"bench:grouping": "node --import tsx models/grouping-benchmark/index.ts",
 		"test": "npm run test:unit && npm run test:e2e",
 		"test:unit": "svelte-kit sync && node --import tsx --test tests/*.test.ts",
 		"test:golden": "node --import tsx --test tests/golden/*.test.ts",

@@ -13,19 +13,10 @@ import { summarizePolar } from '../coordinateNormalizer.js';
 import type {
 	AppConfig,
 	CleanedStroke,
-	Dictionary,
 	RadialFacing,
 	RingInfo,
 	SymbolCandidate
 } from '../../types.js';
-
-/** Highest symbol stroke count allowed by dictionary templates plus tolerance. */
-export function maxTemplateStrokeCount(dictionary: Dictionary): number {
-	const counts = [...dictionary.sigils, ...dictionary.signs].map(
-		(entry) => entry.strokeTemplate?.strokes?.length ?? 0
-	);
-	return Math.max(8, ...counts) * 2 + 4;
-}
 
 function classifyRadialFacing(directedAngle: number, radialAngle: number): RadialFacing {
 	const outward = angularDifference(directedAngle, radialAngle);

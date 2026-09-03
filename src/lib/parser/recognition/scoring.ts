@@ -1,14 +1,7 @@
 import { clamp, normalizeAngleDeg } from '../../utils/geometry.js';
-import { candidateContentKey, scopedLruCache } from '../recognitionMemo.js';
 import { recognitionPlanForSymbol } from '../signRotation.js';
-import {
-	recognitionKey,
-	scoreRecognitionExample,
-	type RecognitionExample
-} from '../shape-matcher/index.js';
+import { scoreRecognitionExample, type RecognitionExample } from '../shape-matcher/index.js';
 import type {
-	AppConfig,
-	Dictionary,
 	DictionaryEntry,
 	RecognitionKind,
 	RecognitionStatus,
@@ -16,7 +9,6 @@ import type {
 	TemplateMatch
 } from '../../types.js';
 import {
-	DECOMPOSITION_DOMINANT_SIGIL_SCORE,
 	REGION_FLAT_CONFIDENCE_CAP,
 	REGION_SIGN_ID,
 	SIMPLE_SIGN_MIN_TEMPLATE_COVERAGE,
@@ -26,11 +18,9 @@ import {
 	SIMPLE_SIGN_STRUCTURAL_FLOOR_STROKE_LIMIT
 } from './constants.js';
 import { candidateFeatures, structuralCompatibility } from './features.js';
-import { recognitionExamplesFor } from './examples.js';
 import { allowedLayerScore, entryStrokeTemplate, rangeScore } from './thresholds.js';
 import type {
 	CandidateFeatures,
-	DecompositionScorer,
 	PrecomputedExampleScore,
 	RecognitionThresholds,
 	ScoredEntry,
@@ -258,85 +248,5 @@ export function publicCandidate(candidate: SymbolCandidate) {
 		radialFacing: candidate.radialFacing,
 		overdrawAmount: candidate.overdrawAmount,
 		neatness: candidate.neatness
-	};
-}
-
-/**
- * Creates the lightweight scorer used by recognition-guided stroke decomposition.
- *
- * It deliberately skips status and structural blending so tree nodes can be
- * scored cheaply while the user draws.
- */
-export function createDecompositionScorer(
-	dictionary: Dictionary,
-	_config: AppConfig,
-	recognitionExamples: RecognitionExample[] = []
-): DecompositionScorer {
-	const allExamples = recognitionExamplesFor(dictionary, recognitionExamples);
-	const examplesByKey = new Map<string, RecognitionExample[]>();
-	for (const example of allExamples) {
-		const key = recognitionKey(example.kind, example.symbolId);
-		examplesByKey.set(key, [...(examplesByKey.get(key) ?? []), example]);
-	}
-
-	type EntryGroup = {
-		kind: RecognitionKind;
-		entry: DictionaryEntry;
-		examples: RecognitionExample[];
-	};
-	const sigilEntries: EntryGroup[] = dictionary.sigils.flatMap((entry) => {
-		const examples = examplesByKey.get(recognitionKey('sigil', entry.id)) ?? [];
-		return examples.length ? [{ kind: 'sigil' as const, entry, examples }] : [];
-	});
-	const signEntries: EntryGroup[] = dictionary.signs.flatMap((entry) => {
-		const examples = examplesByKey.get(recognitionKey('sign', entry.id)) ?? [];
-		return examples.length ? [{ kind: 'sign' as const, entry, examples }] : [];
-	});
-
-	const bestEntryScore = (group: EntryGroup, candidate: SymbolCandidate): number => {
-		const layerScore = allowedLayerScore(group.entry, candidate);
-		if (layerScore < 0.5) {
-			return 0;
-		}
-		const plan = recognitionPlanForSymbol(group.kind, group.entry, candidate);
-		let best = 0;
-		for (const example of group.examples) {
-			const matcher = scoreRecognitionExample(plan.candidate.strokes, example, plan.options);
-			if (matcher.confidence > best) {
-				best = matcher.confidence;
-			}
-		}
-		return best * layerScore;
-	};
-
-	const nodeScoreCache = scopedLruCache<number>(
-		dictionary,
-		`decomposition:${allExamples.map((example) => example.id).join(',')}`,
-		2048
-	);
-
-	return (candidate: SymbolCandidate): number => {
-		const cacheKey = candidateContentKey(candidate);
-		const cached = nodeScoreCache.get(cacheKey);
-		if (cached !== undefined) {
-			return cached;
-		}
-		let best = 0;
-		for (const group of sigilEntries) {
-			const score = bestEntryScore(group, candidate);
-			if (score > best) {
-				best = score;
-			}
-		}
-		if (best < DECOMPOSITION_DOMINANT_SIGIL_SCORE) {
-			for (const group of signEntries) {
-				const score = bestEntryScore(group, candidate);
-				if (score > best) {
-					best = score;
-				}
-			}
-		}
-		nodeScoreCache.set(cacheKey, best);
-		return best;
 	};
 }

@@ -30,7 +30,7 @@ As of June 16, 2026, the ML training dataset contains more than 8,000 hand-drawn
    ring.
 3. When no ring is found, build diagnostics-only preview candidates. If canvas guide geometry is available, use guide-relative layers so center sigils and sign-like marks can be labeled separately; otherwise build one synthetic standalone sigil preview candidate.
 4. When a ring is found, classify strokes by ring-relative layer and boundary position.
-5. Build symbol candidates from non-ring strokes. In-progress drawings use fast layer-aware proximity grouping; complete rings can use recognition-guided tree cuts to separate close symbols.
+5. Build symbol candidates from non-ring strokes. In-progress drawings group by stroke affinity; complete rings run a recognition-guided partition search that separates close symbols and keeps detached marks with their glyph.
 6. Recognize each candidate with the hybrid template plus ML recognizer.
 7. Build `GlyphAST`, warnings, parser diagnostics, and compiler-ready recognitions.
 
@@ -42,22 +42,27 @@ The no-ring preview is diagnostics-only. It can show likely symbol labels while 
 
 The decomposition layer works on whole cleaned strokes. It intentionally does not split a stroke into fragments yet.
 
-Grouping starts from a proximity pass over non-ring strokes:
+Grouping starts from stroke affinity, a 0..1 prior that two strokes share a glyph (`grouping/affinity.ts`):
 
-- Builds a proximity graph using bounding-box gap, sampled point distance, center distance, layer compatibility, and nearby polar angle.
-- Gives center sigils extra tolerance so multi-stroke sigils can stay together even when their pieces do not overlap tightly.
-- Uses connected components from that proximity graph as the starting groups.
+- Touching strokes have affinity 1. It falls off with the ink gap, squared, and is gone past 0.2 ring radii.
+- A stroke drawn inside another stroke's footprint keeps affinity 0.85 with it, and two center-layer strokes near the ring center keep 0.5, because one sigil sits at the center.
+- Strokes linked by affinity of 0.2 or more form a component. A component is the widest set that could share a glyph, so grouping never crosses one.
 
-Candidate building has two refinement modes:
+Candidate building has two modes:
 
-- Fast layer-aware grouping is used for no-ring guide preview and incomplete or prepared rings. It keeps editing responsive, respects ring-relative layers, and rejoins touching same-layer fragments that belong to one rough multi-stroke sign.
-- Recognition-guided decomposition is used for complete rings when `CONFIG.recognition.recognitionGuidedDecomposition` is on. It handles close or bridged symbols that proximity alone cannot separate, for example a center sigil drawn next to a ring sign.
+- Affinity-only grouping is used for no-ring guide preview and incomplete or prepared rings. Components at affinity 0.5 or more become candidates. It keeps editing responsive.
+- Recognition-guided partition search is used for complete rings when `CONFIG.recognition.recognitionGuidedDecomposition` is on. It separates close or bridged symbols that affinity alone cannot, and keeps a glyph's detached ticks and dots with its body.
 
-In recognition-guided mode, each component is clustered into a single-linkage merge forest with union-find, every viable whole-symbol tree node is scored, and the parser chooses between keeping a node whole or taking its child groups. Each group in a cut pays `CONFIG.recognition.groupPenalty`, currently `0.55`, so a split only wins when the child groups clearly outscore the whole. A node whose whole-shape score is near-perfect (`TREE_KEEP_WHOLE_SCORE`) is kept whole without weighing child cuts, because dense sub-groups of a complex glyph can partially match other templates and win the cut numerically.
+The partition search runs per component:
 
-Node scoring during the tree cut is deliberately lightweight. It runs only the `$P` + chamfer shape match, not the full structural blend or ONNX inference, and it stops scoring signs for a node once a sigil clears a dominant threshold. The full hybrid recognizer runs once afterward on the chosen groups, so the expensive pass is not repeated per tree node. The union-find clustering also replaces an earlier all-pairs rescan, keeping the path fast.
+1. Hypotheses (`grouping/hypotheses.ts`). Every single stroke and every node of the single-linkage merge tree over affinity is a candidate group. After scoring, any group that reads as a clean glyph (wholeness of 0.4 or more) also proposes its leftovers: the rest of the component without it, and without each pair of clean glyphs. That is how a sigil keeps far dots when a sign sits closer to its body than the dots do. Groups wider than 0.58 ring diameters or over 20 strokes are never proposed.
+2. Wholeness (`recognition/decompositionScorer.ts`). Each hypothesis is scored as one candidate: the best `$P` plus chamfer match over the dictionary examples, times the layer fit, discounted for template ink the group leaves uncovered (linear from 30% to 80% coverage) and for a footprint outside 0.45 to 2.2 times the entry's regular size for a sigil, or 0.45 to 1.5 times for a sign, fading to nothing one regular size past the ceiling. The sign ceiling is what keeps two bridged neighbours apart, since their union reads as one sign half again its size, while a sigil at twice its size is a full-strength spell. Chamfer picks the rotation and `$P` refines only that one, and sign scoring stops once a sigil reads at 0.85. Results are memoized by stroke content.
+3. Value (`grouping/groupValue.ts`). A group is worth its share of the component's ink times a blend of wholeness (shaped so anything under 0.3 counts for nothing) and cohesion, the ink-weighted share of each member's affinity that stays inside the group, minus a flat cost per group. `CONFIG.recognition.grouping` holds the blend weight (0.8 on wholeness) and the cost (0.02). Charging by ink share is what keeps satellites attached: orphaning a tick forfeits its ink, and a lone tick reads as nothing.
+4. Partition (`grouping/partition.ts`). An exact-cover search over stroke bitmasks picks the disjoint hypotheses that cover every stroke with the highest total value, memoized per covered set. Past 100k states it falls back to a greedy cover. Components over 30 strokes are first split by demanding stronger affinity.
 
-The `groupPenalty` is tuned so complex multi-stroke sigils (water, wind, light) and multi-stroke signs (levitation, column) stay whole, while genuinely separate symbols split apart. It must sit below the shape-match confidence real hand-drawn symbols reach (roughly `0.55`–`0.75`); a higher value zeroes every group so the cut degenerates to touch-based fragment merging, which fuses adjacent symbols. Setting `recognitionGuidedDecomposition` to false keeps candidate building on the cheaper proximity path, which is responsive but cannot separate every bridged symbol.
+The full hybrid recognizer runs once afterwards on the chosen groups, so the expensive pass is not repeated per hypothesis.
+
+Grouping is tuned against `npm run bench:grouping`, which composes spells from the labelled hand-drawn corpus in `.artifacts/glyph-training/` and reports how often each glyph's stroke set is recovered exactly. Change a constant only with a before and after run.
 
 The boxes shown by glyph diagnostics are candidate bounds, not every internal grouping possibility. A box around a tentative symbol means "these strokes were selected as one candidate for this parse." It does not mean the recognizer only sees square pixels.
 
@@ -222,7 +227,7 @@ Glyph diagnostics now show tentative names from recognition diagnostics, not jus
 
 For an accepted sigil or sign, the overlay also shows its size relative to its regular size as `×<ratio> <tag>` (for example `×1.32 strong`), where `ratio = sizeNorm / referenceSizeNorm` and the tag is `weak`, `regular`, or `strong`. Both sigils and signs carry a `referenceSizeNorm` in the dictionary, so the readout works for either. This surfaces the same size signal the compiler turns into spell strength, read from the raw candidate footprint rather than the size-invariant recognizer.
 
-The overlay still draws candidate bounds. It does not visualize proximity graph edges, merge tree nodes, or the chamfer ink map.
+The overlay still draws candidate bounds. It does not visualize stroke affinity, the group hypotheses, or the chamfer ink map.
 
 ## Tests
 
@@ -230,6 +235,7 @@ Relevant coverage:
 
 - `tests/matcher.test.ts` covers point-cloud distance and chamfer scoring.
 - `tests/mlRecognizer.test.ts` covers hybrid ML acceptance, override, verifier, and fallback behavior.
-- `tests/decomposition.test.ts` covers grouping one sigil plus one sign, keeping nearby signs separate, preserving multi-stroke signs, rejoining touching sign fragments, ignoring ring strokes, contamination from noise, no-ring guide preview grouping, and prepared-ring fast grouping.
+- `tests/groupingAffinity.test.ts` covers stroke affinity, and `tests/groupingPartition.test.ts` the pure partition pieces: affinity components, hypotheses and leftovers, and the exact cover.
+- `tests/decomposition.test.ts` covers grouping one sigil plus one sign, keeping nearby signs separate, preserving multi-stroke signs, keeping touching sign fragments together, keeping a sigil's detached ticks and dots with its body, ignoring ring strokes, contamination from noise, no-ring guide preview grouping, and prepared-ring fast grouping.
 - `tests/symbolRecognition.test.ts` keeps recognition regressions for signs, sigils, diagnostics, rotation, contamination, messy valid matches, rough two-stroke column diagnostics, and curve-character separation (angular `crystal` ink is not absorbed by the flowing `aeroform` sigil).
 - `tests/ringDetector.test.ts` keeps ring behavior independent of symbol recognition.

@@ -77,7 +77,7 @@ The recognizer uses a hybrid approach:
 - Structural checks compare stroke count, stroke-length profile, aspect ratio, curve character, layer fit, size, and neatness.
 - The browser ML recognizer can reinforce, accept, or override the template result when the static ONNX model is available.
 
-The hardest part is still decomposition: deciding which strokes belong together before recognition starts. The app handles this by grouping whole strokes with proximity, layer, and ring-position rules. For complete rings, it can also use recognition-guided tree cuts to separate close or touching symbols. The current parser does not split a single continuous stroke into multiple symbol fragments.
+The hardest part is still decomposition: deciding which strokes belong together before recognition starts. The app handles this by grouping whole strokes by affinity. For complete rings, it runs a recognition-guided partition search to separate close or touching symbols and keep detached marks with their glyph. The current parser does not split a single continuous stroke into multiple symbol fragments.
 
 Runtime recognition does not query the database. Template examples come from the in-repo dictionary by default, and the browser ML model is loaded from static model files. The labelled handwriting samples collected from users are used offline to train the model.
 
