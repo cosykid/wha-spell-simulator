@@ -82,10 +82,20 @@ cannot be created. The classifier worker itself scores candidates in-thread.
   without `strokeTemplate.strokes` is invisible to the template recognizer.
 - Every `session.run` goes through `runSession` in `ml/sessionQueue.ts`.
   Overlapping runs deadlock Firefox WebGPU. Never touch `runtime.session.run`.
-- ONNX wasm paths are hardcoded to `/onnxruntime/`; `npm run postinstall` syncs
-  the files into `static/`. ML stays advisory: if the runtime is missing or
-  inference throws, `ml/hybrid.ts` returns the template results with
+- `vite.config.ts` decides where the heavy assets come from, and stamps both
+  answers into the bundle. `ort.env.wasm.wasmPaths` is jsDelivr in a deployed
+  build and the postinstall-synced `/onnxruntime/` on the dev server; every
+  `/models/` URL carries a `?v=<content hash>` so the deploy can cache it as
+  immutable. Nothing may fetch `/models/` except through `mlConfig`. ML stays
+  advisory either way: if the runtime is missing or inference throws,
+  `ml/hybrid.ts` returns the template results with
   `diagnostics.ml.available: false`.
+- The worker's `init` deliberately does not load the ML runtime. `loadRuntime`
+  fetches roughly 25 MB of weights and wasm, so it waits for a `warm-ml` message,
+  which `warmDrawingClassifierMl()` sends and the client replays onto any worker
+  it creates afterwards. The app sends it on the reader's first stroke. Nothing
+  is obliged to: `ml/hybrid.ts` loads the runtime on the recognition path, so an
+  unwarmed worker still refines, only later.
 - The ML class map holds ids with no dictionary JSON (`cool`, `gather`, `orb`).
   `ml/dictionary.ts` cannot resolve them, so `acceptMlResult` rejects them as
   `unknown_class`. Expected, not a bug.

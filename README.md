@@ -107,6 +107,30 @@ Vercel can use the default build command:
 npm run build
 ```
 
+### Where the recognizer's heavy assets are served from
+
+The two big downloads a first-time visitor pays for are the ONNX Runtime wasm
+binary (~22 MB) and the model's external-data sidecar (~22 MB). They are served
+differently, and `vite.config.ts` owns both decisions.
+
+- **ONNX Runtime wasm.** `onnxruntime-web` ships eight
+  `ort-wasm-simd-threaded*` variants totalling ~74 MB and the recognizer loads
+  one. A deployed build points `ort.env.wasm.wasmPaths` at
+  `https://cdn.jsdelivr.net/npm/onnxruntime-web@<installed version>/dist/`, so
+  none of that is deployed or served from our own bandwidth. The version comes
+  from the installed package, because a binary from a different release than the
+  bundled JS glue fails at load. The dev server uses the local copy instead
+  (`static/onnxruntime/`, synced from `node_modules` by `npm run postinstall`),
+  so working offline needs no network. `postinstall` skips the sync on Vercel,
+  which is what keeps the 74 MB out of the deploy. Set `ORT_WASM_BASE` to point a
+  production build back at a local path.
+- **Model files.** `/models/` is cached as immutable for a year. Those filenames
+  never change, so the recognizer requests them with a `?v=<content hash>` stamp
+  computed at build time over the graph, the sidecar, and the class map together.
+  A retrain changes the hash, and all three move to a fresh URL at once. That is
+  the invariant the cache header depends on: **nothing may fetch `/models/`
+  except through `mlConfig()` in `src/lib/parser/ml/config.ts`.**
+
 ## Reference Tools
 
 Companion lab tools are built into the app as SvelteKit routes and share the
