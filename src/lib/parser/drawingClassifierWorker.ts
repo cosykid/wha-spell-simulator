@@ -11,6 +11,11 @@ interface InitMessage {
 	recognitionExamples: RecognitionExample[];
 }
 
+/** Asks for the ML runtime, which `init` deliberately leaves unloaded. */
+interface WarmMlMessage {
+	type: 'warm-ml';
+}
+
 interface ClassifyMessage {
 	type: 'classify';
 	id: number;
@@ -21,7 +26,7 @@ interface ClassifyMessage {
 	guideReferenceSize?: number;
 }
 
-type InboundMessage = InitMessage | ClassifyMessage;
+type InboundMessage = InitMessage | WarmMlMessage | ClassifyMessage;
 
 const ctx = self as unknown as DedicatedWorkerGlobalScope;
 
@@ -37,7 +42,17 @@ ctx.onmessage = (event: MessageEvent<InboundMessage>) => {
 		dictionary = message.dictionary;
 		config = message.config;
 		recognitionExamples = message.recognitionExamples ?? [];
-		warmMlRecognizer(config, dictionary);
+		return;
+	}
+
+	// The ML runtime is roughly 25 MB of weights and wasm, so init leaves it
+	// unloaded and the client asks for it once the reader picks up the pen. A
+	// visitor who never draws never pays for it. Repeats are free: every stage
+	// `warmMlRecognizer` starts is memoized.
+	if (message.type === 'warm-ml') {
+		if (dictionary && config) {
+			warmMlRecognizer(config, dictionary);
+		}
 		return;
 	}
 

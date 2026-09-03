@@ -343,6 +343,10 @@ export class SimulatorRuntime {
 			glyphCanvas: () => ui.glyphCanvas,
 			store: drawing.store,
 			onStrokeStart: () => {
+				// The pen has landed, so the ML runtime is finally worth its download.
+				// Nothing before this point is intent to draw, and this is a stroke
+				// and a debounce ahead of the recognition that wants it.
+				recognition.warmMlRefinement();
 				recognition.cancelActiveRecognition();
 				actions.dismissCanvasHint();
 			},
