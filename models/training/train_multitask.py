@@ -79,6 +79,11 @@ def parse_args():
         help="Glyph dictionary dir used to read per-class rotation rules.",
     )
     parser.add_argument("--aug-seed", type=int, default=42)
+    parser.add_argument(
+        "--resume",
+        action="store_true",
+        help="Continue from latest.pt in the checkpoint dir, if one is there.",
+    )
     return parser.parse_args()
 
 
@@ -300,6 +305,20 @@ def main():
     checkpoint_dir = Path(args.checkpoint_dir)
     checkpoint_dir.mkdir(parents=True, exist_ok=True)
     best_val = float("inf")
+    first_epoch = 1
+
+    # Long runs get interrupted. Resuming from latest.pt restores the optimizer
+    # state too, so a continued run is not a fresh AdamW warmup in disguise.
+    latest_path = checkpoint_dir / "latest.pt"
+    if args.resume and latest_path.exists():
+        resumed = torch.load(latest_path, map_location=device)
+        model.load_state_dict(resumed["model_state"])
+        optimizer.load_state_dict(resumed["optimizer_state"])
+        first_epoch = int(resumed["epoch"]) + 1
+        best_path = checkpoint_dir / "best.pt"
+        if best_path.exists():
+            best_val = float(torch.load(best_path, map_location="cpu")["val_metrics"]["loss"])
+        print(f"resumed from epoch {resumed['epoch']} (best val loss {best_val:.4f})")
 
     print(
         f"device={device} image_size={args.image_size} classes={len(class_to_idx)} "
@@ -307,7 +326,7 @@ def main():
     )
 
     training_started = time.perf_counter()
-    for epoch in range(1, args.epochs + 1):
+    for epoch in range(first_epoch, args.epochs + 1):
         epoch_started = time.perf_counter()
         train_metrics = run_epoch(model, train_loader, optimizer, device, args, train=True)
         val_metrics = run_epoch(model, val_loader, optimizer, device, args, train=False)

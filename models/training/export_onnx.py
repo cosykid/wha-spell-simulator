@@ -23,6 +23,7 @@ import onnx
 import torch
 
 from clip_to_minmax import replace_clip_with_min_max
+from glyph_student import GlyphStudent, parameter_count
 from wha_multitask import (
     GlyphManifestDataset,
     GlyphResNet18MultiHead,
@@ -78,6 +79,18 @@ def parse_args():
 def image_size_from_checkpoint(checkpoint) -> int:
     """The size the model was trained at, persisted via vars(args)."""
     return int(checkpoint.get("args", {}).get("image_size", DEFAULT_IMAGE_SIZE))
+
+
+def build_model(checkpoint):
+    """The architecture the checkpoint holds. `widths` is the student's marker."""
+    num_classes = len(checkpoint["class_to_idx"])
+    widths = checkpoint.get("widths")
+    if widths:
+        model = GlyphStudent(num_classes=num_classes, widths=tuple(widths))
+    else:
+        model = GlyphResNet18MultiHead(num_classes=num_classes, pretrained=False)
+    model.load_state_dict(checkpoint["model_state"])
+    return model.eval()
 
 
 def export_fp32(wrapper, image_size: int, output: Path, opset: int) -> None:
@@ -183,9 +196,8 @@ def main():
     image_size = image_size_from_checkpoint(checkpoint)
     print(f"export image_size={image_size} classes={len(class_to_idx)}")
 
-    model = GlyphResNet18MultiHead(num_classes=len(class_to_idx), pretrained=False)
-    model.load_state_dict(checkpoint["model_state"])
-    model.eval()
+    model = build_model(checkpoint)
+    print(f"architecture={type(model).__name__} parameters={parameter_count(model):,}")
 
     output = Path(args.output)
     output.parent.mkdir(parents=True, exist_ok=True)
@@ -215,8 +227,14 @@ def main():
     # 3. Parity: torch argmax vs the deployed FP16 argmax on real validation
     # rasters. A poor agreement means FP16 rounding changed predictions, so we
     # overwrite the deployment with FP32 reloaded fresh from disk.
+    # A teacher checkpoint records the raster root it trained on; a distilled
+    # student records the frozen split instead, whose rasters live one level down.
+    checkpoint_args = checkpoint.get("args", {})
+    frozen = checkpoint_args.get("frozen")
     dataset_root = Path(
-        args.dataset_root or checkpoint.get("args", {}).get("dataset_root", "")
+        args.dataset_root
+        or checkpoint_args.get("dataset_root")
+        or (f"{frozen}/raster" if frozen else "")
     )
     if dataset_root and dataset_root.exists():
         images = load_parity_images(dataset_root, image_size, args.parity_samples)

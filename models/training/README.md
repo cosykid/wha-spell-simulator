@@ -1,82 +1,220 @@
 # WHA Glyph Training
 
-This folder contains PyTorch-side training helpers for datasets exported by:
+PyTorch-side training for the browser glyph recognizer. Datasets come from:
 
 ```bash
-models/ai-dataset-processing/wha-ds-converter.py
-models/ai-dataset-processing/wha-ds-imageifier.py
+models/ai-dataset-processing/wha-ds-converter.py    # database -> stroke JSONL
+models/ai-dataset-processing/wha-ds-imageifier.py   # stroke JSONL -> PNG + manifest
 ```
 
-`wha_multitask.py` provides:
+The deployed model is a small purpose-built CNN distilled from a ResNet18
+teacher. Training therefore runs in two stages, one script each:
 
-- `GlyphManifestDataset`: loads PNGs plus class/pose targets from `manifest.jsonl`,
-  with optional per-class rotation augmentation on the train split.
-- `GlyphResNet18MultiHead`: ResNet18 backbone with heads for class, angle, scale,
-  and center.
-- `glyph_multitask_loss`: combined classification + pose loss.
+| Stage                   | Script                      | Produces                                          |
+| ----------------------- | --------------------------- | ------------------------------------------------- |
+| frozen split + teacher  | `run_glyph_training.sh`     | `.artifacts/glyph-frozen/`, a ResNet18 checkpoint |
+| pool + student + deploy | `run_glyph_distillation.sh` | `static/models/glyph-recognizer.onnx`             |
 
-`rotation_policy.py` reads each glyph's `recognitionRotationInvariant` /
-`allowedRotationsDeg` from the dictionary and decides how far that class may rotate
-during training. See [Rotation Augmentation](#rotation-augmentation).
+`npm run train:glyphs` runs both. `SKIP_DISTILL=1` stops after the teacher.
 
-As of June 16, 2026, the labelled handwriting dataset contains more than 8,000
-hand-drawn glyph samples collected with the Sample Maker tool.
+## Module map
 
-## One Command
+- `wha_multitask.py` - `GlyphManifestDataset`, `GlyphResNet18MultiHead` (the
+  teacher), `glyph_multitask_loss`.
+- `glyph_student.py` - `GlyphStudent`, the deployed architecture, plus the
+  temperature fold.
+- `rotation_policy.py` - reads each glyph's `recognitionRotationInvariant` /
+  `allowedRotationsDeg` from the dictionary and decides how far that class may
+  rotate during augmentation. See [Rotation Augmentation](#rotation-augmentation).
+- `app_render.py` - rasterizes strokes the way the browser does at inference
+  time. See [The two rasterizers](#the-two-rasterizers).
+- `vector_augment.py` - redraws a labelled sample many different ways.
+- `distill_data.py` - builds the augmented pool and the teacher's targets for it.
+- `distill_pool.py` - reads the pool and deals it out in batches.
+- `distill_student.py` - the distillation training loop.
+- `calibrate_student.py` - fits the student's output temperature.
+- `glyph_eval.py` / `run_glyph_eval.py` - the metrics a model must clear to ship.
+- `export_onnx.py` - checkpoint to deployed FP16 ONNX.
 
-From the repo root:
+## The frozen split
+
+`run_glyph_training.sh` cuts one stratified train/validation/test split and
+writes it as three JSONL files under `.artifacts/glyph-frozen/`. Those files
+_are_ the split: every model in a comparison is scored on identical rows, and a
+model trained before the split existed cannot be compared honestly against one
+trained after it.
+
+```text
+.artifacts/glyph-frozen/
+  train.jsonl validation.jsonl test.jsonl   the frozen split, seed 42
+  raster/                                    PNGs + one manifest for all three
+  teacher-baseline/                          ResNet18 checkpoints
+  pool/                                      augmented renders + teacher targets
+  student-<size>/                            distilled student checkpoints
+```
+
+`test.jsonl` is read by exactly one thing, `run_glyph_eval.py`. Training and
+temperature fitting both select on `validation.jsonl`.
+
+## The two rasterizers
+
+A glyph reaches the model through one of two very different paths, and the
+difference is large enough to change accuracy:
+
+| Path                             | Pen                       | Ink width at 96px |
+| -------------------------------- | ------------------------- | ----------------- |
+| `wha-ds-imageifier.py`           | 2px at 224, resized to 96 | ~0.86px           |
+| `src/lib/parser/ml/rendering.ts` | 2px at 96                 | 2.0px             |
+
+So a model trained only on dataset rasters is served ink about 2.3x wider than
+anything it saw. Measured on the frozen test split, that costs the ResNet18
+teacher roughly 8 points of top-1 and takes one class (`wind-directs-air`,
+which then reads as `aeroform`) to near zero.
+
+`vector_augment.py` closes the gap by drawing every training render at an ink
+width sampled across both, through both rasterizers. `app_render.py` exists so
+evaluation can measure the browser's path, not just the dataset's.
+
+## Distillation
+
+The student has ~26x fewer parameters than the teacher, so it is trained against
+the teacher's soft outputs rather than one-hot labels alone:
+
+```text
+loss = (1 - alpha) * CE(student, label)
+     + alpha * T^2 * KL(student/T || teacher/T)     masked where the teacher is right
+     + pose fit against the teacher on every render
+     + pose fit against the labelled pose on untouched renders
+```
+
+Two details matter:
+
+- **The KL term is masked** wherever the teacher's own argmax disagrees with the
+  hard label. The teacher is fragile on wide ink, and an unmasked KL would teach
+  the student mistakes the label already contradicts.
+- **Only the untouched render keeps its pose label.** Augmentation moves the ink
+  and the label does not move with it, so `pose_valid` marks variant 0 of each
+  sample and the rest of the pose signal is distilled.
+
+The pool is dealt out per class, not per sample, so the ~1.7x class imbalance in
+the corpus does not reach training. Its rows are shuffled on disk because
+training reads it in long contiguous runs: the pool is much larger than the page
+cache, and row-at-a-time random reads starve the GPU.
+
+## Calibration is part of the acceptance bar
+
+The runtime only lets ML override the template recognizer when a prediction
+clears paired confidence and margin thresholds (`config.recognition.ml` in
+`src/lib/config.ts`). Distillation at temperature teaches flatness, so a student
+can reproduce the teacher's argmax perfectly and still stop clearing 0.84 or
+0.94, quietly losing its ability to override anything.
+
+`run_glyph_eval.py` therefore reports, per model:
+
+- top-1 on the dataset rasters _and_ on the browser's own eight-rotation vote,
+- the rate at which predictions clear each acceptance gate,
+- per-class accuracy, because one collapsed class hides in a 26-class average,
+- argmax agreement with the model being replaced,
+- pose angle, scale, and center error.
+
+`calibrate_student.py` fits one temperature on the validation split by
+minimizing the negative log likelihood of the browser's averaged-softmax
+probabilities, then folds it into the final linear layer. Folding costs the
+exported graph no extra node. The objective is a proper scoring rule, so it
+cannot be tuned toward the gates.
+
+## Rotation Augmentation
+
+Scale and translation are invariant by construction: every candidate is cropped
+to its bounding box and normalized into a fixed margined square, both when
+rasterizing training data and when rendering for browser inference. Rotation is
+not, so augmentation rotates samples, gated per class by the dictionary metadata
+the runtime recognizer already uses:
+
+- `recognitionRotationInvariant: true` -> rotate uniformly in
+  `±--rot-invariant-deg` (default 180, the full circle). Every glyph with a
+  dictionary entry is flagged this way.
+- `allowedRotationsDeg: [...]` -> snap to those orientations, plus a little jitter.
+- an orientation-locked glyph (flag `false`) -> only a small `±--rot-jitter-deg`
+  wobble (default 12), within the recognizer's sign tolerance.
+
+Six classes in the class map have no dictionary JSON (`cool`, `empower`,
+`entwine`, `focus`, `gather`, `orb`), so they fall to the orientation-locked
+default while every dictionary glyph is rotation-invariant. `acceptMlResult`
+rejects those ids as `unknown_class` anyway, so the app never acts on them.
+
+Signs are a hybrid: the model recognizes them at any rotation, but the template
+fallback in `signRotation.ts` stays orientation-aware (a straight `column` is
+shape-ambiguous under free rotation). See `docs/recognition.md` -> Rotation
+Semantics.
+
+The teacher's pose targets transform with the image. PIL's `rotate(θ)` turns the
+image counter-clockwise, but the label `angle` is clockwise-positive in the
+y-down canvas (`buildSample` -> `DOMMatrix.rotateSelf`), so a CCW image rotation
+_subtracts_ `θ` from `angle`, orbits `center` the same CCW way the pixels move,
+and leaves `scale_x` / `scale_y` unchanged (they live in the overlay's own
+frame). Run the math/policy checks with:
 
 ```bash
-npm run train:glyphs
+python3 models/training/test_rotation_policy.py
 ```
 
-That command:
+After the epochs, `train_multitask.py` prints a per-class angle-error table over
+the un-augmented validation split:
 
-1. Exports approved `labelled_samples` rows from the database.
-2. Renders PNGs and writes `manifest.jsonl`, `manifest.csv`, and `class_to_idx.json`.
-3. Creates/updates the PyTorch training venv.
-4. Trains the multi-head ResNet18 model.
-5. Exports the best checkpoint to ONNX for the browser hybrid recognizer.
+- `bias`: mean signed circular error, in degrees.
+- `abs`: mean absolute circular error, in degrees.
+- `R`: error resultant length, from 0 to 1.
+- `n`: validation sample count.
 
-Generated files go under:
+A class is flagged as `miscalibrated` only when `abs(bias) > 20` and `R >= 0.6`.
+The `R` gate matters because rotationally symmetric glyphs can have high absolute
+angle error with errors spread around the circle; their signed bias is not
+meaningful and the pose head is diagnostic-only. A true augmentation or pose-sign
+bug shows up as both a high bias and a tight error distribution.
+
+## ONNX Export
+
+`export_onnx.py` reads the architecture from the checkpoint (`widths` marks a
+student) and `image_size` from its args, falling back to 96. It exports a
+temporary FP32 graph, converts it to FP16 with
+`onnxconverter_common.float16.convert_float_to_float16(keep_io_types=True)`, and
+deploys:
 
 ```text
-.artifacts/glyph-training/
-  labelled_samples_vector-all.jsonl
-  labelled_samples_raster/
-  checkpoints/
+static/models/glyph-recognizer.onnx
+static/models/glyph-recognizer.onnx.data
+static/models/glyph-class-to-idx.json
 ```
 
-Browser inference files go under SvelteKit's static asset directory:
+`keep_io_types=True` keeps model inputs and outputs float32, so the browser
+runtime still feeds the same `Float32Array` tensors. The weights live in the
+external-data sidecar because `loadRuntime` passes `externalData` explicitly;
+the two files must deploy together.
 
-```text
-static/models/
-  glyph-recognizer.onnx
-  glyph-recognizer.onnx.data
-  glyph-class-to-idx.json
-```
+Export validates two things before finishing:
 
-The current browser model is trained and rendered at 96x96. The raster source
-PNGs may be larger; `GlyphManifestDataset` resizes them at load time using
-`default_image_transform(image_size)`, and `--image-size` is saved into the
-checkpoint so export can use the same shape.
+- Dynamic batch works, by running a 3-image CPU `onnxruntime` inference in one call.
+- FP16 class argmax matches the torch model on real validation rasters. Below the
+  parity threshold it falls back to deploying FP32 under the same filenames.
 
-Useful overrides:
+The student uses only operators the previous ResNet18 already proved on both
+execution providers (dense `Conv`, `BatchNormalization`, `Relu`, `MaxPool`,
+`GlobalAveragePool`, `Gemm`), so a swap carries no new kernel risk. The one
+rewrite that remains is `Clip` to `Max`/`Min`, which Firefox's WebGPU shader
+compiler rejects in FP16 (`clip_to_minmax.py`).
+
+## Useful overrides
 
 ```bash
 EPOCHS=5 npm run train:glyphs
+SKIP_DISTILL=1 npm run train:glyphs               # stop after the teacher
+SKIP_EXPORT=1 SKIP_RASTER=1 npm run train:glyphs  # reuse the frozen split
+RESUME=1 npm run train:glyphs                     # continue an interrupted teacher run
 LIMIT=200 EPOCHS=2 npm run train:glyphs
-NO_PRETRAINED=1 npm run train:glyphs
-SKIP_ONNX=1 npm run train:glyphs
-SKIP_EXPORT=1 SKIP_RASTER=1 EPOCHS=10 npm run train:glyphs
-ROTATION_AUG=0 npm run train:glyphs              # disable rotation augmentation
-ROT_INVARIANT_DEG=180 ROT_JITTER_DEG=12 npm run train:glyphs
-```
 
-For a quick pipeline smoke test without training:
-
-```bash
-LIMIT=20 SKIP_TRAIN=1 npm run train:glyphs
+# distillation only, against an existing frozen split and teacher
+SKIP_POOL=1 SIZE=tiny EPOCHS=40 bash models/training/run_glyph_distillation.sh
 ```
 
 ## Manual Install
@@ -88,120 +226,18 @@ source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-## Manual Train
-
-```bash
-python train_multitask.py \
-  ../../.artifacts/glyph-training/labelled_samples_raster \
-  --epochs 20 \
-  --image-size 96 \
-  --batch-size 32 \
-  --checkpoint-dir ../../.artifacts/glyph-training/checkpoints
-```
-
-The model predicts angle as `[sin(angle), cos(angle)]`, which avoids the wraparound
-problem where `-179 deg` and `179 deg` are visually close but numerically far apart.
-
-Checkpoints are written to:
-
-```text
-.artifacts/glyph-training/checkpoints/latest.pt
-.artifacts/glyph-training/checkpoints/best.pt
-```
-
-## Rotation Augmentation
-
-Scale and translation are already invariant by construction: every candidate is
-cropped to its bounding box and normalized to a fixed margined square, both when
-rasterizing training data and when rendering for browser inference. Rotation is
-not — the class head only tolerates rotation to the degree the samples happen to
-contain. To fix that, the train split rotates samples on the fly, gated per class
-by the dictionary metadata the runtime recognizer already uses:
-
-- `recognitionRotationInvariant: true` → rotate uniformly in `±--rot-invariant-deg`
-  (default 180, i.e. the full circle). Every current sigil and sign is explicitly
-  flagged this way, so the model learns each glyph at any rotation after retraining.
-- `allowedRotationsDeg: [...]` → snap to those orientations, plus a little jitter.
-- an orientation-locked glyph (flag `false`) → only a small `±--rot-jitter-deg`
-  wobble (default 12), within the recognizer's sign tolerance, so it never changes
-  a glyph's meaning.
-
-Signs are a hybrid: the model is trained to recognize them at any rotation, but the
-template fallback in `signRotation.ts` stays orientation-aware (a straight `column`
-is shape-ambiguous under free rotation). See `docs/recognition.md` → Rotation
-Semantics.
-
-The pose targets transform with the image so the angle/scale/center heads stay
-consistent. PIL's `rotate(θ)` turns the image counter-clockwise, but the label
-`angle` is clockwise-positive in the y-down canvas (`buildSample` →
-`DOMMatrix.rotateSelf`), so a CCW image rotation _subtracts_ `θ` from `angle`,
-orbits `center` the same CCW way the pixels move, and leaves `scale_x` / `scale_y`
-unchanged (they live in the overlay's own frame). Because gating reads the
-dictionary, changing `recognitionRotationInvariant` or `allowedRotationsDeg`
-automatically changes augmentation on the next run — no training-code change.
-
-After the epochs, `train_multitask.py` prints a per-class angle-error table over
-the un-augmented validation split:
-
-- `bias`: mean signed circular error, in degrees.
-- `abs`: mean absolute circular error, in degrees.
-- `R`: error resultant length, from 0 to 1.
-- `n`: validation sample count.
-
-A class is flagged as `miscalibrated` only when `abs(bias) > 20` and `R >= 0.6`.
-The `R` gate matters because rotationally symmetric glyphs can have high
-absolute angle error with errors spread around the circle; their signed bias is
-not meaningful and the pose head is diagnostic-only. A true augmentation or
-pose-sign bug shows up as both high bias and a tight error distribution.
-
-CLI flags: `--no-rotation-aug`, `--rot-invariant-deg`, `--rot-jitter-deg`,
-`--rot-allowed-jitter-deg`, `--dictionary-dir`. Run the math/policy checks with:
-
-```bash
-python3 models/training/test_rotation_policy.py
-```
-
-## ONNX Export
-
-`export_onnx.py` reads `image_size` from the checkpoint args, falling back to 96.
-It exports a temporary FP32 ONNX graph, converts it to FP16 with
-`onnxconverter_common.float16.convert_float_to_float16(keep_io_types=True)`, and
-deploys the result as:
-
-```text
-static/models/glyph-recognizer.onnx
-static/models/glyph-recognizer.onnx.data
-static/models/glyph-class-to-idx.json
-```
-
-`keep_io_types=True` keeps model inputs and outputs as float32, so the browser
-runtime still feeds the same `Float32Array` tensors. The FP16 weights live in the
-external-data sidecar.
-
-Export validates two things before finishing:
-
-- Dynamic batch works by running a 3-image CPU `onnxruntime` inference in one
-  call.
-- FP16 class argmax matches the torch model on real validation rasters. If
-  agreement drops below the configured parity threshold, the script falls back
-  to deploying FP32 with the same filenames.
-
 ## Browser Recognition
 
 The app's async recognizer runs in hybrid mode:
 
 1. Template recognition runs first.
-2. If `static/models/glyph-recognizer.onnx` and
-   `static/models/glyph-recognizer.onnx.data` plus
-   `static/models/glyph-class-to-idx.json` exist, ONNX inference runs for each
-   candidate set.
-3. ML can reinforce matching template results, override template results at
-   higher confidence, or accept unknown template results when the template
-   verifier still sees glyph-like evidence.
-4. A super-confident ML prediction can bypass the loose template verifier, while
-   still respecting dictionary layer constraints. This keeps the learned model
-   in charge when it has a very clear class prediction, but avoids accepting
-   ordinary closed-set guesses for random drawings.
+2. If the three files under `static/models/` are present, ONNX inference runs for
+   each candidate set, at eight rotations whose softmaxes are averaged.
+3. ML can reinforce matching template results, override them at higher
+   confidence, or accept unknown template results when the template verifier
+   still sees glyph-like evidence.
+4. A super-confident ML prediction can bypass the loose template verifier while
+   still respecting dictionary layer constraints.
 5. If the model files are missing or inference fails, the app silently falls back
    to template-only recognition.
 
