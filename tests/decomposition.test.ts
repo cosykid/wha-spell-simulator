@@ -229,14 +229,108 @@ function roughTouchingSignStrokes(): Stroke[] {
 	];
 }
 
-function noRingPreviewStroke(id: string, points: Array<[number, number]>): Stroke {
+/** A stroke through points given relative to the ring center. */
+function centeredStroke(id: string, points: Array<[number, number]>, spacing?: number): Stroke {
 	return resampledStroke(
 		id,
-		points.map(([x, y]) => ({
-			x: x * ringCenter.x * 2,
-			y: y * ringCenter.y * 2
-		}))
+		points.map(([x, y]) => ({ x: ringCenter.x + x, y: ringCenter.y + y })),
+		spacing
 	);
+}
+
+/** The sigils drawn as an S with detached marks around it. Rough marks read as either. */
+const satelliteSigils = new Set(['wind-directs-air', 'aeroform']);
+
+/** A hand-drawn S, the body that wind-directs-air and aeroform share. */
+function bodyStroke(): Stroke {
+	return centeredStroke('body', [
+		[0, -61],
+		[-16, -52],
+		[-20, -34],
+		[-8, -19],
+		[16, -4],
+		[32, 14],
+		[16, 28],
+		[-12, 28],
+		[-20, 46],
+		[-4, 61],
+		[28, 55],
+		[32, 40]
+	]);
+}
+
+/** Three short ticks per side, each a little way off the body: wind-directs-air. */
+function sideTickStrokes(): Stroke[] {
+	return [
+		centeredStroke('left-upper', [
+			[-34, -48],
+			[-46, -58]
+		]),
+		centeredStroke('left-bar', [
+			[-36, -26],
+			[-58, -26]
+		]),
+		centeredStroke('left-lower', [
+			[-34, 40],
+			[-46, 52]
+		]),
+		centeredStroke('right-upper', [
+			[44, 2],
+			[56, -10]
+		]),
+		centeredStroke('right-bar', [
+			[46, 27],
+			[68, 27]
+		]),
+		centeredStroke('right-lower', [
+			[44, 58],
+			[56, 70]
+		])
+	];
+}
+
+/** A fan of three strokes per side and a dot near each corner: aeroform. */
+function fanAndDotStrokes(): Stroke[] {
+	const dot = (id: string, x: number, y: number) =>
+		centeredStroke(
+			id,
+			[
+				[x, y],
+				[x + 4, y - 4],
+				[x, y - 6]
+			],
+			2
+		);
+	return [
+		centeredStroke('left-fan-1', [
+			[-26, -6],
+			[-50, -18]
+		]),
+		centeredStroke('left-fan-2', [
+			[-26, -2],
+			[-54, -2]
+		]),
+		centeredStroke('left-fan-3', [
+			[-26, 2],
+			[-50, 14]
+		]),
+		centeredStroke('right-fan-1', [
+			[40, 4],
+			[64, -8]
+		]),
+		centeredStroke('right-fan-2', [
+			[40, 8],
+			[68, 8]
+		]),
+		centeredStroke('right-fan-3', [
+			[40, 12],
+			[64, 24]
+		]),
+		dot('dot-top-left', -30, -58),
+		dot('dot-top-right', 18, -68),
+		dot('dot-bottom-left', -22, 64),
+		dot('dot-bottom-right', 36, 62)
+	];
 }
 
 test('decomposition keeps one sigil and one sign as two candidates', () => {
@@ -378,7 +472,7 @@ test('decomposition keeps rough center strokes together instead of accepting sig
 	);
 });
 
-test('decomposition rejoins touching sign fragments after tree cutting', () => {
+test('decomposition keeps touching sign fragments together', () => {
 	const result = classify(roughTouchingSignStrokes());
 	const [candidate] = result.candidates;
 
@@ -458,62 +552,47 @@ test('no-ring guide preview uses visible guide size for cover-square canvas size
 	);
 });
 
-test('no-ring guide preview keeps nearby side marks separate from center strokes', () => {
+test("decomposition keeps a sigil's detached ticks with its body", () => {
 	const result = classifyDrawing({
-		strokes: [
-			noRingPreviewStroke('center-s', [
-				[0.5, 0.36],
-				[0.46, 0.39],
-				[0.45, 0.45],
-				[0.48, 0.5],
-				[0.54, 0.55],
-				[0.58, 0.61],
-				[0.54, 0.66],
-				[0.47, 0.66],
-				[0.45, 0.72],
-				[0.49, 0.77],
-				[0.57, 0.75],
-				[0.58, 0.7]
-			]),
-			noRingPreviewStroke('left-upper', [
-				[0.39, 0.5],
-				[0.37, 0.48]
-			]),
-			noRingPreviewStroke('left-bar', [
-				[0.38, 0.56],
-				[0.33, 0.56]
-			]),
-			noRingPreviewStroke('left-lower', [
-				[0.37, 0.61],
-				[0.34, 0.64]
-			]),
-			noRingPreviewStroke('right-upper', [
-				[0.64, 0.47],
-				[0.68, 0.47],
-				[0.69, 0.43]
-			]),
-			noRingPreviewStroke('right-bar', [
-				[0.64, 0.56],
-				[0.7, 0.56]
-			]),
-			noRingPreviewStroke('right-lower', [
-				[0.63, 0.61],
-				[0.66, 0.65]
-			])
-		],
+		strokes: [...ringStrokes(), bodyStroke(), ...sideTickStrokes()],
+		previousRing: null,
+		dictionary: realDictionary,
+		config: CONFIG
+	});
+
+	assert.equal(result.ring.complete, true);
+	assert.equal(result.candidates.length, 1);
+	assert.equal(result.candidates[0].strokeIds.length, 7);
+	assert.ok(satelliteSigils.has(result.recognitions[0].diagnostics?.bestGuess?.id ?? ''));
+});
+
+test("decomposition keeps a sigil's fans and dots with its body", () => {
+	const result = classifyDrawing({
+		strokes: [...ringStrokes(), bodyStroke(), ...fanAndDotStrokes()],
+		previousRing: null,
+		dictionary: realDictionary,
+		config: CONFIG
+	});
+
+	assert.equal(result.ring.complete, true);
+	assert.equal(result.candidates.length, 1);
+	assert.equal(result.candidates[0].strokeIds.length, 11);
+	assert.ok(satelliteSigils.has(result.recognitions[0].diagnostics?.bestGuess?.id ?? ''));
+});
+
+test('no-ring guide preview keeps detached ticks with the center body', () => {
+	const result = classifyDrawing({
+		strokes: [bodyStroke(), ...sideTickStrokes()],
 		previousRing: null,
 		canvasWidth: ringCenter.x * 2,
 		canvasHeight: ringCenter.y * 2,
 		dictionary: realDictionary,
 		config: CONFIG
 	});
-	const centerCandidate = result.candidates.find((candidate) =>
-		candidate.strokeIds.includes('center-s')
-	);
 
 	assert.equal(result.ring.found, false);
-	assert.equal(result.candidates.length, 7);
-	assert.deepEqual(centerCandidate?.strokeIds, ['center-s']);
+	assert.equal(result.candidates.length, 1);
+	assert.equal(result.candidates[0].strokeIds.length, 7);
 });
 
 test('decomposition separates a center sigil from an adjacent sign', () => {
@@ -522,9 +601,8 @@ test('decomposition separates a center sigil from an adjacent sign', () => {
 	assert.ok(fire?.strokeTemplate);
 	assert.ok(column?.strokeTemplate);
 
-	// A center sigil with a sign drawn close beside it. Plain proximity grouping
-	// fuses them into one connected component; recognition-guided decomposition
-	// must split them back into two symbols.
+	// A center sigil with a sign drawn close beside it. Affinity alone fuses them
+	// into one component; the partition search must split them back into two.
 	const signCenter = { x: ringCenter.x, y: 388 };
 	const signRotation = 270 - angleDegFromCenter(signCenter, ringCenter);
 	const result = classifyDrawing({

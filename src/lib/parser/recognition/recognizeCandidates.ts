@@ -1,11 +1,7 @@
 import { normalizeAngleDeg } from '../../utils/geometry.js';
 import { candidateContentKey, scopedLruCache, type LruCache } from '../recognitionMemo.js';
 import { recognitionPlanForSymbol } from '../signRotation.js';
-import {
-	recognitionKey,
-	scoreRecognitionExample,
-	type RecognitionExample
-} from '../shape-matcher/index.js';
+import { scoreRecognitionExample, type RecognitionExample } from '../shape-matcher/index.js';
 import type {
 	AppConfig,
 	Dictionary,
@@ -17,6 +13,11 @@ import type {
 	SymbolCandidate,
 	TopMatch
 } from '../../types.js';
+import {
+	examplesByRecognitionKey,
+	recognitionEntriesFor,
+	type RecognitionEntry
+} from './entries.js';
 import { candidateFeatures } from './features.js';
 import { recognitionExamplesFor } from './examples.js';
 import { allowedLayerScore, recognitionThresholds } from './thresholds.js';
@@ -27,12 +28,6 @@ import type {
 	RecognitionThresholds,
 	ScoredEntry
 } from './types.js';
-
-interface RecognitionEntry {
-	kind: RecognitionKind;
-	entry: DictionaryEntry;
-	examples: RecognitionExample[];
-}
 
 interface RecognitionContext {
 	entries: RecognitionEntry[];
@@ -46,33 +41,6 @@ interface RecognitionDecision {
 	best: ScoredEntry | undefined;
 	topMatches: TopMatch[];
 	bestGuess: RecognitionBestGuess | null;
-}
-
-function examplesByRecognitionKey(
-	examples: RecognitionExample[]
-): Map<string, RecognitionExample[]> {
-	const byKey = new Map<string, RecognitionExample[]>();
-	for (const example of examples) {
-		const key = recognitionKey(example.kind, example.symbolId);
-		byKey.set(key, [...(byKey.get(key) ?? []), example]);
-	}
-	return byKey;
-}
-
-function recognitionEntriesFor(
-	dictionary: Dictionary,
-	examplesByKey: Map<string, RecognitionExample[]>
-): RecognitionEntry[] {
-	return [
-		...dictionary.sigils.flatMap((entry) => {
-			const examples = examplesByKey.get(recognitionKey('sigil', entry.id)) ?? [];
-			return examples.length ? [{ kind: 'sigil' as const, entry, examples }] : [];
-		}),
-		...dictionary.signs.flatMap((entry) => {
-			const examples = examplesByKey.get(recognitionKey('sign', entry.id)) ?? [];
-			return examples.length ? [{ kind: 'sign' as const, entry, examples }] : [];
-		})
-	];
 }
 
 function recognitionResultCache(

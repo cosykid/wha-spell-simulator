@@ -67,6 +67,8 @@ export interface SignEntry {
 export interface TemplateMatchOptions {
 	rotationInvariant?: boolean;
 	allowedRotationsDeg?: number[];
+	/** Let the cheap ink pass pick the rotation and run the point cloud there only. */
+	chamferLeadsRotation?: boolean;
 }
 
 /** The ink/region overlap result of matching a candidate against a template. */

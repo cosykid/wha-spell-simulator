@@ -8,7 +8,7 @@ candidates, recognitions, `glyphAST`). Reports what was drawn, never what the sp
 - [`classifier/`](classifier/) wires the stages together and holds the public entrypoints.
 - [`strokeCleaner.ts`](strokeCleaner.ts), [`coordinateNormalizer.ts`](coordinateNormalizer.ts), [`layerMapper.ts`](layerMapper.ts) clean ink, then label strokes ring-relative.
 - [`rings/`](rings/) ring detection: circle fit, angular coverage, glyph-loop veto. [`topology/`](topology/) is the raster flood fill, the only thing that sets `ring.complete`.
-- [`grouping/`](grouping/) strokes to `SymbolCandidate[]`, by proximity or by recognition-guided tree cuts.
+- [`grouping/`](grouping/) strokes to `SymbolCandidate[]`: affinity components, then a recognition-guided partition search over group hypotheses.
 - [`shape-matcher/`](shape-matcher/) `$P` point-cloud distance plus chamfer over a rasterized ink distance map.
 - [`recognition/`](recognition/) the deterministic recognizer: shape score, structural compatibility, layer fit, status.
 - [`signRotation.ts`](signRotation.ts) rotates a sign's recognition copy into the canonical frame.
@@ -59,11 +59,16 @@ cannot be created. The classifier worker itself scores candidates in-thread.
   tolerance to rescue a miss.
 - Recognition-guided decomposition runs only for complete rings.
   `classifier/prepare.ts` passes the dictionary to grouping only when
-  `ring.complete`. In-progress drawings deliberately use the cheap proximity path.
-- `config.recognition.groupPenalty` (0.55) must stay below the shape-match
-  confidence real hand-drawn glyphs reach (roughly 0.55 to 0.75). Raise it and
-  every group scores zero, the tree cut degenerates to touch merging, and
-  adjacent symbols fuse.
+  `ring.complete`. In-progress drawings deliberately use the affinity-only path.
+- Grouping is a partition search, not a distance threshold. `grouping/hypotheses.ts`
+  proposes stroke sets (singles, merge-tree nodes, and the leftovers beside any
+  clean glyph read), `recognition/decompositionScorer.ts` scores each set's
+  wholeness, `grouping/groupValue.ts` turns that into a value that charges for
+  orphaned ink, and `grouping/partition.ts` picks the exact cover with the
+  highest total. A satellite tick or dot stays with its glyph because leaving
+  it alone forfeits its ink share. Tune `config.recognition.grouping` and
+  `grouping/constants.ts` against `npm run bench:grouping`, never by eye on one
+  drawing.
 - Memo keys are content hashes (`candidateContentKey`), not object identity,
   because strokes are structured-cloned across worker boundaries. Key new caches
   the same way.
@@ -108,6 +113,8 @@ cannot be created. The classifier worker itself scores candidates in-thread.
   decision point. Every branch returns a named `reason` that surfaces in diagnostics.
 - New warning: add the key to [`glyphWarnings.ts`](glyphWarnings.ts), emit it from `warningList` in `classifier/metrics.ts`.
 - Tune thresholds in `../config.ts` under `recognition`, never inline.
+- Grouping change: run `npm run bench:grouping` before and after. It needs the
+  labelled corpus in `.artifacts/glyph-training/`.
 
 ## Related
 

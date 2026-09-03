@@ -45,15 +45,16 @@ export const CONFIG = {
 		// 0..1 final recognizer score floor.
 		minConfidence: 0.48,
 
-		// 0..1 value subtracted per group when decomposition scores a tree cut. This
-		// biases toward keeping a node whole; a split only wins when the child groups
-		// clearly outscore the whole. Must sit below the shape-match confidence that
-		// real hand-drawn symbols reach (roughly 0.55-0.75); a higher value zeroes
-		// every group and the cut degenerates to touch-based merging, which fuses
-		// adjacent symbols. Tuned so complex multi-stroke sigils and signs (water,
-		// wind, light, levitation) stay whole while genuinely separate symbols
-		// (a center sigil beside a ring sign, two adjacent signs) split apart.
-		groupPenalty: 0.55,
+		// Stroke grouping values each candidate group as ink share times a blend of
+		// wholeness (how much the ink reads as one complete glyph) and cohesion (how
+		// much of each stroke's affinity stays inside the group), minus a flat cost
+		// per group. Raising wholenessWeight lets recognition split touching
+		// symbols more readily; raising groupCost keeps stray marks attached to
+		// their neighbours. Both are 0..1, tuned with `npm run bench:grouping`.
+		grouping: {
+			wholenessWeight: 0.8,
+			groupCost: 0.02
+		},
 
 		// 0..1 allowed extra ink before a match is considered contaminated.
 		contaminationThreshold: 0.5,
@@ -61,11 +62,10 @@ export const CONFIG = {
 		// 0..1 required template coverage before a match can be accepted.
 		minTemplateCoverage: 0.55,
 
-		// Grouping asks the recognizer to choose tree cuts so it can separate symbols
-		// that proximity grouping would fuse (for example a center sigil drawn next to
-		// a ring sign). The lightweight cut scorer and the groupPenalty above keep
-		// complex multi-stroke sigils and signs whole. Set false to fall back to plain
-		// whole-stroke proximity-connected-component grouping.
+		// Grouping asks the recognizer which stroke groups read as whole glyphs so
+		// it can separate symbols that proximity alone would fuse (a center sigil
+		// drawn against a ring sign) and keep a glyph's detached ticks and dots with
+		// it. Set false to group by stroke affinity alone.
 		recognitionGuidedDecomposition: true,
 
 		ml: {

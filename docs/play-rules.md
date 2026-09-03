@@ -29,7 +29,7 @@ This file is the compact contract for parser, compiler, and renderer behavior. U
 ## Recognition Terms
 
 - `strokeTemplate` is the reference ink shape.
-- Candidate grouping works on whole strokes. No-ring guide preview and prepared open rings use fast layer-aware proximity grouping for responsiveness; complete rings can use recognition-guided tree cuts to separate close-together symbols before final recognition.
+- Candidate grouping works on whole strokes. No-ring guide preview and prepared open rings group by stroke affinity for responsiveness; complete rings run a recognition-guided partition search that separates close-together symbols and keeps detached marks with their glyph before final recognition.
 - Template recognition rasterizes normalized candidate and reference strokes into bitmap masks, then combines ink overlap with structural checks.
 - Browser ML recognition uses an ONNX-exported multi-head ResNet18 to predict glyph class and pose, then applies confidence, margin, layer, and template-verifier rules before accepting or overriding a template result.
 - `CONFIG.recognition.minConfidence` is the minimum final recognizer score for accepting a symbol.

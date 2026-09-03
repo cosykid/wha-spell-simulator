@@ -50,7 +50,7 @@ The placed ring is stamped open with a small gap, so the spell stays prepared ra
 - The current compiler expects one primary sigil. Multiple primary sigils are detected as unsupported.
 - Recognition combines local stroke templates with a trained browser ML model, but it still works best with clean, deliberate drawings.
 - The recognizer is not perfect. Some valid-looking drawings may fail to match, and some rough drawings may need to be redrawn more clearly.
-- Candidate grouping works on whole strokes. Live and prepared drawings use fast layer-aware proximity grouping for responsiveness; complete rings can use recognition-guided tree cuts to separate symbols drawn close together. It does not split a single stroke into fragments when two symbols are drawn without lifting the pointer.
+- Candidate grouping works on whole strokes. Live and prepared drawings group by stroke affinity for responsiveness; complete rings run a recognition-guided partition search that separates symbols drawn close together and keeps a glyph's detached ticks and dots with it. It does not split a single stroke into fragments when two symbols are drawn without lifting the pointer.
 - The dictionaries only cover a small fan-made subset of sigils, signs, and observed spell ideas.
 - The visual effects are interpretive canvas animations, not a faithful reproduction of manga or anime effects.
 - Raster images can be used as visual references, but the app cannot recover true stroke order from an image.
