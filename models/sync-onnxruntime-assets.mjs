@@ -1,10 +1,18 @@
 // Copies the ONNX Runtime web assets the recognizer loads at /onnxruntime/ from
 // the installed onnxruntime-web package into static/. Runs on postinstall so
-// local dev, CI, and Vercel builds always serve assets that match the installed
-// package version instead of committing ~74MB of wasm to the repository.
+// local dev and CI always serve assets that match the installed package version
+// instead of committing ~74MB of wasm to the repository.
 import { copyFile, mkdir, readdir } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+
+// A deployed build fetches these from jsDelivr instead (see `ortWasmBase` in
+// vite.config.ts), so syncing here would only push 74MB of wasm into a deploy
+// that never serves a byte of it.
+if (process.env.VERCEL) {
+	console.log('Skipping ONNX Runtime asset sync: deployed builds load them from the CDN.');
+	process.exit(0);
+}
 
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const sourceDir = path.resolve(scriptDir, '../node_modules/onnxruntime-web/dist');

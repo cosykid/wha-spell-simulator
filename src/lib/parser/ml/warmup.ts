@@ -37,7 +37,12 @@ function startRuntimeWarmup(runtime: MlRuntime, config: MlConfig): void {
  * used to wait for the first recognition, but that recognition awaits it anyway
  * before returning a facing it can trust, so waiting only moved the cost onto
  * the first spell of the session. Here it runs while the reader is still
- * reaching for the pen.
+ * drawing, which is a whole diagram ahead of the recognition that needs it.
+ *
+ * This is what the classifier worker's `warm-ml` message starts, and the client
+ * sends that on the reader's first stroke rather than on load: `loadRuntime`
+ * fetches roughly 25 MB, and a visitor who never draws never needs it. Safe to
+ * call again, because every stage below memoizes.
  */
 export function warmMlRecognizer(config: AppConfig, dictionary: Dictionary): void {
 	const cfg = mlConfig(config);

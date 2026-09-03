@@ -3,6 +3,14 @@ import { BATCH_INFERENCE_PROBE_ENABLED } from './runtimeFlags.js';
 import { canRunInBrowser, debugLog, describeError } from './config.js';
 import type { MlConfig, MlRuntime, NavigatorWithGpu, OrtExecutionProvider } from './types.js';
 
+/**
+ * Base URL for the ONNX Runtime wasm binary and its JS glue, stamped in by
+ * `vite.config.ts`. A deployed build points at jsDelivr so the 22MB binary never
+ * crosses our own bandwidth; the dev server points at the postinstall-synced copy
+ * in `static/onnxruntime/` so local work and the e2e suite need no network.
+ */
+declare const __ORT_WASM_BASE__: string;
+
 let runtimePromise: Promise<MlRuntime | null> | null = null;
 let runtimeKey = '';
 let ortConfigured = false;
@@ -12,7 +20,7 @@ function configureOrtRuntime(): void {
 	if (ortConfigured) {
 		return;
 	}
-	ort.env.wasm.wasmPaths = '/onnxruntime/';
+	ort.env.wasm.wasmPaths = __ORT_WASM_BASE__;
 	ort.env.logLevel = 'error';
 	ort.env.webgpu.powerPreference = 'high-performance';
 	ortConfigured = true;

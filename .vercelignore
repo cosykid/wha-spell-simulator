@@ -32,7 +32,8 @@ models/**/__pycache__/
 *.csv
 *.jsonl
 
-# Synced from onnxruntime-web during postinstall.
+# Synced from onnxruntime-web during postinstall for local dev only. A deployed
+# build loads them from jsDelivr, and the sync itself is skipped on Vercel.
 static/onnxruntime/
 
 # Local editor and OS metadata

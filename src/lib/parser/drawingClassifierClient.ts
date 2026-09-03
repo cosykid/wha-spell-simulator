@@ -26,6 +26,11 @@ let worker: Worker | null = null;
 let sessionDictionary: Dictionary | null = null;
 let sessionConfig: AppConfig | null = null;
 let sessionExamples: RecognitionExample[] | null = null;
+// Whether anyone has asked for the ML runtime yet. Page-lifetime rather than
+// worker-lifetime on purpose: once the reader has picked up the pen, every
+// worker this client goes on to create should come up warm, including one
+// replacing a worker that died or that a new dictionary invalidated.
+let mlWarmRequested = false;
 let nextId = 1;
 let latestRequestId = 0;
 const requests = new Map<number, ClientRequest>();
@@ -66,6 +71,10 @@ function postInit(
 		config,
 		recognitionExamples: examples
 	});
+}
+
+function postWarmMl(created: Worker) {
+	created.postMessage({ type: 'warm-ml' });
 }
 
 function handleMessage(event: MessageEvent<WorkerResponse>): void {
@@ -140,6 +149,9 @@ function ensureWorker(
 		created.onmessage = handleMessage;
 		created.onerror = () => disposeDrawingClassifierClient();
 		postInit(created, dictionary, config, examples);
+		if (mlWarmRequested) {
+			postWarmMl(created);
+		}
 
 		worker = created;
 		sessionDictionary = dictionary;
@@ -159,6 +171,32 @@ export function warmDrawingClassifierWorker(
 ): void {
 	const examples = recognitionExamples.length ? recognitionExamples : EMPTY_EXAMPLES;
 	ensureWorker(dictionary, config, examples);
+}
+
+/**
+ * Asks the worker to load the ML runtime, on the reader's first intent to draw.
+ *
+ * `warmDrawingClassifierWorker` deliberately leaves it unloaded, because the
+ * runtime is roughly 25 MB of weights and wasm that a visitor who never draws
+ * never needs. Call this the moment the pen lands, so the download runs against
+ * the stroke instead of the page load. Recognition loads the runtime on its own
+ * path too, so a drawing that gets ahead of this still refines.
+ *
+ * Called once per page: repeats are dropped, and a worker created later inherits
+ * the request.
+ *
+ * @example
+ * // From the simulator's first pointer-down that starts a stroke.
+ * warmDrawingClassifierMl();
+ */
+export function warmDrawingClassifierMl(): void {
+	if (mlWarmRequested) {
+		return;
+	}
+	mlWarmRequested = true;
+	if (worker) {
+		postWarmMl(worker);
+	}
 }
 
 export function classifyDrawingOffThread(input: ClassifyDrawingInput): Promise<ClassifiedDrawing>;

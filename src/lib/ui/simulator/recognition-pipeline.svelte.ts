@@ -12,6 +12,7 @@ import {
 	classifyDrawingOffThread,
 	disposeDrawingClassifierClient,
 	isDrawingClassifierSuperseded,
+	warmDrawingClassifierMl,
 	warmDrawingClassifierWorker
 } from '$lib/parser/drawingClassifierClient.js';
 import type {
@@ -155,6 +156,9 @@ export class RecognitionPipeline {
 	/**
 	 * Loads dictionary assets and warms the classifier worker.
 	 *
+	 * The worker comes up with its template recognizer only. The ML refinement's
+	 * runtime waits for `warmMlRefinement()`, so the mount stays cheap.
+	 *
 	 * @returns `true` when loading completed before the caller cancelled.
 	 */
 	async loadDictionary(loadState: { cancelled: boolean }) {
@@ -176,6 +180,24 @@ export class RecognitionPipeline {
 			};
 			return false;
 		}
+	}
+
+	/**
+	 * Starts the ML refinement's runtime download, on the reader's first intent to
+	 * draw.
+	 *
+	 * The runtime is roughly 25 MB, and a visitor who lands on the page and leaves
+	 * without drawing never needs it, so the mount does not fetch it. The first
+	 * stroke is the earliest honest signal that it will be, and it buys the
+	 * download a whole diagram's worth of drawing before recognition asks.
+	 *
+	 * Idempotent, and safe ahead of a reading: `recognizeCandidatesHybridMl` loads
+	 * the runtime itself, so a stroke that lands mid-download is refined once the
+	 * same load settles, and a runtime that never arrives leaves the template
+	 * recognizer's verdict standing.
+	 */
+	warmMlRefinement() {
+		warmDrawingClassifierMl();
 	}
 
 	/** Refreshes ML debug state and rebuilds diagnostics. */
