@@ -2,48 +2,41 @@ import { CONFIG } from '$config';
 import { createPlacementPointMapper, hitTestPlacement } from '$lib/input/shapeBaker.js';
 import type { Placement, Vector } from '$lib/types.js';
 import type { TransformableEntity } from '../entity.js';
-
-const INK_LINE_WIDTH = 4.4;
-const COMMITTED_ALPHA = 0.94;
+import { buildInkRibbon, traceInkRibbon } from './inkRibbon.js';
+import { COMMITTED_ALPHA, INK_NOMINAL_WIDTH } from './strokeEntity.js';
 
 /**
- * Trace and stroke a placement directly from its unit-box template strokes.
+ * Fill a placement directly from its unit-box template strokes, in the same
+ * pen the freehand ink uses: a stamped symbol should not read as a different
+ * instrument beside a drawn one. Template points carry no clock, so these
+ * marks take the landing and lift and hold an even width between them.
  *
  * Recognition still bakes placements to Stroke[] when it recomputes; live
  * rendering uses this entity path so arrange-mode drags do not allocate baked
- * stroke snapshots every frame.
+ * stroke snapshots every frame. The mapped points are new every frame too,
+ * which is why this builds its marks rather than reading the ribbon cache.
  */
 export function renderPlacementInk(
 	ctx: CanvasRenderingContext2D,
 	placement: Placement,
 	alpha = COMMITTED_ALPHA,
 	color = CONFIG.renderer.inkColor,
-	lineWidth = INK_LINE_WIDTH
+	weight = INK_NOMINAL_WIDTH
 ): void {
 	ctx.save();
-	ctx.strokeStyle = color;
-	ctx.lineWidth = lineWidth;
-	ctx.lineCap = 'round';
-	ctx.lineJoin = 'round';
+	ctx.fillStyle = color;
 	ctx.globalAlpha = alpha;
+	ctx.beginPath();
 
 	const toCanvas = createPlacementPointMapper(placement.transform);
 	for (const points of placement.baseStrokes) {
-		if (points.length === 0) {
-			continue;
+		const ribbon = buildInkRibbon(points.map(toCanvas), weight);
+		if (ribbon) {
+			traceInkRibbon(ctx, ribbon);
 		}
-
-		const [first, ...rest] = points;
-		const start = toCanvas(first);
-		ctx.beginPath();
-		ctx.moveTo(start.x, start.y);
-		for (const point of rest) {
-			const canvasPoint = toCanvas(point);
-			ctx.lineTo(canvasPoint.x, canvasPoint.y);
-		}
-		ctx.stroke();
 	}
 
+	ctx.fill();
 	ctx.restore();
 }
 

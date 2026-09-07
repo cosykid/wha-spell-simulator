@@ -22,6 +22,7 @@ scale and rotate it. `isTransformable` is the guard. Rule 5 of
 - [tools/drawTool.svelte.ts](tools/drawTool.svelte.ts): freehand capture. Commits each stroke as a `StrokeEntity` and owns two-finger CSS pan/zoom on the wrapper element.
 - [tools/selectTool.svelte.ts](tools/selectTool.svelte.ts): move, scale, elongate and rotate handles for transformable entities.
 - [entities/](entities): one factory per visual: paper (flat or textured), grid, crosshair, stroke, placement, symbol, template, reference overlay.
+- [entities/inkRibbon.ts](entities/inkRibbon.ts): the ink's geometry. Reads a stroke's points as a variable-width mark (pace from the `t` they already carry, plus a landing and a longer lift) and traces its outline. `renderStrokeInk` and `renderPlacementInk` fill that outline; the glow and the charge beat scale their own widths against it.
 - [guideRenderer.ts](guideRenderer.ts), [selectionRenderer.ts](selectionRenderer.ts): bare draw functions, not entities. Callers wrap them in their own entity.
 - [actions/resize.svelte.ts](actions/resize.svelte.ts): the attachment behind `Canvas`'s `resize` prop.
 
@@ -49,6 +50,8 @@ ever being re-created.
 - `clear()` restores exactly the initial array the scene was created with, dropping everything added since.
 - Hit-test in reverse render order, `[...scene.getEntities()].reverse().find(...)`, so the topmost entity wins the click. Both `selectTool` and the simulator's placement behavior do this.
 - Entities share one context. Wrap every `ctx` state change in `save()`/`restore()` or it leaks into the entity drawn next.
+- **Ink is filled, not stroked, and `weight` is what a mark averages rather than the width it holds.** A stroke's own pace moves the real width around that, so nothing may assume ink is `weight` wide anywhere in particular. Anything drawn _over_ the ink states its width at `INK_NOMINAL_WIDTH` and lets [`inkRibbon`](entities/inkRibbon.ts) scale it, or it will not line up with the mark it is drawn on.
+- The ribbon cache is keyed weakly on a stroke's `points` array **and** its endpoints, because `Entity.scale` rescales points in place instead of replacing them. Any new edit path that mutates points without moving an endpoint has to bump something the key can see.
 - The `resize` prop is off in every current caller, so `Entity.scale` and `resizeCanvas` never fire today. The simulator resizes its backing store through [`../canvasSizing.ts`](../canvasSizing.ts) and rescales strokes, placements and history snapshots itself.
 - `getScene`/`setScene` are exported but have no consumer. Pass the scene as a prop unless you genuinely need it deep in a tree.
 

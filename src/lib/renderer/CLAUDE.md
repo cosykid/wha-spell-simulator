@@ -34,9 +34,9 @@ no spells.
   `SEAL_EMBER` light that walks it in drawing order. Draws under the ink and
   only on non-active states, like the guides.
 - [`inkPath.ts`](inkPath.ts) — arc-length walkers over a polyline
-  (`polylineLength`, `tracePathBetween`, `pointAtLength`), shared by the
-  ignition front and the ghost wisp so partial-stroke tracing has one source of
-  truth.
+  (`polylineLength`, `tracePathBetween`, `pointAtLength`), the ghost wisp's
+  source of truth for partial-stroke tracing. The ignition walks the ink's own
+  outline instead; see below.
 - [`glyphDebugOverlay.ts`](glyphDebugOverlay.ts) — the `showDiagnostics` layer:
   candidate boxes, recognizer verdicts, stroke ids.
 
@@ -75,6 +75,18 @@ They are the `/tools` accent now, not the app's. The one place they survive is
 `drawRingDebug`, whose teal is the only handle
 [`canvas-resize.e2e.ts`](../../../tests-e2e/canvas-resize.e2e.ts) has on the
 guide layer. Read the note there before recoloring it.
+
+**The light has to follow the ink, and the ink is no longer one width.** A
+stroke is filled as a variable-width mark
+([`../ui/canvas/entities/inkRibbon.ts`](../ui/canvas/entities/inkRibbon.ts)):
+its pace and its landing and lift move the real width around the nominal
+`INK_NOMINAL_WIDTH`. So `drawGlowingStrokes` and `drawSealIgnition` state their
+widths in canvas pixels _at that nominal weight_ and hand them to
+`traceInkRibbon` as a ratio, rather than stroking a fixed `lineWidth`. Stroke a
+constant width over a tapered mark and the light overhangs the ink at both ends,
+which reads as light pasted on rather than light coming off. Both take an
+optional ink weight, because a thumbnail draws its ink smaller than the
+simulator does.
 
 **This directory owns no portal numbers.** On activation the CSS in
 [`../styles/canvas.css`](../styles/canvas.css) shrinks and tilts `#glyphCanvas`

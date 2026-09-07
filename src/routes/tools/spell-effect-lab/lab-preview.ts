@@ -5,6 +5,7 @@ import type { ElementId, Recognition, RingInfo, SealReading } from '$lib/types.j
 import { vectorFromAngleDeg } from '$lib/utils/geometry.js';
 import { buildSpellIR } from '$lib/ui/spellEffectLab.js';
 import { renderPaper } from '$canvas/entities/paperEntity.js';
+import { renderStrokeInk } from '$canvas/entities/strokeEntity.js';
 import { drawGuides } from '$canvas/guideRenderer.js';
 import type { CastEngine } from '$lib/cast/engine.js';
 import { createCastEngine } from '$lib/cast/selectEngine.js';
@@ -161,25 +162,9 @@ export class LabPreview {
 		renderPaper(ctx, width, height);
 		drawGuides(ctx, ring, width, height, CONFIG);
 
-		ctx.save();
-		ctx.lineCap = 'round';
-		ctx.lineJoin = 'round';
-		ctx.strokeStyle = CONFIG.renderer.inkColor;
-		ctx.lineWidth = 4.4;
-		ctx.beginPath();
-		ctx.moveTo(ringStroke.points[0].x, ringStroke.points[0].y);
-		for (const point of ringStroke.points.slice(1)) {
-			ctx.lineTo(point.x, point.y);
+		for (const stroke of [ringStroke, sigilStroke]) {
+			renderStrokeInk(ctx, stroke);
 		}
-		ctx.stroke();
-
-		ctx.beginPath();
-		ctx.moveTo(sigilStroke.points[0].x, sigilStroke.points[0].y);
-		for (const point of sigilStroke.points.slice(1)) {
-			ctx.lineTo(point.x, point.y);
-		}
-		ctx.stroke();
-		ctx.restore();
 
 		drawGlowingStrokes(
 			ctx,
