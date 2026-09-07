@@ -1,7 +1,11 @@
 /**
- * @file Arc-length walkers over a polyline's points, shared by the seal
- * ignition's warm front and the first-spell guide's ghost ink so partial-stroke
- * tracing has one source of truth.
+ * @file Arc-length walkers over a polyline's points, so the first-spell
+ * guide's ghost ink has one source of truth for partial-stroke tracing.
+ *
+ * The seal ignition used to walk its warm front through here too. It reads the
+ * ink's own outline now ([`../ui/canvas/entities/inkRibbon.ts`](../ui/canvas/entities/inkRibbon.ts)),
+ * because light laid over a mark whose width moves has to move with it. The
+ * ghost is a dashed guide rather than ink, and keeps a line's even width.
  */
 
 import type { Point } from '../types.js';

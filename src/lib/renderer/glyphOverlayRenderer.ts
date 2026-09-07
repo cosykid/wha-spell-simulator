@@ -16,6 +16,8 @@
  */
 
 import { BEAT_MS } from '../cast/score/beats.js';
+import { inkRibbonFor, traceInkRibbon, type InkRibbon } from '../ui/canvas/entities/inkRibbon.js';
+import { INK_NOMINAL_WIDTH } from '../ui/canvas/entities/strokeEntity.js';
 import { SEAL_EMBER } from './sealIgnition.js';
 import type { RingInfo, SpellIR, Stroke } from '../types.js';
 
@@ -32,8 +34,15 @@ interface GlowParams {
 interface GlowLayer {
 	shadowColor: string;
 	shadowBlur: (params: GlowParams) => number;
-	strokeStyle: (params: GlowParams) => string;
-	lineWidth: (params: GlowParams) => number;
+	fillStyle: (params: GlowParams) => string;
+	/**
+	 * Canvas pixels at the ink's nominal weight. The light is laid over a mark
+	 * whose width moves with the hand that drew it, so this is carried as a
+	 * ratio of that weight rather than a width of its own: a glow four times
+	 * wider than the ink it lights would read as light pasted on rather than
+	 * light coming off.
+	 */
+	width: (params: GlowParams) => number;
 }
 
 // Two layers of one light: a broad amber spill on the paper, and a hot near-white
@@ -43,16 +52,16 @@ const GLOW_LAYERS: GlowLayer[] = [
 	{
 		shadowColor: SEAL_EMBER.lit.glow,
 		shadowBlur: ({ pulse, flicker, glowAlpha }) => (24 + pulse * 18 + flicker * 10) * glowAlpha,
-		strokeStyle: ({ pulse, glowAlpha }) =>
+		fillStyle: ({ pulse, glowAlpha }) =>
 			`rgba(${SEAL_EMBER.lit.rgb}, ${(0.18 + pulse * 0.12) * glowAlpha})`,
-		lineWidth: ({ pulse, glowAlpha }) => 4 + (8 + pulse * 2) * glowAlpha
+		width: ({ pulse, glowAlpha }) => 4 + (8 + pulse * 2) * glowAlpha
 	},
 	{
 		shadowColor: SEAL_EMBER.head.glow,
 		shadowBlur: ({ pulse, glowAlpha }) => (10 + pulse * 6) * glowAlpha,
-		strokeStyle: ({ pulse, glowAlpha }) =>
+		fillStyle: ({ pulse, glowAlpha }) =>
 			`rgba(${SEAL_EMBER.head.rgb}, ${(0.88 + pulse * 0.12) * glowAlpha})`,
-		lineWidth: ({ pulse, glowAlpha }) => 1.8 + (2 + pulse * 0.6) * glowAlpha
+		width: ({ pulse, glowAlpha }) => 1.8 + (2 + pulse * 0.6) * glowAlpha
 	}
 ];
 
@@ -64,32 +73,20 @@ function hasStrokePoints(stroke: Stroke | null | undefined): boolean {
 	return Boolean(stroke?.points?.length);
 }
 
-function traceStrokePath(ctx: CanvasRenderingContext2D, stroke: Stroke): void {
-	const firstPoint = stroke.points[0];
-	ctx.beginPath();
-	ctx.moveTo(firstPoint.x, firstPoint.y);
-	for (let index = 1; index < stroke.points.length; index += 1) {
-		const point = stroke.points[index];
-		ctx.lineTo(point.x, point.y);
-	}
-}
-
 function drawGlowingStrokeLayer(
 	ctx: CanvasRenderingContext2D,
-	stroke: Stroke,
+	ribbon: InkRibbon,
 	glow: GlowParams,
 	layer: GlowLayer
 ): void {
 	ctx.save();
 	ctx.globalCompositeOperation = 'lighter';
-	ctx.lineCap = 'round';
-	ctx.lineJoin = 'round';
 	ctx.shadowBlur = layer.shadowBlur(glow);
 	ctx.shadowColor = layer.shadowColor;
-	ctx.strokeStyle = layer.strokeStyle(glow);
-	ctx.lineWidth = layer.lineWidth(glow);
-	traceStrokePath(ctx, stroke);
-	ctx.stroke();
+	ctx.fillStyle = layer.fillStyle(glow);
+	ctx.beginPath();
+	traceInkRibbon(ctx, ribbon, { scale: layer.width(glow) / INK_NOMINAL_WIDTH });
+	ctx.fill();
 	ctx.restore();
 }
 
@@ -97,9 +94,15 @@ function drawSingleGlowingStroke(
 	ctx: CanvasRenderingContext2D,
 	stroke: Stroke,
 	timestamp: number,
-	glowAlpha: number = 1
+	glowAlpha: number = 1,
+	inkWidth: number = INK_NOMINAL_WIDTH
 ): void {
 	if (!hasStrokePoints(stroke)) {
+		return;
+	}
+
+	const ribbon = inkRibbonFor(stroke.points, inkWidth);
+	if (!ribbon) {
 		return;
 	}
 
@@ -112,7 +115,7 @@ function drawSingleGlowingStroke(
 	};
 
 	for (const layer of GLOW_LAYERS) {
-		drawGlowingStrokeLayer(ctx, stroke, glow, layer);
+		drawGlowingStrokeLayer(ctx, ribbon, glow, layer);
 	}
 }
 
@@ -152,7 +155,8 @@ export function drawGlowingStrokes(
 	activatedStrokeIds: Set<string> | null | undefined,
 	strokes: Stroke[],
 	duration: number,
-	timestamp: number = performance.now()
+	timestamp: number = performance.now(),
+	inkWidth: number = INK_NOMINAL_WIDTH
 ): void {
 	if (!activatedStrokeIds?.size || !activatedAt) {
 		return;
@@ -164,7 +168,7 @@ export function drawGlowingStrokes(
 	}
 
 	for (const stroke of activeGlowStrokes(activatedStrokeIds, strokes)) {
-		drawSingleGlowingStroke(ctx, stroke, timestamp, glowAlpha);
+		drawSingleGlowingStroke(ctx, stroke, timestamp, glowAlpha, inkWidth);
 	}
 }
 

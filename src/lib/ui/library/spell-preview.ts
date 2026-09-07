@@ -24,6 +24,7 @@ import { emptySealReading } from '$lib/compiler/reading/readSeal.js';
 import { deserializeSpellPreset, type SpellPresetData } from '$lib/structures/spellPreset.js';
 import type { RingInfo, SpellIR, Stroke } from '$lib/types.js';
 import { renderPaper } from '$canvas/entities/paperEntity.js';
+import { COMMITTED_ALPHA, renderStrokeInk } from '$canvas/entities/strokeEntity.js';
 
 /** Padding after the cast's last beat before a replay counts as finished. */
 const END_GRACE_MS = 1600;
@@ -162,24 +163,16 @@ export class SpellPreviewDriver {
 		// Paint the paper first so the tilted glyph canvas reads as a lit sheet
 		// receding into the void, matching the activated simulator surface.
 		renderPaper(ctx, this.#glyphCanvas.width, this.#glyphCanvas.height);
-		ctx.save();
-		ctx.lineCap = 'round';
-		ctx.lineJoin = 'round';
-		ctx.strokeStyle = CONFIG.renderer.inkColor;
-		ctx.lineWidth = Math.max(1.6, this.#glyphCanvas.width * 0.006);
+		// A thumbnail is drawn small, so its ink is weighted to the canvas rather
+		// than to the simulator's nominal 4.4. The charge beat is handed the same
+		// weight, so its front stays proportionate to the ink it runs along.
+		const inkWidth = Math.max(1.6, this.#glyphCanvas.width * 0.006);
 		for (const stroke of this.#strokes) {
-			if (stroke.points.length < 2) continue;
-			ctx.beginPath();
-			ctx.moveTo(stroke.points[0].x, stroke.points[0].y);
-			for (const point of stroke.points.slice(1)) {
-				ctx.lineTo(point.x, point.y);
-			}
-			ctx.stroke();
+			renderStrokeInk(ctx, stroke, COMMITTED_ALPHA, CONFIG.renderer.inkColor, inkWidth);
 		}
-		ctx.restore();
 		// R-01's charge on the ink. The whole stored drawing is the seal here, so
 		// every stroke of it takes light, in the order it was drawn.
-		drawSealIgnition(ctx, this.#activatedAt, this.#strokes, timestamp);
+		drawSealIgnition(ctx, this.#activatedAt, this.#strokes, timestamp, inkWidth);
 	}
 
 	#frame(timestamp: number): void {

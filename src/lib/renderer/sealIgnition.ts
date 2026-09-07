@@ -17,8 +17,9 @@
  */
 
 import { BEAT_MS } from '../cast/score/beats.js';
+import { inkRibbonFor, traceInkRibbon } from '../ui/canvas/entities/inkRibbon.js';
+import { INK_NOMINAL_WIDTH } from '../ui/canvas/entities/strokeEntity.js';
 import { clamp } from '../utils/geometry.js';
-import { polylineLength, tracePathBetween } from './inkPath.js';
 import type { Stroke } from '../types.js';
 
 /**
@@ -42,7 +43,12 @@ const IGNITION = {
 	headSpan: 0.18,
 	/** Peak alphas. The layers composite additively, so nothing here is opaque. */
 	alpha: { lit: 0.3, head: 0.58 },
-	/** Canvas pixels, against ink drawn at about 4.4. */
+	/**
+	 * Canvas pixels at the ink's nominal weight, so the lit span sits a hair
+	 * proud of the mark and the head burns inside it. The ink's real width
+	 * moves with the hand, and these are carried as ratios of it, so the front
+	 * narrows into a tapered tail rather than overhanging it.
+	 */
 	width: { lit: 5.4, head: 2.8 },
 	blur: { lit: 9, head: 15 }
 } as const;
@@ -59,26 +65,45 @@ interface Ember {
 }
 
 /** Paints one span of the seal, measured as arc length through the strokes in order. */
-function paintEmber(ctx: CanvasRenderingContext2D, strokes: readonly Stroke[], ember: Ember): void {
+function paintEmber(
+	ctx: CanvasRenderingContext2D,
+	strokes: readonly Stroke[],
+	inkWidth: number,
+	ember: Ember
+): void {
 	if (ember.to <= ember.from || ember.alpha <= 0) {
 		return;
 	}
 	ctx.save();
 	ctx.globalCompositeOperation = 'lighter';
-	ctx.lineCap = 'round';
-	ctx.lineJoin = 'round';
-	ctx.strokeStyle = `rgba(${ember.rgb}, ${ember.alpha})`;
-	ctx.lineWidth = ember.width;
+	ctx.fillStyle = `rgba(${ember.rgb}, ${ember.alpha})`;
 	ctx.shadowBlur = ember.blur;
 	ctx.shadowColor = ember.glow;
 	ctx.beginPath();
 	let walked = 0;
 	for (const stroke of strokes) {
-		tracePathBetween(ctx, stroke.points, ember.from - walked, ember.to - walked);
-		walked += polylineLength(stroke.points);
+		const ribbon = inkRibbonFor(stroke.points, inkWidth);
+		if (!ribbon) {
+			continue;
+		}
+		traceInkRibbon(ctx, ribbon, {
+			scale: ember.width / INK_NOMINAL_WIDTH,
+			from: ember.from - walked,
+			to: ember.to - walked
+		});
+		walked += ribbon.length;
 	}
-	ctx.stroke();
+	ctx.fill();
 	ctx.restore();
+}
+
+/** How far the front has to travel to cross the whole seal, in the order it was drawn. */
+function sealLength(strokes: readonly Stroke[], inkWidth: number): number {
+	let total = 0;
+	for (const stroke of strokes) {
+		total += inkRibbonFor(stroke.points, inkWidth)?.length ?? 0;
+	}
+	return total;
 }
 
 /**
@@ -103,7 +128,8 @@ export function drawSealIgnition(
 	ctx: CanvasRenderingContext2D,
 	activatedAt: number | null | undefined,
 	strokes: readonly Stroke[],
-	timestamp: number
+	timestamp: number,
+	inkWidth: number = INK_NOMINAL_WIDTH
 ): void {
 	if (!activatedAt || !strokes.length) {
 		return;
@@ -113,10 +139,9 @@ export function drawSealIgnition(
 		return;
 	}
 
-	let total = 0;
-	for (const stroke of strokes) {
-		total += polylineLength(stroke.points);
-	}
+	// Measured through the marks rather than their chords, because that is what
+	// the front is painted along.
+	const total = sealLength(strokes, inkWidth);
 	if (total <= 0) {
 		return;
 	}
@@ -127,7 +152,7 @@ export function drawSealIgnition(
 	const front = total * run * run * (3 - 2 * run);
 	const warmth = warmthAt(chargeT);
 
-	paintEmber(ctx, strokes, {
+	paintEmber(ctx, strokes, inkWidth, {
 		...SEAL_EMBER.lit,
 		alpha: IGNITION.alpha.lit * warmth,
 		width: IGNITION.width.lit,
@@ -135,7 +160,7 @@ export function drawSealIgnition(
 		from: 0,
 		to: front
 	});
-	paintEmber(ctx, strokes, {
+	paintEmber(ctx, strokes, inkWidth, {
 		...SEAL_EMBER.head,
 		// The front itself, brightest where the warmth has just arrived. It fades
 		// out with everything else once it reaches the end of the ink.
