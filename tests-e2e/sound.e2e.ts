@@ -79,18 +79,18 @@ test.describe('the cast heard', () => {
 		await instrumentAudio(page);
 		const canvas = new SpellCanvasPage(page);
 		await canvas.goto();
-		await expect(canvas.soundToggle).toHaveAttribute('aria-pressed', 'false');
+		await expect(canvas.soundToggle).toHaveAttribute('aria-label', 'Mute');
 
 		await canvas.soundToggle.click();
-		await expect(canvas.soundToggle).toHaveAttribute('aria-pressed', 'true');
+		await expect(canvas.soundToggle).toHaveAttribute('aria-label', 'Unmute');
 
 		await page.keyboard.press('m');
-		await expect(canvas.soundToggle).toHaveAttribute('aria-pressed', 'false');
+		await expect(canvas.soundToggle).toHaveAttribute('aria-label', 'Mute');
 		await page.keyboard.press('m');
-		await expect(canvas.soundToggle).toHaveAttribute('aria-pressed', 'true');
+		await expect(canvas.soundToggle).toHaveAttribute('aria-label', 'Unmute');
 
 		await canvas.goto();
-		await expect(canvas.soundToggle).toHaveAttribute('aria-pressed', 'true');
+		await expect(canvas.soundToggle).toHaveAttribute('aria-label', 'Unmute');
 
 		// Muted is a ramp on the master, not a skipped schedule, so a cast sealed
 		// in silence is still written and unmuting lands mid-performance.
@@ -99,6 +99,6 @@ test.describe('the cast heard', () => {
 		await expect.poll(async () => (await readProbe(page)).curves).toBeGreaterThanOrEqual(3);
 
 		await canvas.soundToggle.click();
-		await expect(canvas.soundToggle).toHaveAttribute('aria-pressed', 'false');
+		await expect(canvas.soundToggle).toHaveAttribute('aria-label', 'Mute');
 	});
 });
