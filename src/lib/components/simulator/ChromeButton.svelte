@@ -3,10 +3,15 @@
 The one control every piece of canvas chrome is made of.
 
 What a button *does* is `role`, and only that: `command` fires once, `mode` stays
-on until you turn it off, `opener` reveals a drawer. All three wear the same
-chassis, so a row of them reads as one material rather than as three kinds of
-widget. The one that is currently on is underscored in ink: a mode left running,
-a drawer left standing open.
+on until you turn it off, `opener` reveals a drawer, `toggle` flips between two
+named states. All four wear the same chassis, so a row of them reads as one
+material rather than as four kinds of widget. The one that is currently on is
+underscored in ink: a mode left running, a drawer left standing open.
+
+A toggle is the exception, and wears no underline. It swaps to `activeIcon` and
+renames itself instead, so the glyph and the name already carry the state and a
+stroke beneath them would say it a third time. It also reports no `aria-pressed`,
+because a name that flips with the state cannot also be pressed.
 
 The chassis itself is nothing at all. These sit directly on the parchment and
 only take a faint glass wash on hover, so the chrome reads as marks on the page
@@ -26,10 +31,12 @@ the name lives in the chip, aligned to its run's edge by `chipAlign`.
 		label: string;
 		/** A lucide line icon. Filled glyphs do not read on a stroke-drawn chassis. */
 		icon: ComponentType;
-		role: 'command' | 'mode' | 'opener';
+		/** The glyph a toggle wears while active, in place of `icon`. */
+		activeIcon?: ComponentType;
+		role: 'command' | 'mode' | 'opener' | 'toggle';
 		/** Keyboard chord shown in the hover chip, already platform-formatted. */
 		shortcut?: string;
-		/** Modes and openers are on or off; a command never is. */
+		/** Modes, openers and toggles are on or off; a command never is. */
 		active?: boolean;
 		disabled?: boolean;
 		showLabel?: boolean;
@@ -43,6 +50,7 @@ the name lives in the chip, aligned to its run's edge by `chipAlign`.
 	let {
 		label,
 		icon: Icon,
+		activeIcon: ActiveIcon,
 		role,
 		shortcut,
 		active = false,
@@ -54,6 +62,10 @@ the name lives in the chip, aligned to its run's edge by `chipAlign`.
 		testId,
 		onclick
 	}: Props = $props();
+
+	let Glyph = $derived(active && ActiveIcon ? ActiveIcon : Icon);
+	let underscored = $derived(active && role !== 'toggle');
+	let pressed = $derived(role === 'mode' || role === 'opener' ? active : undefined);
 </script>
 
 <button
@@ -61,14 +73,14 @@ the name lives in the chip, aligned to its run's edge by `chipAlign`.
 	{id}
 	data-testid={testId}
 	class="chrome-btn role-{role}"
-	class:is-on={active}
+	class:is-on={underscored}
 	class:has-label={showLabel}
 	aria-label={label}
-	aria-pressed={role === 'command' ? undefined : active}
+	aria-pressed={pressed}
 	{disabled}
 	{onclick}
 >
-	<Icon class="btn-icon" aria-hidden="true" />
+	<Glyph class="btn-icon" aria-hidden="true" />
 	{#if showLabel}<span class="btn-label">{label}</span>{/if}
 	<!-- Shown for disabled buttons too: a greyed Undo still has to say what it is.
 	     The chip is driven by a CSS variable on :hover, which keeps matching while
