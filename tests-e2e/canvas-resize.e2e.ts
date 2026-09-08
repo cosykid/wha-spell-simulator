@@ -7,14 +7,19 @@ import { SpellCanvasPage } from './pages/SpellCanvasPage.js';
 // normalized draw coordinate is ever read against the resized canvas.
 const RESIZED = { width: 954, height: 876 };
 
-// How far apart the two centroids may sit and still read as concentric. The
-// fixture's symbols are not evenly distributed, so even a correct ring leaves
-// the two centroids ~13px apart. A ring stranded at the pre-resize canvas size
-// displaces the guides by center * (1 - 954/1024), roughly 35px, so this sits
-// clear of both.
-const CONCENTRIC_TOLERANCE_PX = 22;
-// The resize must not pull the guides off the ink at all; the small allowance
-// only absorbs the ink centroid shifting as strokes are rescaled and re-inked.
+// A sanity bound, and deliberately a loose one. How far apart the two centroids
+// sit is set by how much of the open ring's ink actually landed, which is a
+// property of the machine that drew it rather than of the resize: CI has read
+// 17px and 45px on two runs of the same commit whose ring centroid moved 0.6px
+// between them, while a mac reads 3px to 13px. Only a guide nowhere near the
+// ink fails this.
+const CONCENTRIC_TOLERANCE_PX = 60;
+// The subject of this spec, and the assertion that carries it. The resize must
+// not pull the guides off the ink at all, and a ring stranded at the pre-resize
+// canvas size displaces them by center * (1 - 954/1024), roughly 35px. This
+// holds within 3px of zero on every machine measured, lopsided ink included,
+// which is what makes it the discriminating check and the tolerance above a
+// backstop.
 const MAX_DRIFT_PX = 6;
 
 /**
