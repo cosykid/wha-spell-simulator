@@ -7,10 +7,10 @@
  * which the plate rendered nothing), so the feed carries thumbnails and leaves
  * the drawing behind until a reader opens or previews one.
  */
-import { bakePlacementToStrokes } from '$lib/input/shapeBaker.js';
+import { bakePlacementToStrokes } from '../input/shapeBaker.js';
 import { deserializeSpellPreset, type SpellPresetData } from './spellPreset.js';
-import { fitStrokesToPreviewPolylines } from '$lib/ui/strokePreview.js';
-import { simplifyPath } from '$lib/utils/simplifyPath.js';
+import { fitStrokesToPreviewPolylines } from '../ui/strokePreview.js';
+import { simplifyPath } from '../utils/simplifyPath.js';
 
 /** SVG `polyline` point strings in the 100x100 preview viewBox, one per stroke. */
 export type SpellThumbnail = string[];

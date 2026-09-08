@@ -7,7 +7,7 @@
  * and a thumbnail a couple of hundred pixels wide cannot draw the difference.
  */
 import { pointToSegmentDistance } from './geometry.js';
-import type { Vector } from '$lib/types.js';
+import type { Vector } from '../types.js';
 
 /**
  * Simplifies a polyline, keeping every point that sits further than `tolerance`
