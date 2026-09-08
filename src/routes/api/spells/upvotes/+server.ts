@@ -2,7 +2,7 @@ import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types.js';
 
 import { listUpvotedSpellIds } from '$lib/server/storage/spellStore.js';
-import { PRIVATE_NO_STORE } from '../cache.js';
+import { PRIVATE_NO_STORE } from '../../cache.js';
 
 export const prerender = false;
 

@@ -2,7 +2,8 @@ import { error, json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types.js';
 
 import { getSpellDetail } from '$lib/server/storage/spellStore.js';
-import { PRIVATE_NO_STORE, SPELL_DETAIL_CACHE } from '../cache.js';
+import { PRIVATE_NO_STORE } from '../../cache.js';
+import { SPELL_DETAIL_CACHE } from '../cache.js';
 
 export const prerender = false;
 

@@ -17,6 +17,3 @@ export const LIBRARY_FEED_CACHE = 'public, max-age=0, s-maxage=60, stale-while-r
  * still casts.
  */
 export const SPELL_DETAIL_CACHE = 'public, max-age=0, s-maxage=300, stale-while-revalidate=3600';
-
-/** Anything that answers differently per reader, or that only its owner may read. */
-export const PRIVATE_NO_STORE = 'private, no-store';
