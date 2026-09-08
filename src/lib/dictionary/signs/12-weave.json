@@ -1,10 +1,10 @@
 {
 	"id": "weave",
 	"recognitionRotationInvariant": true,
-	"displayName": "Weave (Ribbon)",
+	"displayName": "Weave (Ribbon / Stretch)",
 	"referenceSizeNorm": 0.209,
 	"allowedLayers": ["middle", "outer"],
-	"sourceNotes": "Weave, also called ribbon, turns solid objects affected by the spell into long flexible ribbons when they touch the seal. It is likely semi-directional, has not been seen inverted, and is associated with Richeh's ribbon spells.",
+	"sourceNotes": "Weave, also called Ribbon or Stretch, softens solid material touching the seal so it can be stretched into flexible ribbons. Richeh uses it to stretch stone. The anime primer says Stretch is ineffective on liquids and gases. Inversion has not been shown. Richeh also softens crystal into ribbons, but that spell's complete seal is not shown in the manga.",
 	"semantic": {
 		"manifestation": "weave",
 		"directionMode": "position",

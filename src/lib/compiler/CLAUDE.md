@@ -54,6 +54,7 @@ resolve. Each family owns a different verb and its own budget, so nothing overri
   intake feeding a clash column resolves as one vortex, never a beam with inflow branches.
 - [`snap.ts`](plan/snap.ts) — the canon-snap seam, shipping empty. Its header documents the
   fingerprint scheme.
+- [`weave.ts`](plan/weave.ts) — R-22's solid-target resolution for the Stretch demonstration.
 - [`planText.ts`](plan/planText.ts) — the golden and lab-panel text form.
 - [`planDigest.ts`](plan/planDigest.ts) — the same plan as one line, for `SpellIR.signature`.
 

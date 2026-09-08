@@ -54,7 +54,7 @@ export function castSource(presetId: string): CastSource {
 
 /** One preset's plan: the same one the plan tier snapshots. */
 export function presetPlan(preset: LabPreset): SpellPlan {
-	return resolvePlan(readPresetSeal(preset.signs, GOLDEN_SIGIL));
+	return resolvePlan(readPresetSeal(preset.signs, preset.sigil ?? GOLDEN_SIGIL));
 }
 
 /** One preset's score: that plan, given a timeline. */

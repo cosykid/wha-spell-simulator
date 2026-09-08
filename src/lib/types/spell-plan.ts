@@ -18,7 +18,15 @@ export type PlanMode = 'create' | 'manipulate';
  * The named motion primitives a plan may talk about. The Score layer types its
  * tracks on the same names, so a coupling stays readable across the seam.
  */
-export type PlanPrimitive = 'burst' | 'jet' | 'fan' | 'vortex' | 'hold' | 'intake' | 'vessel';
+export type PlanPrimitive =
+	| 'burst'
+	| 'jet'
+	| 'fan'
+	| 'vortex'
+	| 'hold'
+	| 'intake'
+	| 'vessel'
+	| 'weave';
 
 /** R-09. Which part of the seal disc emits. Radii are in seal units. */
 export type Aperture =
@@ -116,6 +124,11 @@ export interface VesselSpec {
 	stir: number;
 }
 
+/** R-22: the solid sample the simulator supplies for the stretch demonstration. */
+export interface WeaveSpec {
+	material: 'stone' | 'crystal';
+}
+
 /**
  * A declared interaction between two primitives. Superposition used to make
  * these emergent and unpredictable; naming them puts them in a text golden.
@@ -131,6 +144,10 @@ export interface Coupling {
  * or open question shaped a plan.
  */
 export type PlanNote =
+	/** R-22: a supplied solid sample and an illustrative pull, not autonomous emission. */
+	| 'weave-solid-demo'
+	/** R-22: no supported solid target for this sigil. */
+	| 'weave-needs-solid'
 	/** Passed through from the reading: at least one sign's facing is not evidence (R-06). */
 	| 'facing-untrusted'
 	/** R-08: dispersion ink is present, so the body beat runs as a slow leak. */
@@ -177,6 +194,7 @@ export interface SpellPlan {
 	hold: HoldSpec | null;
 	intake: IntakeSpec | null;
 	vessel: VesselSpec | null;
+	weave: WeaveSpec | null;
 	/** R-13. The lens factor: 1 is no convergence ink, higher packs everything tighter. */
 	focus: number;
 	/** The drawing's overall precision, carried from the reading. */

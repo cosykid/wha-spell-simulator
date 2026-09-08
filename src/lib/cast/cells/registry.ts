@@ -19,11 +19,14 @@ import { createIntakeCell } from './intake.js';
 import { createJetCell } from './jet.js';
 import { createShimmerCell } from './shimmer.js';
 import { createVortexCell } from './vortex.js';
+import { createWeaveCell } from './weave.js';
 import type { Cell, CellContext } from './cell.js';
 import type { ScoreTrack } from '../../types.js';
 
 export function cellFor(track: ScoreTrack, ctx: CellContext): Cell {
 	switch (track.kind) {
+		case 'weave':
+			return createWeaveCell(track, ctx);
 		case 'burst':
 			return createBurstCell(track, ctx);
 		case 'vortex':

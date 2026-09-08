@@ -50,6 +50,7 @@ export type PrimitiveKind =
 	| 'intake'
 	| 'vessel'
 	| 'burst'
+	| 'weave'
 	| 'shimmer';
 
 /** Every primitive that plays. `vessel` is R-13's deferred orb and has no kernel yet. */
@@ -210,11 +211,20 @@ export interface ShimmerParams {
 	ceiling: number;
 }
 
+/** R-22's one solid sample drawn into a flexible band. Dimensions are demonstration tuning. */
+export interface WeaveParams {
+	length: number;
+	width: number;
+	stretchMs: number;
+	materialCount: number;
+}
+
 /**
  * Params by kind. `vessel` is R-13's deferred orb and maps to `never`, so a
  * track of the one unbuilt kind cannot be constructed until its params land.
  */
 export interface PrimitiveParams {
+	weave: WeaveParams;
 	burst: BurstParams;
 	jet: JetParams;
 	fan: FanParams;
@@ -245,6 +255,7 @@ export interface Track<K extends PrimitiveKind = PlayedKind> {
 
 /** Any track a v1 score may hold. */
 export type ScoreTrack =
+	| Track<'weave'>
 	| Track<'burst'>
 	| Track<'jet'>
 	| Track<'fan'>

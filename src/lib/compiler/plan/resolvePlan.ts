@@ -21,6 +21,7 @@ import { resolveRegion } from './region.js';
 import { resolveSites } from './sites.js';
 import { planFingerprint, snapPlan } from './snap.js';
 import { spinUpColumn } from './spinUp.js';
+import { resolveWeave } from './weave.js';
 import type {
 	Coupling,
 	ElementId,
@@ -35,7 +36,7 @@ import type {
 /** Below this a component reads as absent rather than small. */
 const NEGLIGIBLE = 1e-6;
 
-type Family = 'column' | 'region' | 'levitation' | 'pull' | 'convergence' | 'power';
+type Family = 'column' | 'region' | 'levitation' | 'pull' | 'convergence' | 'weave' | 'power';
 
 /**
  * Which verb a manifestation speaks. Every manifestation the dictionary can emit
@@ -52,6 +53,7 @@ const MANIFESTATION_FAMILY: Record<string, Family> = {
 	levitation: 'levitation',
 	pull: 'pull',
 	convergence: 'convergence',
+	weave: 'weave',
 	// R-13, deferred: crush contributes power only until it is ruled.
 	crush: 'power'
 };
@@ -89,6 +91,7 @@ interface FamilyBudgets {
 	levitation: SignReading[];
 	pull: SignReading[];
 	convergence: SignReading[];
+	weave: SignReading[];
 	/** Signs whose only ruled contribution is power. */
 	power: SignReading[];
 	/** Manifestations with no ruling yet, unique and sorted so notes stay stable. */
@@ -105,6 +108,7 @@ function gatherFamilies(signs: SignReading[]): FamilyBudgets {
 		levitation: [],
 		pull: [],
 		convergence: [],
+		weave: [],
 		power: [],
 		unmodeled: [],
 		leak: false
@@ -140,6 +144,7 @@ function ownPrimitives(plan: SpellPlan): PlanPrimitive[] {
 	if (Math.abs(plan.circulation) > NEGLIGIBLE) {
 		primitives.push('vortex');
 	}
+	if (plan.weave) primitives.push('weave');
 	return primitives;
 }
 
@@ -170,6 +175,9 @@ function planNotes(
 	spun: boolean
 ): PlanNote[] {
 	const notes: PlanNote[] = [];
+	if (budgets.weave.length) {
+		notes.push(plan.weave ? 'weave-solid-demo' : 'weave-needs-solid');
+	}
 	const lateral = Math.hypot(plan.aim.x, plan.aim.y);
 
 	if (reading.notes.includes('facing-untrusted')) {
@@ -190,7 +198,8 @@ function planNotes(
 		lateral <= NEGLIGIBLE &&
 		plan.aim.z <= NEGLIGIBLE &&
 		plan.dispersion <= NEGLIGIBLE &&
-		Math.abs(plan.circulation) <= NEGLIGIBLE
+		Math.abs(plan.circulation) <= NEGLIGIBLE &&
+		!plan.weave
 	) {
 		notes.push('inert-quadrupole');
 	}
@@ -201,7 +210,7 @@ function planNotes(
 	}
 	// R-11 and the pull-only ruling: the seal manifests nothing of its own, which
 	// is a look (ambient streaming inward), never an empty canvas.
-	if (plan.intake && plan.budget <= NEGLIGIBLE && !plan.hold) {
+	if (plan.intake && plan.budget <= NEGLIGIBLE && !plan.hold && !plan.weave) {
 		notes.push('intake-only');
 	}
 	// R-09's table is exhaustive by construction, its last row being the default
@@ -243,6 +252,7 @@ export function resolvePlan(reading: SealReading): SpellPlan {
 		intake: resolveIntake(budgets.pull),
 		// R-13, deferred: the orb sign is not in the dictionary yet.
 		vessel: null,
+		weave: resolveWeave(budgets.weave, reading.sigil),
 		focus: resolveFocus(budgets.convergence),
 		quality: reading.quality,
 		symmetry: reading.symmetry,

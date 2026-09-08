@@ -47,6 +47,7 @@ export type RulingId =
 	| 'R-19'
 	| 'R-20'
 	| 'R-21'
+	| 'R-22'
 	/** Levitation, the force pair. */
 	| 'ground-truth-6'
 	/** Pull, the ambient coupling, and the ambient medium itself. */

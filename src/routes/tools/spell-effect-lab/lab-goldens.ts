@@ -10,6 +10,7 @@
  * `tests-e2e/golden-look.e2e.ts`.
  */
 
+import { presetById } from '$lib/ui/spellEffectLabPresets.js';
 import { DEFAULT_SIGIL, SIGIL_OPTIONS } from '$lib/ui/spellEffectLab.js';
 
 /** Step the scripted clock advances by, matching a 60fps frame. */
@@ -25,8 +26,10 @@ export interface GoldenFrameRequest {
 }
 
 /** Narrows an arbitrary string, so a URL cannot select a sigil the lab does not offer. */
-export function labSigilFrom(value: string | null): string {
-	return value && SIGIL_OPTIONS.some((option) => option.id === value) ? value : DEFAULT_SIGIL;
+export function labSigilFrom(value: string | null, presetId = 'none'): string {
+	return value && SIGIL_OPTIONS.some((option) => option.id === value)
+		? value
+		: (presetById(presetId).sigil ?? DEFAULT_SIGIL);
 }
 
 /**
@@ -52,6 +55,6 @@ export function readGoldenFrameRequest(url: URL): GoldenFrameRequest | null {
 	return {
 		presetId,
 		frameMs,
-		sigil: labSigilFrom(url.searchParams.get('sigil'))
+		sigil: labSigilFrom(url.searchParams.get('sigil'), presetId)
 	};
 }

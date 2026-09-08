@@ -43,8 +43,9 @@ be kept in sync by hand.
   +/- 15 degrees. A template drawn upright is unrecognizable at most ring positions.
 - Signs are orientation-bearing. A new sign needs `semantic.manifestation` **and**
   a family row in `../compiler/plan/resolvePlan.ts`, or its ink only pays into the
-  burst budget and the plan tags it `unmodeled-<manifestation>`. `crush`, `weave`,
-  `billowing`, and `repetition` sit in that state today. See
+  burst budget and the plan tags it `unmodeled-<manifestation>`. `billowing`
+  and `repetition` sit in that state today; crush has an explicit power-only
+  row. Weave/Stretch has R-22's solid-deformation demonstration for stone and crystal. See
   [`../compiler/CLAUDE.md`](../compiler/CLAUDE.md).
 - Unit tests read these files from disk. `tests/dictionaryFixtures.ts`
   `readRealDictionary()` parses the real JSON, so a template edit changes the

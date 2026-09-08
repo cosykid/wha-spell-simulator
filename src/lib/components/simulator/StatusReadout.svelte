@@ -40,6 +40,9 @@ the status string: an unsettled reading pulses that dot, never the text.
 			>
 		</span>
 	</div>
+	{#if summary.effectNote}
+		<span class="status-note" data-testid="weave-note">{summary.effectNote}</span>
+	{/if}
 	{#if simulator.recognition.castSpent}
 		<span class="status-note" data-testid="status-note">
 			Spell spent -

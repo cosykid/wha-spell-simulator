@@ -25,6 +25,7 @@ import { intakeTrack } from './tracks/intake.js';
 import { aimJet, defaultJet, exhaustJet } from './tracks/jet.js';
 import { ambientShimmer } from './tracks/shimmer.js';
 import { circulationVortex } from './tracks/vortex.js';
+import { weaveTrack } from './tracks/weave.js';
 import { hashHex, hashSeed } from '../rng.js';
 import type {
 	Population,
@@ -99,6 +100,7 @@ function perform(plan: SpellPlan, population: Population): Performance {
 	const notes: ScoreNote[] = [];
 
 	const manifested = [
+		weaveTrack(plan, population),
 		aimJet(plan, population),
 		exhaustJet(plan, population),
 		dispersionFan(plan, population),

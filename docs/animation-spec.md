@@ -391,6 +391,51 @@ A pull-only helix is untouched: with no clash there is no column to spin, so
 Grasping Wind keeps its intake track and its hollow climbing eye (R-13,
 `pull-vortex`).
 
+## R-22 — Weave / Ribbon / Stretch `[canon effect, demonstration motion]`
+
+**Canon effect.** Stretch softens solid material touching the seal so it can be
+stretched. Richeh's Boulder Stretch Rope turns stone into a flexible ribbon. Its
+seal has a central earth sigil enclosed by one Weave sign; one sign does not imply
+two ribbon emitters. The anime's primer says Stretch is ineffective on liquids
+and gases. Coil is a separate sign, so Weave alone does not imply automatic
+coiling, braiding, targeting or binding.
+
+Evidence checked on 2026-09-08:
+
+- [Boulder Stretch Rope](https://witchhatatelier.telepedia.net/wiki/Boulder_Stretch_Rope)
+  describes the seal and cites manga chapter 21 p4 and chapter 28 p11,19–20.
+- [Crunchyroll's episode 12 recap](https://www.crunchyroll.com/news/features/2026/6/17/witch-hat-atelier-ep-12-recap)
+  describes Richeh turning paving stones into a long ribbon to cross a gap.
+- [Episode 11 primer transcription](https://witchhatatelier.telepedia.net/wiki/Writing/Translated_Texts#Primer_Book_6),
+  Book 2 left page, 04:47, records the solids-only limitation. This is a community
+  transcription of on-screen anime text.
+- [Crystal Ribbon](https://witchhatatelier.telepedia.net/wiki/Crystal_Ribbon)
+  describes softened, stretched crystal, while explicitly noting that the
+  complete seal is not shown in the manga. The crystal+Weave combination here is
+  an approximation of that effect, not a verified diagram.
+
+**Simulator demonstration.** There is no general scene-object/contact system.
+The modern renderer supplies one compact stone or crystal sample at the seal on
+the strike, then shows an illustrative pull that stretches it into one continuous
+band. The number of targets, pull direction, dimensions, timing and final pose
+are demonstration choices. Inversion, repetition of the sign and position do not
+invent extra strands or an unsupported directional law. Other families retain
+their existing tracks and declared hold constraints.
+
+The sample has a finite tracer population, seeded once. Its existing material
+coordinates deform and its thickness decreases as it extends. It neither emits
+new ribbons nor loses material through ordinary plume ageing. The final shape
+persists through release; the whole preview fades on the existing one-shot
+clock. That cleanup is not a claim that the solid disappears or that ending the
+spell automatically hardens crystal. Flattened deposits preserve the broad face
+inside the shared marching-cubes field. Classic remains frozen.
+
+The compiler resolves stone and crystal targets only, with `weave-solid-demo`.
+Other sigils receive `weave-needs-solid` and visible guidance to use earth or
+crystal; their existing element effects are unchanged. This does not rule out
+complex canon spells such as Light Tracer, whose complete behavior is outside
+this simple solid-deformation model.
+
 ## PDF defect register
 
 The original design PDF's defects (A through M), each with its resolution:

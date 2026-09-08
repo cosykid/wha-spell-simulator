@@ -13,6 +13,7 @@
 		valuesFromSpellIR
 	} from '$lib/ui/spellEffectLab.js';
 	import { LAB_PRESETS, presetById } from '$lib/ui/spellEffectLabPresets.js';
+	import { weaveHint } from '$lib/ui/weaveHint.js';
 	import { resolvePlan } from '$lib/compiler/plan/resolvePlan.js';
 	import { roundDeep } from '$lib/utils/json.js';
 	import { page } from '$app/state';
@@ -52,7 +53,10 @@
 	// deep link (or a capture rig) lands on the cast it names without the
 	// scripted golden-frame clock.
 	const requestedPreset = page.url.searchParams.get('preset');
-	let sigil = $state(goldenFrame?.sigil ?? labSigilFrom(page.url.searchParams.get('sigil')));
+	let sigil = $state(
+		goldenFrame?.sigil ??
+			labSigilFrom(page.url.searchParams.get('sigil'), requestedPreset ?? 'none')
+	);
 	const element = $derived(elementForSigil(sigil));
 	let presetId = $state(
 		goldenFrame?.presetId ??
@@ -189,7 +193,11 @@
 			<select
 				class="select-control"
 				bind:value={presetId}
-				onchange={restartSpell}
+				onchange={() => {
+					const preferred = presetById(presetId).sigil;
+					if (preferred) sigil = preferred;
+					restartSpell();
+				}}
 				title={preset.description}
 				data-testid="lab-preset-select"
 			>
@@ -221,6 +229,9 @@
 				<span>Sound</span>
 			</label>
 		</div>
+		{#if weaveHint(plan)}
+			<p class="weave-note" data-testid="weave-note">{weaveHint(plan)}</p>
+		{/if}
 		<div class="canvas-shell effect-lab-canvas-shell portal-active" bind:this={canvasShell}>
 			<canvas
 				bind:this={glyphCanvas}
@@ -289,6 +300,13 @@
 </main>
 
 <style>
+	.weave-note {
+		margin: 0;
+		padding: 8px 16px;
+		font-size: 13px;
+		color: var(--ink-sepia-70);
+	}
+
 	.effect-lab-workspace {
 		grid-template-columns: minmax(560px, 1fr) minmax(360px, 0.48fr);
 	}

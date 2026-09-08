@@ -464,6 +464,8 @@ test('[PDF defect I] every manifestation in the dictionary resolves to something
 			plan.budget > 0 ||
 			plan.hold !== null ||
 			plan.intake !== null ||
+			plan.weave !== null ||
+			plan.notes.includes('weave-needs-solid') ||
 			plan.focus > 1 ||
 			plan.hardness > 0;
 		assert.ok(resolved, `${manifestation} resolved to nothing at all`);

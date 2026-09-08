@@ -1,0 +1,81 @@
+cast weave
+
+@0850ms beat=charge beatT=0.8673
+track shimmer-ambient kind=shimmer look=skin population=ambient emission=21.7311 drive=1.0000
+  ink=0.0652 marks=167 born=167 parcels=252
+  at=(-0.0030, -0.0490, 0.0943) tip=(0.0000, 0.0000, 0.5000)
+  detail cap=0.1000 inhale=0.7523 presence=0.2610 reach=1.5897 speed=0.1827
+  tracers pooled=48 bands=[113.7 0.0 0.0 0.0] rings=[0.0 30.4 83.2] grid=c86e471c
+  ceiling none
+track burst kind=burst look=core population=ambient emission=0.0000 drive=0.0000
+  ink=0.0000 marks=0 born=0 parcels=593
+  at=(0.0000, 0.0000, 0.0000) tip=(0.0000, 0.0000, 0.0000)
+  detail front=0.0000 reach=0.0000 speed=0.0000
+  tracers pooled=0 bands=[0.0 0.0 0.0 0.0] rings=[0.0 0.0 0.0] grid=725c3305
+  ceiling none
+track weave-solid kind=weave look=body population=ambient emission=0.0000 drive=0.0000
+  ink=0.0000 marks=0 born=0 parcels=1755
+  at=(0.0000, 0.0000, 0.0000) tip=(0.0000, 0.0000, 0.0000)
+  detail length=0.7500 reach=0.0000 speed=0.0000 stretch=0.0000 targets=1.0000 width=0.3500
+  tracers pooled=0 bands=[0.0 0.0 0.0 0.0] rings=[0.0 0.0 0.0] grid=725c3305
+  ceiling none
+
+@1100ms beat=strike beatT=0.3750
+track shimmer-ambient kind=shimmer look=skin population=ambient emission=20.3055 drive=1.0000
+  ink=0.0502 marks=230 born=230 parcels=252
+  at=(0.0221, -0.0393, 0.0846) tip=(0.0000, 0.0000, 0.5000)
+  detail cap=0.1000 inhale=0.8313 presence=0.2008 reach=1.5810 speed=0.1770
+  tracers pooled=93 bands=[164.6 0.0 0.0 0.0] rings=[0.0 46.1 118.5] grid=48de7e47
+  ceiling none
+track burst kind=burst look=core population=ambient emission=99.7790 drive=0.8738
+  ink=0.9400 marks=196 born=196 parcels=593
+  at=(-0.0129, 0.0132, 0.0609) tip=(0.0664, 0.0000, 0.0020)
+  detail front=0.0664 reach=0.7552 speed=2.0904
+  tracers pooled=15 bands=[58.0 0.0 0.0 0.0] rings=[41.5 16.6 0.0] grid=b887a821
+  ceiling none
+track weave-solid kind=weave look=body population=ambient emission=190.0000 drive=1.0000
+  ink=1.0000 marks=650 born=650 parcels=1755
+  at=(0.0015, -0.0011, 0.2492) tip=(0.3750, 0.0000, 0.2500)
+  detail length=0.7500 reach=0.6524 speed=0.0000 stretch=0.0000 targets=1.0000 width=0.3500
+  tracers pooled=0 bands=[650.0 0.0 0.0 0.0] rings=[650.0 0.0 0.0] grid=37d8d5f5
+  ceiling none
+
+@1600ms beat=body beatT=0.1974
+track shimmer-ambient kind=shimmer look=skin population=ambient emission=17.1013 drive=1.0000
+  ink=0.0191 marks=252 born=252 parcels=252
+  at=(0.0224, -0.0402, 0.0676) tip=(0.0000, 0.0000, 0.5000)
+  detail cap=0.1000 inhale=0.5500 presence=0.0764 reach=1.5695 speed=0.0997
+  tracers pooled=203 bands=[196.6 0.0 0.0 0.0] rings=[0.8 58.6 137.1] grid=b520c88c
+  ceiling none
+track burst kind=burst look=core population=ambient emission=0.0000 drive=0.4396
+  ink=0.0000 marks=380 born=382 parcels=593
+  at=(-0.0120, 0.0020, 0.2091) tip=(0.3079, 0.0000, 0.0092)
+  detail front=0.3079 reach=1.8013 speed=0.1006
+  tracers pooled=380 bands=[167.5 0.0 0.0 0.0] rings=[67.2 85.3 15.1] grid=cdec1de2
+  ceiling none
+track weave-solid kind=weave look=body population=ambient emission=0.0000 drive=1.0000
+  ink=1.0000 marks=650 born=650 parcels=1755
+  at=(-0.0219, -0.0008, 0.4015) tip=(0.3340, 0.0000, 0.4969)
+  detail length=1.3646 reach=0.7482 speed=1.0299 stretch=0.2319 targets=1.0000 width=0.3500
+  tracers pooled=0 bands=[551.0 99.0 0.0 0.0] rings=[650.0 0.0 0.0] grid=26c58df5
+  ceiling none
+
+@2600ms beat=body beatT=0.8553
+track shimmer-ambient kind=shimmer look=skin population=ambient emission=7.2621 drive=1.0000
+  ink=0.0081 marks=252 born=252 parcels=252
+  at=(0.0222, -0.0352, 0.0945) tip=(0.0000, 0.0000, 0.5000)
+  detail cap=0.1000 inhale=0.5500 presence=0.0324 reach=1.5592 speed=0.0067
+  tracers pooled=252 bands=[193.0 0.0 0.0 0.0] rings=[0.0 59.0 134.0] grid=bb693d2f
+  ceiling none
+track burst kind=burst look=core population=ambient emission=0.0000 drive=0.0143
+  ink=0.0000 marks=0 born=382 parcels=593
+  at=(0.0000, 0.0000, 0.0000) tip=(0.4414, 0.0000, 0.0132)
+  detail front=0.4414 reach=0.0000 speed=0.0000
+  tracers pooled=0 bands=[0.0 0.0 0.0 0.0] rings=[0.0 0.0 0.0] grid=725c3305
+  ceiling none
+track weave-solid kind=weave look=body population=ambient emission=0.0000 drive=1.0000
+  ink=1.0000 marks=650 born=650 parcels=1755
+  at=(0.3298, 0.0004, 1.7046) tip=(1.0530, 0.0000, 2.9020)
+  detail length=3.4000 reach=3.1596 speed=0.0000 stretch=1.0000 targets=1.0000 width=0.3500
+  tracers pooled=0 bands=[74.0 103.0 115.0 358.0] rings=[511.0 129.0 10.0] grid=858172dd
+  ceiling none

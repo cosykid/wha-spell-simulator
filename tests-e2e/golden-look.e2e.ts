@@ -93,6 +93,7 @@ const LOOK_CASES: LookCase[] = [
 	...LAB_PRESETS.map((preset) => ({
 		id: `cast-${preset.id}`,
 		presetId: preset.id,
+		sigil: preset.sigil,
 		style: 'stage' as const,
 		frames: FRAME_MS
 	})),

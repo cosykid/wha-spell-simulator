@@ -8,6 +8,7 @@
  *
  * @packageDocumentation
  */
+import { weaveHint } from './weaveHint.js';
 import { totalMsFor } from '../cast/score/beats.js';
 import { GLYPH_WARNINGS } from '../parser/glyphWarnings.js';
 import { clamp } from '../utils/geometry.js';
@@ -212,6 +213,7 @@ export function computeSummary({
 		castEndsAt: castEndsAtFor(spellIR),
 		element: spellIR?.element ? spellIR.element : 'None',
 		manifestation: formatManifestations(spellIR),
+		effectNote: weaveHint(spellIR?.plan),
 		quality: clamp(spellIR?.quality ?? 0),
 		stability: clamp(spellIR?.stability ?? 0),
 		force: clamp(spellIR?.force ?? 0),
@@ -232,6 +234,7 @@ export function computeSummary({
  */
 export const INITIAL_SUMMARY = {
 	statusText: 'Loading',
+	effectNote: '',
 	statusClass: '',
 	castEndsAt: null as number | null,
 	element: 'None',

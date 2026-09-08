@@ -10,8 +10,9 @@
 
 import { smooth01, vnoise } from './noise.js';
 import type { MotionSpec } from './elements.js';
+import { ribbonPoint, type RibbonFlow } from './ribbon.js';
 
-/** The seven mouths a tracer can be born from. One per archetype. */
+/** The eight mouths a tracer can be born from. One per archetype. */
 export const SPAWN = {
 	column: 'column',
 	splash: 'splash',
@@ -19,7 +20,8 @@ export const SPAWN = {
 	swirl: 'swirl',
 	hover: 'hover',
 	sink: 'sink',
-	medium: 'medium'
+	medium: 'medium',
+	ribbon: 'ribbon'
 } as const;
 
 export type SpawnKind = (typeof SPAWN)[keyof typeof SPAWN];
@@ -28,6 +30,8 @@ export type SpawnKind = (typeof SPAWN)[keyof typeof SPAWN];
 export const MAX_SITES = 4;
 
 export interface TrackFlow {
+	/** A weave's material surface. Absent on every other mouth. */
+	ribbon?: RibbonFlow;
 	spawn: SpawnKind;
 	/** Where the form is rooted, seal space. */
 	originX: number;
@@ -180,6 +184,9 @@ export function boundaryAt(
 
 /** What a spawn writes: position, velocity, and a life multiplier. */
 export interface SpawnSite {
+	w?: number;
+	u?: number;
+	v?: number;
 	x: number;
 	y: number;
 	z: number;
@@ -240,6 +247,16 @@ export function spawnAt(
 ): void {
 	out.life = 1;
 	switch (flow.spawn) {
+		case SPAWN.ribbon: {
+			const ribbon = flow.ribbon!;
+			out.w = rng() * 2 - 1;
+			out.u = rng();
+			out.v = rng() * 2 - 1;
+			ribbonPoint(ribbon, out.u, out.v, out.w, out);
+			out.vx = out.vy = out.vz = 0;
+			out.life = flow.lifeMul;
+			return;
+		}
 		case SPAWN.column: {
 			// The element's own launch: a disc at the mouth, thrown along the axis
 			// with the row's rise and lean, braided into sub-jets where the row

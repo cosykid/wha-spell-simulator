@@ -22,6 +22,8 @@ export interface LabPreset {
 	id: string;
 	label: string;
 	description: string;
+	/** A material-specific example can override the lab's water default. */
+	sigil?: string;
 	signs: Recognition[];
 }
 
@@ -82,6 +84,19 @@ export const LAB_PRESETS: LabPreset[] = [
 		label: 'No signs (element only)',
 		description: 'A sigil with no signs: the plan resolves to nothing, which R-11 makes a look.',
 		signs: []
+	},
+	{
+		id: 'weave',
+		label: 'Weave — stretch solid material',
+		sigil: 'earth',
+		description:
+			'A solid sample softens and is pulled into one flexible ribbon, as in Richeh’s stone spell.',
+		signs: signsAt([90], (angleDeg) => ({
+			id: 'weave',
+			manifestation: 'weave',
+			facingDeg: inward(angleDeg),
+			sizeNorm: 0.209
+		}))
 	},
 	{
 		id: 'column-balanced',

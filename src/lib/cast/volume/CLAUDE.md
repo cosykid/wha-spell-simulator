@@ -43,8 +43,10 @@ Node for the golden tier:
 - [`elements.ts`](elements.ts) — the behavior matrix: `MOTION` (how each of
   the eight rows moves) and `SKIN` (how its field fuses), plus
   `volumeElementFor`, the sigil → element → inert resolution.
-- [`flow.ts`](flow.ts) — `TrackFlow`, the seven spawn mouths, and the pinch
+- [`flow.ts`](flow.ts) — `TrackFlow`, the eight spawn mouths, and the pinch
   boundary with its standing lobes.
+- [`ribbon.ts`](ribbon.ts) — the weave mouth's material coordinates and surface normals.
+- [`sheetDeposit.ts`](sheetDeposit.ts) — flat deposits along those normals in the same shared field.
 - [`tracers.ts`](tracers.ts) — `TracerPop`: spawn, advection, ageing, the
   crown melt, the settled states, measurement and the quantized digest.
 - [`neighbourhood.ts`](neighbourhood.ts) — who crowds whom, rebuilt from the

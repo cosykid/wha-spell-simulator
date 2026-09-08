@@ -22,8 +22,11 @@ import { FROZEN, LANDED, Neighbourhood } from './neighbourhood.js';
 import { curl, smooth01 } from './noise.js';
 import { HEAP, RIGIDITY_PER_FOCUS, STEP_S, TURBULENCE_STRIDE, WASH_GAUGE } from './tuning.js';
 import { mulberry32 } from '../rng.js';
+import { ribbonPoint, ribbonNormal, type RibbonFlow } from './ribbon.js';
+import type { Vec3 } from '../../types.js';
 
 const scratch = { x: 0, y: 0, z: 0 };
+const ribbonTarget = { x: 0, y: 0, z: 0 };
 const site: SpawnSite = { x: 0, y: 0, z: 0, vx: 0, vy: 0, vz: 0, life: 1 };
 
 /** Matter this young may not set: it has to leave the mouth first. */
@@ -73,6 +76,7 @@ export class TracerPop {
 	readonly capacity: number;
 	readonly #age: Float32Array;
 	readonly #life: Float32Array;
+	readonly #ribbonCoords: Float32Array;
 	readonly #spec: MotionSpec;
 	readonly #seed: number;
 	readonly #focus: number;
@@ -101,6 +105,7 @@ export class TracerPop {
 		this.pooled = new Uint8Array(capacity);
 		this.#age = new Float32Array(capacity);
 		this.#life = new Float32Array(capacity);
+		this.#ribbonCoords = new Float32Array(capacity * 3);
 		this.#hood = new Neighbourhood(capacity);
 	}
 
@@ -110,6 +115,11 @@ export class TracerPop {
 
 	get born(): number {
 		return this.#born;
+	}
+
+	/** The weave's material normal, read by its deposit in the shared skin. */
+	surfaceNormal(index: number, ribbon: RibbonFlow, out: Vec3): void {
+		ribbonNormal(ribbon, this.#ribbonCoords[index * 3], out);
 	}
 
 	/** Fraction of the live population settled, on the paper or set in the air. */
@@ -331,6 +341,17 @@ export class TracerPop {
 				vz *= keep;
 			}
 
+			// The demonstration pulls material coordinates of a single solid.
+			// Attachment persists after the pull; no new matter replaces this sample.
+			if (flow.ribbon) {
+				const coords = this.#ribbonCoords;
+				ribbonPoint(flow.ribbon, coords[i * 3], coords[i * 3 + 1], coords[i * 3 + 2], ribbonTarget);
+				vx = (ribbonTarget.x - px) / dt;
+				vy = (ribbonTarget.y - py) / dt;
+				vz = (ribbonTarget.z - pz) / dt;
+				this.pooled[i] = 0;
+			}
+
 			const nx = px + vx * dt;
 			const ny = py + vy * dt;
 			let nz = pz + vz * dt;
@@ -351,6 +372,7 @@ export class TracerPop {
 				pool &&
 				!this.pooled[i] &&
 				pool.settleSpeed > 0 &&
+				!flow.ribbon &&
 				this.#age[i] > SETTLE_AFTER_S &&
 				vx * vx + vy * vy + vz * vz < pool.settleSpeed * pool.settleSpeed
 			) {
@@ -373,10 +395,10 @@ export class TracerPop {
 			} else if (hn > spec.tearFrom) {
 				ageRate = spec.tearRate;
 			}
-			this.#age[i] += dt * flow.burn * ageRate;
+			this.#age[i] += dt * (flow.ribbon ? 1 : flow.burn * ageRate);
 
 			const dead =
-				this.#age[i] >= life ||
+				(!flow.ribbon && this.#age[i] >= life) ||
 				along > spec.heightCap * reach ||
 				Math.hypot(nx, ny) > 2.1 ||
 				nz < -0.05;
@@ -395,12 +417,14 @@ export class TracerPop {
 			// The ramp-in is capped by the tracer's own life, or a short-fused punch
 			// parcel would spend its whole life under the chip cutoff and the strike
 			// would render as a pile of separate grid-sized chips.
-			let fade = Math.min(this.#age[i] / Math.min(0.25, life * 0.35), 1) * (1 - t01);
+			let fade = flow.ribbon
+				? Math.min(this.#age[i] / 0.12, 1)
+				: Math.min(this.#age[i] / Math.min(0.25, life * 0.35), 1) * (1 - t01);
 			// Above the tear line a tip melts as it rises, so the crown thins to
 			// nothing rather than freezing into stray grid-sized chips. The melt is
 			// steep on purpose: a gentle one parks deposits exactly at the chip
 			// cutoff, which is the borderline the flakes came from.
-			if (spec.tearFrom < 2) {
+			if (!flow.ribbon && spec.tearFrom < 2) {
 				fade *= 1 - 0.97 * smooth01((hn - spec.tearFrom) / 0.42);
 			}
 			this.fade[i] = fade;
@@ -418,12 +442,24 @@ export class TracerPop {
 		this.#carry += rate * STEP_S;
 		let births = Math.floor(this.#carry);
 		this.#carry -= births;
+		if (flow.ribbon) {
+			// A finite sample, supplied once on contact. Long casts never refill it.
+			births =
+				flow.emission > 0 && this.#born === 0
+					? Math.min(this.capacity, flow.ribbon.materialCount)
+					: 0;
+		}
 		let cursor = 0;
 		while (births-- > 0) {
 			while (cursor < this.capacity && this.alive[cursor]) cursor += 1;
 			if (cursor >= this.capacity) break;
 			const i = cursor;
 			spawnAt(flow, spec, rng, tMs, site);
+			if (flow.ribbon) {
+				this.#ribbonCoords[i * 3] = site.u!;
+				this.#ribbonCoords[i * 3 + 1] = site.v!;
+				this.#ribbonCoords[i * 3 + 2] = site.w!;
+			}
 			this.alive[i] = 1;
 			this.pooled[i] = 0;
 			this.#age[i] = 0;

@@ -21,6 +21,7 @@ import { INTAKE_TUNING } from '../score/tracks/intake.js';
 import { JET_TUNING } from '../score/tracks/jet.js';
 import { SHIMMER_TUNING } from '../score/tracks/shimmer.js';
 import { VORTEX_TUNING } from '../score/tracks/vortex.js';
+import { WEAVE_TUNING } from '../score/tracks/weave.js';
 import { aboveFloor } from '../score/tracks/gain.js';
 import { shapeOf } from '../cells/arc.js';
 import { clamp } from '../../utils/geometry.js';
@@ -30,7 +31,15 @@ import type { Beat, BeatWindow, Envelope, ScoreTrack } from '../../types.js';
 export const SAMPLE_MS = 10;
 
 /** Every kind a layer may be: the six played kinds that sustain, and R-01's charge. */
-export type LayerKind = 'charge' | 'shimmer' | 'jet' | 'fan' | 'vortex' | 'hold' | 'intake';
+export type LayerKind =
+	| 'charge'
+	| 'shimmer'
+	| 'jet'
+	| 'fan'
+	| 'vortex'
+	| 'hold'
+	| 'intake'
+	| 'weave';
 
 /** The band's centre as a multiple of the row's, at the layer's start and `overMs` later. */
 export interface Sweep {
@@ -65,6 +74,7 @@ export interface SoundLayer {
 
 /** Each kind's loudness at full strength, before the row's own trim. */
 const LAYER_LEVEL: Record<LayerKind, number> = {
+	weave: 0.65,
 	charge: 0.75,
 	shimmer: 0.2,
 	jet: 0.85,
@@ -76,6 +86,7 @@ const LAYER_LEVEL: Record<LayerKind, number> = {
 
 /** The emission rate a kind reaches at full ink, so a faint track is a quiet layer. */
 const FULL_RATE: Record<Exclude<LayerKind, 'charge'>, number> = {
+	weave: WEAVE_TUNING.rate,
 	shimmer: SHIMMER_TUNING.rate,
 	jet: JET_TUNING.rate,
 	fan: FAN_TUNING.rate,
@@ -147,6 +158,11 @@ function sampleGain(
 /** How a track's kind moves its layer. */
 function motionFor(track: ScoreTrack): Motion {
 	switch (track.kind) {
+		case 'weave':
+			return {
+				...STILL,
+				sweep: { from: 0.6, to: 1.2, overMs: BEAT_MS.strike }
+			};
 		case 'jet':
 			// A push: the band rises into the beam over the strike, panned where it aims.
 			return {

@@ -15,6 +15,7 @@ import type { PlayedKind, ScoreTrack } from '../../types.js';
  * room the shot is lit in and may never out-read what it surrounds.
  */
 const KIND_WEIGHT: Record<PlayedKind, number> = {
+	weave: 1.3,
 	jet: 1,
 	fan: 0.9,
 	vortex: 1,

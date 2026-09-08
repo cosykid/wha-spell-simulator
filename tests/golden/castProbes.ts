@@ -47,6 +47,15 @@ function onEveryPreset(row: Omit<CastProbe, 'subject'>): CastProbe[] {
 }
 
 export const CAST_PROBES: CastProbe[] = [
+	...on('weave', [
+		{
+			atMs: BODY_MS,
+			of: 'weave',
+			expect: { metric: 'detail', name: 'length', above: 2 },
+			rulingId: 'R-22',
+			claim: 'weave stretches one solid sample into a long flexible band'
+		}
+	]),
 	...onEveryPreset({
 		atMs: CHARGE_MS,
 		of: 'medium',

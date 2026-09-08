@@ -34,6 +34,7 @@ const RICH: SpellPlan = {
 	hold: { at: { x: 0.1, y: -0.2, z: 0.9 }, grip: 4, spin: 1.5, budget: 6 },
 	intake: { budget: 2, draw: 1.5, swirl: -0.5, lateral: { x: 0.2, y: 0.3 } },
 	vessel: { at: { x: 0, y: 0, z: 1 }, radius: 0.4, stir: 0.6 },
+	weave: { material: 'stone' },
 	focus: 1.8,
 	quality: 0.9,
 	symmetry: 4,
@@ -60,6 +61,7 @@ const NUDGES: Record<Exclude<keyof SpellPlan, 'version'>, Partial<SpellPlan>> = 
 	hold: { hold: { ...RICH.hold!, spin: -RICH.hold!.spin } },
 	intake: { intake: { ...RICH.intake!, swirl: -RICH.intake!.swirl } },
 	vessel: { vessel: { ...RICH.vessel!, stir: -RICH.vessel!.stir } },
+	weave: { weave: { material: 'crystal' } },
 	focus: { focus: RICH.focus + 0.5 },
 	quality: { quality: RICH.quality - 0.2 },
 	symmetry: { symmetry: 3 },
@@ -84,6 +86,7 @@ test('a dial dropping to absent reaches it too', () => {
 		{ hold: null },
 		{ intake: null },
 		{ vessel: null },
+		{ weave: null },
 		{ symmetry: null }
 	] as const) {
 		assert.notEqual(planDigest({ ...RICH, ...patch }), base);

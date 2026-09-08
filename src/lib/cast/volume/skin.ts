@@ -18,8 +18,10 @@ import { MarchingCubes } from 'three/examples/jsm/objects/MarchingCubes.js';
 import { SPAN, TRACER_BUDGET, VOLUME, Z0 } from './tuning.js';
 import type { SkinSpec } from './elements.js';
 import type { VolumeSubstrate } from './substrate.js';
+import { depositSheet } from './sheetDeposit.js';
 
 const GRID_MAX = 40;
+const surfaceNormal = { x: 0, y: 0, z: 0 };
 
 export class VolumeSkin {
 	readonly mesh: MarchingCubes;
@@ -27,6 +29,7 @@ export class VolumeSkin {
 	readonly #candPos = new Float32Array(TRACER_BUDGET * 3);
 	readonly #candWeight = new Float32Array(TRACER_BUDGET);
 	readonly #candVel = new Float32Array(TRACER_BUDGET * 3);
+	readonly #candNormal = new Float32Array(TRACER_BUDGET * 3);
 	readonly #gridHead = new Int32Array(GRID_MAX ** 3);
 	readonly #gridNext = new Int32Array(TRACER_BUDGET);
 	#spec: SkinSpec | null = null;
@@ -71,6 +74,7 @@ export class VolumeSkin {
 		const coh = VOLUME.cohesion * spec.cohesion;
 		const smear = (VOLUME.smear * 1.5 * spec.smearScale) / SPAN;
 		let balls = 0;
+		this.#candNormal.fill(0);
 		for (const channel of substrate.channels) {
 			// The medium is washes on the paper, never part of the body: R-10's
 			// world must not merge with the manifestation it surrounds.
@@ -99,6 +103,12 @@ export class VolumeSkin {
 				this.#candVel[balls * 3 + 1] = vel[i * 3 + 1] * smear;
 				this.#candVel[balls * 3 + 2] = vel[i * 3 + 2] * smear;
 				this.#candWeight[balls] = w;
+				if (channel.flow.ribbon) {
+					channel.tracers.surfaceNormal(i, channel.flow.ribbon, surfaceNormal);
+					this.#candNormal[balls * 3] = -surfaceNormal.x;
+					this.#candNormal[balls * 3 + 1] = surfaceNormal.y;
+					this.#candNormal[balls * 3 + 2] = surfaceNormal.z;
+				}
 				balls += 1;
 			}
 		}
@@ -136,6 +146,22 @@ export class VolumeSkin {
 		const sz = this.#candVel[j * 3 + 2];
 		// Mirrored x, undoing the mesh's negative x scale (see constructor).
 		const mx = 1 - bx;
+		const normal = this.#candNormal;
+		if (Math.hypot(normal[j * 3], normal[j * 3 + 1], normal[j * 3 + 2]) > 0.5) {
+			depositSheet(
+				this.mesh.field,
+				VOLUME.res,
+				mx,
+				by,
+				bz,
+				normal[j * 3],
+				normal[j * 3 + 1],
+				normal[j * 3 + 2],
+				s * 2,
+				VOLUME.subtract
+			);
+			return;
+		}
 		this.mesh.addBall(mx, by, bz, s, VOLUME.subtract);
 		this.mesh.addBall(mx + sx, by - sy, bz - sz, s, VOLUME.subtract);
 	}

@@ -122,6 +122,8 @@ export function planDigest(plan: SpellPlan): string {
 		intakeDigest(plan.intake),
 		vesselDigest(plan.vessel),
 		couplingsDigest(plan.couplings),
-		plan.notes.length ? plan.notes.join('+') : ABSENT
+		plan.notes.length ? plan.notes.join('+') : ABSENT,
+		// Keep existing casts' seeds stable when no weave was drawn.
+		...(plan.weave ? [`w${plan.weave.material}`] : [])
 	].join(':');
 }

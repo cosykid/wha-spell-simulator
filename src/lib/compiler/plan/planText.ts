@@ -121,6 +121,7 @@ export function planText(plan: SpellPlan): string {
 		line('hold', holdText(plan.hold)),
 		line('intake', intakeText(plan.intake)),
 		line('vessel', plan.vessel ? vec3(plan.vessel.at) : 'none'),
+		...(plan.weave ? [line('weave', `material=${plan.weave.material} solid-demo`)] : []),
 		line('couplings', couplingsText(plan.couplings)),
 		line('notes', plan.notes.length ? plan.notes.join(', ') : 'none')
 	].join('\n');

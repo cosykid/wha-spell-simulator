@@ -20,9 +20,8 @@ export { LAB_PRESETS, type LabPreset };
 export const PLAN_DIR = fileURLToPath(new URL('./plans/', import.meta.url));
 
 /**
- * The lab's own default sigil. Mode is the only plan field a sigil changes
- * (R-10), and pinning it here means a golden reads as exactly what the lab's
- * plan inspector shows when the page loads.
+ * The lab's default sigil, unless a material-specific preset supplies its own.
+ * Both golden tiers and the live lab use the same choice.
  */
 export const GOLDEN_SIGIL = DEFAULT_SIGIL;
 
@@ -32,5 +31,5 @@ export function planFileName(presetId: string): string {
 
 /** One preset's plan, as the committed file's exact contents. */
 export function renderPresetPlan(preset: LabPreset): string {
-	return `${planText(resolvePlan(readPresetSeal(preset.signs, GOLDEN_SIGIL)))}\n`;
+	return `${planText(resolvePlan(readPresetSeal(preset.signs, preset.sigil ?? GOLDEN_SIGIL)))}\n`;
 }
