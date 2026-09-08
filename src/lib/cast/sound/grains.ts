@@ -1,7 +1,12 @@
 /**
  * @file The grain schedule: when a substance throws something off, and at what
- * pitch. Crackle for fire and earth, bubbles for water, twinkles for light,
- * tinkles for crystal.
+ * pitch. Crackle for fire, bubbles for water, grit for earth, chimes for
+ * crystal, sparks for light.
+ *
+ * There are two schedules. One runs the whole time the manifestation is loud,
+ * and one belongs to the landing itself: an impact throws off far more in its
+ * first quarter second than the thing ever does again, which is what a splash
+ * and a shower of chips are.
  *
  * Phase-locked patterning, the cells' own law: a grain is only ever thrown off
  * the manifestation while it is loud, so the schedule is drawn against the
@@ -23,7 +28,19 @@ export interface GrainCue {
 }
 
 /** Semitones of pitch scatter either side of the row's own grain pitch. */
-const PITCH_SCATTER = { crackle: 12, blip: 5 } as const;
+const PITCH_SCATTER: Record<Grain['kind'], number> = {
+	crackle: 12,
+	bubble: 9,
+	grit: 10,
+	chime: 5,
+	spark: 7
+};
+
+/** How long the landing goes on throwing things off. */
+const SCATTER_MS = 280;
+
+/** The loudest a grain flung by the impact is, against one thrown off later. */
+const SCATTER_LEVEL = 1.3;
 
 /** Grain length scatter, as a fraction of the row's own length either way. */
 const LENGTH_SCATTER = 0.3;
@@ -87,4 +104,41 @@ export function grainSchedule(
 		});
 	}
 	return cues;
+}
+
+/**
+ * The landing's own scatter: `count` grains flung over {@link SCATTER_MS},
+ * crowded into the first moments and falling away, drawn from a stream of their
+ * own so a change to the ambient schedule cannot move them.
+ */
+export function strikeScatter(
+	grain: Grain | null,
+	count: number,
+	atMs: number,
+	seed: number
+): GrainCue[] {
+	if (!grain || count <= 0) {
+		return [];
+	}
+	const rng = mulberry32(seed);
+	const scatter = PITCH_SCATTER[grain.kind];
+	const cues: GrainCue[] = [];
+	for (let index = 0; index < count; index += 1) {
+		// Squaring the draw crowds the throws into the impact itself.
+		const through = rng() ** 2;
+		const pitch = rng();
+		const length = rng();
+		const level = rng();
+		cues.push({
+			atMs: Math.round(atMs + through * SCATTER_MS),
+			durMs: grain.durMs * (1 + (length * 2 - 1) * LENGTH_SCATTER),
+			hz: grain.hz * Math.pow(2, ((pitch * 2 - 1) * scatter) / 12),
+			level:
+				grain.level *
+				SCATTER_LEVEL *
+				(1 - through * 0.6) *
+				(LEVEL_FLOOR + (1 - LEVEL_FLOOR) * level)
+		});
+	}
+	return cues.sort((left, right) => left.atMs - right.atMs);
 }

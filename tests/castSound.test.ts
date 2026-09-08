@@ -20,7 +20,7 @@ import {
 	WIND_VOICE,
 	voiceRow
 } from '../src/lib/cast/sound/voices.js';
-import type { VoiceTable } from '../src/lib/cast/sound/voice.js';
+import type { VoiceRow, VoiceTable } from '../src/lib/cast/sound/voice.js';
 import { bodyMsFor, TOTAL_MS_RANGE } from '../src/lib/cast/score/beats.js';
 import { scoreTracks } from '../src/lib/cast/score/compileScore.js';
 import { SIGIL_OPTIONS } from '../src/lib/ui/spellEffectLab.js';
@@ -71,6 +71,26 @@ test('resolution falls sigil, then element, then inert, and never returns undefi
 	assert.equal(voiceRow({ sigil: 'wind-underfoot', element: 'wind' }, withRow), AEROFORM_VOICE);
 });
 
+test('every row describes a substance the synth can build', () => {
+	const rows: VoiceRow[] = [...Object.values(VOICES), INERT_VOICE];
+	for (const row of rows) {
+		assert.ok(row.level > 0 && row.level <= 1);
+		assert.ok(row.body.formants.length > 0, 'a body with no resonance is a hiss');
+		for (const formant of row.body.formants) {
+			assert.ok(formant.ratio > 0 && formant.q > 0 && formant.level > 0);
+			assert.ok(row.body.centerHz * formant.ratio < 20000, 'a resonance nobody can hear');
+		}
+		assert.ok(row.body.tiltHz > row.body.centerHz, 'the air sits above the body');
+		assert.ok(row.drive >= 0 && row.drive <= 1);
+		assert.ok(row.space >= 0 && row.space <= 1);
+		assert.ok(row.flutter.depth >= 0 && row.flutter.depth <= 1);
+		for (const mode of row.strike.modes) {
+			assert.ok(mode.hz > 0 && mode.decayMs > 0);
+		}
+		assert.ok(row.strike.scatter === 0 || row.grain, 'nothing to scatter');
+	}
+});
+
 test('crystal is not earth and aeroform is not wind, in sound as in paint', () => {
 	assert.notDeepEqual(CRYSTAL_VOICE, EARTH_VOICE);
 	assert.notDeepEqual(AEROFORM_VOICE, WIND_VOICE);
@@ -99,7 +119,7 @@ test('R-01: nothing the seal manifests is heard before the strike', () => {
 				assert.equal(gainAt(layer, tMs), 0, `${layer.id} is heard at ${tMs}ms`);
 			}
 		}
-		for (const grain of sound.grains) {
+		for (const grain of [...sound.grains, ...sound.strike.scatter]) {
 			assert.ok(grain.atMs >= strikeMs, `a grain at ${grain.atMs}ms precedes the strike`);
 		}
 	}
@@ -188,6 +208,26 @@ test('R-05: a jet is heard where it aims', () => {
 	assert.ok(Math.abs(jet.params.axis.x) > 0.1, 'the fixture leans');
 	const layer = layerById(compileSoundScore(score), jet.id);
 	assert.equal(Math.sign(layer.motion.pan), Math.sign(jet.params.axis.x));
+});
+
+test('the landing throws off more than the manifestation ever does again', () => {
+	for (const sigil of ['fire', 'water', 'earth', 'crystal', 'light']) {
+		const sound = soundFor('column-balanced', sigil);
+		const scatter = sound.strike.scatter;
+		assert.ok(scatter.length > 0, `${sigil} lands without a splash`);
+		const window = { fromMs: sound.strike.atMs, toMs: sound.strike.atMs + 300 };
+		const thrown = sound.grains.filter(
+			(grain) => grain.atMs >= window.fromMs && grain.atMs < window.toMs
+		);
+		assert.ok(scatter.length > thrown.length, `${sigil} lands as quietly as it burns`);
+		for (const grain of scatter) {
+			assert.ok(grain.atMs >= window.fromMs && grain.atMs < window.toMs);
+			assert.ok(grain.durMs > 0 && grain.hz > 0 && grain.level > 0);
+		}
+	}
+	for (const sigil of ['wind-directs-air', 'aeroform']) {
+		assert.equal(soundFor('column-balanced', sigil).strike.scatter.length, 0);
+	}
 });
 
 test('R-15: a cancelled seal strikes exactly as an unmarked ring', () => {

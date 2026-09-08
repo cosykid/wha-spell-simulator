@@ -17,7 +17,7 @@ import { BURST_TUNING } from '../score/tracks/burst.js';
 import { scoreTracks } from '../score/compileScore.js';
 import { hashSeed } from '../rng.js';
 import { clamp } from '../../utils/geometry.js';
-import { grainSchedule, type GrainCue } from './grains.js';
+import { grainSchedule, strikeScatter, type GrainCue } from './grains.js';
 import { chargeLayer, layerFor, type SoundLayer } from './layers.js';
 import { voiceRow } from './voices.js';
 import type { VoiceRow } from './voice.js';
@@ -35,6 +35,8 @@ export interface StrikeCue {
 	atMs: number;
 	/** 0..1, the burst's share of the loudest strike a plan can buy. */
 	strength: number;
+	/** What the landing itself throws off: the splash, the chips, the shower of sparks. */
+	scatter: GrainCue[];
 }
 
 export interface SoundScore {
@@ -70,7 +72,16 @@ export function compileSoundScore(score: SpellScore): SoundScore {
 		totalMs,
 		beats,
 		layers,
-		strike: { atMs: beats.strike.startMs, strength: strikeStrength },
+		strike: {
+			atMs: beats.strike.startMs,
+			strength: strikeStrength,
+			scatter: strikeScatter(
+				voice.grain,
+				Math.round(voice.strike.scatter * strikeStrength),
+				beats.strike.startMs,
+				hashSeed(`${score.signature}:scatter`)
+			)
+		},
 		// The seal throws nothing off before it strikes (R-01), and nothing at all
 		// once the afterglow has cooled it.
 		grains: grainSchedule(

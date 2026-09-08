@@ -35,6 +35,9 @@ const MASTER_LEVEL = 0.8;
 /** Seconds a mute or a cut cast takes to go quiet. Short, but never a click. */
 const FADE_S = 0.06;
 
+/** Seconds a cast that reached its own end takes, so the room decays out instead of being cut off. */
+const TAIL_S = 0.5;
+
 /** Cast milliseconds ahead of the frame a schedule is written at, so its first event is never in the past. */
 const LEAD_MS = 30;
 
@@ -103,7 +106,7 @@ export class CastSound {
 		if (this.#cast) {
 			if (tMs > this.#cast.totalMs) {
 				this.#spentKey = key;
-				this.reset();
+				this.#fade(TAIL_S);
 			}
 			return;
 		}
@@ -134,6 +137,15 @@ export class CastSound {
 
 	/** Fade the running cast out and forget it. The next frame may start another. */
 	reset(): void {
+		this.#fade(FADE_S);
+	}
+
+	/**
+	 * Let the running cast go over `seconds`. A cast that was cut goes quickly,
+	 * and one that ran to its end is given long enough for the room behind it to
+	 * finish, which is the difference between an ending and a cut.
+	 */
+	#fade(seconds: number): void {
 		const cast = this.#cast;
 		if (!cast) {
 			return;
@@ -143,8 +155,8 @@ export class CastSound {
 		if (!ctx) {
 			return;
 		}
-		cast.performance.fadeOut(ctx.currentTime, FADE_S);
-		setTimeout(() => cast.performance.disconnect(), FADE_S * 1000 * 4);
+		cast.performance.fadeOut(ctx.currentTime, seconds);
+		setTimeout(() => cast.performance.disconnect(), seconds * 1000 * 4);
 	}
 
 	/** Give the audio context back. The object is unusable after this. */

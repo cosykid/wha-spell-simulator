@@ -53,6 +53,10 @@ async function readProbe(page: Page): Promise<AudioProbe> {
 }
 
 test.describe('the cast heard', () => {
+	// Both specs draw a whole FIRE_SHOOT, which is what every other casting spec
+	// asks for the long budget for.
+	test.slow();
+
 	test('sealing a ring schedules the cast on a running audio context', async ({ page }) => {
 		await instrumentAudio(page);
 		const canvas = new SpellCanvasPage(page);

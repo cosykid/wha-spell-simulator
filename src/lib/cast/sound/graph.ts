@@ -1,7 +1,7 @@
 /**
- * @file The Web Audio building blocks every cue is made of: the one noise
- * buffer, the loudness curve on the cast clock, and the short envelopes an
- * event decays along.
+ * @file The Web Audio building blocks every cue is made of: where the cast
+ * clock sits on the audio clock, the loudness curve written along it, the short
+ * envelopes an event decays through, and the two ways a signal is bent.
  *
  * Everything here takes a `BaseAudioContext`, so the same graph renders live
  * through an `AudioContext` and offline through an `OfflineAudioContext`. The
@@ -9,7 +9,6 @@
  * every schedule goes through it.
  */
 
-import { hashSeed, mulberry32 } from '../rng.js';
 import { SAMPLE_MS } from './layers.js';
 
 /**
@@ -28,44 +27,64 @@ export function timeAt(clock: AudioClock, tMs: number): number {
 	return clock.activatedAt + Math.max(tMs, clock.fromMs) / 1000;
 }
 
-/** Seconds of looping white noise. Long enough that the loop never reads as a pulse. */
-const NOISE_SECONDS = 2;
-
 /** The smallest gain a ramp may target, since an exponential ramp cannot reach zero. */
 export const SILENT = 0.0001;
 
-const noiseBuffers = new WeakMap<BaseAudioContext, AudioBuffer>();
+/** Seconds a source outlives the last thing it plays, so no tail is cut. */
+export const SOURCE_TAIL_S = 0.05;
 
-/**
- * One buffer of white noise per context, seeded rather than drawn from
- * `Math.random`, so an offline render of a cast is the same file every time.
- */
-export function noiseBuffer(ctx: BaseAudioContext): AudioBuffer {
-	let buffer = noiseBuffers.get(ctx);
-	if (!buffer) {
-		buffer = ctx.createBuffer(1, Math.round(NOISE_SECONDS * ctx.sampleRate), ctx.sampleRate);
-		const samples = buffer.getChannelData(0);
-		const rng = mulberry32(hashSeed('cast-sound-noise'));
-		for (let index = 0; index < samples.length; index += 1) {
-			samples[index] = rng() * 2 - 1;
-		}
-		noiseBuffers.set(ctx, buffer);
-	}
-	return buffer;
+/** Samples in a saturation curve. Enough that the bend is smooth at any drive. */
+const SHAPER_SAMPLES = 1024;
+
+export function gainNode(ctx: BaseAudioContext, value: number): GainNode {
+	const node = ctx.createGain();
+	node.gain.value = value;
+	return node;
 }
 
-/** A looping noise source, started at `startAt` and stopped at `stopAt`. */
-export function noiseSource(
-	ctx: BaseAudioContext,
-	startAt: number,
-	stopAt: number
-): AudioBufferSourceNode {
-	const source = ctx.createBufferSource();
-	source.buffer = noiseBuffer(ctx);
-	source.loop = true;
-	source.start(startAt);
-	source.stop(stopAt);
-	return source;
+export function bandpass(ctx: BaseAudioContext, centerHz: number, q: number): BiquadFilterNode {
+	const filter = ctx.createBiquadFilter();
+	filter.type = 'bandpass';
+	filter.frequency.value = centerHz;
+	filter.Q.value = q;
+	return filter;
+}
+
+export function lowpass(ctx: BaseAudioContext, hz: number): BiquadFilterNode {
+	const filter = ctx.createBiquadFilter();
+	filter.type = 'lowpass';
+	filter.frequency.value = hz;
+	return filter;
+}
+
+/**
+ * A soft saturation, the harmonics anything loud enough picks up on its way out
+ * of whatever is making it. A tanh, so it rounds rather than clips, and a
+ * `drive` of zero returns null because a wave shaper that does nothing is still
+ * a node in the path.
+ *
+ * The curve is divided back down by its own slope at the origin, so drive
+ * squashes the peaks and leaves everything quiet where it was. A shaper that
+ * changed the level would be a volume knob wearing a timbre's name, and the
+ * rows would then be tuned against each other rather than described.
+ */
+export function saturator(ctx: BaseAudioContext, drive: number): WaveShaperNode | null {
+	if (drive <= 0) {
+		return null;
+	}
+	const shaper = ctx.createWaveShaper();
+	const curve = new Float32Array(SHAPER_SAMPLES);
+	const amount = 1 + drive * 8;
+	// The lift saturation really does give, and no more: everything above it is
+	// the peaks being folded down.
+	const makeup = (1 + drive) / amount;
+	for (let index = 0; index < SHAPER_SAMPLES; index += 1) {
+		const x = (index / (SHAPER_SAMPLES - 1)) * 2 - 1;
+		curve[index] = Math.tanh(x * amount) * makeup;
+	}
+	shaper.curve = curve;
+	shaper.oversample = '2x';
+	return shaper;
 }
 
 /**
@@ -114,7 +133,9 @@ export function decayEnvelope(
 
 /**
  * A low-frequency oscillator wired into a param: the param's own value is the
- * centre and the oscillator adds `depth` either side of it.
+ * centre and the oscillator adds `depth` either side of it. Only for motion
+ * that really is periodic, like a held mass bobbing or a vortex turning. What a
+ * material does on its own wanders instead, through `noise.ts`.
  */
 export function modulate(
 	ctx: BaseAudioContext,
