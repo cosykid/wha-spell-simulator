@@ -9,17 +9,18 @@ only while its card's preview is toggled on.
 	import { reviveSpellIr } from '$lib/ui/library/reviveSpell.js';
 	import { effectStyleFrom } from '$lib/structures/effectStyle.js';
 	import { loadSimulatorPreferences } from '$lib/ui/simulator/preferences.js';
-	import { presetPreviewPolylines } from '$lib/ui/spells/presetThumbnail.js';
-	import type { SpellPresetData } from '$lib/structures/spellPreset.js';
-	import type { SpellIR } from '$lib/types.js';
+	import type { SpellDetail } from '$lib/structures/savedSpell.js';
+	import type { SpellThumbnail } from '$lib/structures/spellThumbnail.js';
 
 	interface Props {
-		data: SpellPresetData;
-		previewIr: SpellIR;
+		/** The plate's own seal, held in the void until the replay lights it. */
+		thumbnail: SpellThumbnail;
+		/** The drawing to replay, or null while it is still on its way. */
+		detail: SpellDetail | null;
 		onEnded?: () => void;
 	}
 
-	let { data, previewIr, onEnded }: Props = $props();
+	let { thumbnail, detail, onEnded }: Props = $props();
 
 	// The caster's own choice, read from the same key the simulator writes. This
 	// route has no control of its own: one setting per user, not two.
@@ -30,9 +31,10 @@ only while its card's preview is toggled on.
 	let effectCanvas = $state<HTMLCanvasElement>();
 	let driver: SpellPreviewDriver | null = null;
 	/**
-	 * True until the driver paints. A legacy row is re-read before it can play,
-	 * which takes seconds, and an unlit stage is a black square with no reason
-	 * given, so the plate's own seal holds the frame until the ink takes light.
+	 * True until the driver paints. The drawing has to arrive, and a legacy row
+	 * is re-read before it can play, which takes seconds. An unlit stage is a
+	 * black square with no reason given, so the plate's own seal holds the frame
+	 * until the ink takes light.
 	 */
 	let waiting = $state(true);
 
@@ -46,9 +48,10 @@ only while its card's preview is toggled on.
 	// The stage engine performs the plan, which a legacy row does not carry, so
 	// the stored drawing is revived first; classic reads the stored row as-is.
 	$effect(() => {
-		if (!shell || !glyphCanvas || !effectCanvas) {
+		if (!shell || !glyphCanvas || !effectCanvas || !detail?.previewIr) {
 			return;
 		}
+		const { data, previewIr } = detail;
 		const stage = { shell, glyphCanvas, effectCanvas };
 		let cancelled = false;
 		let teardown: (() => void) | null = null;
@@ -91,7 +94,7 @@ only while its card's preview is toggled on.
 	{/key}
 	{#if waiting}
 		<svg class="unlit" viewBox="0 0 100 100" aria-hidden="true">
-			{#each presetPreviewPolylines(data) as points (points)}
+			{#each thumbnail as points (points)}
 				<polyline {points} />
 			{/each}
 		</svg>

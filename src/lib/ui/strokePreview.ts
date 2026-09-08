@@ -58,6 +58,8 @@ export function strokesToPreviewPolylines(strokes: Point[][] | undefined): strin
  * only the strokes' shape matters, not the space they were drawn in.
  *
  * @param strokes - Stroke point lists in any consistent coordinate space.
+ * @param refine - Optional pass over each stroke once it is in preview-box
+ * units, for thinning a stroke to what the box can show.
  * @returns Non-empty SVG polyline point strings, one per drawable stroke.
  *
  * @example
@@ -66,7 +68,10 @@ export function strokesToPreviewPolylines(strokes: Point[][] | undefined): strin
  * // <polyline points={polylines[0]} /> inside viewBox="0 0 100 100"
  * ```
  */
-export function fitStrokesToPreviewPolylines(strokes: Point[][] | undefined): string[] {
+export function fitStrokesToPreviewPolylines(
+	strokes: Point[][] | undefined,
+	refine?: (points: Point[]) => Point[]
+): string[] {
 	const drawable = (strokes ?? [])
 		.map((stroke) =>
 			stroke.filter((point) => Number.isFinite(Number(point.x)) && Number.isFinite(Number(point.y)))
@@ -90,14 +95,14 @@ export function fitStrokesToPreviewPolylines(strokes: Point[][] | undefined): st
 	const centerY = (minY + maxY) / 2;
 
 	return drawable
-		.map((stroke) =>
-			stroke
-				.map((point) => {
-					const x = 50 + (Number(point.x) - centerX) * scale;
-					const y = 50 + (Number(point.y) - centerY) * scale;
-					return `${Math.round(x * 10) / 10},${Math.round(y * 10) / 10}`;
-				})
-				.join(' ')
-		)
+		.map((stroke) => {
+			const fitted = stroke.map((point) => ({
+				x: 50 + (Number(point.x) - centerX) * scale,
+				y: 50 + (Number(point.y) - centerY) * scale
+			}));
+			return (refine ? refine(fitted) : fitted)
+				.map((point) => `${Math.round(point.x * 10) / 10},${Math.round(point.y * 10) / 10}`)
+				.join(' ');
+		})
 		.filter((points) => points.length > 0);
 }

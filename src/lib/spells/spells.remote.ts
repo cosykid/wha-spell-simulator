@@ -6,7 +6,7 @@
 import { command, getRequestEvent } from '$app/server';
 import { z } from 'zod';
 
-import { MAX_PREVIEW_IR_BYTES, type SavedSpell } from '$lib/structures/savedSpell.js';
+import { MAX_PREVIEW_IR_BYTES, type SpellCard } from '$lib/structures/savedSpell.js';
 import { SpellPresetDataSchema } from '$lib/structures/spellPreset.js';
 import type { SpellIR } from '$lib/types.js';
 import {
@@ -20,7 +20,7 @@ import {
 export type SpellMutationFailure = 'auth-required' | 'not-found' | 'server-error';
 
 export type SaveSpellResult =
-	| { ok: true; spell: SavedSpell }
+	| { ok: true; spell: SpellCard }
 	| { ok: false; reason: SpellMutationFailure };
 
 function currentUser(): { id: string; username: string } | null {
@@ -82,7 +82,7 @@ export const deleteSpell = command(
 );
 
 export type PublishSpellResult =
-	| { ok: true; spell: SavedSpell }
+	| { ok: true; spell: SpellCard }
 	| { ok: false; reason: SpellMutationFailure };
 
 /** Publishes a spell to the shared library, or retracts it again. */

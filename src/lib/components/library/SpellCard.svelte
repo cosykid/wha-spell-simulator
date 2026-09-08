@@ -4,18 +4,21 @@ One seal proofed on the library sheet: the glyph fitted large on bare paper, a
 catalog caption beneath (plate number, name, element, author, likes), and inked
 text actions that surface on hover. Serves both sections; grimoire spells have
 no author or like tally.
+
+The plate draws the card's stored thumbnail. The drawing behind it is fetched
+only when the reader acts on the plate, and started as soon as they reach for it.
 -->
 <script lang="ts">
+	import { toast } from '@zerodevx/svelte-toast';
 	import SpellPreview from './SpellPreview.svelte';
 	import LikeButton from './LikeButton.svelte';
 	import { getAuthState } from '$lib/ui/auth/auth-state.svelte.js';
-	import { presetPreviewPolylines } from '$lib/ui/spells/presetThumbnail.js';
 	import type { LibrarySession } from '$lib/ui/library/library-session.svelte.js';
-	import type { LibrarySpell, SavedSpell } from '$lib/structures/savedSpell.js';
+	import type { LibraryCard, SpellCard, SpellDetail } from '$lib/structures/savedSpell.js';
 
 	interface Props {
 		session: LibrarySession;
-		spell: LibrarySpell | SavedSpell;
+		spell: LibraryCard | SpellCard;
 		/** Position in the open section's feed. Under "most praised" it is a rank. */
 		number: number;
 		/** Reveal-animation slot, capped by the wall so late rows rise together. */
@@ -25,9 +28,39 @@ no author or like tally.
 	let { session, spell, number, stagger = 0 }: Props = $props();
 	const auth = getAuthState();
 
-	let shared = $derived('author' in spell ? (spell as LibrarySpell) : null);
+	let shared = $derived('author' in spell ? (spell as LibraryCard) : null);
 	let playing = $derived(session.playingId === spell.id);
-	let canPreview = $derived(Boolean(spell.previewIr?.valid));
+
+	/**
+	 * The drawing for the replay, once it arrives. Cleared when the plate stills
+	 * or the feed hands this slot a different spell, so a replay can never start
+	 * on the drawing of the plate that was here before.
+	 */
+	let detail = $state<SpellDetail | null>(null);
+	$effect(() => {
+		const id = spell.id;
+		if (!playing) {
+			detail = null;
+			return;
+		}
+		let cancelled = false;
+		void session.details.load(id).then((loaded) => {
+			if (cancelled) {
+				return;
+			}
+			if (!loaded) {
+				// The stage would otherwise hold its unlit seal forever, breathing
+				// as if the replay were still coming.
+				toast.push('That spell could not be read. Try again.');
+				session.togglePreview(id);
+				return;
+			}
+			detail = loaded;
+		});
+		return () => {
+			cancelled = true;
+		};
+	});
 
 	/** Catalog date for the plate line: publication for shared seals, last touch
 	 * for the grimoire's own. */
@@ -47,17 +80,23 @@ no author or like tally.
 	}
 </script>
 
-<article class="plate" data-testid="library-spell-card" style:--stagger={stagger}>
+<article
+	class="plate"
+	data-testid="library-spell-card"
+	style:--stagger={stagger}
+	onpointerenter={() => session.reachFor(spell.id)}
+	onfocusin={() => session.reachFor(spell.id)}
+>
 	<div class="figure">
-		{#if playing && spell.previewIr}
+		{#if playing}
 			<SpellPreview
-				data={spell.data}
-				previewIr={spell.previewIr}
+				thumbnail={spell.thumbnail}
+				{detail}
 				onEnded={() => session.togglePreview(spell.id)}
 			/>
 		{:else}
 			<svg class="glyph" viewBox="0 0 100 100" aria-hidden="true">
-				{#each presetPreviewPolylines(spell.data) as points (points)}
+				{#each spell.thumbnail as points (points)}
 					<polyline {points} />
 				{/each}
 			</svg>
@@ -76,12 +115,16 @@ no author or like tally.
 	</p>
 	{#if shared}
 		<div class="like-row">
-			<LikeButton spell={shared} onLike={upvote} />
+			<LikeButton
+				count={shared.upvoteCount}
+				liked={session.hasUpvoted(shared.id)}
+				onLike={upvote}
+			/>
 		</div>
 	{/if}
 
 	<footer class="actions">
-		{#if canPreview}
+		{#if spell.canPreview}
 			<button
 				type="button"
 				class="ink-action"
@@ -98,7 +141,7 @@ no author or like tally.
 			class="ink-action"
 			data-testid="spell-cast-button"
 			title="Draw this spell onto the atelier canvas"
-			onclick={() => session.castSpell(spell)}
+			onclick={() => void session.castSpell(spell)}
 		>
 			Open
 		</button>

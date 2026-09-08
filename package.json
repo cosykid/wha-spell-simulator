@@ -10,6 +10,7 @@
 		"preview": "vite preview --host 127.0.0.1 --port 4173",
 		"check": "svelte-check --tsconfig ./tsconfig.json",
 		"db:migrate": "node --import tsx scripts/migrate.ts",
+		"spells:backfill-thumbnails": "node --import tsx scripts/backfill-spell-thumbnails.ts",
 		"glyphs:reference-sizes": "node --import tsx models/glyph-reference-sizes.ts",
 		"bench:grouping": "node --import tsx models/grouping-benchmark/index.ts",
 		"test": "npm run test:unit && npm run test:e2e",

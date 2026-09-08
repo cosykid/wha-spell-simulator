@@ -20,13 +20,17 @@ the app.
 		void session.refreshShared();
 	});
 
-	// The feed is fetched before the account arrives, so a reader's own likes are
-	// missing from it until they do. Untracked, or the fetch's own reads would
-	// make this rerun on every sort change the session already handles.
+	// The feed is the same page for every reader, so signing in does not reload
+	// it: only which plates this reader has liked changes. Untracked, or the
+	// fetch's own reads would make this rerun on every sort change.
 	$effect(() => {
 		const signedIn = Boolean(auth.user);
 		untrack(() => {
-			if (signedIn) void session.refreshForViewer();
+			if (signedIn) {
+				void session.refreshForViewer();
+			} else {
+				session.upvotedIds.clear();
+			}
 		});
 	});
 </script>

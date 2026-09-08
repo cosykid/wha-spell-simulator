@@ -240,11 +240,13 @@ hash. Spell mutations (save, delete, publish, upvote) go through SvelteKit
 remote functions and require a signed-in session. Reads are plain endpoints so
 guests can browse:
 
-| Method | Path                                     | Purpose                                                                   |
-| ------ | ---------------------------------------- | ------------------------------------------------------------------------- |
-| `GET`  | `/api/me`                                | The session's account, or `null` for guests.                              |
-| `GET`  | `/api/spells?scope=mine`                 | The signed-in user's saved spells.                                        |
-| `GET`  | `/api/spells?scope=library&sort=top∣new` | Published spells with author and vote counts. Keyset `cursor` pagination. |
+| Method | Path                                     | Purpose                                                                                                                     |
+| ------ | ---------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| `GET`  | `/api/me`                                | The session's account, or `null` for guests.                                                                                |
+| `GET`  | `/api/spells?scope=mine`                 | The signed-in user's saved spell cards.                                                                                     |
+| `GET`  | `/api/spells?scope=library&sort=top∣new` | Published spell cards with author and vote counts. Keyset `cursor` pagination. Same for every reader, so the CDN caches it. |
+| `GET`  | `/api/spells/[id]`                       | One spell's drawing and compiled IR, fetched when a reader opens or previews it.                                            |
+| `GET`  | `/api/spells/upvotes`                    | The ids the signed-in reader has upvoted. Empty for guests.                                                                 |
 
 Saved spells store the drawing normalized to the canvas (`v1` preset schema in
 `src/lib/structures/spellPreset.ts`). A sealed ring is stored with a 45° gap

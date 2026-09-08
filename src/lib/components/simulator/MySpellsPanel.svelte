@@ -8,7 +8,7 @@ load, share, and delete without leaving the canvas. Guests see a sign-in prompt.
 	import { toast } from '@zerodevx/svelte-toast';
 	import MySpellRow from './MySpellRow.svelte';
 	import { getAuthState } from '$lib/ui/auth/auth-state.svelte.js';
-	import type { SavedSpell } from '$lib/structures/savedSpell.js';
+	import type { SpellCard } from '$lib/structures/savedSpell.js';
 	import type { SimulatorSession } from '$lib/ui/simulator/simulator-session.svelte.js';
 
 	interface Props {
@@ -53,8 +53,16 @@ load, share, and delete without leaving the canvas. Guests see a sign-in prompt.
 		}
 	});
 
-	function loadSpell(spell: SavedSpell) {
-		if (simulator.actions.loadPreset(spell.data)) {
+	// A row lists from its thumbnail, so the drawing is fetched on the way to the
+	// canvas. Reaching for the row starts that fetch, so the click usually waits
+	// on nothing.
+	async function loadSpell(spell: SpellCard) {
+		const detail = await grimoire.details.load(spell.id);
+		if (!detail) {
+			toast.push('That spell could not be read. Try again.');
+			return;
+		}
+		if (simulator.actions.loadPreset(detail.data)) {
 			toast.push(`“${spell.name}” drawn onto the canvas. Seal the ring to cast it.`);
 		}
 	}
@@ -65,7 +73,7 @@ load, share, and delete without leaving the canvas. Guests see a sign-in prompt.
 		void auth.requireUser(retry);
 	}
 
-	async function togglePublished(spell: SavedSpell) {
+	async function togglePublished(spell: SpellCard) {
 		const publishing = !spell.publishedAt;
 		busy = { id: spell.id, action: 'share' };
 		const result = await grimoire.setPublished(spell.id, publishing);
@@ -81,7 +89,7 @@ load, share, and delete without leaving the canvas. Guests see a sign-in prompt.
 		}
 	}
 
-	async function removeSpell(spell: SavedSpell) {
+	async function removeSpell(spell: SpellCard) {
 		busy = { id: spell.id, action: 'delete' };
 		const result = await grimoire.remove(spell.id);
 		busy = null;
@@ -137,7 +145,8 @@ load, share, and delete without leaving the canvas. Guests see a sign-in prompt.
 					<MySpellRow
 						{spell}
 						busyAction={busy?.id === spell.id ? busy.action : null}
-						onLoad={() => loadSpell(spell)}
+						onLoad={() => void loadSpell(spell)}
+						onReachFor={() => grimoire.details.prefetch(spell.id)}
 						onToggleShare={() => void togglePublished(spell)}
 						onDelete={() => void removeSpell(spell)}
 					/>

@@ -12,9 +12,10 @@ import {
 	type PublishSpellResult,
 	type SpellActionResult
 } from '$lib/spells/spells.remote.js';
-import type { SavedSpell } from '$lib/structures/savedSpell.js';
+import type { SpellCard } from '$lib/structures/savedSpell.js';
 import type { SpellPresetData } from '$lib/structures/spellPreset.js';
 import type { SpellIR } from '$lib/types.js';
+import { SpellDetails } from './spellDetails.js';
 
 /** Everything captured from the canvas when saving the current drawing. */
 export interface SpellDraftInput {
@@ -34,12 +35,18 @@ type RemoteSaveInput = Parameters<typeof saveSpell>[0];
 export type GrimoireError = 'auth' | 'network';
 
 export class GrimoireState {
-	spells = $state<SavedSpell[]>([]);
+	spells = $state<SpellCard[]>([]);
 	loading = $state(false);
 	/** Why the last refresh failed, or null when it worked. */
 	error = $state<GrimoireError | null>(null);
 	/** Whether the save-current-drawing dialog is open. */
 	saveDialogOpen = $state(false);
+
+	/**
+	 * The drawings behind the rows, fetched one at a time. A row lists from its
+	 * thumbnail, so the drawing is only needed by the seal a witch loads.
+	 */
+	readonly details = new SpellDetails();
 
 	/** Reloads the grimoire from the server. Safe to call while signed out. */
 	refresh = async (): Promise<void> => {

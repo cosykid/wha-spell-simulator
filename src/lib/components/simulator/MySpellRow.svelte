@@ -5,19 +5,20 @@ caption beside it, and ink actions standing under the caption. Deleting asks onc
 before it takes, since a seal cannot be recovered after it goes.
 -->
 <script lang="ts">
-	import { presetPreviewPolylines } from '$lib/ui/spells/presetThumbnail.js';
-	import type { SavedSpell } from '$lib/structures/savedSpell.js';
+	import type { SpellCard } from '$lib/structures/savedSpell.js';
 
 	interface Props {
-		spell: SavedSpell;
+		spell: SpellCard;
 		/** The command running against this seal, which locks both actions. */
 		busyAction?: 'share' | 'delete' | null;
 		onLoad: () => void;
+		/** The reader is on the row: a good moment to start fetching its drawing. */
+		onReachFor?: () => void;
 		onToggleShare: () => void;
 		onDelete: () => void;
 	}
 
-	let { spell, busyAction = null, onLoad, onToggleShare, onDelete }: Props = $props();
+	let { spell, busyAction = null, onLoad, onReachFor, onToggleShare, onDelete }: Props = $props();
 
 	let confirmingDelete = $state(false);
 	let busy = $derived(busyAction !== null);
@@ -42,6 +43,8 @@ before it takes, since a seal cannot be recovered after it goes.
 <li
 	class="row"
 	data-testid="spell-card"
+	onpointerenter={() => onReachFor?.()}
+	onfocusin={() => onReachFor?.()}
 	onmouseleave={() => (confirmingDelete = false)}
 	onfocusout={(event) => {
 		if (!event.currentTarget.contains(event.relatedTarget as Node)) confirmingDelete = false;
@@ -55,7 +58,7 @@ before it takes, since a seal cannot be recovered after it goes.
 		onclick={onLoad}
 	>
 		<svg class="plate" viewBox="0 0 100 100" aria-hidden="true">
-			{#each presetPreviewPolylines(spell.data) as points (points)}
+			{#each spell.thumbnail as points (points)}
 				<polyline {points} />
 			{/each}
 		</svg>

@@ -1,15 +1,22 @@
 /**
  * @file State for the library page: the shared-library feed with its sort and
- * cursor pagination, the reader's own grimoire section, and which preview is
- * playing. Created once by the `/library` route.
+ * cursor pagination, the reader's own grimoire section, which preview is
+ * playing, and which plates this reader has liked. Created once by the
+ * `/library` route.
+ *
+ * A feed page carries cards, not drawings. The drawing behind a plate is
+ * fetched through {@link SpellDetails} when the reader opens or previews it,
+ * and started early when they merely reach for it.
  */
 import { toast } from '@zerodevx/svelte-toast';
+import { SvelteSet } from 'svelte/reactivity';
 import { goto } from '$app/navigation';
 import { resolve } from '$app/paths';
 import { setSpellUpvote } from '$lib/spells/spells.remote.js';
-import type { LibrarySort, LibrarySpell, SavedSpell } from '$lib/structures/savedSpell.js';
+import type { LibraryCard, LibrarySort, SpellCard } from '$lib/structures/savedSpell.js';
 import { stashPendingCast } from '$lib/ui/spells/castHandoff.js';
 import { GrimoireState } from '$lib/ui/spells/grimoire-state.svelte.js';
+import { SpellDetails } from '$lib/ui/spells/spellDetails.js';
 
 export type LibrarySection = 'shared' | 'grimoire';
 
@@ -23,7 +30,7 @@ export type SharedFeedStatus = 'ready' | 'loading' | 'loading-more' | 'failed' |
 export class LibrarySession {
 	section = $state<LibrarySection>('shared');
 	sort = $state<LibrarySort>('top');
-	shared = $state<LibrarySpell[]>([]);
+	shared = $state<LibraryCard[]>([]);
 	nextCursor = $state<string | null>(null);
 	/**
 	 * Starts loading, not ready. The route prerenders empty and fetches after
@@ -33,13 +40,19 @@ export class LibrarySession {
 	status = $state<SharedFeedStatus>('loading');
 	/** Spell id whose animated preview is playing. One at a time. */
 	playingId = $state<string | null>(null);
+	/**
+	 * Which plates this reader has liked. Held beside the feed rather than on
+	 * its rows, because the feed itself is the same page for every reader.
+	 */
+	readonly upvotedIds = new SvelteSet<string>();
 
 	readonly grimoire = new GrimoireState();
+	readonly details = new SpellDetails();
 
 	#firstPageSeq = 0;
 
 	/** The spells the open section shows, in page order. */
-	spells = $derived<(LibrarySpell | SavedSpell)[]>(
+	spells = $derived<(LibraryCard | SpellCard)[]>(
 		this.section === 'shared' ? this.shared : this.grimoire.spells
 	);
 
@@ -50,16 +63,34 @@ export class LibrarySession {
 	};
 
 	/**
-	 * Refetches the open section after a sign-in, so likes the reader cast
-	 * before this visit show on plates that were fetched as a guest. The wall
-	 * keeps its plates, its scroll and its status line while it runs.
+	 * Reads this reader's likes after a sign-in, so plates fetched as a guest
+	 * show them. The wall keeps its plates, its scroll and its status line while
+	 * it runs, and the shared feed is not refetched: it never held the answer.
 	 */
 	refreshForViewer = async (): Promise<void> => {
 		if (this.section === 'grimoire') {
 			await this.grimoire.refresh();
 			return;
 		}
-		await this.#fetchFirstPage();
+		await this.refreshUpvotes();
+	};
+
+	/** Reloads which plates this reader has liked. Guests get an empty set. */
+	refreshUpvotes = async (): Promise<void> => {
+		try {
+			const response = await fetch('/api/spells/upvotes');
+			if (!response.ok) {
+				throw new Error(`the like list answered ${response.status}`);
+			}
+			const ids: string[] = (await response.json()).ids ?? [];
+			this.upvotedIds.clear();
+			for (const id of ids) {
+				this.upvotedIds.add(id);
+			}
+		} catch {
+			// Plates simply stay unlit. Liking one still works, and the answer
+			// from that write corrects the plate it lands on.
+		}
 	};
 
 	/** Appends the next page of the shared feed while one remains. */
@@ -107,33 +138,30 @@ export class LibrarySession {
 		}
 	};
 
+	/** Whether this reader has liked a plate. */
+	hasUpvoted = (id: string): boolean => this.upvotedIds.has(id);
+
 	/** Optimistically toggles the signed-in reader's upvote on a shared spell. */
-	toggleUpvote = async (spell: LibrarySpell): Promise<void> => {
-		const upvoted = !spell.viewerUpvoted;
-		const patch = (value: boolean, delta: number) => {
-			this.shared = this.shared.map((entry) =>
-				entry.id === spell.id
-					? { ...entry, viewerUpvoted: value, upvoteCount: entry.upvoteCount + delta }
-					: entry
-			);
-		};
-		patch(upvoted, upvoted ? 1 : -1);
+	toggleUpvote = async (spell: LibraryCard): Promise<void> => {
+		const upvoted = !this.hasUpvoted(spell.id);
+		this.#patchUpvote(spell.id, upvoted, upvoted ? 1 : -1);
 		const result = await setSpellUpvote({ id: spell.id, upvoted });
 		if (result.ok) {
-			this.shared = this.shared.map((entry) =>
-				entry.id === spell.id
-					? { ...entry, viewerUpvoted: result.upvoted, upvoteCount: result.upvoteCount }
-					: entry
-			);
+			this.#patchUpvote(spell.id, result.upvoted, 0, result.upvoteCount);
 		} else {
-			patch(!upvoted, upvoted ? -1 : 1);
+			this.#patchUpvote(spell.id, !upvoted, upvoted ? -1 : 1);
 			toast.push('That like did not take.');
 		}
 	};
 
-	/** Sends a spell to the simulator canvas and navigates there. */
-	castSpell = (spell: LibrarySpell | SavedSpell): void => {
-		if (!stashPendingCast(spell.data)) {
+	/**
+	 * Sends a spell to the simulator canvas and navigates there. The drawing is
+	 * usually already in hand from {@link reachFor}; when it is not, this is the
+	 * fetch that gets it.
+	 */
+	castSpell = async (spell: LibraryCard | SpellCard): Promise<void> => {
+		const detail = await this.details.load(spell.id);
+		if (!detail || !stashPendingCast(detail.data)) {
 			// Navigating anyway would land the reader on a blank canvas with no
 			// hint that the spell was left behind.
 			toast.push('The spell could not be carried over.');
@@ -142,13 +170,32 @@ export class LibrarySession {
 		void goto(resolve('/'));
 	};
 
-	togglePreview = (id: string): void => {
-		this.playingId = this.playingId === id ? null : id;
+	/** Starts fetching a plate's drawing while the reader is still deciding. */
+	reachFor = (id: string): void => {
+		this.details.prefetch(id);
 	};
 
+	togglePreview = (id: string): void => {
+		this.playingId = this.playingId === id ? null : id;
+		if (this.playingId) {
+			this.details.prefetch(id);
+		}
+	};
+
+	#patchUpvote(id: string, upvoted: boolean, delta: number, count?: number): void {
+		if (upvoted) {
+			this.upvotedIds.add(id);
+		} else {
+			this.upvotedIds.delete(id);
+		}
+		this.shared = this.shared.map((entry) =>
+			entry.id === id ? { ...entry, upvoteCount: count ?? entry.upvoteCount + delta } : entry
+		);
+	}
+
 	async #fetchFirstPage(): Promise<void> {
-		// Sequence-guarded: a sort switch, or the sign-in reload landing over the
-		// guest one, must not be overwritten by the page it replaced.
+		// Sequence-guarded: a sort switch must not be overwritten by the page it
+		// replaced.
 		const seq = ++this.#firstPageSeq;
 		try {
 			const response = await fetch(`/api/spells?scope=library&sort=${this.sort}`);

@@ -20,3 +20,10 @@ jobs:
         env:
           DATABASE_URL_VPS: ${{ secrets.DATABASE_URL_VPS }}
         run: npm run db:migrate
+      # Migration 014 adds a column the baking code has to fill, and a spell
+      # with no thumbnail draws as bare paper. Idempotent: without --all it
+      # only touches rows that have none, so this is a no-op most deploys.
+      - name: Backfill spell thumbnails
+        env:
+          DATABASE_URL_VPS: ${{ secrets.DATABASE_URL_VPS }}
+        run: npm run spells:backfill-thumbnails

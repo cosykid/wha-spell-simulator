@@ -7,9 +7,11 @@ draws, recognizes, or talks to the network.
 
 - [`spellPreset.ts`](spellPreset.ts): the saved-spell format. Preset v1, its zod schema,
   `serializeSpellPreset` / `deserializeSpellPreset`, and `cutRingGap`. The only file here with logic.
-- [`savedSpell.ts`](savedSpell.ts): types only. `SavedSpell`, `LibrarySpell`, `LibrarySort`,
+- [`savedSpell.ts`](savedSpell.ts): types only. `SpellCard`, `LibraryCard`, `SpellDetail`, `LibrarySort`,
   `LibraryPage`. Deliberately outside `$lib/server` because the drawer, the library page, and the remote
   functions all import them.
+- [`spellThumbnail.ts`](spellThumbnail.ts): `buildSpellThumbnail`, which reduces a preset to the polylines
+  a plate draws. Built once at save time and stored, never per request.
 - [`labelledSample.ts`](labelledSample.ts): types only. One handwriting sample for glyph training.
   Strokes are stored raw, with `meta` capturing the canvas size and DPR needed to reinterpret them later.
 - [`arrayWithHistory.svelte.ts`](arrayWithHistory.svelte.ts): `makeReactiveArrayWithHistory`, a `$state`
@@ -28,7 +30,22 @@ one screen restores on another.
 - Point `t` values are copied verbatim, not rescaled.
 
 Because the scale factors normalize too, `deserializeSpellPreset(data, 1)` yields a 0..1 drawing, which is
-how [`../ui/spells/presetThumbnail.ts`](../ui/spells/presetThumbnail.ts) builds preview polylines.
+how [`spellThumbnail.ts`](spellThumbnail.ts) builds preview polylines.
+
+## A stored spell travels in two pieces
+
+A preset holds the drawing at pointer resolution: the shared library averaged 48KB a spell, and a plate
+rendered none of it. So listing and opening are separate reads.
+
+- **`SpellCard`** is what a plate draws: name, element, tally, and the stored `thumbnail`. `LibraryCard`
+  adds the author. Small enough to send twenty at a time.
+- **`SpellDetail`** is `data` plus `previewIr`, fetched from `GET /api/spells/[id]` for the one spell a
+  reader opens or previews.
+
+`buildSpellThumbnail` fits the seal into the shared 100x100 preview box and then thins each stroke with
+`simplifyPath` at a quarter-unit tolerance. A plate is 150 to 215px wide, so that is under half a pixel of
+drift and about four fifths fewer points. Change the tolerance and existing rows keep their old
+thumbnails until `npm run spells:backfill-thumbnails -- --all` rebuilds them.
 
 ## Invariants and gotchas
 
@@ -72,9 +89,11 @@ was dropped in `migrations/003_drop_schema_version.sql`.
 - **New preset field**: add it to the zod schema with a cap, write it in `serializeSpellPreset`, read it in
   `deserializeSpellPreset`, bump `SPELL_PRESET_VERSION`, and cover the round trip in
   [`tests/spellPreset.test.ts`](../../../tests/spellPreset.test.ts).
-- **New stored-spell field**: extend `SavedSpell` here, then the `spells` table in
-  [`../server/storage/db.ts`](../server/storage/db.ts), `rowToSpell` in
-  [`../server/storage/spellStore.ts`](../server/storage/spellStore.ts), and add an idempotent migration.
+- **New stored-spell field**: decide first whether a plate draws it. If it does, extend `SpellCard` here,
+  then the `spells` table in [`../server/storage/db.ts`](../server/storage/db.ts), `CARD_COLUMNS` and
+  `rowToCard` in [`../server/storage/spellStore.ts`](../server/storage/spellStore.ts), and add an
+  idempotent migration. If it does not, put it on `SpellDetail` and leave the card alone: every byte on a
+  card is sent twenty times over.
 - Keep this directory free of `$lib/server` imports. Anything here may be bundled into the client.
 
 ## Related

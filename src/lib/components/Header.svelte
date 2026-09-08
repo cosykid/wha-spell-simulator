@@ -1,8 +1,9 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
 	import { page } from '$app/state';
-	import type { RouteId } from '$app/types';
 	import { header } from '$lib/state.svelte';
+
+	type NavRoute = '/' | '/library' | '/tools';
 
 	interface Props {
 		eyebrow?: string;
@@ -13,8 +14,13 @@
 
 	let { eyebrow = '', title = '', showStatus = false }: Props = $props();
 
-	/** Navigation links to the app's main sections */
-	const nav: { route: RouteId; title: string }[] = [
+	/**
+	 * Navigation links to the app's main sections. Typed to just these three
+	 * routes rather than `RouteId`: `resolve` is overloaded per route, and
+	 * typechecking a call whose argument is the union of every route in the app
+	 * stops working once there are enough of them.
+	 */
+	const nav: { route: NavRoute; title: string }[] = [
 		{ route: '/', title: 'Canvas' },
 		{ route: '/library', title: 'Spell Library' },
 		{ route: '/tools', title: 'Tools' }

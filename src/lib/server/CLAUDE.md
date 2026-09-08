@@ -72,6 +72,21 @@ and `setSpellPublished` both carry `where user_id = ...`. Any new owner-scoped q
 **Login hashes even for an unknown username**, against `fallbackPasswordHash()`, so response timing does
 not reveal whether an account exists. Preserve that shape when editing the login path.
 
+**A list never selects `data` or `preview_ir`.** `CARD_COLUMNS` in `spellStore.ts` is the whole of what a
+plate draws, and whether a spell can be replayed is read out of the IR in Postgres
+(`preview_ir->>'valid'`) so the blob itself never leaves the database. `getSpellDetail` is the one read
+that fetches a drawing, for the one spell a reader opens. Adding either column back to a list query puts
+about 48KB a row back on the wire.
+
+**`thumbnail` is written, never derived on read.** `insertSpell` builds it; rows stored before the column
+existed are filled in by `npm run spells:backfill-thumbnails`. A null thumbnail draws as bare paper, so
+run the backfill in the same deploy as `migrations/014_spell_thumbnails.sql`.
+
+**The shared library feed answers the same for every reader**, which is what lets the CDN hold it (see
+[`../../routes/api/spells/cache.ts`](../../routes/api/spells/cache.ts)). A reader's own likes come from
+`/api/spells/upvotes` instead. Do not read `locals.user` in `listPublishedSpells` or its route: a
+personalized byte in that response silently makes the cache wrong for everyone.
+
 **`upvote_count` is denormalized.** It may only change inside the same transaction as its `spell_upvotes`
 row, as `addSpellUpvote` and `removeSpellUpvote` do, or the tally drifts from the votes.
 

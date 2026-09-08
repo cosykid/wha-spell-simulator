@@ -15,6 +15,7 @@ import type {
 	Stroke as SampleStroke
 } from '$lib/structures/labelledSample.js';
 import type { SpellPresetData } from '$lib/structures/spellPreset.js';
+import type { SpellThumbnail } from '$lib/structures/spellThumbnail.js';
 import type { SpellIR } from '$lib/types.js';
 import { normalizePostgresConnectionString, sslFor } from './postgresConnection.js';
 
@@ -67,6 +68,11 @@ interface SpellsTable {
 	data: JsonColumn<SpellPresetData>;
 	/** Compiled SpellIR captured at save time, for library previews. Null when invalid. */
 	preview_ir: ColumnType<SpellIR | null, string | null, string | null>;
+	/**
+	 * Preview polylines built at save time, so listing spells never reads `data`.
+	 * Null only on rows written before the column existed.
+	 */
+	thumbnail: ColumnType<SpellThumbnail | null, string, string>;
 	element: ColumnType<string | null, string | null, string | null>;
 	/** Null while private. Set when the owner publishes to the shared library. */
 	published_at: ColumnType<string | null, string | null, string | null>;

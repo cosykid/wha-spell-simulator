@@ -24,10 +24,11 @@ test.describe('spell library', () => {
 		await registerViaMySpells(page, uniqueUsername());
 		await saveCurrentSpell(page, name);
 
-		// Publish it to the shared library from the drawer card.
+		// Publish it to the shared library from the drawer card. The row says a
+		// spell is out there by offering to take it back, not in words.
 		const drawerCard = page.getByTestId('spell-card').filter({ hasText: name });
 		await drawerCard.getByTestId('spell-publish-toggle').click();
-		await expect(drawerCard).toContainText('shared');
+		await expect(drawerCard.getByTestId('spell-publish-toggle')).toHaveText('Unshare');
 
 		// Browse the book. Newest sort puts the fresh spell on the first pages.
 		await page.goto('/library');
@@ -40,8 +41,12 @@ test.describe('spell library', () => {
 		await card.getByTestId('spell-preview-toggle').click();
 		await expect(card.getByTestId('spell-preview-stage')).toBeVisible();
 
-		await card.getByTestId('spell-upvote-button').click();
-		await expect(card.getByTestId('spell-upvote-button')).toHaveText(/^1$/);
+		// The tally sits beside a thumb icon, so read the state and the count
+		// rather than the button's exact text.
+		const like = card.getByTestId('spell-upvote-button');
+		await like.click();
+		await expect(like).toHaveAttribute('aria-pressed', 'true');
+		await expect(like).toContainText('1');
 
 		// Open hands the spell to the simulator, restored prepared.
 		await card.getByTestId('spell-cast-button').click();

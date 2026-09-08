@@ -3,12 +3,24 @@
  * the shared library, and the upvote tallies that rank it. The `upvote_count`
  * column is denormalized and only ever changes in the same transaction as its
  * `spell_upvotes` row, so the two cannot drift.
+ *
+ * Listing a spell and opening one are separate reads. A list selects the card
+ * columns only, never `data` or `preview_ir`, so a page of twenty costs
+ * kilobytes instead of the megabyte those two weigh; {@link getSpellDetail}
+ * fetches the drawing for the one spell a reader acts on.
  */
 import { randomUUID } from 'node:crypto';
 import { sql, type SqlBool } from 'kysely';
 
-import type { LibraryPage, LibrarySort, SavedSpell } from '$lib/structures/savedSpell.js';
+import type {
+	LibraryCard,
+	LibraryPage,
+	LibrarySort,
+	SpellCard,
+	SpellDetail
+} from '$lib/structures/savedSpell.js';
 import type { SpellPresetData } from '$lib/structures/spellPreset.js';
+import { buildSpellThumbnail, toSpellThumbnail } from '$lib/structures/spellThumbnail.js';
 import type { SpellIR } from '$lib/types.js';
 import { getDb, type Db } from './db.js';
 
@@ -17,8 +29,6 @@ export interface LibraryQuery {
 	limit?: number;
 	/** Opaque cursor from a previous page's `nextCursor`. */
 	cursor?: string | null;
-	/** When set, each row reports whether this user has upvoted it. */
-	viewerId?: string | null;
 }
 
 export interface SpellDraft {
@@ -32,23 +42,29 @@ export interface SpellDraft {
 const MAX_PAGE_SIZE = 40;
 const DEFAULT_PAGE_SIZE = 20;
 
-const SPELL_COLUMNS = [
+/**
+ * Everything a plate draws. `data` and `preview_ir` are deliberately absent:
+ * whether the stored IR can drive a replay is read out of it in Postgres so the
+ * blob itself never crosses the wire.
+ */
+const CARD_COLUMNS = [
 	'spells.id',
 	'spells.name',
 	'spells.element',
-	'spells.data',
-	'spells.preview_ir',
+	'spells.thumbnail',
 	'spells.published_at',
 	'spells.upvote_count',
 	'spells.updated_at'
 ] as const;
 
-interface SpellRow {
+const canPreviewColumn = sql<boolean>`coalesce((spells.preview_ir->>'valid')::boolean, false)`;
+
+interface CardRow {
 	id: string;
 	name: string;
 	element: string | null;
-	data: SpellPresetData;
-	preview_ir: SpellIR | null;
+	thumbnail: unknown;
+	can_preview: boolean;
 	published_at: unknown;
 	upvote_count: number;
 	updated_at: unknown;
@@ -58,13 +74,13 @@ function toIso(value: unknown): string {
 	return value instanceof Date ? value.toISOString() : value == null ? '' : String(value);
 }
 
-function rowToSpell(row: SpellRow): SavedSpell {
+function rowToCard(row: CardRow): SpellCard {
 	return {
 		id: row.id,
 		name: row.name,
 		element: row.element,
-		data: row.data,
-		previewIr: row.preview_ir,
+		thumbnail: toSpellThumbnail(row.thumbnail),
+		canPreview: Boolean(row.can_preview),
 		publishedAt: row.published_at == null ? null : toIso(row.published_at),
 		upvoteCount: row.upvote_count,
 		updatedAt: toIso(row.updated_at)
@@ -93,7 +109,7 @@ function decodeCursor(raw: string | null | undefined): LibraryCursor | null {
 	}
 }
 
-export async function insertSpell(draft: SpellDraft, db: Db = getDb()): Promise<SavedSpell> {
+export async function insertSpell(draft: SpellDraft, db: Db = getDb()): Promise<SpellCard> {
 	const row = (await db
 		.insertInto('spells')
 		.values({
@@ -102,23 +118,58 @@ export async function insertSpell(draft: SpellDraft, db: Db = getDb()): Promise<
 			name: draft.name,
 			data: JSON.stringify(draft.data),
 			preview_ir: draft.previewIr ? JSON.stringify(draft.previewIr) : null,
+			thumbnail: JSON.stringify(buildSpellThumbnail(draft.data)),
 			element: draft.element
 		})
-		.returning(SPELL_COLUMNS)
-		.executeTakeFirstOrThrow()) as SpellRow;
-	return rowToSpell(row);
+		.returning([...CARD_COLUMNS, canPreviewColumn.as('can_preview')])
+		.executeTakeFirstOrThrow()) as CardRow;
+	return rowToCard(row);
 }
 
 /** The owner's spells, newest change first, for the grimoire and drawer list. */
-export async function listSpellsByOwner(userId: string, db: Db = getDb()): Promise<SavedSpell[]> {
+export async function listSpellsByOwner(userId: string, db: Db = getDb()): Promise<SpellCard[]> {
 	const rows = (await db
 		.selectFrom('spells')
-		.select(SPELL_COLUMNS)
+		.select([...CARD_COLUMNS, canPreviewColumn.as('can_preview')])
 		.where('user_id', '=', userId)
 		.orderBy('updated_at', 'desc')
 		.orderBy('id', 'desc')
-		.execute()) as SpellRow[];
-	return rows.map(rowToSpell);
+		.execute()) as CardRow[];
+	return rows.map(rowToCard);
+}
+
+/**
+ * The drawing behind one card, for casting or replaying it. Readable when the
+ * spell is published, or by its owner while it is still private.
+ *
+ * `published` rides along so the route can tell an answer every reader would
+ * get from one only this owner may see, and cache accordingly.
+ */
+export async function getSpellDetail(
+	id: string,
+	viewerId: string | null,
+	db: Db = getDb()
+): Promise<(SpellDetail & { published: boolean }) | null> {
+	const row = await db
+		.selectFrom('spells')
+		.select(['spells.id', 'spells.data', 'spells.preview_ir', 'spells.published_at'])
+		.where('id', '=', id)
+		.where((eb) =>
+			eb.or(
+				viewerId
+					? [eb('published_at', 'is not', null), eb('user_id', '=', viewerId)]
+					: [eb('published_at', 'is not', null)]
+			)
+		)
+		.executeTakeFirst();
+	return row
+		? {
+				id: row.id,
+				data: row.data,
+				previewIr: row.preview_ir,
+				published: row.published_at != null
+			}
+		: null;
 }
 
 /** Deletes a spell if this user owns it. Returns whether a row was removed. */
@@ -135,49 +186,41 @@ export async function deleteSpellOwned(
 	return Number(result.numDeletedRows ?? 0) > 0;
 }
 
-/** Publishes or retracts a spell if this user owns it. */
+/** Publishes a spell if this user owns it, or retracts it again. */
 export async function setSpellPublished(
 	id: string,
 	userId: string,
 	published: boolean,
 	db: Db = getDb()
-): Promise<SavedSpell | null> {
+): Promise<SpellCard | null> {
 	const now = new Date().toISOString();
 	const row = (await db
 		.updateTable('spells')
 		.set({ published_at: published ? now : null, updated_at: now })
 		.where('id', '=', id)
 		.where('user_id', '=', userId)
-		.returning(SPELL_COLUMNS)
-		.executeTakeFirst()) as SpellRow | undefined;
-	return row ? rowToSpell(row) : null;
+		.returning([...CARD_COLUMNS, canPreviewColumn.as('can_preview')])
+		.executeTakeFirst()) as CardRow | undefined;
+	return row ? rowToCard(row) : null;
 }
 
-/** One page of the shared library, ranked by upvotes or by publish date. */
+/**
+ * One page of the shared library, ranked by upvotes or by publish date.
+ *
+ * The page is the same for every reader, which is what lets it be cached at the
+ * edge. Whose likes are on it is a separate read: {@link listUpvotedSpellIds}.
+ */
 export async function listPublishedSpells(
 	query: LibraryQuery,
 	db: Db = getDb()
 ): Promise<LibraryPage> {
 	const limit = Math.min(query.limit ?? DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE);
 	const cursor = decodeCursor(query.cursor);
-	const viewerId = query.viewerId ?? null;
 
 	let builder = db
 		.selectFrom('spells')
 		.innerJoin('users', 'users.id', 'spells.user_id')
-		.select([...SPELL_COLUMNS, 'users.username as author'])
-		.select((eb) => [
-			(viewerId
-				? eb.exists(
-						eb
-							.selectFrom('spell_upvotes')
-							.select('spell_upvotes.spell_id')
-							.whereRef('spell_upvotes.spell_id', '=', 'spells.id')
-							.where('spell_upvotes.user_id', '=', viewerId)
-					)
-				: eb.val(false)
-			).as('viewer_upvoted')
-		])
+		.select([...CARD_COLUMNS, canPreviewColumn.as('can_preview'), 'users.username as author'])
 		.where('spells.published_at', 'is not', null);
 
 	if (query.sort === 'top') {
@@ -201,16 +244,8 @@ export async function listPublishedSpells(
 		}
 	}
 
-	const rows = (await builder.limit(limit).execute()) as (SpellRow & {
-		author: string;
-		viewer_upvoted: boolean;
-	})[];
-
-	const spells = rows.map((row) => ({
-		...rowToSpell(row),
-		author: row.author,
-		viewerUpvoted: Boolean(row.viewer_upvoted)
-	}));
+	const rows = (await builder.limit(limit).execute()) as (CardRow & { author: string })[];
+	const spells: LibraryCard[] = rows.map((row) => ({ ...rowToCard(row), author: row.author }));
 
 	const last = spells[spells.length - 1];
 	const nextCursor =
@@ -223,6 +258,16 @@ export async function listPublishedSpells(
 			: null;
 
 	return { spells, nextCursor };
+}
+
+/** Every published spell this user has upvoted, to mark their own likes on a shared page. */
+export async function listUpvotedSpellIds(userId: string, db: Db = getDb()): Promise<string[]> {
+	const rows = await db
+		.selectFrom('spell_upvotes')
+		.select('spell_id')
+		.where('user_id', '=', userId)
+		.execute();
+	return rows.map((row) => row.spell_id);
 }
 
 /**
