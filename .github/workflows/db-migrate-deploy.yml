@@ -5,6 +5,9 @@ on:
     branches: [main]
     paths:
       - 'migrations/**'
+  # Both steps are idempotent, so a failed deploy can be re-run by hand instead
+  # of needing a commit under migrations/ to trigger one.
+  workflow_dispatch:
 
 jobs:
   migrate:
