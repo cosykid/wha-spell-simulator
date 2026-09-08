@@ -17,7 +17,9 @@ why the DB-backed e2e specs are skipped unless `E2E_DB=1`. Keep any new one behi
 
 - [`auth/password.ts`](auth/password.ts): `hashPassword`, `verifyPassword`, `fallbackPasswordHash`.
 - [`auth/session.ts`](auth/session.ts): `establishSession`, `resolveSession`, `destroySession`,
-  `SESSION_COOKIE`.
+  `SESSION_COOKIE`. Its companion marker cookie is named in
+  [`../auth/sessionMarker.ts`](../auth/sessionMarker.ts), outside this directory because the client
+  reads it too.
 - [`storage/db.ts`](storage/db.ts): the kysely `Database` interface (one row type per table), the `pg`
   pool, `getDb`, `databaseUrl`.
 - [`storage/postgresConnection.ts`](storage/postgresConnection.ts): connection-string and TLS
@@ -36,6 +38,9 @@ compares with `timingSafeEqual`.
 **Sessions.** 32 random bytes handed to the browser in an httpOnly, `sameSite: lax`, `secure` outside dev
 `wha_session` cookie. The database stores only the SHA-256 hex of that token, so a leaked dump cannot be
 replayed as cookies. TTL is 30 days and slides forward once a session drops below half its lifetime.
+Beside it rides `wha_signed_in`, the same cookie without `httpOnly` and carrying nothing but `1`. A
+prerendered page cannot read the real cookie, so without the marker every guest had to ask `/api/me` and
+be told `{ user: null }` by a function sitting beside the database in Sydney.
 
 **Database.** kysely over `pg`. `getDb()` memoizes one Kysely instance and one small pool per connection
 string (`PG_POOL_MAX`, default 5) because pgbouncer multiplexes the real connections and Vercel functions
@@ -59,6 +64,15 @@ send a Postgres array or record literal instead of JSON.
 **[`hooks.server.ts`](../../hooks.server.ts) swallows session errors to `null` on purpose.** A storage hiccup or a missing
 `DATABASE_URL_VPS` degrades the visitor to a guest instead of failing the whole page. Do not "fix" it by
 rethrowing.
+
+**The two session cookies are written and cleared as a pair.** `writeSessionCookies` and
+`clearSessionCookies` in [`auth/session.ts`](auth/session.ts) are the only places either is touched, and
+establish, renewal, the unknown-token sweep and logout all go through them. The client reads a missing
+`wha_signed_in` as "guest" and skips `/api/me` on that alone, so a `wha_session` written without its
+marker would leave a signed-in reader looking signed out. The other direction is harmless and
+self-healing: a marker whose session is gone buys the one `/api/me` that sweeps both away. Do not set the
+marker anywhere else, and in particular not from [`../../hooks.server.ts`](../../hooks.server.ts) — its
+response may be the CDN-cached library feed, and a `Set-Cookie` there is a cache the edge will not hold.
 
 **`locals.user` is authentication, never authorization.** Ownership is enforced in SQL. `deleteSpellOwned`
 and `setSpellPublished` both carry `where user_id = ...`. Any new owner-scoped query must do the same.

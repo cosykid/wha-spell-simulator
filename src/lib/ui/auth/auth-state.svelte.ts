@@ -3,11 +3,14 @@
  *
  * The app ships as a prerendered shell, so the account is fetched from
  * `/api/me` after mount. Until that resolves, `loading` is true and auth-gated
- * UI should render neutrally instead of flashing a sign-in prompt.
+ * UI should render neutrally instead of flashing a sign-in prompt. A guest is
+ * settled without the fetch, off the marker cookie that rides beside the
+ * httpOnly session one.
  */
 import { createContext } from 'svelte';
 
 import { logout } from '$lib/auth/auth.remote.js';
+import { hasSessionMarker } from '$lib/auth/sessionMarker.js';
 
 export interface SessionUser {
 	id: string;
@@ -90,6 +93,13 @@ export class AuthState {
 	}
 
 	async #loadUser(): Promise<void> {
+		// Nobody can answer this but the reader's own browser: no marker means no
+		// session, and asking the server would spend a round trip to be told so.
+		if (!hasSessionMarker(document.cookie)) {
+			this.user = null;
+			this.loading = false;
+			return;
+		}
 		try {
 			const response = await fetch('/api/me');
 			this.user = response.ok ? ((await response.json()).user ?? null) : null;
