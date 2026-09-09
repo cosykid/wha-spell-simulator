@@ -87,10 +87,10 @@ export const LAB_PRESETS: LabPreset[] = [
 	},
 	{
 		id: 'weave',
-		label: 'Weave — stretch solid material',
+		label: 'Weave — ribbons and currents',
 		sigil: 'earth',
 		description:
-			'A solid sample softens and is pulled into one flexible ribbon, as in Richeh’s stone spell.',
+			'Stretch stone or crystal, or try creative ribbons of water, fire, wind and light.',
 		signs: signsAt([90], (angleDeg) => ({
 			id: 'weave',
 			manifestation: 'weave',

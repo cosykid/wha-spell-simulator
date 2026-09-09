@@ -430,11 +430,40 @@ clock. That cleanup is not a claim that the solid disappears or that ending the
 spell automatically hardens crystal. Flattened deposits preserve the broad face
 inside the shared marching-cubes field. Classic remains frozen.
 
-The compiler resolves stone and crystal targets only, with `weave-solid-demo`.
-Other sigils receive `weave-needs-solid` and visible guidance to use earth or
-crystal; their existing element effects are unchanged. This does not rule out
-complex canon spells such as Light Tracer, whose complete behavior is outside
-this simple solid-deformation model.
+The compiler marks the stone and crystal demonstrations with `weave-solid-demo`.
+R-23 adds explicitly imagined effects for non-solid sigils. Those extensions do
+not alter this canon account or establish a general light+Weave spell.
+
+## R-23 — Elemental Weave currents `[creative extension, user-authorized]`
+
+The user explicitly requested invented, appropriate Weave behavior for non-solid
+sigils on 2026-09-08. These effects are creative simulator extensions, including
+water and air despite the canon limitation documented in R-22. Every such plan
+carries `weave-imagined`, its text inspector says `creative-extension`, and the
+simulator and lab both explain the effect with a “Creative extension” label.
+They are not reconstructions of Light Tracer or other named canon spells.
+
+| Sigil                 | Body                                                                 | Release                                       |
+| --------------------- | -------------------------------------------------------------------- | --------------------------------------------- |
+| Water                 | One liquid ribbon arches across the seal, with travelling ripples.   | Loses its support and falls back into a pool. |
+| Fire                  | One tapered flame ribbon flickers upward with fast travelling bends. | Lifts, loosens and burns away.                |
+| Wind / wind underfoot | One narrow current circles the seal as an open rising band.          | Scatters and dissipates.                      |
+| Aeroform              | A broader, slower air band billows around the seal.                  | Loses its shape and disperses.                |
+| Light                 | One upright luminous loop carries travelling pulses.                 | Fades in place by the end of release.         |
+
+All share the original charge silence and one-shot clock. The strike opens the
+current from the seal; the body remains animated for the whole cast. One evenly
+sampled tracer population covers one continuous band, with moving geometry and
+energy along it. On release, attachment fades and the element's own gravity,
+buoyancy and turbulence resume. The solid sample remains on R-22's unchanged
+path, retaining its shape. Count or placement of Weave signs never multiplies
+these bands.
+
+Profiles resolve from the plan into numeric geometry and motion parameters in
+`score/tracks/weaveCurrents.ts`. Cells read those parameters, not sigil names.
+The same shared tracer substrate and sheet deposits render every combination;
+no second mesh or renderer is added. The orbit and pulse phases also drive their
+audio motion. Classic remains frozen.
 
 ## PDF defect register
 

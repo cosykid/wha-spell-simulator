@@ -211,12 +211,28 @@ export interface ShimmerParams {
 	ceiling: number;
 }
 
-/** R-22's one solid sample drawn into a flexible band. Dimensions are demonstration tuning. */
+/** Geometry and motion for R-23's flowing band, independent of its pigment. */
+export interface WeaveCurrentParams {
+	path: 'arch' | 'stream' | 'orbit' | 'loop';
+	height: number;
+	span: number;
+	waves: number;
+	wave: number;
+	speed: number;
+	taper: number;
+	pulse: number;
+	releaseWeight: number;
+	releaseTurbulence: number;
+	releaseFade: number;
+}
+
+/** R-22's solid deformation, or R-23's creative current when `current` is present. */
 export interface WeaveParams {
 	length: number;
 	width: number;
 	stretchMs: number;
 	materialCount: number;
+	current?: WeaveCurrentParams;
 }
 
 /**

@@ -21,7 +21,7 @@ import { resolveRegion } from './region.js';
 import { resolveSites } from './sites.js';
 import { planFingerprint, snapPlan } from './snap.js';
 import { spinUpColumn } from './spinUp.js';
-import { resolveWeave } from './weave.js';
+import { resolveWeave, weaveNote } from './weave.js';
 import type {
 	Coupling,
 	ElementId,
@@ -176,7 +176,7 @@ function planNotes(
 ): PlanNote[] {
 	const notes: PlanNote[] = [];
 	if (budgets.weave.length) {
-		notes.push(plan.weave ? 'weave-solid-demo' : 'weave-needs-solid');
+		notes.push(weaveNote(plan.weave));
 	}
 	const lateral = Math.hypot(plan.aim.x, plan.aim.y);
 

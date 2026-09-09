@@ -23,6 +23,7 @@ import { curl, smooth01 } from './noise.js';
 import { HEAP, RIGIDITY_PER_FOCUS, STEP_S, TURBULENCE_STRIDE, WASH_GAUGE } from './tuning.js';
 import { mulberry32 } from '../rng.js';
 import { ribbonPoint, ribbonNormal, type RibbonFlow } from './ribbon.js';
+import { currentPulse } from './flowRibbon.js';
 import type { Vec3 } from '../../types.js';
 
 const scratch = { x: 0, y: 0, z: 0 };
@@ -119,6 +120,10 @@ export class TracerPop {
 
 	/** The weave's material normal, read by its deposit in the shared skin. */
 	surfaceNormal(index: number, ribbon: RibbonFlow, out: Vec3): void {
+		if (ribbon.current && ribbon.current.attachment < 0.5) {
+			out.x = out.y = out.z = 0;
+			return;
+		}
 		ribbonNormal(ribbon, this.#ribbonCoords[index * 3], out);
 	}
 
@@ -195,7 +200,7 @@ export class TracerPop {
 			let vz = this.vel[i * 3 + 2];
 			const life = this.#life[i];
 			const t01 = Math.min(1, this.#age[i] / life);
-			const heat = 1 - t01;
+			const heat = flow.ribbon?.current ? 1 : 1 - t01;
 			// Height along the flow's own axis, as a fraction of its reach.
 			const ox = px - flow.originX;
 			const oy = py - flow.originY;
@@ -342,14 +347,21 @@ export class TracerPop {
 			}
 
 			// The demonstration pulls material coordinates of a single solid.
-			// Attachment persists after the pull; no new matter replaces this sample.
+			// Solids stay attached; imagined currents give way to their medium on release.
 			if (flow.ribbon) {
 				const coords = this.#ribbonCoords;
 				ribbonPoint(flow.ribbon, coords[i * 3], coords[i * 3 + 1], coords[i * 3 + 2], ribbonTarget);
-				vx = (ribbonTarget.x - px) / dt;
-				vy = (ribbonTarget.y - py) / dt;
-				vz = (ribbonTarget.z - pz) / dt;
-				this.pooled[i] = 0;
+				const attachment = flow.ribbon.current?.attachment ?? 1;
+				if (attachment === 1) {
+					vx = (ribbonTarget.x - px) / dt;
+					vy = (ribbonTarget.y - py) / dt;
+					vz = (ribbonTarget.z - pz) / dt;
+				} else if (attachment > 0) {
+					vx += ((ribbonTarget.x - px) / dt - vx) * attachment;
+					vy += ((ribbonTarget.y - py) / dt - vy) * attachment;
+					vz += ((ribbonTarget.z - pz) / dt - vz) * attachment;
+				}
+				if (attachment > 0) this.pooled[i] = 0;
 			}
 
 			const nx = px + vx * dt;
@@ -427,6 +439,10 @@ export class TracerPop {
 			if (!flow.ribbon && spec.tearFrom < 2) {
 				fade *= 1 - 0.97 * smooth01((hn - spec.tearFrom) / 0.42);
 			}
+			if (flow.ribbon?.current) {
+				const current = flow.ribbon.current;
+				fade *= 1 - current.pulse * 0.5 * (1 - currentPulse(current, this.#ribbonCoords[i * 3]));
+			}
 			this.fade[i] = fade;
 			live += 1;
 			if (this.pooled[i]) pooledCount += 1;
@@ -449,12 +465,19 @@ export class TracerPop {
 					? Math.min(this.capacity, flow.ribbon.materialCount)
 					: 0;
 		}
+		const sampleCount = births;
 		let cursor = 0;
 		while (births-- > 0) {
 			while (cursor < this.capacity && this.alive[cursor]) cursor += 1;
 			if (cursor >= this.capacity) break;
 			const i = cursor;
 			spawnAt(flow, spec, rng, tMs, site);
+			if (flow.ribbon?.current) {
+				// Even material coverage prevents random clusters from turning a
+				// continuous current into a string of beads.
+				site.u = (i + 0.5) / sampleCount;
+				ribbonPoint(flow.ribbon, site.u, site.v!, site.w!, site);
+			}
 			if (flow.ribbon) {
 				this.#ribbonCoords[i * 3] = site.u!;
 				this.#ribbonCoords[i * 3 + 1] = site.v!;

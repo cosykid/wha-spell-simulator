@@ -46,6 +46,7 @@ Node for the golden tier:
 - [`flow.ts`](flow.ts) — `TrackFlow`, the eight spawn mouths, and the pinch
   boundary with its standing lobes.
 - [`ribbon.ts`](ribbon.ts) — the weave mouth's material coordinates and surface normals.
+- [`flowRibbon.ts`](flowRibbon.ts) — R-23's animated arches, streams, orbits and light loops.
 - [`sheetDeposit.ts`](sheetDeposit.ts) — flat deposits along those normals in the same shared field.
 - [`tracers.ts`](tracers.ts) — `TracerPop`: spawn, advection, ageing, the
   crown melt, the settled states, measurement and the quantized digest.

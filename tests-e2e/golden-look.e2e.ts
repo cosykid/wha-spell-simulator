@@ -97,6 +97,13 @@ const LOOK_CASES: LookCase[] = [
 		style: 'stage' as const,
 		frames: FRAME_MS
 	})),
+	...['water', 'fire', 'wind-directs-air', 'aeroform', 'light'].map((sigil) => ({
+		id: `cast-weave-${sigil}`,
+		presetId: 'weave',
+		style: 'stage' as const,
+		sigil,
+		frames: [2200, 3200, 4400]
+	})),
 	...SIGIL_ROWS.map((sigil) => ({
 		id: `cast-${SIGIL_CASE_PRESET}-${sigil}`,
 		presetId: SIGIL_CASE_PRESET,

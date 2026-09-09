@@ -1,5 +1,6 @@
 /** @file Material coordinates deform one finite solid sample into a flexible band. */
 import type { Vec3 } from '../../types.js';
+import { flowRibbonPoint, type RibbonCurrent } from './flowRibbon.js';
 
 export interface RibbonFlow {
 	length: number;
@@ -7,10 +8,15 @@ export interface RibbonFlow {
 	/** 0 is the contact sample, 1 is the stretched demonstration shape. */
 	stretch: number;
 	materialCount: number;
+	current?: RibbonCurrent;
 }
 
 /** u runs along the sample; v and w cross its width and thickness (-1..1). */
 export function ribbonPoint(ribbon: RibbonFlow, u: number, v: number, w: number, out: Vec3): void {
+	if (ribbon.current) {
+		flowRibbonPoint(ribbon.current, ribbon.width, u, v, w, out);
+		return;
+	}
 	const pull = ribbon.stretch;
 	const length = 0.75 + (ribbon.length - 0.75) * pull;
 	const s = u * length;

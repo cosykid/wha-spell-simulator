@@ -124,9 +124,11 @@ export interface VesselSpec {
 	stir: number;
 }
 
-/** R-22: the solid sample the simulator supplies for the stretch demonstration. */
+export type FlowWeaveMaterial = 'water' | 'fire' | 'wind' | 'aeroform' | 'light';
+
+/** R-22's solid samples and R-23's explicitly imagined elemental currents. */
 export interface WeaveSpec {
-	material: 'stone' | 'crystal';
+	material: 'stone' | 'crystal' | FlowWeaveMaterial;
 }
 
 /**
@@ -146,6 +148,8 @@ export interface Coupling {
 export type PlanNote =
 	/** R-22: a supplied solid sample and an illustrative pull, not autonomous emission. */
 	| 'weave-solid-demo'
+	/** R-23: user-authorized creative extension, not a canon spell. */
+	| 'weave-imagined'
 	/** R-22: no supported solid target for this sigil. */
 	| 'weave-needs-solid'
 	/** Passed through from the reading: at least one sign's facing is not evidence (R-06). */

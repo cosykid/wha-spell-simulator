@@ -159,6 +159,15 @@ function sampleGain(
 function motionFor(track: ScoreTrack): Motion {
 	switch (track.kind) {
 		case 'weave':
+			if (track.params.current) {
+				const current = track.params.current;
+				return {
+					...STILL,
+					spinHz: current.path === 'orbit' ? (current.speed * 0.25) / TWO_PI : 0,
+					tremoloHz: current.pulse > 0.5 ? current.speed / TWO_PI : 0,
+					sweep: { from: 0.6, to: 1.2, overMs: track.params.stretchMs }
+				};
+			}
 			return {
 				...STILL,
 				sweep: { from: 0.6, to: 1.2, overMs: BEAT_MS.strike }

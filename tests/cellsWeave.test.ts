@@ -31,13 +31,25 @@ test('[R-22] earth and crystal stretch a solid instead of emitting a default plu
 	}
 });
 
-test('[R-22] unsupported media get no ribbons and explain the solid target requirement', () => {
-	for (const sigil of ['water', 'fire', 'wind-directs-air', 'aeroform', 'light']) {
+test('[R-23] every non-solid sigil receives one explicitly creative current', () => {
+	for (const sigil of [
+		'water',
+		'fire',
+		'wind-directs-air',
+		'wind-underfoot',
+		'aeroform',
+		'light'
+	]) {
 		const plan = resolvePlan(reading(sigil));
-		assert.equal(plan.weave, null, sigil);
-		assert.ok(plan.notes.includes('weave-needs-solid'));
-		assert.ok(!scoreTracks(compileScore(plan, SOURCE)).some(({ kind }) => kind === 'weave'));
-		assert.match(weaveHint(plan), /solid target.*earth or crystal/);
+		assert.ok(plan.weave, sigil);
+		assert.ok(plan.notes.includes('weave-imagined'));
+		assert.ok(!plan.notes.includes('weave-needs-solid'));
+		const tracks = scoreTracks(compileScore(plan, SOURCE));
+		const currents = tracks.filter((track) => track.kind === 'weave');
+		assert.equal(currents.length, 1);
+		assert.ok(currents[0].params.current);
+		assert.ok(!tracks.some((track) => track.id === 'jet-default'));
+		assert.match(weaveHint(plan), /^Creative extension:/);
 	}
 });
 

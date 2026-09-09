@@ -3,10 +3,12 @@ import { shapeOf } from './arc.js';
 import { hushed, reportOf } from './perform.js';
 import { ribbonPoint, type RibbonFlow } from '../volume/ribbon.js';
 import { smooth01 } from '../volume/noise.js';
+import { createFlowWeaveCell } from './flowWeave.js';
 import type { Cell, CellConstraint, CellContext } from './cell.js';
 import type { Track } from '../../types.js';
 
 export function createWeaveCell(track: Track<'weave'>, ctx: CellContext): Cell {
+	if (track.params.current) return createFlowWeaveCell(track, ctx);
 	const { channel } = ctx;
 	const { params } = track;
 	const flow = channel.flow;
