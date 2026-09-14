@@ -6,6 +6,19 @@ on:
 jobs:
   backup:
     runs-on: ubuntu-latest
+    services:
+      snapshot-postgres:
+        image: postgres:18
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: snapshot
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
     steps:
       - uses: actions/checkout@v6
       - name: Install postgresql-client-18 # must match the Neon server major version
@@ -18,6 +31,9 @@ jobs:
       - name: Dump and upload to R2
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL_VPS }}
+          # Derive the CSV and ML dataset from the one dump locally. Otherwise
+          # all three exports reread the same wide sample rows from Neon.
+          SNAPSHOT_DATABASE_URL: postgres://postgres:postgres@localhost:5432/snapshot
           R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
           R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
           R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}

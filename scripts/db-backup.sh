@@ -21,6 +21,9 @@
 #   R2_BUCKET             Bucket name (default: wha-spell-simulator-postgres-backups)
 #   MAX_BUCKET_MB         Abort before uploading if the bucket already holds
 #                         more than this (default: 5000)
+#   SNAPSHOT_DATABASE_URL Restore the dump into this disposable database, then
+#                         build every derivative from it instead of querying the
+#                         source again. The target must be empty.
 #   BACKUP_DIR            Where to write the dump (default: a temp dir)
 #   HF_TOKEN              Hugging Face write token; when set, the ML dataset is
 #                         also published to the HF Hub (skipped otherwise)
@@ -106,6 +109,18 @@ echo "Dumping database to $dump_path ..."
 "$PG_RESTORE" --list "$dump_path" > /dev/null
 echo "Dump OK ($(du -h "$dump_path" | cut -f1))"
 
+# pg_dump is the one unavoidable read from the source. In CI we restore that
+# snapshot into a disposable local Postgres and produce the CSV and ML dataset
+# there. Reading those large JSONB sample rows from Neon again would count the
+# same bytes toward public network transfer two more times.
+read_url="$db_url"
+if [[ -n "${SNAPSHOT_DATABASE_URL:-}" ]]; then
+	echo "Restoring dump into the disposable snapshot database ..."
+	"$PG_RESTORE" --no-owner --no-privileges --dbname "$SNAPSHOT_DATABASE_URL" "$dump_path"
+	read_url="$SNAPSHOT_DATABASE_URL"
+	echo "Snapshot restore OK"
+fi
+
 ###############################################################################
 # CSV export
 ###############################################################################
@@ -113,7 +128,7 @@ echo "Dump OK ($(du -h "$dump_path" | cut -f1))"
 echo "Exporting labelled_samples to $csv_path ..."
 # COPY of a bare table name skips generated columns (data_hash), which the
 # dataset converter needs — go through SELECT * to include them.
-"$PSQL" "$db_url" --no-psqlrc --quiet \
+"$PSQL" "$read_url" --no-psqlrc --quiet \
 	-c "\\copy (select * from labelled_samples) to '$csv_path' with (format csv, header)"
 
 [[ -s "$csv_path" ]] || { echo "CSV export came out empty" >&2; exit 1; }
@@ -135,7 +150,7 @@ mkdir -p "$ds_root"
 
 echo "Building ML dataset (JSONL + images) ..."
 uv run --project "$ds_project" "$ds_project/wha-ds-converter.py" \
-	--database-url "$db_url" \
+	--database-url "$read_url" \
 	-o "$ds_root/dataset.jsonl"
 uv run --project "$ds_project" "$ds_project/wha-ds-imageifier.py" \
 	"$ds_root/dataset.jsonl" -o "$ds_root/images"
