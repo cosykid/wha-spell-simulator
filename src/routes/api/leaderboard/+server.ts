@@ -6,6 +6,7 @@ import {
 } from '$lib/server/storage/labelledSampleStore.js';
 
 import { json } from '@sveltejs/kit';
+import { PUBLIC_AGGREGATE_CACHE } from '../cache.js';
 import { UNKNOWN_CONTRIBUTOR, type LeaderboardEntry } from '../../tools/leaderboard/leaderboard.js';
 
 export const prerender = false;
@@ -63,7 +64,7 @@ function mergeTallies(tallies: ContributorTally[]): Map<string, LeaderboardEntry
  * `overallTotal` is always the contributor's all-signs total so titles (earned by
  * overall output) don't change when filtering by sign.
  */
-export async function GET({ url }) {
+export async function GET({ url, setHeaders }) {
 	try {
 		const query: ContributorTallyQuery = {};
 		const signId = url.searchParams.get('signId');
@@ -88,6 +89,7 @@ export async function GET({ url }) {
 			(a, b) => b.total - a.total || b.approved - a.approved
 		);
 
+		setHeaders({ 'cache-control': PUBLIC_AGGREGATE_CACHE });
 		return json({ ok: true, entries, signIds });
 	} catch (error) {
 		return json(

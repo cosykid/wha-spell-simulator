@@ -8,8 +8,8 @@
  * the edge and never on a reader.
  */
 
-/** A published page. A spell published now shows up within the minute. */
-export const LIBRARY_FEED_CACHE = 'public, max-age=0, s-maxage=60, stale-while-revalidate=600';
+/** A published page. A spell published now shows up within five minutes. */
+export const LIBRARY_FEED_CACHE = 'public, max-age=60, s-maxage=300, stale-while-revalidate=1800';
 
 /**
  * One published spell's drawing. Held longer than the feed: a drawing only

@@ -1,7 +1,5 @@
 name: DB Backup
 on:
-  schedule:
-    - cron: '17 3 * * *' # daily, 03:17 UTC
   workflow_dispatch:
 jobs:
   backup:

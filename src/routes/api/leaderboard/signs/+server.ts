@@ -1,6 +1,7 @@
 import { tallySigns, type SignTallyQuery } from '$lib/server/storage/labelledSampleStore.js';
 
 import { json } from '@sveltejs/kit';
+import { PUBLIC_AGGREGATE_CACHE } from '../../cache.js';
 import type { SignEntry } from '../../../tools/leaderboard/leaderboard.js';
 
 export const prerender = false;
@@ -10,7 +11,7 @@ export const prerender = false;
  * drawn. Optional `?username=` scopes the counts to one contributor (their personal
  * per-sign breakdown) instead of everyone. Ranked by total, most-drawn first.
  */
-export async function GET({ url }) {
+export async function GET({ url, setHeaders }) {
 	try {
 		const query: SignTallyQuery = {};
 		const username = url.searchParams.get('username')?.trim();
@@ -28,6 +29,7 @@ export async function GET({ url }) {
 			}))
 			.sort((a, b) => b.total - a.total || b.approved - a.approved);
 
+		setHeaders({ 'cache-control': PUBLIC_AGGREGATE_CACHE });
 		return json({ ok: true, signs });
 	} catch (error) {
 		return json(
