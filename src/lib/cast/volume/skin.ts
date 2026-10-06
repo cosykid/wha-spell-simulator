@@ -11,31 +11,49 @@
  * The chip law lives here: deposits below the binary cutoff are not made at
  * all, cohesion melts loners toward the crowd, and the height-melt upstream in
  * `tracers.ts` fades crowns before they can freeze into grid-sized chips.
+ *
+ * Every pass over the field is bounded by the box the deposits reached
+ * (`marchingField.ts`), and only the vertices a paint wrote go to the GPU.
  */
 
 import * as THREE from 'three';
-import { MarchingCubes } from 'three/examples/jsm/objects/MarchingCubes.js';
 import { SPAN, TRACER_BUDGET, VOLUME, Z0 } from './tuning.js';
+import { Cohesion } from './cohesion.js';
+import { MarchingField } from './marchingField.js';
+import { Polygonizer } from './polygonize.js';
 import type { SkinSpec } from './elements.js';
 import type { VolumeSubstrate } from './substrate.js';
-import { depositSheet } from './sheetDeposit.js';
 
-const GRID_MAX = 40;
+/** Triangles one paint may emit. The busiest cast measured stays under a tenth of it. */
+const MAX_TRIANGLES = 120000;
 const surfaceNormal = { x: 0, y: 0, z: 0 };
 
 export class VolumeSkin {
-	readonly mesh: MarchingCubes;
-	readonly #fieldCopy = new Float32Array(VOLUME.res ** 3);
+	readonly mesh: THREE.Mesh<THREE.BufferGeometry, THREE.Material>;
+	readonly #field = new MarchingField(VOLUME.res);
+	readonly #polygonizer = new Polygonizer(VOLUME.res, MAX_TRIANGLES);
+	readonly #position: THREE.BufferAttribute;
+	readonly #normal: THREE.BufferAttribute;
 	readonly #candPos = new Float32Array(TRACER_BUDGET * 3);
 	readonly #candWeight = new Float32Array(TRACER_BUDGET);
 	readonly #candVel = new Float32Array(TRACER_BUDGET * 3);
 	readonly #candNormal = new Float32Array(TRACER_BUDGET * 3);
-	readonly #gridHead = new Int32Array(GRID_MAX ** 3);
-	readonly #gridNext = new Int32Array(TRACER_BUDGET);
+	readonly #cohesion = new Cohesion(TRACER_BUDGET, VOLUME.cohesionR / SPAN);
 	#spec: SkinSpec | null = null;
 
 	constructor(material: THREE.Material) {
-		this.mesh = new MarchingCubes(VOLUME.res, material, false, false, 120000);
+		const geometry = new THREE.BufferGeometry();
+		this.#position = new THREE.BufferAttribute(this.#polygonizer.positions, 3);
+		this.#normal = new THREE.BufferAttribute(this.#polygonizer.normals, 3);
+		this.#position.setUsage(THREE.DynamicDrawUsage);
+		this.#normal.setUsage(THREE.DynamicDrawUsage);
+		geometry.setAttribute('position', this.#position);
+		geometry.setAttribute('normal', this.#normal);
+		geometry.setDrawRange(0, 0);
+		// The renderer sorts transparent meshes by this sphere's centre. Fixed at
+		// the grid's centre, so a paint's vertices never reorder the draw.
+		geometry.boundingSphere = new THREE.Sphere(new THREE.Vector3(), 1);
+		this.mesh = new THREE.Mesh(geometry, material);
 		// The seal root's axis swap has determinant -1, which would flip the
 		// polygonized winding and invert the shading. Mirroring the mesh on x
 		// (and depositing mirrored to compensate) restores a +1 determinant, so
@@ -54,8 +72,8 @@ export class VolumeSkin {
 
 	detach(): void {
 		this.#spec = null;
-		this.mesh.reset();
-		this.mesh.update();
+		this.#field.wipe();
+		this.mesh.geometry.setDrawRange(0, 0);
 	}
 
 	dispose(): void {
@@ -65,12 +83,10 @@ export class VolumeSkin {
 	/** Re-deposit every visible tracer as a smeared metaball and re-polygonize. */
 	update(substrate: VolumeSubstrate): void {
 		const spec = this.#spec;
-		const m = this.mesh;
 		if (!spec) {
 			return;
 		}
-		m.isolation = VOLUME.isolation * spec.isoScale;
-		m.reset();
+		this.#field.wipe();
 		const coh = VOLUME.cohesion * spec.cohesion;
 		const smear = (VOLUME.smear * 1.5 * spec.smearScale) / SPAN;
 		let balls = 0;
@@ -126,8 +142,25 @@ export class VolumeSkin {
 				);
 			}
 		}
-		for (let k = 0; k < spec.smoothPasses; k += 1) this.#smoothField(spec.smooth);
-		m.update();
+		for (let k = 0; k < spec.smoothPasses; k += 1) this.#field.smooth(spec.smooth);
+		this.#upload(this.#polygonizer.run(this.#field, VOLUME.isolation * spec.isoScale));
+	}
+
+	/**
+	 * Sends the vertices this paint wrote and nothing past them. The buffers
+	 * are sized for the worst case, and a full upload of them every paint cost
+	 * more bandwidth than everything the skin draws.
+	 */
+	#upload(vertices: number): void {
+		this.mesh.geometry.setDrawRange(0, vertices);
+		// An update range of zero length means the whole buffer to WebGL, and an
+		// empty paint draws nothing anyway.
+		if (vertices === 0) return;
+		for (const attribute of [this.#position, this.#normal]) {
+			attribute.clearUpdateRanges();
+			attribute.addUpdateRange(0, vertices * 3);
+			attribute.needsUpdate = true;
+		}
 	}
 
 	/**
@@ -148,9 +181,7 @@ export class VolumeSkin {
 		const mx = 1 - bx;
 		const normal = this.#candNormal;
 		if (Math.hypot(normal[j * 3], normal[j * 3 + 1], normal[j * 3 + 2]) > 0.5) {
-			depositSheet(
-				this.mesh.field,
-				VOLUME.res,
+			this.#field.addSheet(
 				mx,
 				by,
 				bz,
@@ -162,8 +193,8 @@ export class VolumeSkin {
 			);
 			return;
 		}
-		this.mesh.addBall(mx, by, bz, s, VOLUME.subtract);
-		this.mesh.addBall(mx + sx, by - sy, bz - sz, s, VOLUME.subtract);
+		this.#field.addBall(mx, by, bz, s, VOLUME.subtract);
+		this.#field.addBall(mx + sx, by - sy, bz - sz, s, VOLUME.subtract);
 	}
 
 	/**
@@ -172,82 +203,25 @@ export class VolumeSkin {
 	 * stragglers thin to the loner floor and melt instead of chipping.
 	 */
 	#cohereAndDeposit(count: number, coh: number, spec: SkinSpec): void {
-		const rN = VOLUME.cohesionR / SPAN;
-		const gn = Math.min(GRID_MAX, Math.max(1, Math.floor(1 / rN)));
 		const cand = this.#candPos;
-		const head = this.#gridHead.fill(-1, 0, gn * gn * gn);
-		const next = this.#gridNext;
-		for (let j = 0; j < count; j += 1) {
-			const cx = Math.min(gn - 1, (cand[j * 3] * gn) | 0);
-			const cy = Math.min(gn - 1, (cand[j * 3 + 1] * gn) | 0);
-			const cz = Math.min(gn - 1, (cand[j * 3 + 2] * gn) | 0);
-			const c = (cz * gn + cy) * gn + cx;
-			next[j] = head[c];
-			head[c] = j;
-		}
-		const r2 = rN * rN;
+		const { company, sum } = this.#cohesion;
+		this.#cohesion.gather(cand, count);
 		for (let j = 0; j < count; j += 1) {
 			const x = cand[j * 3];
 			const y = cand[j * 3 + 1];
 			const z = cand[j * 3 + 2];
-			const cx = Math.min(gn - 1, (x * gn) | 0);
-			const cy = Math.min(gn - 1, (y * gn) | 0);
-			const cz = Math.min(gn - 1, (z * gn) | 0);
-			let k = 0;
-			let mx = 0;
-			let my = 0;
-			let mz = 0;
-			for (let dz = -1; dz <= 1; dz += 1) {
-				const zc = cz + dz;
-				if (zc < 0 || zc >= gn) continue;
-				for (let dy = -1; dy <= 1; dy += 1) {
-					const yc = cy + dy;
-					if (yc < 0 || yc >= gn) continue;
-					for (let dx = -1; dx <= 1; dx += 1) {
-						const xc = cx + dx;
-						if (xc < 0 || xc >= gn) continue;
-						for (let o = head[(zc * gn + yc) * gn + xc]; o !== -1; o = next[o]) {
-							const ex = cand[o * 3] - x;
-							const ey = cand[o * 3 + 1] - y;
-							const ez = cand[o * 3 + 2] - z;
-							if (ex * ex + ey * ey + ez * ez > r2) continue;
-							k += 1;
-							mx += cand[o * 3];
-							my += cand[o * 3 + 1];
-							mz += cand[o * 3 + 2];
-						}
-					}
-				}
-			}
+			const k = company[j];
 			const t = Math.min(1, (k - 1) / Math.max(1, VOLUME.cohesionK - 1));
 			const w = spec.loner + (1 - spec.loner) * t;
 			const pull = coh * t;
 			this.#deposit(
 				j,
-				x + (mx / k - x) * pull,
-				y + (my / k - y) * pull,
-				z + (mz / k - z) * pull,
+				x + (sum[j * 3] / k - x) * pull,
+				y + (sum[j * 3 + 1] / k - y) * pull,
+				z + (sum[j * 3 + 2] / k - z) * pull,
 				w,
 				spec
 			);
-		}
-	}
-
-	/** Face-neighbour diffusion: bridges blobs a cell apart into one surface. */
-	#smoothField(intensity: number): void {
-		const f = this.mesh.field as Float32Array;
-		const n = VOLUME.res;
-		const n2 = n * n;
-		const c = this.#fieldCopy;
-		c.set(f);
-		for (let z = 1; z < n - 1; z += 1) {
-			for (let y = 1; y < n - 1; y += 1) {
-				let i = n2 * z + n * y + 1;
-				for (let x = 1; x < n - 1; x += 1, i += 1) {
-					const nb = c[i - 1] + c[i + 1] + c[i - n] + c[i + n] + c[i - n2] + c[i + n2];
-					f[i] = c[i] + intensity * (nb / 6 - c[i]);
-				}
-			}
 		}
 	}
 }

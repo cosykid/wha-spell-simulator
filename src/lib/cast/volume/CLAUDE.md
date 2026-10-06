@@ -64,8 +64,16 @@ GPU half — three.js, owned by the stage:
 
 - [`volumeStage.ts`](volumeStage.ts) — the assembly: warm, attach, paint,
   present, detach.
-- [`skin.ts`](skin.ts) — `VolumeSkin`: metaball deposit, cohesion, smoothing,
-  repolygonize.
+- [`skin.ts`](skin.ts) — `VolumeSkin`: gathers a paint's deposits from the
+  live tracers, pulls them together, deposits them and repolygonizes, then
+  uploads only the vertices it wrote. It works through three parts:
+  - [`cohesion.ts`](cohesion.ts) — who keeps company with whom: each
+    deposit's count and centroid inside the cohesion radius.
+  - [`marchingField.ts`](marchingField.ts) — the field and the box of it a
+    paint touched: the ball and sheet deposits, the smoothing and the wipe,
+    each walking only that box.
+  - [`polygonize.ts`](polygonize.ts) — marching cubes over that box,
+    triangle for triangle what three's `MarchingCubes` emits.
 - [`inkSkin.ts`](inkSkin.ts) — the watercolor-and-ink shader, one program per
   element row.
 - [`groundWash.ts`](groundWash.ts) — the paper-contact circle.
@@ -101,6 +109,17 @@ at 60Hz and `PAINT_BURST` is one: a call that fell behind simulates silently
 and paints its final state. Painting every caught-up step is the catch-up
 spiral the prototype diagnosed. The mesh may lag one sim step at high display
 rates; it never interpolates.
+
+**The skin's fast paths change no pixel.** The field, its trimmed kernels,
+the bounded smoothing and the polygonizer reproduce three's `MarchingCubes`
+bit for bit, in the same cell and triangle order (the ink skin blends without
+sorting, so order is part of the picture). Cohesion visits pairs in any order
+because its sums are exact (float32 coordinates in [0, 1], fewer than 2048 of
+them, summed in doubles), and the noise memo returns the hash it would
+recompute. [`castSkin.test.ts`](../../../../tests/castSkin.test.ts) and
+[`castNoise.test.ts`](../../../../tests/castNoise.test.ts) pin each one
+against the code it replaced. A speedup that moves a float here is a look
+change, and has to be argued and re-baselined as one.
 
 **The sink is a ring attractor, never a point sink.** A positive `sink`
 gathers matter at the `pool` radius and pushes it back out of the exact
