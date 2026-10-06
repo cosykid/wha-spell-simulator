@@ -63,8 +63,8 @@ interface Performance {
 
 /**
  * The plan's declared couplings, written onto the tracks they bind. The plan
- * names which primitives a hold captures; the score records the holder's track
- * id on each of them, and the sim reads nothing else.
+ * names which primitives a hold captures. The score records the holder's track
+ * id on each of them, and the stage reads nothing else.
  *
  * R-18 ranks the pair: drive wins while driven, grip wins on coast. Capture is
  * soft, because `hold`'s constraint only takes parcels that have effectively
@@ -132,7 +132,7 @@ function perform(plan: SpellPlan, population: Population): Performance {
 
 /**
  * The whole score digested. Identical signature means identical cast, so
- * everything the sim reads goes in and nothing else does.
+ * everything the stage reads goes in and nothing else does.
  */
 function scoreSignature(score: Omit<SpellScore, 'signature'>): string {
 	return `score1:${hashHex(JSON.stringify(score))}`;

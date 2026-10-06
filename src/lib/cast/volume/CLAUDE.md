@@ -62,14 +62,25 @@ Node for the golden tier:
 
 GPU half — three.js, owned by the stage:
 
-- [`volumeStage.ts`](volumeStage.ts) — the assembly: warm, attach, paint,
+- [`volumeStage.ts`](volumeStage.ts): the assembly. Warm, attach, paint,
   present, detach.
-- [`skin.ts`](skin.ts) — `VolumeSkin`: metaball deposit, cohesion, smoothing,
-  repolygonize.
-- [`inkSkin.ts`](inkSkin.ts) — the watercolor-and-ink shader, one program per
+- [`skin.ts`](skin.ts): `VolumeSkin`, which gathers a paint's deposits from the
+  live tracers, pulls them together, deposits them on the attached row's grid
+  and repolygonizes, then uploads only the vertices it wrote. It works through
+  three parts:
+  - [`cohesion.ts`](cohesion.ts): who keeps company with whom, as each
+    deposit's count and centroid inside the cohesion radius.
+  - [`marchingField.ts`](marchingField.ts): the field and the box of it a
+    paint touched. The ball and sheet deposits, the smoothing and the wipe
+    each walk only that box, and `smoothingPasses` turns a row's reach into
+    passes on its grid.
+  - [`polygonize.ts`](polygonize.ts): marching cubes over that box, triangle
+    for triangle what three's `MarchingCubes` emits, on any grid up to the
+    finest a row asks for.
+- [`inkSkin.ts`](inkSkin.ts): the watercolor-and-ink shader, one program per
   element row.
-- [`groundWash.ts`](groundWash.ts) — the paper-contact circle.
-- [`ambient.ts`](ambient.ts) — the charge-beat washes over the shimmer
+- [`groundWash.ts`](groundWash.ts): the paper-contact circle.
+- [`ambient.ts`](ambient.ts): the charge-beat washes over the shimmer
   channel's tracers.
 
 ## Invariants and gotchas
@@ -80,10 +91,11 @@ load-bearing: the binary deposit cutoff (`VOLUME.cutoff`; a deposit is big
 enough to render round or not made at all), the cohesion loner floor (isolated
 deposits melt instead of chipping), the steep crown melt in `tracers.ts` (a
 tip fades below the cutoff before it can freeze), and a base `strength` sized
-so a full ball clears two cells at `VOLUME.res`. Change the resolution and
-re-derive the strength before judging a frame. Crystal is the one row allowed
-to lean the other way, and `castVolume.test.ts` pins that it stays the only
-one.
+so a full ball clears two cells of every row's `SKIN` grid. Strength and
+`smoothing` are in world units, so a grid change refines the polygons and keeps
+every shape. Crystal is the one row allowed to lean the other way (it keeps its
+loners and the coarse 56 grid that cuts them into facets, where every other
+row runs 72), and `castVolume.test.ts` pins that it stays the only one.
 
 **Same medium merges.** Every non-shimmer channel deposits into the one field,
 so a burst and the column standing in it fuse — that is the physics, not a
@@ -101,6 +113,17 @@ at 60Hz and `PAINT_BURST` is one: a call that fell behind simulates silently
 and paints its final state. Painting every caught-up step is the catch-up
 spiral the prototype diagnosed. The mesh may lag one sim step at high display
 rates; it never interpolates.
+
+**The skin's fast paths change no pixel.** The field, its trimmed kernels,
+the bounded smoothing and the polygonizer reproduce three's `MarchingCubes`
+bit for bit, in the same cell and triangle order (the ink skin blends without
+sorting, so order is part of the picture). Cohesion visits pairs in any order
+because its sums are exact (float32 coordinates in [0, 1], fewer than 2048 of
+them, summed in doubles), and the noise memo returns the hash it would
+recompute. [`castSkin.test.ts`](../../../../tests/castSkin.test.ts) and
+[`castNoise.test.ts`](../../../../tests/castNoise.test.ts) pin each one
+against the code it replaced. A speedup that moves a float here is a look
+change, and has to be argued and re-baselined as one.
 
 **The sink is a ring attractor, never a point sink.** A positive `sink`
 gathers matter at the `pool` radius and pushes it back out of the exact

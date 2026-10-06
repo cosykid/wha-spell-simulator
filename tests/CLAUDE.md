@@ -37,7 +37,7 @@ Load-bearing coverage, largest first:
 - [`spellThumbnail.test.ts`](spellThumbnail.test.ts) — `buildSpellThumbnail` and `simplifyPath`: the fit into the preview box, and that thinning a dense stroke does not move it off the drawn shape.
 
 The rest are small and single-subject: stroke erase and preview, spell summary, activation carry, the plan digest, the portal projection, shape placement, grouping proximity, the chamfer matcher, sample picking, password hashing, connection strings, the classic engine's field adapter ([`classicField.test.ts`](classicField.test.ts)), the effect-style narrowing ([`effectStyle.test.ts`](effectStyle.test.ts)), the session marker's cookie reader ([`sessionMarker.test.ts`](sessionMarker.test.ts)), the drawing-capture pointer lifecycle ([`drawingCapture.test.ts`](drawingCapture.test.ts)), the classifier client's warm protocol ([`drawingClassifierWarm.test.ts`](drawingClassifierWarm.test.ts)), the eraser cursor ([`eraserCursor.test.ts`](eraserCursor.test.ts)), the ink's
-variable-width geometry ([`inkRibbon.test.ts`](inkRibbon.test.ts)), the stroke a spent page hands back ([`ringSeal.test.ts`](ringSeal.test.ts)), the lab's golden-frame URL hook ([`labGoldens.test.ts`](labGoldens.test.ts)) and the first-spell guide's script, ghost geometry and arc-length walkers ([`firstSpellGuide.test.ts`](firstSpellGuide.test.ts)).
+variable-width geometry ([`inkRibbon.test.ts`](inkRibbon.test.ts)), the stroke a spent page hands back ([`ringSeal.test.ts`](ringSeal.test.ts)), the lab's golden-frame URL hook ([`labGoldens.test.ts`](labGoldens.test.ts)), the volume skin's fast paths against three's marching cubes and the walks they replaced, and its smoothing's reach on any grid ([`castSkin.test.ts`](castSkin.test.ts)), the tracers' noise memo ([`castNoise.test.ts`](castNoise.test.ts)) and the first-spell guide's script, ghost geometry and arc-length walkers ([`firstSpellGuide.test.ts`](firstSpellGuide.test.ts)).
 
 [`dictionaryFixtures.ts`](dictionaryFixtures.ts) is a helper, not a suite. Helpers carry no `.test.ts` suffix.
 
@@ -49,9 +49,9 @@ keyed on the [lab presets](../src/lib/ui/spellEffectLabPresets.ts). The field mo
 sit beside them died with `sampleFieldForce`.
 
 **Both golden tiers here are stage-only, and that is a decision rather than an
-omission.** The cast tier serializes a cell scene graph — per track, per form,
-every uniform a cell wrote — and the classic engine has no cells, no tracks and
-no forms to serialize. It also stands on a determinism contract classic cannot
+omission.** The cast tier serializes each cell's report and its channel's tracer
+digest, and the classic engine has no cells, no tracks and no tracers to
+serialize. It also stands on a determinism contract classic cannot
 satisfy: classic calls `Math.random` about eighty times across its renderers and
 would not be classic if it stopped. What pixels can say about it is said by the
 look tier's `classic-*` baselines in

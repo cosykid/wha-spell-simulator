@@ -75,9 +75,11 @@ exact rejected failure. Mitigations, all load-bearing:
   (`(0.16 + 0.84·fade) · channelDeposit`, times the cohesion crowd factor) is
   either past the cutoff or the deposit is not made at all.
 - **Ball radius clears two cells**: base `strength 0.037` against
-  `subtract 12` at `res 56` gives a full ball √(0.037·0.6/12)·56 ≈ 2.4 cells.
-  `castVolume.test.ts` re-derives this, so a resolution change cannot silently
-  reopen the chip regime.
+  `subtract 12` gives a full ball √(0.037·0.6/12) of the grid's span, 2.4
+  cells on crystal's 56 grid and 3.1 on the 72 grid every other row has run
+  since [the grid the saving bought](#the-grid-the-saving-bought).
+  `castVolume.test.ts` re-derives this per row, so a grid change cannot
+  silently reopen the chip regime.
 - **Cohesion with a loner floor**: deposits contract toward the local tracer
   centroid (`cohesion 0.65 · row`, radius `0.3`, saturating at 8 neighbours),
   and isolated deposits fall to the row's `loner` floor and melt below the
@@ -200,6 +202,11 @@ interpolates. Turbulence curl lands on one step in three at three times the
 gain (25ms cadence), which is the advection's whole cost contained.
 
 ## Performance
+
+The numbers below are the engine as it landed. The skin's own cost has since
+been cut without a pixel moving, and part of the saving then bought a finer
+grid: see the
+[2026-10-06 addendum](#2026-10-06-addendum-the-skins-fast-paths).
 
 Measured on this hardware (Apple Silicon, ANGLE Metal), the reference cast —
 fire-shoot's seal on the real simulator route, production settings, rAF
@@ -543,3 +550,145 @@ transient is still approximated by the envelope. Aeroform's 0.4 is a
 design choice, not a reading of a panel. And the excluded volume is global
 by law but sized against the thin walls, so a row that wants a denser body
 raises its own spawn, not the push.
+
+## 2026-10-06 addendum: the skin's fast paths
+
+A frame was profiled part by part on the real stage (hardware ANGLE Metal, a
+scripted 60fps clock, ten presets across every element): the skin was 75 to
+83 percent of it, the tracer physics under a fifth. The skin ran on three's
+generic `MarchingCubes`, which walked all 56³ cells to wipe and to polygonize
+however small the cast, built a colour palette per cell and allocated a
+`Color` per ball with colours off, and marked its whole 120,000-triangle
+buffers for upload (8.6MB) every paint to draw a few thousand triangles.
+Cohesion, the next cost, measured every pair of deposits twice.
+
+What replaced each, all of it pixel-identical:
+
+- [`marchingField.ts`](../src/lib/cast/volume/marchingField.ts) keeps the
+  field and the box of it a paint touched. The wipe, the smoothing and the
+  polygonizer walk only that box, and every ball and sheet row walks only
+  its chord through the deposit. Cells outside are exactly zero, so the
+  bounded passes write the floats the whole-grid passes wrote.
+- [`polygonize.ts`](../src/lib/cast/volume/polygonize.ts) is three's
+  polygonizer kept to its arithmetic and its cell order, so the triangles
+  come out identical and in the same sequence. Order matters here, because
+  the ink skin blends without sorting.
+- The skin uploads only the vertices a paint wrote, through an update range
+  on both attributes.
+- [`cohesion.ts`](../src/lib/cast/volume/cohesion.ts) counting-sorts the
+  deposits into contiguous cell runs and measures each pair once, crediting
+  both sides. That is exact for a reason worth keeping: every coordinate is
+  a float32 in [0, 1], and a double holds any sum of fewer than 2048 of them
+  exactly, so no visiting order can change a centroid.
+- The noise memoizes its lattice hash. The hash is a pure function of three
+  integers, and a cast's tracers share a few hundred lattice points.
+
+Tried and dropped: a half-radius cohesion grid (exact, but its 125-cell walk
+cost a column more than it saved a held ball), and trimming the tracer
+neighbourhood to the buckets its radius reaches (exact once hash collisions
+are honoured, but most tracers are landed, the heap's radius is a whole cell,
+and the bookkeeping cost more than the buckets it skipped).
+
+Measured on an M2 Pro, median frame time over a whole cast, before and after,
+interleaved over two rounds. The throttled column is one round at a 4x CPU
+slowdown, a stand-in for a phone:
+
+| preset                   | before |  after | 4x throttled, before → after |
+| ------------------------ | -----: | -----: | ---------------------------: |
+| fire `column-balanced`   | 4.8 ms | 1.6 ms |                21.3 → 7.1 ms |
+| fire `none`              | 3.9 ms | 0.9 ms |                17.8 → 3.9 ms |
+| water `dispersion`       | 5.7 ms | 1.9 ms |                26.0 → 8.5 ms |
+| water `pull-vortex`      | 5.3 ms | 1.9 ms |                25.0 → 8.4 ms |
+| wind `column-levitation` | 6.7 ms | 2.6 ms |               30.5 → 11.7 ms |
+| earth `region-ring`      | 6.5 ms | 3.0 ms |               27.9 → 11.8 ms |
+| earth `weave`            | 6.5 ms | 2.7 ms |               29.4 → 12.6 ms |
+| light `column-balanced`  | 4.0 ms | 0.9 ms |                16.8 → 4.4 ms |
+| crystal `levitation`     | 9.2 ms | 3.5 ms |               43.2 → 16.2 ms |
+| water `swirl-pushes`     | 4.9 ms | 1.3 ms |                22.2 → 6.2 ms |
+
+The p95 roughly halved with the medians (earth `region-ring` 13.6 → 7.5ms,
+crystal `levitation` 12.1 → 4.8ms). A held ball is still the heaviest cast,
+and what is left of it is inherent: nearly every deposit stands inside every
+other's cohesion radius, so the pairs are the work.
+
+Verification: [`castSkin.test.ts`](../tests/castSkin.test.ts) pins the field,
+the trimmed kernels, the bounded smoothing and the polygonizer against three's
+`MarchingCubes`, and cohesion against the walk it replaced, bit for bit.
+[`castNoise.test.ts`](../tests/castNoise.test.ts) pins the memo against the
+sine. The cast tier's texts did not move (the tracers are untouched), the look
+tier passed without a regenerated baseline, and hardware captures of ten
+presets diff to zero pixels.
+
+### The grid the saving bought
+
+The chip law is a statement about grid cells, so the plainest cure for a chip
+is a smaller cell, and the fast paths made one affordable. A census decided
+where it pays. It ran every lab preset under seven sigils in plain Node,
+skinned each cast every 50ms from the strike to the release on both grids
+from the same tracer state, and split every mesh into connected components. A
+component under 32 triangles is a chip, and a visible one has more than 0.001
+square seal units of surface, about two pixels across in the lab frame.
+Visible chips per paint:
+
+| row      | grid 56 | grid 72 |
+| -------- | ------: | ------: |
+| fire     |     5.9 |     3.8 |
+| water    |     2.4 |     1.1 |
+| earth    |     1.8 |     0.4 |
+| light    |     1.0 |     0.6 |
+| aeroform |     0.8 |     0.2 |
+| wind     |     0.7 |     0.1 |
+| crystal  |     4.0 |     0.4 |
+
+Raising the grid alone looked worse, not better. Water's edge scalloped and
+fire's crown crinkled, because smoothing was counted in passes and a pass
+reaches one cell, so the finer grid had quietly been smoothed less. Smoothing
+is now a reach in seal units (`SkinSpec.smoothing`, one standard deviation),
+and `smoothingPasses` turns it into passes on the row's own grid. A pass of
+intensity s adds s/3 square cells of variance, and each pass stays at or under
+
+1. Every row carries the reach its 56-grid passes had, so the shapes held and
+   only the polygons refined. Grid 64 bought about half of 72's cure. Grid 80
+   cost twice 72's skin time, and its water got worse again.
+
+Crystal keeps 56. Its row leans into the chip law on purpose, and at 72 its
+angular chunks rounded into bubbles, which is the opposite of a crystal. So
+the grid became a row's choice (`SkinSpec.grid`), the way its loner floor is,
+and `castVolume.test.ts` pins that crystal stays the only coarse row. One
+polygonizer sized for the finest grid serves every row through the same
+output buffers, and the skin keeps one field per grid.
+
+One residual is known. The deposit cutoff was sized at 56, where a lone
+deposit at the cutoff covers less than a cell and mostly falls between grid
+points. At 72 the same deposit polygonizes, so a frame can show a small
+diamond where 56 showed a speck or nothing. The census counts those, and the
+totals still fall. If they ever read as shards, re-derive the cutoff for 72
+before reaching for the grid.
+
+The cost, median frame ms on the same M2 Pro, interleaved over two rounds, and
+one round at the 4x throttle:
+
+| preset                   | before | fast paths | with the grid | 4x throttled, with the grid |
+| ------------------------ | -----: | ---------: | ------------: | --------------------------: |
+| fire `column-balanced`   | 4.8 ms |     1.6 ms |        2.0 ms |                      9.1 ms |
+| fire `none`              | 3.9 ms |     0.9 ms |        0.9 ms |                      4.4 ms |
+| water `dispersion`       | 5.7 ms |     1.9 ms |        2.9 ms |                     13.8 ms |
+| water `pull-vortex`      | 5.3 ms |     1.9 ms |        3.0 ms |                     14.4 ms |
+| wind `column-levitation` | 6.7 ms |     2.6 ms |        3.2 ms |                     15.9 ms |
+| earth `region-ring`      | 6.5 ms |     3.0 ms |        3.3 ms |                     16.7 ms |
+| earth `weave`            | 6.5 ms |     2.7 ms |        3.4 ms |                     15.8 ms |
+| light `column-balanced`  | 4.0 ms |     0.9 ms |        1.3 ms |                      5.9 ms |
+| crystal `levitation`     | 9.2 ms |     3.5 ms |        3.6 ms |                     17.0 ms |
+| water `swirl-pushes`     | 4.9 ms |     1.3 ms |        1.7 ms |                      8.0 ms |
+
+Water pays most, for its third smoothing pass over a wider box. Crystal's grid
+did not move, and its throttled 17.0ms against the 16.2ms above is that bench's
+round-to-round noise. At the 4x throttle every cast lands between 4 and 17ms,
+against 17 to 43ms before the fast paths.
+
+Verification: `castSkin.test.ts` pins the polygonizer against three's
+`MarchingCubes` on both grids through one shared polygonizer, and the
+smoothing's reach in seal units on three grids. The cast tier's texts did not
+move. The look tier's 81 non-crystal stage baselines were regenerated and
+compared against the old ones by eye, the three crystal and 33 classic
+baselines passed unchanged, and the discriminative floor still passes.

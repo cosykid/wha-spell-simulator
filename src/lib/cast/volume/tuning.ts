@@ -7,8 +7,9 @@
  * below about two grid cells polygonizes as an angular chip, which is the
  * exact rejected failure. Three numbers here enforce its mitigations — the
  * binary deposit cutoff, the loner floor, and a ball radius that clears two
- * cells at the working resolution. Change the resolution and re-derive
- * `strength` before judging a frame.
+ * cells on every row's grid (`SkinSpec.grid`). Ball sizes and smoothing are
+ * set in world units, so a grid change refines the polygons and keeps every
+ * shape.
  */
 
 /** Tracers the whole cast shares, divided once among its tracks (`pool.ts`). */
@@ -38,12 +39,11 @@ export const TURBULENCE_STRIDE = 3;
 
 /** The marching-cubes field and its chip mitigations. */
 export const VOLUME = {
-	/** Grid resolution per axis. The perf ladder's first rung moves this. */
-	res: 56,
 	/**
-	 * Base deposit strength before the per-element `strengthScale`. Sized so a
-	 * full-weight ball spans just over two grid cells at `res` (chip law):
-	 * radius = sqrt(strength * 0.6 / subtract) in grid-normalized units.
+	 * Base deposit strength before the per-element `strengthScale`, in
+	 * grid-normalized units: radius = sqrt(strength * 0.6 / subtract). A
+	 * full-weight ball spans 2.4 cells of the coarsest row grid (56) and 3.1 of
+	 * the finest (72), clear of the chip law's two.
 	 */
 	strength: 0.037,
 	subtract: 12,

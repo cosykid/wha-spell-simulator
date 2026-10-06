@@ -1,13 +1,41 @@
 /**
- * @file Deterministic value noise and curl for the CPU tracers. Hash-based, no
- * state, so a fresh replay and an incremental one sample the identical field.
- * Carried over from the approved prototype digit for digit.
+ * @file Deterministic value noise and curl for the CPU tracers. Hash-based,
+ * and its only state is a memo of pure hashes, so a fresh replay and an
+ * incremental one sample the identical field. Carried over from the approved
+ * prototype digit for digit.
  */
 
 function hash3(x: number, y: number, z: number): number {
 	let h = Math.sin(x * 127.1 + y * 311.7 + z * 74.7) * 43758.5453;
 	h -= Math.floor(h);
 	return h;
+}
+
+/**
+ * The lattice hash is a pure function of three integers, and a cast's tracers
+ * share a few hundred lattice points between them, so remembering each one
+ * spares nearly every `Math.sin`. A slot holds whichever point last landed in
+ * it and is checked against the full coordinate, so a remembered value is the
+ * value `hash3` would compute again.
+ */
+const MEMO_SLOTS = 4096;
+const memoAt = new Int32Array(MEMO_SLOTS * 3).fill(-0x80000000);
+const memoValue = new Float64Array(MEMO_SLOTS);
+
+function latticeHash(ix: number, iy: number, iz: number): number {
+	const slot =
+		(Math.imul(ix, 73856093) ^ Math.imul(iy, 19349663) ^ Math.imul(iz, 83492791)) &
+		(MEMO_SLOTS - 1);
+	const at = slot * 3;
+	if (memoAt[at] === ix && memoAt[at + 1] === iy && memoAt[at + 2] === iz) {
+		return memoValue[slot];
+	}
+	const value = hash3(ix, iy, iz);
+	memoAt[at] = ix;
+	memoAt[at + 1] = iy;
+	memoAt[at + 2] = iz;
+	memoValue[slot] = value;
+	return value;
 }
 
 function fade(t: number): number {
@@ -22,14 +50,14 @@ export function vnoise(x: number, y: number, z: number): number {
 	const fx = fade(x - ix);
 	const fy = fade(y - iy);
 	const fz = fade(z - iz);
-	const n000 = hash3(ix, iy, iz);
-	const n100 = hash3(ix + 1, iy, iz);
-	const n010 = hash3(ix, iy + 1, iz);
-	const n110 = hash3(ix + 1, iy + 1, iz);
-	const n001 = hash3(ix, iy, iz + 1);
-	const n101 = hash3(ix + 1, iy, iz + 1);
-	const n011 = hash3(ix, iy + 1, iz + 1);
-	const n111 = hash3(ix + 1, iy + 1, iz + 1);
+	const n000 = latticeHash(ix, iy, iz);
+	const n100 = latticeHash(ix + 1, iy, iz);
+	const n010 = latticeHash(ix, iy + 1, iz);
+	const n110 = latticeHash(ix + 1, iy + 1, iz);
+	const n001 = latticeHash(ix, iy, iz + 1);
+	const n101 = latticeHash(ix + 1, iy, iz + 1);
+	const n011 = latticeHash(ix, iy + 1, iz + 1);
+	const n111 = latticeHash(ix + 1, iy + 1, iz + 1);
 	const x00 = n000 + (n100 - n000) * fx;
 	const x10 = n010 + (n110 - n010) * fx;
 	const x01 = n001 + (n101 - n001) * fx;

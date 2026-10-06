@@ -1,7 +1,8 @@
 /**
  * @file The seal-space vector math `cast/` runs on. `utils/geometry.ts` owns the
- * in-plane (`Vector`) helpers; this is their three-component counterpart, kept
- * here because the score and the sim are its only callers.
+ * in-plane (`Vector`) helpers, and this is their three-component counterpart.
+ * It is kept here because `score/tracks/jet.ts` and `cells/jet.ts` are its only
+ * callers.
  */
 
 import type { Vec3 } from '../types.js';
