@@ -1,6 +1,6 @@
 /**
- * Law tests for the look table: how a row is resolved, and what the eight
- * material profiles argue about the substances they dress a cell's forms in.
+ * Law tests for the look table: how a row is resolved, and what the eight rows
+ * argue about their substances in their tints and in the numbers a cell reads.
  *
  * The rulings are cited by id from `docs/animation-spec.md`; the rest pin the
  * contracts in `docs/animation-redesign.md` section 5, chief among them that
@@ -84,9 +84,7 @@ const EVERY_ROW: LookTable = { ...LOOKS, inert: INERT_LOOKS };
 /** The material fields the contract declares as 0..1, so a range law can read them. */
 const UNIT_FIELDS = [
 	'emissive',
-	'opacity',
 	'garnishDensity',
-	'trailPersistence',
 	'flicker',
 	'undulation',
 	'weight'
@@ -182,7 +180,7 @@ test('every look in the table is drawable', () => {
 });
 
 // ---------------------------------------------------------------------------
-// Material profiles: the eight substances the cell stage dresses its forms in
+// Material profiles: the eight substances, in the numbers a cell reads
 // ---------------------------------------------------------------------------
 
 test('every material profile stays inside the contract its fields declare', () => {
@@ -193,8 +191,6 @@ test('every material profile stays inside the contract its fields declare', () =
 			assert.ok(value >= 0 && value <= 1, `${name} ${field} is outside 0..1`);
 		}
 		assert.ok(Number.isInteger(material.bands) && material.bands >= 0, `${name} bands`);
-		assert.ok(material.noiseScale >= 0, `${name} noiseScale`);
-		assert.ok(material.ribbonWidth > 0, `${name} has no ribbon to draw`);
 	}
 });
 
@@ -247,13 +243,7 @@ test('fire and light are the only self-lit rows, and light is the pure one', () 
 		assert.ok(row.material.emissive < 1, `${name} is a light source`);
 	}
 	// "A variant of the fire sigil" that "manifests as light rather than ordinary
-	// flame": light keeps fire's emission and drops fire's texture.
-	assert.equal(LIGHT_LOOKS.material.noiseScale, 0, 'light is the one unbroken surface');
-	assert.ok(
-		rivalMaterials(LIGHT_LOOKS).every((rival) => rival.noiseScale > 0),
-		'another row also refuses to break up'
-	);
-	assert.equal(LIGHT_LOOKS.material.edge, 'crisp');
+	// flame": light keeps fire's emission and drops fire's flicker.
 	assert.ok(LIGHT_LOOKS.material.flicker < FIRE_LOOKS.material.flicker);
 	assert.ok(
 		rivalMaterials(LIGHT_LOOKS).every((rival) => LIGHT_LOOKS.material.weight < rival.weight),
@@ -261,52 +251,46 @@ test('fire and light are the only self-lit rows, and light is the pure one', () 
 	);
 });
 
-test('earth is the heaviest matter and wind is the thinnest path', () => {
+test('earth is the heaviest matter and wind the lightest', () => {
 	// "Manipulates solid materials such as stone, sand, soil, and wood": matter
 	// first and light barely at all, which is what the `source-over` roles say.
-	assert.equal(EARTH_LOOKS.material.opacity, 1);
 	assert.equal(EARTH_LOOKS.material.weight, 1);
 	for (const rival of rivalMaterials(EARTH_LOOKS)) {
 		assert.ok(rival.weight < EARTH_LOOKS.material.weight, 'a row is as heavy as earth');
-		assert.ok(rival.opacity < EARTH_LOOKS.material.opacity, 'a row fills as solidly as earth');
 	}
-	assert.ok(EARTH_LOOKS.material.emissive < WATER_LOOKS.material.emissive);
+	for (const element of ELEMENTS) {
+		if (element === 'earth') continue;
+		const emissive = LOOKS[element].material.emissive;
+		assert.ok(emissive > EARTH_LOOKS.material.emissive, `${element} is as dim as earth`);
+	}
 	assert.equal(EARTH_LOOKS.material.bands, 0, 'nothing in an earth form is flowing');
 	// "Moves and manipulates air" and creates none, so the row is a path taken
-	// and not a thing made: nearly no fill, and the afterimage does the drawing.
-	for (const rival of rivalMaterials(WIND_LOOKS)) {
-		assert.ok(rival.opacity > WIND_LOOKS.material.opacity, 'a row is as empty as wind');
-		assert.ok(rival.ribbonWidth > WIND_LOOKS.material.ribbonWidth, 'a row is as thin as wind');
-		assert.ok(
-			rival.trailPersistence < WIND_LOOKS.material.trailPersistence,
-			'a row smears as long as wind'
-		);
+	// and not a thing made. There is no mass to accelerate, so only the two light
+	// sources weigh less.
+	for (const [name, row] of Object.entries(EVERY_ROW)) {
+		if (row === WIND_LOOKS || row === FIRE_LOOKS || row === LIGHT_LOOKS) continue;
+		assert.ok(row.material.weight > WIND_LOOKS.material.weight, `${name} is as light as wind`);
 	}
 });
 
 test('crystal is faceted where earth is a mass', () => {
-	// "Creates and manipulates crystalline objects": the object occludes nearly
-	// as hard as earth, and everything else parts company with it.
-	assert.ok(CRYSTAL_LOOKS.material.opacity < EARTH_LOOKS.material.opacity);
+	// "Creates and manipulates crystalline objects": a shard is heavy but smaller
+	// than a slab, and crystalline, so it is lit where earth is not.
 	assert.ok(CRYSTAL_LOOKS.material.weight < EARTH_LOOKS.material.weight);
 	assert.ok(CRYSTAL_LOOKS.material.emissive > EARTH_LOOKS.material.emissive);
-	assert.equal(CRYSTAL_LOOKS.material.edge, 'serrated');
 	// A lattice that waves is not a lattice, and a facet either catches the light
-	// or it does not, so this row is the still one that blinks hardest.
+	// or it does not, so this row is the still one and only a flame flickers harder.
 	assert.equal(CRYSTAL_LOOKS.material.undulation, 0);
 	assert.ok(
 		rivalMaterials(CRYSTAL_LOOKS).every((rival) => rival.undulation > 0),
 		'another row is as rigid as crystal'
 	);
-	assert.ok(CRYSTAL_LOOKS.material.flicker > EARTH_LOOKS.material.flicker);
+	for (const [name, row] of Object.entries(EVERY_ROW)) {
+		if (row === CRYSTAL_LOOKS || row === FIRE_LOOKS) continue;
+		const flicker = row.material.flicker;
+		assert.ok(flicker < CRYSTAL_LOOKS.material.flicker, `${name} glints as hard as crystal`);
+	}
 	assert.ok(CRYSTAL_LOOKS.material.flicker < FIRE_LOOKS.material.flicker, 'a glint is not a flame');
-	// A clod smears and a shard does not, said where the cell stage can read it.
-	assert.ok(
-		rivalMaterials(CRYSTAL_LOOKS).every(
-			(rival) => rival.trailPersistence > CRYSTAL_LOOKS.material.trailPersistence
-		),
-		'a row leaves as little afterimage as crystal'
-	);
 });
 
 test('aeroform is wind read as a volume rather than as a path', () => {
@@ -318,30 +302,22 @@ test('aeroform is wind read as a volume rather than as a path', () => {
 		if (row === AEROFORM_LOOKS) continue;
 		assert.ok(rowFall(row) > rowFall(AEROFORM_LOOKS), `${name} falls as gently as aeroform`);
 	}
-	assert.ok(
-		rivalMaterials(AEROFORM_LOOKS).every(
-			(rival) => rival.ribbonWidth < AEROFORM_LOOKS.material.ribbonWidth
-		),
-		'a row is as wide as aeroform'
-	);
-	assert.ok(AEROFORM_LOOKS.material.opacity > WIND_LOOKS.material.opacity);
+	// Air that was made has some body to it.
 	assert.ok(AEROFORM_LOOKS.material.weight > WIND_LOOKS.material.weight);
-	// Everything that made wind read as a path comes back down, and the slow
-	// swell of air that was made rather than moved is what is left.
+	// Everything that made wind read as a path comes back down, its motes too,
+	// since they witness air being moved. The slow swell of air that was made
+	// rather than moved is what is left.
 	assert.ok(AEROFORM_LOOKS.material.flicker < WIND_LOOKS.material.flicker);
-	assert.ok(AEROFORM_LOOKS.material.noiseScale < WIND_LOOKS.material.noiseScale);
-	assert.ok(AEROFORM_LOOKS.material.trailPersistence < WIND_LOOKS.material.trailPersistence);
+	assert.ok(AEROFORM_LOOKS.material.garnishDensity < WIND_LOOKS.material.garnishDensity);
 	assert.ok(AEROFORM_LOOKS.material.undulation > WIND_LOOKS.material.undulation);
 });
 
-test('R-11: the inert row is the faintest one, and its motion still reads', () => {
+test('R-11: the inert row is the faintest one', () => {
+	// Faint is not absent, but that half of R-11 is the score's to keep, and
+	// `spellScore.test.ts` pins it: every cast opens with a strike, and a seal
+	// that manifests nothing still gets a designed default.
 	for (const rival of rivalMaterials(INERT_LOOKS)) {
 		assert.ok(rival.emissive > INERT_LOOKS.material.emissive, 'a row is as dim as inert');
 		assert.ok(rival.garnishDensity > INERT_LOOKS.material.garnishDensity, 'a row throws as little');
-	}
-	// Faint is not absent. A seal that manifests nothing still has to show that
-	// something happened, so the afterimage outlasts every row that is matter.
-	for (const row of [WATER_LOOKS, EARTH_LOOKS, CRYSTAL_LOOKS]) {
-		assert.ok(INERT_LOOKS.material.trailPersistence > row.material.trailPersistence);
 	}
 });

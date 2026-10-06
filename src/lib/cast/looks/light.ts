@@ -6,10 +6,8 @@
  * The dictionary makes it "a variant of the fire sigil" that "manifests as light
  * rather than ordinary flame or heat", so its material is fire with everything
  * but the emission taken away. It keeps fire's full emission and drops fire's
- * texture: it is the one row with no procedural break-up at all, it does not
- * flicker, it is unbanded, and its edge is crisp, because a beam ends where it
- * ends. Weight is the table's minimum, since light has no body to accelerate,
- * and its afterimage is long, because a glow outlives the thing that made it.
+ * flicker, and like fire it is unbanded. Weight is the table's minimum, since
+ * light has no body to accelerate.
  */
 
 import type { LookRow } from './look.js';
@@ -21,13 +19,8 @@ const GOLD = [244, 214, 118] as const;
 export const LIGHT_LOOKS: LookRow = {
 	material: {
 		emissive: 1,
-		opacity: 0.45,
-		edge: 'crisp',
 		bands: 0,
-		noiseScale: 0,
-		ribbonWidth: 0.2,
 		garnishDensity: 0.45,
-		trailPersistence: 0.7,
 		flicker: 0.12,
 		undulation: 0.3,
 		weight: 0.05

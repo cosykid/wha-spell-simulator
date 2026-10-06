@@ -183,10 +183,10 @@ data, and the moment data can reach behavior an art fix starts arriving as a
 physics term again, which is the root cause the table exists to kill.
 
 **A look tint paints nothing on its own.** Neither style reads one. The stage
-hands the resolved row to its cells, and they read a few of its `material` fields
-for what only a cell can decide (a turning hold's arm count from `bands`, a
-burst's `weight`). How a row is painted lives in the volume's own tables, with
-color and wash in `volume/pigment.ts` and motion and fusing in
+hands the resolved row to its cells, and they read its `material` fields for
+what only a cell can decide (a turning hold's arm count from `bands`, a burst's
+`weight`). Every field has a reader. How a row is painted lives in the volume's
+own tables, with color and wash in `volume/pigment.ts` and motion and fusing in
 `volume/elements.ts`. Those were derived from the look tints and never read them,
 so an art change lands there.
 
@@ -201,15 +201,15 @@ table row.
 element rows, `crystal` above earth, `aeroform` above wind. Both are argued from
 the dictionary's `sourceNotes`, not from taste. Crystal "creates and manipulates
 crystalline objects", so it keeps earth's occluding `source-over` on the matter
-roles and earth's serrated edge, and parts company everywhere else (cool tints,
-the widest core-to-edge fall in the table and the shortest afterimage there is).
+roles and parts company everywhere else (cool tints, the widest core-to-edge fall
+in the table, no undulation at all and the hardest flicker short of fire's).
 Aeroform "creates and manipulates air, but does not itself move that air", so it
 is wind read as a volume rather than as a path (the shallowest fall in the table
-against wind's, the widest ribbon against wind's narrowest, and several times its
-fill). Those two rows are PDF defect I closed: they were unrepresentable while
-looks keyed on element, and adding them touched nothing but `table.ts`. That is
-the whole claim the layer makes. The volume now carries both rows' painted
-identity in rows of its own.
+against wind's, more weight, and a fraction of wind's flicker and garnish). Those
+two rows are PDF defect I closed: they were unrepresentable while looks keyed on
+element, and adding them touched nothing but `table.ts`. That is the whole claim
+the layer makes. The volume now carries both rows' painted identity in rows of
+its own.
 
 **The stage owns no portal numbers.** The camera in
 [`stage/portalCamera.ts`](stage/portalCamera.ts) is read off the portal's own

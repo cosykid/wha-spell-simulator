@@ -282,10 +282,16 @@ states the two-style law the classic restoration recorded in
 already named `volume/`, and `looks/look.ts`'s `@file` now names
 `cast/volume/` in its import wall too.
 
-One stale pointer is still open. `looks/look.ts` describes `MaterialProfile`
-in the cell stage's terms (ribbons, sheets, additive glow), and five of its
-fields (`opacity`, `edge`, `noiseScale`, `ribbonWidth`, `trailPersistence`)
-have had no reader since this rework.
+The one stale pointer the guide refresh left open closed the same day. Five
+`MaterialProfile` fields (`opacity`, `edge`, `noiseScale`, `ribbonWidth`,
+`trailPersistence`) had no reader since this rework, and `looks/look.ts` still
+described the profile in the cell stage's terms (ribbons, sheets, additive
+glow). The five are retired rather than kept as an art record, because the
+volume's tables contradict several of them: it paints aeroform thinner than
+wind, where the record gave aeroform several times wind's fill. The profile
+keeps the six fields a cell reads and names each one's reader. The eight rows,
+`tests/castLooks.test.ts` and the cast guide's seven-rows paragraph argue only
+from those six and the tints.
 
 ## What is deferred
 

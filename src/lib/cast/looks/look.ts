@@ -10,8 +10,8 @@
  * `no-restricted-imports` rule in `eslint.config.js` says so out loud.
  *
  * A row says two things and no more. The five role `Look`s carry color and
- * compositing, which is all a row may say about one part of a form. Everything
- * about form and motion texture is said once, for the whole row, on its
+ * compositing, which is all a row may say about one part of a form. What a cell
+ * may read off the row is said once, for the whole row, on its
  * `MaterialProfile`. The split is deliberate: the deleted 2D painter let a row
  * name a sprite and a pixel size, and those numbers only meant anything to that
  * one painter. What survives the renderer is color, so that is what a role
@@ -45,32 +45,27 @@ export interface Look {
 }
 
 /**
- * How the cell stage renders this row's ink: everything about form and motion
- * texture that a tint could not say. Colors stay on the role `Look`s and a
- * profile never repeats them. Specified in `docs/animation-cells.md`.
+ * The numbers a cell reads off its row, for the few things only the cell
+ * performing a track can decide. Every field has a reader in `cells/`, and a
+ * field that loses its last reader is deleted rather than kept as a record. How
+ * a row is painted lives in the volume's own tables, `volume/pigment.ts` and
+ * `volume/elements.ts`, which never read a profile.
  */
 export interface MaterialProfile {
-	/** 0..1, how much the form is its own light source; drives additive glow. */
+	/** 0..1, how far the row is its own light source. Sets the flash the intake reports. */
 	emissive: number;
-	/** 0..1, the body's fill: earth is a mass, wind is barely there. */
-	opacity: number;
-	/** Ink edge treatment on ribbons and sheets. */
-	edge: 'crisp' | 'feather' | 'serrated';
-	/** Phase-locked stripe count on flowing surfaces; 0 is unbanded. */
+	/**
+	 * How many arms a turning hold, or a vortex with no drawn fold, is born into.
+	 * Both cells keep it between three and six.
+	 */
 	bands: number;
-	/** Procedural break-up frequency, in seal units. */
-	noiseScale: number;
-	/** Base ribbon and tongue width, in seal units. */
-	ribbonWidth: number;
-	/** 0..1, spark and mote budget relative to the cell catalog's default. */
+	/** 0..1, how thick the ambient medium runs. The shimmer scales its emission on it. */
 	garnishDensity: number;
-	/** 0..1, afterimage lifetime scale. */
-	trailPersistence: number;
-	/** 0..1, high-frequency amplitude jitter: fire has it, water does not. */
+	/** 0..1, high-frequency jitter: fire has it, water does not. Strobes the intake's mouth. */
 	flicker: number;
-	/** 0..1, low-frequency waviness of forms: water has it, crystal does not. */
+	/** 0..1, low-frequency waviness: water has it, crystal does not. Sways the vortex's foot. */
 	undulation: number;
-	/** 0..1, apparent mass; biases attack and settle easing. */
+	/** 0..1, apparent mass. Slows the burst's shock at the strike and drags it with distance. */
 	weight: number;
 }
 

@@ -9,13 +9,12 @@
  * as deep, and its core-to-edge fall is the shallowest in the table, because a
  * shallow fall is what makes a mass read as soft rather than as a lit edge.
  *
- * The material reads the same sentence as a volume. Aeroform carries the widest
- * ribbon in the table against wind's narrowest, several times wind's fill, and
- * more weight, because air that was made has some body to it. Everything that
- * makes wind read as a path comes back down: a fraction of wind's flicker, a
- * fraction of its break-up, and a shorter afterimage, since a veil hangs where a
- * gust streaks. What survives is the swell, so undulation runs above wind's:
- * the only motion left in air that was made and not moved is a slow one.
+ * The material reads the same sentence as a volume. Aeroform carries more
+ * weight than wind, because air that was made has some body to it. Everything
+ * that makes wind read as a path comes back down: a fraction of wind's flicker,
+ * and a fraction of its garnish, since wind's motes witness air being moved and
+ * aeroform moves none. What survives is the swell, so undulation runs above
+ * wind's: the only motion left in air that was made and not moved is a slow one.
  */
 
 import type { LookRow } from './look.js';
@@ -30,13 +29,8 @@ const MIST = [156, 186, 198] as const;
 export const AEROFORM_LOOKS: LookRow = {
 	material: {
 		emissive: 0.22,
-		opacity: 0.35,
-		edge: 'feather',
 		bands: 2,
-		noiseScale: 0.6,
-		ribbonWidth: 0.42,
 		garnishDensity: 0.18,
-		trailPersistence: 0.5,
 		flicker: 0.05,
 		undulation: 0.62,
 		weight: 0.32

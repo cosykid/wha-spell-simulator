@@ -5,13 +5,10 @@
  * manipulates something visible even when it manifests nothing itself (R-11).
  *
  * The dictionary is explicit that the sigil "moves and manipulates air" and does
- * not create any, so the material has to draw a path taken rather than a thing
- * made. Its fill is the lowest in the table by a wide margin and its ribbon the
- * narrowest, which leaves the afterimage doing the drawing, so trail persistence
- * is the table's maximum. The motes it carries are the only witnesses that
- * anything moved, so the garnish budget stays generous while the form itself
- * stays nearly invisible. There is no mass to accelerate, so weight is near the
- * floor and gusts arrive the instant the drive does.
+ * not create any, so the row is a path taken rather than a thing made. The motes
+ * it carries are the only witnesses that anything moved, so the garnish budget
+ * stays generous. There is no mass to accelerate, so only the two light sources
+ * weigh less, and gusts arrive the instant the drive does.
  */
 
 import type { LookRow } from './look.js';
@@ -23,13 +20,8 @@ const DUST = [140, 186, 178] as const;
 export const WIND_LOOKS: LookRow = {
 	material: {
 		emissive: 0.18,
-		opacity: 0.08,
-		edge: 'feather',
 		bands: 5,
-		noiseScale: 2.6,
-		ribbonWidth: 0.045,
 		garnishDensity: 0.6,
-		trailPersistence: 0.9,
 		flicker: 0.3,
 		undulation: 0.55,
 		weight: 0.18
