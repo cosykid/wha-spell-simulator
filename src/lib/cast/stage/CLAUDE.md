@@ -2,7 +2,8 @@
 
 The stage: a `SpellScore` performed as cells on a WebGL canvas, through the
 portal's own camera. It is the bottom of the cast. Above it everything is timing
-and data; below it every cell draws its own form and nothing else.
+and data. Below it each cell writes only its channel's `TrackFlow`, and the
+volume paints the tracers they steer.
 
 `CastStage.render(spellIR, ring, timestamp, options)` kept the argument list of
 the Canvas2D engine it replaced, which is what made the cutover a swap at its

@@ -1,6 +1,6 @@
 /**
- * @file The seal-space root: the one `Group` every cell hangs under, and the one
- * place seal space becomes three.js world space.
+ * @file The seal-space root: the one `Group` the substrate's meshes hang under,
+ * and the one place seal space becomes three.js world space.
  *
  * Seal space (spec R-03) is origin at the ring center, one unit = the ring
  * radius, x right, y screen-down, z out of the paper. World space lays that seal
@@ -11,7 +11,7 @@
  * @example
  * const sealRoot = createSealRoot();
  * scene.add(sealRoot);
- * sealRoot.add(cell.group); // cell.group.position.set(x, y, z) is seal space
+ * sealRoot.add(volume.group); // everything under it is built in seal units
  */
 
 import * as THREE from 'three';
@@ -21,8 +21,9 @@ import * as THREE from 'three';
  *
  * Seal space is left-handed (x right, y down, z toward the viewer), so this
  * matrix has determinant -1 and every triangle under it winds the other way.
- * A cell that relies on face culling would show its inside; cells therefore
- * declare `side: THREE.DoubleSide` rather than reversing their own indices.
+ * A mesh that relied on face culling would show its inside, so the substrate's
+ * meshes declare `side: THREE.DoubleSide` rather than reversing their own
+ * indices.
  */
 export function createSealRoot(): THREE.Group {
 	const root = new THREE.Group();
