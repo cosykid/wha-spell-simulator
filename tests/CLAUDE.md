@@ -49,9 +49,9 @@ keyed on the [lab presets](../src/lib/ui/spellEffectLabPresets.ts). The field mo
 sit beside them died with `sampleFieldForce`.
 
 **Both golden tiers here are stage-only, and that is a decision rather than an
-omission.** The cast tier serializes a cell scene graph — per track, per form,
-every uniform a cell wrote — and the classic engine has no cells, no tracks and
-no forms to serialize. It also stands on a determinism contract classic cannot
+omission.** The cast tier serializes each cell's report and its channel's tracer
+digest, and the classic engine has no cells, no tracks and no tracers to
+serialize. It also stands on a determinism contract classic cannot
 satisfy: classic calls `Math.random` about eighty times across its renderers and
 would not be classic if it stopped. What pixels can say about it is said by the
 look tier's `classic-*` baselines in
