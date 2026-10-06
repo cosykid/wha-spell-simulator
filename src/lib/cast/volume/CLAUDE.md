@@ -62,22 +62,25 @@ Node for the golden tier:
 
 GPU half — three.js, owned by the stage:
 
-- [`volumeStage.ts`](volumeStage.ts) — the assembly: warm, attach, paint,
+- [`volumeStage.ts`](volumeStage.ts): the assembly. Warm, attach, paint,
   present, detach.
-- [`skin.ts`](skin.ts) — `VolumeSkin`: gathers a paint's deposits from the
-  live tracers, pulls them together, deposits them and repolygonizes, then
-  uploads only the vertices it wrote. It works through three parts:
-  - [`cohesion.ts`](cohesion.ts) — who keeps company with whom: each
+- [`skin.ts`](skin.ts): `VolumeSkin`, which gathers a paint's deposits from the
+  live tracers, pulls them together, deposits them on the attached row's grid
+  and repolygonizes, then uploads only the vertices it wrote. It works through
+  three parts:
+  - [`cohesion.ts`](cohesion.ts): who keeps company with whom, as each
     deposit's count and centroid inside the cohesion radius.
-  - [`marchingField.ts`](marchingField.ts) — the field and the box of it a
-    paint touched: the ball and sheet deposits, the smoothing and the wipe,
-    each walking only that box.
-  - [`polygonize.ts`](polygonize.ts) — marching cubes over that box,
-    triangle for triangle what three's `MarchingCubes` emits.
-- [`inkSkin.ts`](inkSkin.ts) — the watercolor-and-ink shader, one program per
+  - [`marchingField.ts`](marchingField.ts): the field and the box of it a
+    paint touched. The ball and sheet deposits, the smoothing and the wipe
+    each walk only that box, and `smoothingPasses` turns a row's reach into
+    passes on its grid.
+  - [`polygonize.ts`](polygonize.ts): marching cubes over that box, triangle
+    for triangle what three's `MarchingCubes` emits, on any grid up to the
+    finest a row asks for.
+- [`inkSkin.ts`](inkSkin.ts): the watercolor-and-ink shader, one program per
   element row.
-- [`groundWash.ts`](groundWash.ts) — the paper-contact circle.
-- [`ambient.ts`](ambient.ts) — the charge-beat washes over the shimmer
+- [`groundWash.ts`](groundWash.ts): the paper-contact circle.
+- [`ambient.ts`](ambient.ts): the charge-beat washes over the shimmer
   channel's tracers.
 
 ## Invariants and gotchas
