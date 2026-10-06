@@ -6,7 +6,7 @@
  * abandoned 3D attempts is a look table, because it is what stops an art fix
  * from being smuggled in as a physics term. That only holds while the data
  * cannot reach the behavior, so this directory may not import from
- * `compiler/plan/`, `cast/cells/` or `cast/stage/`, and one
+ * `compiler/plan/`, `cast/cells/`, `cast/stage/` or `cast/volume/`, and one
  * `no-restricted-imports` rule in `eslint.config.js` says so out loud.
  *
  * A row says two things and no more. The five role `Look`s carry color and
