@@ -6,7 +6,8 @@
  *
  * The per-element field shaping (`elements.ts` SKIN) is what makes water one
  * rounded mass and crystal deliberate facets: it shapes the FIELD, not the
- * color. Purely cosmetic — the tracers move unchanged; this only watches them.
+ * color, down to the grid it is polygonized on. Purely cosmetic — the tracers
+ * move unchanged; this only watches them.
  *
  * The chip law lives here: deposits below the binary cutoff are not made at
  * all, cohesion melts loners toward the crowd, and the height-melt upstream in
@@ -19,19 +20,20 @@
 import * as THREE from 'three';
 import { SPAN, TRACER_BUDGET, VOLUME, Z0 } from './tuning.js';
 import { Cohesion } from './cohesion.js';
-import { MarchingField } from './marchingField.js';
+import { MarchingField, smoothingPasses } from './marchingField.js';
 import { Polygonizer } from './polygonize.js';
-import type { SkinSpec } from './elements.js';
+import { FINEST_GRID, type SkinSpec } from './elements.js';
 import type { VolumeSubstrate } from './substrate.js';
 
-/** Triangles one paint may emit. The busiest cast measured stays under a tenth of it. */
+/** Triangles one paint may emit. The busiest lab cast measured stays under a third of it. */
 const MAX_TRIANGLES = 120000;
 const surfaceNormal = { x: 0, y: 0, z: 0 };
 
 export class VolumeSkin {
 	readonly mesh: THREE.Mesh<THREE.BufferGeometry, THREE.Material>;
-	readonly #field = new MarchingField(VOLUME.res);
-	readonly #polygonizer = new Polygonizer(VOLUME.res, MAX_TRIANGLES);
+	/** One field per grid a row has asked for, kept so a recast allocates nothing. */
+	readonly #fields = new Map<number, MarchingField>();
+	readonly #polygonizer = new Polygonizer(FINEST_GRID, MAX_TRIANGLES);
 	readonly #position: THREE.BufferAttribute;
 	readonly #normal: THREE.BufferAttribute;
 	readonly #candPos = new Float32Array(TRACER_BUDGET * 3);
@@ -40,6 +42,8 @@ export class VolumeSkin {
 	readonly #candNormal = new Float32Array(TRACER_BUDGET * 3);
 	readonly #cohesion = new Cohesion(TRACER_BUDGET, VOLUME.cohesionR / SPAN);
 	#spec: SkinSpec | null = null;
+	/** The attached row's field. */
+	#field = this.#fieldFor(FINEST_GRID);
 
 	constructor(material: THREE.Material) {
 		const geometry = new THREE.BufferGeometry();
@@ -65,9 +69,10 @@ export class VolumeSkin {
 		this.mesh.name = 'volume-skin';
 	}
 
-	/** Points the skin at one cast's element row. */
+	/** Points the skin at one cast's element row, on that row's grid. */
 	attach(spec: SkinSpec): void {
 		this.#spec = spec;
+		this.#field = this.#fieldFor(spec.grid);
 	}
 
 	detach(): void {
@@ -78,6 +83,15 @@ export class VolumeSkin {
 
 	dispose(): void {
 		this.mesh.geometry.dispose();
+	}
+
+	#fieldFor(grid: number): MarchingField {
+		let field = this.#fields.get(grid);
+		if (!field) {
+			field = new MarchingField(grid);
+			this.#fields.set(grid, field);
+		}
+		return field;
 	}
 
 	/** Re-deposit every visible tracer as a smeared metaball and re-polygonize. */
@@ -142,7 +156,8 @@ export class VolumeSkin {
 				);
 			}
 		}
-		for (let k = 0; k < spec.smoothPasses; k += 1) this.#field.smooth(spec.smooth);
+		const smoothing = smoothingPasses((spec.smoothing * spec.grid) / SPAN);
+		for (let k = 0; k < smoothing.passes; k += 1) this.#field.smooth(smoothing.intensity);
 		this.#upload(this.#polygonizer.run(this.#field, VOLUME.isolation * spec.isoScale));
 	}
 

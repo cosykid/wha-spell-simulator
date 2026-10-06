@@ -405,13 +405,22 @@ export const MOTION: Record<VolumeElement, MotionSpec> = {
  * loner floor is the one row where standing facets are a choice.
  */
 export interface SkinSpec {
+	/**
+	 * Marching-cubes cells per axis. Finer turns the smallest blobs round where
+	 * a coarser grid chips them, and the work grows with its cube.
+	 */
+	grid: number;
 	/** Multiplier on the polygonizer's isolation. Lower is fatter, merges sooner. */
 	isoScale: number;
 	/** Multiplier on the velocity smear. High turns fast beads into strands. */
 	smearScale: number;
-	/** Field diffusion intensity and passes. Bridges blobs into one surface. */
-	smooth: number;
-	smoothPasses: number;
+	/**
+	 * How far the field's smoothing reaches, in seal units (one standard
+	 * deviation along each axis). Bridges blobs into one surface. The skin
+	 * turns it into passes at the grid's resolution, so the bridge is the
+	 * same width at any grid.
+	 */
+	smoothing: number;
 	/** Multiplier on the cohesion pull toward the local centroid. */
 	cohesion: number;
 	/** Per-ball deposit weight. Wind's few streaks are fat so they fuse. */
@@ -424,19 +433,19 @@ export const SKIN: Record<VolumeElement, SkinSpec> = {
 	// The body stays raw lively metaballs, but an isolated ember melts away
 	// instead of rendering as a stray grid-sized chip.
 	fire: {
+		grid: 72,
 		isoScale: 1.0,
 		smearScale: 1.05,
-		smooth: 0.3,
-		smoothPasses: 1,
+		smoothing: 0.025,
 		cohesion: 0.5,
 		strengthScale: 1,
 		loner: 0.12
 	},
 	water: {
+		grid: 72,
 		isoScale: 0.5,
 		smearScale: 1.5,
-		smooth: 0.85,
-		smoothPasses: 2,
+		smoothing: 0.059,
 		cohesion: 1,
 		strengthScale: 1,
 		loner: 0.45
@@ -444,21 +453,21 @@ export const SKIN: Record<VolumeElement, SkinSpec> = {
 	// Beads that ride a shared gust fuse into a ribbon; stragglers simply are
 	// not there. The fat deposits are what make few streaks read as ribbons.
 	wind: {
+		grid: 72,
 		isoScale: 0.9,
 		smearScale: 1.15,
-		smooth: 0.55,
-		smoothPasses: 1,
+		smoothing: 0.034,
 		cohesion: 0.35,
 		strengthScale: 1.7,
 		loner: 0.12
 	},
-	// Fat compact blobs, no streaking, one smoothing pass: boulders that merge
+	// Fat compact blobs, no streaking, light smoothing: boulders that merge
 	// into rubble where they pile and stay rounded where they fly.
 	earth: {
+		grid: 72,
 		isoScale: 0.85,
 		smearScale: 0.5,
-		smooth: 0.35,
-		smoothPasses: 1,
+		smoothing: 0.027,
 		cohesion: 0.8,
 		strengthScale: 1.35,
 		loner: 0.3
@@ -466,42 +475,46 @@ export const SKIN: Record<VolumeElement, SkinSpec> = {
 	// A soft merged glow-mass with the longest smear in the table, so the rise
 	// reads as shafts. Softness comes from the field, never from bloom.
 	light: {
+		grid: 72,
 		isoScale: 0.75,
 		smearScale: 1.8,
-		smooth: 0.7,
-		smoothPasses: 1,
+		smoothing: 0.038,
 		cohesion: 0.55,
 		strengthScale: 1.2,
 		loner: 0.2
 	},
 	// The chip law leaned into on purpose: no smoothing, sparse cohesion, a
-	// high loner floor and chunky deposits, so growth reads faceted. Angular
-	// here is a choice; everywhere else it is the named failure.
+	// high loner floor, chunky deposits and the coarse grid that cuts them into
+	// facets, so growth reads faceted. Angular here is a choice; everywhere else
+	// it is the named failure.
 	crystal: {
+		grid: 56,
 		isoScale: 1.2,
 		smearScale: 0.9,
-		smooth: 0,
-		smoothPasses: 0,
+		smoothing: 0,
 		cohesion: 0.18,
 		strengthScale: 2.0,
 		loner: 0.55
 	},
 	aeroform: {
+		grid: 72,
 		isoScale: 0.7,
 		smearScale: 0.9,
-		smooth: 0.75,
-		smoothPasses: 1,
+		smoothing: 0.039,
 		cohesion: 0.6,
 		strengthScale: 1.5,
 		loner: 0.15
 	},
 	inert: {
+		grid: 72,
 		isoScale: 1.0,
 		smearScale: 0.8,
-		smooth: 0.4,
-		smoothPasses: 1,
+		smoothing: 0.029,
 		cohesion: 0.5,
 		strengthScale: 0.9,
 		loner: 0.2
 	}
 };
+
+/** The finest grid any row asks for, which the skin's buffers are sized to. */
+export const FINEST_GRID = Math.max(...Object.values(SKIN).map((row) => row.grid));

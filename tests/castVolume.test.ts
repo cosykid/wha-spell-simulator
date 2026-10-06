@@ -117,20 +117,26 @@ test('elements literally behave differently: the motion table is not a palette s
 });
 
 test('the chip law: deposits are big enough to render round or not made at all', () => {
-	// A full-weight metaball must span at least two grid cells at the working
-	// resolution, or it polygonizes as the angular chip the bake-off rejected.
-	const radiusCells = Math.sqrt((VOLUME.strength * 0.6) / VOLUME.subtract) * VOLUME.res;
-	assert.ok(radiusCells >= 2, `full ball spans ${radiusCells.toFixed(2)} cells`);
+	// A full-weight metaball must span at least two cells of its row's grid,
+	// or it polygonizes as the angular chip the bake-off rejected.
+	for (const element of ELEMENTS) {
+		const radiusCells = Math.sqrt((VOLUME.strength * 0.6) / VOLUME.subtract) * SKIN[element].grid;
+		assert.ok(radiusCells >= 2, `${element} full ball spans ${radiusCells.toFixed(2)} cells`);
+	}
 	assert.ok(VOLUME.cutoff >= 0.4, 'the binary deposit cutoff has been tuned away');
 	// Crystal is the one row allowed to keep its loners: facets are a choice
 	// there and only there.
 	for (const element of ELEMENTS) {
 		if (element !== 'crystal') {
 			assert.ok(SKIN[element].loner < 0.5, `${element} keeps chip-sized loners`);
+			assert.ok(
+				SKIN[element].grid > SKIN.crystal.grid,
+				`${element} cuts facets as coarse as crystal`
+			);
 		}
 	}
 	assert.ok(SKIN.crystal.loner >= 0.5);
-	assert.equal(SKIN.crystal.smoothPasses, 0);
+	assert.equal(SKIN.crystal.smoothing, 0);
 });
 
 test('rim inks run dark against their own washes: the contour is ink, never light', () => {

@@ -88,10 +88,11 @@ load-bearing: the binary deposit cutoff (`VOLUME.cutoff`; a deposit is big
 enough to render round or not made at all), the cohesion loner floor (isolated
 deposits melt instead of chipping), the steep crown melt in `tracers.ts` (a
 tip fades below the cutoff before it can freeze), and a base `strength` sized
-so a full ball clears two cells at `VOLUME.res`. Change the resolution and
-re-derive the strength before judging a frame. Crystal is the one row allowed
-to lean the other way, and `castVolume.test.ts` pins that it stays the only
-one.
+so a full ball clears two cells of every row's `SKIN` grid. Strength and
+`smoothing` are in world units, so a grid change refines the polygons and keeps
+every shape. Crystal is the one row allowed to lean the other way (it keeps its
+loners and the coarse 56 grid that cuts them into facets, where every other
+row runs 72), and `castVolume.test.ts` pins that it stays the only one.
 
 **Same medium merges.** Every non-shimmer channel deposits into the one field,
 so a burst and the column standing in it fuse — that is the physics, not a

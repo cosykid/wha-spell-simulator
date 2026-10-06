@@ -13,13 +13,14 @@ import * as THREE from 'three';
 import { MarchingCubes } from 'three/examples/jsm/objects/MarchingCubes.js';
 
 import { Cohesion } from '../src/lib/cast/volume/cohesion.js';
-import { MarchingField } from '../src/lib/cast/volume/marchingField.js';
+import { MarchingField, smoothingPasses } from '../src/lib/cast/volume/marchingField.js';
 import { Polygonizer } from '../src/lib/cast/volume/polygonize.js';
 import { depositSheet } from '../src/lib/cast/volume/sheetDeposit.js';
+import { FINEST_GRID, SKIN } from '../src/lib/cast/volume/elements.js';
 import { SPAN, VOLUME } from '../src/lib/cast/volume/tuning.js';
 import { mulberry32 } from '../src/lib/cast/rng.js';
 
-const RES = VOLUME.res;
+const RES = FINEST_GRID;
 const ISOLATION = VOLUME.isolation;
 
 interface Ball {
@@ -47,8 +48,8 @@ function castLikeBalls(seed: number, count = 600): Ball[] {
 	return balls;
 }
 
-function referenceMesh(): MarchingCubes {
-	return new MarchingCubes(RES, new THREE.MeshBasicMaterial(), false, false, 120000);
+function referenceMesh(res = RES): MarchingCubes {
+	return new MarchingCubes(res, new THREE.MeshBasicMaterial(), false, false, 120000);
 }
 
 /** The whole-grid smoothing the skin ran before its passes were bounded. */
@@ -100,38 +101,74 @@ test('bounded smoothing writes what a whole-grid pass writes', () => {
 	assertSameFloats(field.values, expected, 'smoothed field');
 });
 
-test("the polygonizer emits three's triangles, in three's order", () => {
-	for (const [seed, passes] of [
-		[3, 0],
-		[5, 2]
-	] as const) {
-		const field = new MarchingField(RES);
-		for (const ball of castLikeBalls(seed)) {
-			field.addBall(ball.x, ball.y, ball.z, ball.strength, VOLUME.subtract);
+/** The field's variance along x, in square cells. */
+function varianceAlongX(values: Float32Array, res: number): number {
+	let mass = 0;
+	let first = 0;
+	let second = 0;
+	for (let i = 0; i < values.length; i += 1) {
+		const x = i % res;
+		mass += values[i];
+		first += values[i] * x;
+		second += values[i] * x * x;
+	}
+	const mean = first / mass;
+	return second / mass - mean * mean;
+}
+
+test('smoothing reaches the same distance in seal units at any grid', () => {
+	// Each pass adds its kernel's variance to the field's, so the passes for
+	// one reach must add that reach squared, in seal units, whatever the grid.
+	const reach = 0.06;
+	for (const res of [56, 72, 96]) {
+		const cell = SPAN / res;
+		const { passes, intensity } = smoothingPasses(reach / cell);
+		assert.ok(intensity > 0 && intensity <= 1, `${res}: intensity ${intensity}`);
+		const field = new MarchingField(res);
+		field.addBall(0.5, 0.5, 0.5, VOLUME.strength, VOLUME.subtract);
+		const before = varianceAlongX(field.values, res);
+		for (let k = 0; k < passes; k += 1) field.smooth(intensity);
+		const added = (varianceAlongX(field.values, res) - before) * cell * cell;
+		assert.ok(Math.abs(added - reach * reach) < reach * reach * 1e-3, `${res}: added ${added}`);
+	}
+});
+
+test("the polygonizer emits three's triangles, in three's order, on every row's grid", () => {
+	// One polygonizer serves every grid through the same buffers, as the skin's does.
+	const polygonizer = new Polygonizer(RES, 120000);
+	for (const grid of new Set(Object.values(SKIN).map((row) => row.grid))) {
+		for (const [seed, passes] of [
+			[3, 0],
+			[5, 2]
+		] as const) {
+			const label = `grid ${grid} seed ${seed}`;
+			const field = new MarchingField(grid);
+			for (const ball of castLikeBalls(seed)) {
+				field.addBall(ball.x, ball.y, ball.z, ball.strength, VOLUME.subtract);
+			}
+			for (let k = 0; k < passes; k += 1) field.smooth(0.5);
+			const vertices = polygonizer.run(field, ISOLATION);
+
+			const mesh = referenceMesh(grid);
+			mesh.reset();
+			(mesh.field as Float32Array).set(field.values);
+			mesh.isolation = ISOLATION;
+			mesh.update();
+
+			assert.ok(vertices > 1000, `${label} should skin a real surface, got ${vertices}`);
+			assert.equal(vertices, mesh.count, `${label}: vertex count`);
+			const used = vertices * 3;
+			assertSameFloats(
+				polygonizer.positions.subarray(0, used),
+				mesh.positionArray.subarray(0, used),
+				`${label} positions`
+			);
+			assertSameFloats(
+				polygonizer.normals.subarray(0, used),
+				mesh.normalArray.subarray(0, used),
+				`${label} normals`
+			);
 		}
-		for (let k = 0; k < passes; k += 1) field.smooth(0.5);
-		const polygonizer = new Polygonizer(RES, 120000);
-		const vertices = polygonizer.run(field, ISOLATION);
-
-		const mesh = referenceMesh();
-		mesh.reset();
-		(mesh.field as Float32Array).set(field.values);
-		mesh.isolation = ISOLATION;
-		mesh.update();
-
-		assert.ok(vertices > 1000, `seed ${seed} should skin a real surface, got ${vertices}`);
-		assert.equal(vertices, mesh.count, `seed ${seed}: vertex count`);
-		const used = vertices * 3;
-		assertSameFloats(
-			polygonizer.positions.subarray(0, used),
-			mesh.positionArray.subarray(0, used),
-			`seed ${seed} positions`
-		);
-		assertSameFloats(
-			polygonizer.normals.subarray(0, used),
-			mesh.normalArray.subarray(0, used),
-			`seed ${seed} normals`
-		);
 	}
 });
 

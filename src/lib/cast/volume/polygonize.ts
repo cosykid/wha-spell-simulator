@@ -9,10 +9,12 @@
  * a gradient normal is computed once per paint instead of once per sentinel
  * miss.
  *
- * Positions come out in the mesh's local cube, `[-1, 1)` on each axis.
+ * Positions come out in the mesh's local cube, `[-1, 1)` on each axis, whatever
+ * the grid, so one polygonizer sized for the finest grid serves every coarser
+ * one through the same output buffers.
  *
  * @example
- * const polygonizer = new Polygonizer(field.res, 120000);
+ * const polygonizer = new Polygonizer(72, 120000);
  * const vertices = polygonizer.run(field, 60);
  * geometry.setDrawRange(0, vertices);
  */
@@ -28,26 +30,33 @@ type Axis = typeof X | typeof Y | typeof Z;
 export class Polygonizer {
 	readonly positions: Float32Array;
 	readonly normals: Float32Array;
-	readonly #res: number;
+	readonly #maxRes: number;
 	readonly #normalCache: Float32Array;
 	/** Which paint last filled each cell's normal, so the cache needs no wipe. */
 	readonly #normalPaint: Uint32Array;
 	readonly #vlist = new Float32Array(36);
 	readonly #nlist = new Float32Array(36);
+	/** The grid of the field being polygonized. */
+	#res = 0;
 	#paint = 0;
 
-	constructor(res: number, maxTriangles: number) {
-		this.#res = res;
+	/** Buffers for fields up to `maxRes` cells per axis. */
+	constructor(maxRes: number, maxTriangles: number) {
+		this.#maxRes = maxRes;
 		this.positions = new Float32Array(maxTriangles * 9);
 		this.normals = new Float32Array(maxTriangles * 9);
-		this.#normalCache = new Float32Array(res ** 3 * 3);
-		this.#normalPaint = new Uint32Array(res ** 3);
+		this.#normalCache = new Float32Array(maxRes ** 3 * 3);
+		this.#normalPaint = new Uint32Array(maxRes ** 3);
 	}
 
 	/** Polygonizes the field at `isolation` and returns how many vertices it wrote. */
 	run(field: MarchingField, isolation: number): number {
+		if (field.res > this.#maxRes) {
+			throw new Error(`a ${field.res} grid overruns buffers sized for ${this.#maxRes}`);
+		}
 		this.#paint += 1;
 		if (field.empty) return 0;
+		this.#res = field.res;
 		const res = this.#res;
 		const res2 = res * res;
 		const half = res / 2;

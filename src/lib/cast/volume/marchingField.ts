@@ -11,7 +11,7 @@
  * the field is bit-identical to the one that class builds.
  *
  * @example
- * const field = new MarchingField(56);
+ * const field = new MarchingField(72);
  * field.wipe();
  * field.addBall(0.5, 0.5, 0.2, 0.02, 12);
  * field.smooth(0.5);
@@ -31,6 +31,21 @@ export interface CellBox {
 
 export function emptyBox(): CellBox {
 	return { x0: Infinity, x1: -Infinity, y0: Infinity, y1: -Infinity, z0: Infinity, z1: -Infinity };
+}
+
+/**
+ * The smoothing passes that reach `cells` grid cells, one standard deviation
+ * along each axis. A pass of intensity `s` adds `s / 3` square cells of
+ * variance, so a finer grid needs more passes to reach as far. Each pass stays
+ * at or under 1, where the kernel is still an average of its neighbours.
+ *
+ * @example
+ * smoothingPasses(0.75); // { passes: 2, intensity: 0.84375 }
+ */
+export function smoothingPasses(cells: number): { passes: number; intensity: number } {
+	const variance = 3 * cells * cells;
+	const passes = Math.max(0, Math.ceil(variance - 1e-9));
+	return { passes, intensity: passes > 0 ? variance / passes : 0 };
 }
 
 export class MarchingField {
