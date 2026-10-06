@@ -262,43 +262,23 @@ canvas-resize` — all pass, under the default (SwiftShader) config; the two
   was.
 - DB specs stay skipped (`E2E_DB` off).
 
-## Pending `cast/CLAUDE.md` text
+## `cast/CLAUDE.md` text, applied 2026-10-06
 
-`src/lib/cast/CLAUDE.md` carries another session's uncommitted work, so its
-text is deferred here the way the hybrid rework deferred its own. When that
-file is next edited:
+This section held the guide text this rework could not write while
+`src/lib/cast/CLAUDE.md` carried another session's work. It has landed. The
+guide names the tracer volume as the performer below the score, maps
+`volume/` and `classic/`, replaces the "new form" recipe with
+`volume/CLAUDE.md`'s, names `cast/volume` in the looks import wall, and says
+the hold keeps its mass by containment rather than by pausing ages. It also
+states the two-style law the classic restoration recorded in
+[`animation-redesign.md`](animation-redesign.md). The root `CLAUDE.md`
+already named `volume/`, and `looks/look.ts`'s `@file` now names
+`cast/volume/` in its import wall too.
 
-Its "Below the score, the performer" paragraph should read:
-
-> **Below the score, the performer is a cell over a shared tracer volume** —
-> see [`../../../docs/animation-volume.md`](../../../docs/animation-volume.md).
-> A cell owns no geometry and no tracer loop: it writes its channel's
-> `TrackFlow` and the substrate in `cast/volume/` advects one seeded CPU
-> tracer population per track and skins every track's matter into one merged
-> marching-cubes body per element, shaded as flat watercolor washes with a
-> dark ink contour over a per-element ground wash. `cast/hybrid/` and the
-> parcel-brush vocabulary it held are gone. Everything from the score up is
-> unchanged in role.
-
-Its file map's `cells/` line should drop "`forms/` holds the geometry each
-cell is built from" (there are no forms), and the map should gain:
-
-> - [`volume/`](volume/CLAUDE.md) — the substrate every cell performs on: the
->   per-element behavior matrix, the CPU tracer populations, the marching-cubes
->   skin with its ink shader, the ground wash and the charge-beat ambient.
-
-Its "New form" extension recipe should be struck; the replacement is
-`volume/CLAUDE.md`'s recipes (a new element row is six table rows; a new
-mouth is a `SPAWN` case). Its note on the looks import wall should name
-`cast/volume` in the restricted list, which `eslint.config.js` already
-enforces. Its R-20 paragraph's "held parcels stop aging" sentence should say
-the grip contains and suspends weight (`gather` + `weightMul`) — the volume's
-hold keeps mass by containment rather than by pausing ages.
-
-Two stale pointers of the same standing: `looks/look.ts`'s `@file` (another
-session's WIP) references machinery this rework replaced, and the root
-`CLAUDE.md` cast list now names `volume/` (edited with this change, since it
-is not under the other session's diff).
+One stale pointer is still open. `looks/look.ts` describes `MaterialProfile`
+in the cell stage's terms (ribbons, sheets, additive glow), and five of its
+fields (`opacity`, `edge`, `noiseScale`, `ribbonWidth`, `trailPersistence`)
+have had no reader since this rework.
 
 ## What is deferred
 
