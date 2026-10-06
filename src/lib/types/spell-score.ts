@@ -264,7 +264,7 @@ export interface Track<K extends PrimitiveKind = PlayedKind> {
 	look: LookRole;
 	/**
 	 * The id of the `hold` track that captured this one, from a plan `Coupling`.
-	 * The sim's only cross-track path, and it exists because the plan declared it.
+	 * The stage's only cross-track path, and it exists because the plan declared it.
 	 */
 	capturedBy?: string;
 }

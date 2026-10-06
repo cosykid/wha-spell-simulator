@@ -12,9 +12,9 @@
  * missing skips with a hint rather than failing.
  *
  * The cast tier (`npm run test:golden`) is the primary gate, and it is
- * stage-only: it serializes a cell scene graph, and classic has no cells, no
- * tracks and no uniforms to serialize. This tier only catches what pixels can
- * say and motion cannot: colour, sprite, compositing.
+ * stage-only: it serializes each cell's report and its channel's tracer digest,
+ * and classic has no cells, no tracks and no tracers to serialize. This tier only
+ * catches what pixels can say and motion cannot: colour, sprite, compositing.
  */
 
 import { existsSync, readFileSync } from 'node:fs';

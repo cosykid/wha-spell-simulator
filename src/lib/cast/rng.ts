@@ -1,5 +1,5 @@
 /**
- * @file The cast's only source of randomness, and the hash that seeds it.
+ * @file The cast's seeded `Rng`, and the hash that seeds it.
  *
  * Salvaged from the `theorycrafting` branch. It sits at the root of `cast/`
  * beside `vec3.ts` because both halves need it: the score hashes a signature
@@ -7,7 +7,8 @@
  * There is one copy, so a stream can never disagree with the one a baseline was
  * recorded from.
  *
- * Nothing in `cast/` may call `Math.random` or read a clock.
+ * Nothing in the stage style may call `Math.random` or read a clock. The frozen
+ * classic engine calls `Math.random` by design, and `classic/CLAUDE.md` says why.
  *
  * @example
  * const rng = mulberry32(hashSeed(`${score.signature}:${trackIndex}`));
