@@ -105,13 +105,14 @@ asks for it. Two signals turn it on and both are test-only: `?castReadback=1`
 ([`readback.ts`](readback.ts)) and the lab's scripted-clock hook
 `?preset=<id>&frameMs=<n>`. Nothing in the app links to either.
 
-**Dispose is not optional, and a lost context is not a crash.** Cells own
-geometries, materials and textures that no garbage collector reclaims, so
-`reset()` removes and disposes every performer and `dispose()` gives the context
-back. A browser allows only a handful of live contexts, which is why the hosts
-dispose the stage when their canvas is swapped or their card closes. A restored
-context has no uploaded geometry, so `webglcontextrestored` rebuilds the cast
-rather than trusting what the last one left behind.
+**Dispose is not optional, and a lost context is not a crash.** The geometries,
+materials and textures that no garbage collector reclaims belong to
+[`VolumeStage`](../volume/volumeStage.ts), not to any cell. `dispose()` frees
+them and gives the context back. A browser allows only a handful of live
+contexts, which is why the hosts dispose the stage when their canvas is swapped
+or their card closes. A restored context has no uploaded geometry, so
+`webglcontextrestored` rebuilds the cast rather than trusting what the last one
+left behind.
 
 **A canvas that ever handed out a `2d` context can never host WebGL.** Nothing
 outside this directory may call `getContext` on the effect canvas. When the
@@ -144,8 +145,8 @@ under the seal root.
 - **New per-step work below the cells:** `advanceCells` takes a `StepListener`,
   and the stage is its only caller. The headless golden tier passes none, which
   is what keeps a cast performable in plain Node.
-- **Never from here:** a cell's internals (the stage reads `group`, `update`,
-  `dispose`, and the two optional coupling members, and nothing else) and the
+- **Never from here:** a cell's internals (the stage reads `update`, `dispose`,
+  and the two optional coupling members, and nothing else) and the
   look table (data, behind an ESLint wall — [`../CLAUDE.md`](../CLAUDE.md)).
 - **Iterate visually:** `/tools/spell-effect-lab`.
 

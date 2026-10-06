@@ -77,10 +77,9 @@ export interface CellConstraint {
 }
 
 /**
- * What a cell reached, as plain numbers. This is the whole of what the golden
- * tier and the probe table may read, and it is deliberately CPU-only: the mass
- * itself lives in a GPU texture no assertion can see, so what is asserted on is
- * the choreography that put it there.
+ * What a cell reached, as plain numbers, and the whole of what the probe table
+ * may read. The mass itself lives in the CPU tracers of the cell's channel
+ * (`volume/tracers.ts`), which the cast golden tier digests beside this report.
  */
 export interface CellReport {
 	/** How loudly this cell is painting, 0..1. Zero is silence, which R-01 requires. */
